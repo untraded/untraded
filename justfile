@@ -1,5 +1,8 @@
 # Run `just` to list recipes.
 
+# Windows has no `sh`: run recipes with PowerShell there (Linux/macOS keep sh).
+set windows-shell := ["powershell.exe", "-NoLogo", "-NoProfile", "-Command"]
+
 default:
     @just --list
 
