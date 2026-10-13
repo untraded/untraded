@@ -22,6 +22,16 @@ Hourly cron entry (adapt paths):
 7 * * * * cd /path/to/untraded && PATH=$HOME/.local/bin:$PATH just spike-valve >> spikes/S0.1-valve/out/cron.log 2>&1
 ```
 
+## Run in Docker (Portainer, any server, amd64 or arm64)
+
+`compose.yaml` runs the spike every hour in a container; demos, bot state and logs live in the `spike-valve-data` volume (`/data`).
+
+1. Run the spike once locally (`just spike-valve`) to get a refresh token: it is the `botRefreshToken` value in `.state.json`.
+2. Deploy `spikes/S0.1-valve/compose.yaml` (Portainer: *Stacks → Add stack → Repository*, or `docker compose up -d --build` in this directory) with these variables: `STEAM_WEB_API_KEY`, `PLAYER_STEAMID64`, `PLAYER_AUTH_CODE`, `BOT_ACCOUNT_NAME`, `BOT_REFRESH_TOKEN` and `PLAYER_INITIAL_SHARE_CODE` (the `knownShareCode` of your local `.state.json`, so already downloaded matches are skipped).
+3. Stop the local schedule: the same bot account must not run in two places.
+
+Logs: `docker compose logs -f` (or the container logs in Portainer). Measurements: `/data/out/matches.jsonl` in the volume.
+
 ## What we measure
 
 - delay between match end and demo availability (`minutesSinceEnd`);
