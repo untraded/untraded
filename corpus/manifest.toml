@@ -1,0 +1,15 @@
+# Reference demo corpus. Demo files are NEVER committed: they live in $UNTRADED_CORPUS_DIR
+# under their sha256 name (<sha256>.dem.zst). See corpus/README.md.
+#
+# [[demo]]
+# id = "premier-2026-10-14-mirage-01"   # stable, human-readable
+# source = "valve-premier"              # valve-premier | faceit | scrim | pro
+# map = "de_mirage"
+# played_at = "2026-10-14"
+# sha256 = "…"                          # of the decompressed .dem
+# bytes = 0                             # decompressed size
+# game_build = ""                       # from the demo header
+# public = false                        # only pro demos may be public
+# notes = ""
+
+schema_version = 1
