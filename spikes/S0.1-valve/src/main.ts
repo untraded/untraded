@@ -99,10 +99,13 @@ async function main(): Promise<void> {
           matchTime && durationS ? new Date(matchTime.getTime() + durationS * 1000) : undefined;
 
         if (!url) {
+          console.log(`${matchId}: no demo URL`);
           await log({ event: "no_demo_url", shareCode, matchId, gcSeconds });
         } else {
+          console.log(`${matchId}: downloading ${url}`);
           const destination = join(corpusDir, "inbox", `${matchId}.dem.bz2`);
           const download = await downloadDemo(url, destination);
+          console.log(`${matchId}: ${JSON.stringify(download)}`);
           await log({
             event: "match",
             shareCode,
@@ -115,12 +118,15 @@ async function main(): Promise<void> {
             gcSeconds,
             download,
           });
+          // Keep the known code where it is, so the next run retries (and resumes) this demo.
+          if (download.kind === "error") break;
         }
         state.processedShareCodes.push(shareCode);
         state.knownShareCode = shareCode;
         await saveState(STATE_PATH, state);
       } catch (error) {
         // Stop here: the known code is not advanced, so the next run retries this match.
+        console.error(`${matchId}: ${String(error)}`);
         await log({ event: "match_error", shareCode, matchId, error: String(error) });
         break;
       }

@@ -21,11 +21,21 @@ export interface BotSession {
   close(): void;
 }
 
-function withTimeout<T>(promise: Promise<T>, ms: number, what: string): Promise<T> {
+/** Rejects after `ms`, except while `paused()` is true (the deadline is pushed back meanwhile). */
+function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  what: string,
+  paused: () => boolean = () => false,
+): Promise<T> {
   return Promise.race([
     promise,
     new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error(`timeout after ${ms} ms: ${what}`)), ms).unref();
+      const check = () => {
+        if (paused()) setTimeout(check, ms).unref();
+        else reject(new Error(`timeout after ${ms} ms: ${what}`));
+      };
+      setTimeout(check, ms).unref();
     }),
   ]);
 }
@@ -50,8 +60,14 @@ export async function openBotSession(
   const user = new SteamUser({ autoRelogin: false });
   const csgo = new GlobalOffensive(user);
 
+  // Time spent typing the Steam Guard code must not count against the logon timeout.
+  let waitingForCode = false;
   user.on("steamGuard", (domain, callback, lastCodeWrong) => {
-    void askSteamGuardCode(domain, lastCodeWrong).then(callback);
+    waitingForCode = true;
+    void askSteamGuardCode(domain, lastCodeWrong).then((code) => {
+      waitingForCode = false;
+      callback(code);
+    });
   });
   user.on("refreshToken", (token) => {
     void onRefreshToken(token);
@@ -66,7 +82,7 @@ export async function openBotSession(
       ? { refreshToken: credentials.refreshToken }
       : { accountName: credentials.accountName, password: credentials.password },
   );
-  await withTimeout(loggedOn, GC_CONNECT_TIMEOUT_MS, "Steam logon");
+  await withTimeout(loggedOn, GC_CONNECT_TIMEOUT_MS, "Steam logon", () => waitingForCode);
 
   // Idempotent: grants the free CS2 license if the bot does not own it yet.
   await user.requestFreeLicense([CS2_APP_ID]);
