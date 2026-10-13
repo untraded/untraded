@@ -20,7 +20,7 @@ jobs:
           version=$(uv run --no-project python -c "import tomllib; print(tomllib.load(open('packages/untraded-py/pyproject.toml','rb'))['project']['version'])")
           test "py-v${version}" = "${GITHUB_REF_NAME}" || { echo "tag ${GITHUB_REF_NAME} != py-v${version}"; exit 1; }
       - run: uv build --package untraded --out-dir dist
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: dist
           path: dist/
