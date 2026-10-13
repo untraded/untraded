@@ -29,6 +29,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter untraded test
       - run: pnpm --filter untraded build
-      - run: npm install -g npm@latest # trusted publishing needs a recent npm CLI
-      - run: npm publish --provenance --access public
+      - run: npm install -g npm@latest # staged publishing needs npm >= 11.15
+      # Staged publishing: the version waits on npmjs.com until a maintainer approves it with 2FA,
+      # so a compromised CI cannot release on its own.
+      - run: npm stage publish --provenance --access public
         working-directory: packages/untraded-js

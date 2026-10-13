@@ -28,4 +28,4 @@ jobs:
           path-to-signatures: signatures/v1/cla.json
           branch: cla-signatures
           # Maintainers and bots do not need to sign. Add the maintainers' GitHub logins here.
-          allowlist: girardotn,dependabot[bot]
+          allowlist: GirardotN,dependabot[bot]
