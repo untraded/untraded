@@ -28,7 +28,7 @@ Licensing follows the [REUSE](https://reuse.software) specification: every file 
 
 ## Development
 
-Requirements: Python 3.14, Node.js 22+, [uv](https://docs.astral.sh/uv/), [pnpm](https://pnpm.io), [just](https://just.systems). With [mise](https://mise.jdx.dev), `mise install` sets everything up.
+Requirements: Python 3.14, Node.js 22+, [uv](https://docs.astral.sh/uv/), [pnpm](https://pnpm.io), [just](https://just.systems). With [mise](https://mise.jdx.dev), `mise install` sets everything up. Linux, macOS and Windows are supported (on Windows, `just` runs recipes with PowerShell).
 
 ```bash
 just install   # Python and TypeScript dependencies
