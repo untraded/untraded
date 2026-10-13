@@ -1,0 +1,35 @@
+# SPDX-FileCopyrightText: 2026 The Untraded Authors
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# Spike S0.1 as a long-running service (Docker Compose, Portainer "Repository" stacks).
+# Secrets come from the environment (Portainer stack variables or a .env next to this file),
+# never from git. Demos, bot state and logs live in the `spike-valve-data` volume.
+
+services:
+  spike-valve:
+    build:
+      context: ../..
+      dockerfile: spikes/S0.1-valve/Dockerfile
+    image: untraded/spike-valve:local
+    restart: unless-stopped
+    environment:
+      STEAM_WEB_API_KEY: ${STEAM_WEB_API_KEY:?set STEAM_WEB_API_KEY}
+      PLAYER_STEAMID64: ${PLAYER_STEAMID64:?set PLAYER_STEAMID64}
+      PLAYER_AUTH_CODE: ${PLAYER_AUTH_CODE:?set PLAYER_AUTH_CODE}
+      # Only read while the volume has no state yet.
+      PLAYER_INITIAL_SHARE_CODE: ${PLAYER_INITIAL_SHARE_CODE:-}
+      BOT_ACCOUNT_NAME: ${BOT_ACCOUNT_NAME:?set BOT_ACCOUNT_NAME}
+      # Refresh token from an existing .state.json: a container cannot prompt for Steam Guard.
+      BOT_REFRESH_TOKEN: ${BOT_REFRESH_TOKEN:-}
+      MAX_MATCHES_PER_RUN: ${MAX_MATCHES_PER_RUN:-20}
+      SPIKE_INTERVAL_SECONDS: ${SPIKE_INTERVAL_SECONDS:-3600}
+    volumes:
+      - spike-valve-data:/data
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+volumes:
+  spike-valve-data:

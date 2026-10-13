@@ -14,8 +14,10 @@ import { nextShareCode } from "./share-codes.js";
 import { loadState, saveState } from "./state.js";
 
 const SPIKE_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const STATE_PATH = join(SPIKE_DIR, ".state.json");
-const LOG_PATH = join(SPIKE_DIR, "out", "matches.jsonl");
+// State and logs live next to the spike by default, or in a mounted volume (Docker: /data).
+const DATA_DIR = process.env.SPIKE_DATA_DIR ?? SPIKE_DIR;
+const STATE_PATH = join(DATA_DIR, ".state.json");
+const LOG_PATH = join(DATA_DIR, "out", "matches.jsonl");
 const WEB_API_DELAY_MS = 1_500;
 const GC_DELAY_MS = 2_000;
 
@@ -36,7 +38,12 @@ async function main(): Promise<void> {
   try {
     process.loadEnvFile(join(SPIKE_DIR, ".env"));
   } catch {
-    throw new Error("no .env file: copy .env.example to .env in spikes/S0.1-valve and fill it in");
+    // No .env is fine when the variables come from the environment (Docker, Portainer).
+    if (!process.env.STEAM_WEB_API_KEY) {
+      throw new Error(
+        "no .env file: copy .env.example to .env in spikes/S0.1-valve and fill it in",
+      );
+    }
   }
   const apiKey = requireEnv("STEAM_WEB_API_KEY");
   const steamId = requireEnv("PLAYER_STEAMID64");
@@ -74,7 +81,8 @@ async function main(): Promise<void> {
     const gcStarted = performance.now();
     session = await openBotSession(
       {
-        refreshToken: state.botRefreshToken,
+        // BOT_REFRESH_TOKEN seeds a fresh volume, so no Steam Guard code is needed in a container.
+        refreshToken: state.botRefreshToken ?? process.env.BOT_REFRESH_TOKEN,
         accountName: requireEnv("BOT_ACCOUNT_NAME"),
         password: process.env.BOT_PASSWORD ?? "",
       },
