@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: 2026 The Untraded Authors
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Never send local secrets, state, demos or build artefacts to the Docker daemon.
+**/node_modules
+**/.env
+**/.state.json
+**/out
+**/*.dem
+**/*.dem.*
+.git
+.venv
+**/__pycache__
+**/.mypy_cache
+**/.pytest_cache
+**/.ruff_cache
+**/.hypothesis
