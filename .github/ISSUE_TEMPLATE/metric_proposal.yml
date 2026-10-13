@@ -1,0 +1,17 @@
+name: Metric proposal
+description: Propose a new metric or a change to a definition
+labels: [metrics]
+body:
+  - type: textarea
+    id: definition
+    attributes:
+      label: Definition
+      description: Exact definition, parameters with defaults, and the data it needs.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Which decision or advice does it serve?
+    validations:
+      required: true

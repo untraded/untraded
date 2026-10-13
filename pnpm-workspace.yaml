@@ -1,0 +1,9 @@
+packages:
+  - packages/*
+  - apps/*
+  - spikes/*
+
+# Dependency lifecycle scripts are blocked unless listed here (supply-chain hardening).
+allowBuilds:
+  esbuild: true
+  protobufjs: false

@@ -1,0 +1,15 @@
+version = 1
+
+# Default for files without an SPDX header: AGPL-3.0-only.
+[[annotations]]
+path = "**"
+precedence = "closest"
+SPDX-FileCopyrightText = "2026 The Untraded Authors"
+SPDX-License-Identifier = "AGPL-3.0-only"
+
+# Reusable libraries are MIT. Later annotations take precedence over earlier ones.
+[[annotations]]
+path = "packages/**"
+precedence = "closest"
+SPDX-FileCopyrightText = "2026 The Untraded Authors"
+SPDX-License-Identifier = "MIT"

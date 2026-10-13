@@ -1,0 +1,65 @@
+# Workspace root: not a package. Members are installed with `uv sync --all-packages`.
+[project]
+name = "untraded-workspace"
+version = "0.0.0"
+requires-python = ">=3.14"
+dependencies = ["untraded"]
+
+[dependency-groups]
+dev = [
+    "hypothesis==6.169.0",
+    "mypy==2.4.0",
+    "pytest==9.1.1",
+    "reuse==6.2.0",
+    "ruff==0.17.0",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["packages/untraded-py", "spikes/S0.2-parsing"]
+
+[tool.uv.sources]
+untraded = { workspace = true }
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "B",    # bugbear
+    "C4",   # comprehensions
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "I",    # isort
+    "N",    # naming
+    "PT",   # pytest style
+    "PTH",  # pathlib
+    "RUF",
+    "SIM",
+    "TID",  # tidy imports
+    "UP",   # pyupgrade
+    "W",    # pycodestyle warnings
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["untraded"]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"demoparser2".msg = "Only untraded.parsing may import demoparser2 (ADR 0002)."
+"pandas".msg = "pandas never leaves the parsing adapter; use polars (ADR 0002)."
+
+[tool.ruff.lint.per-file-ignores]
+"spikes/**" = ["TID251"]
+"packages/untraded-py/src/untraded/parsing/**" = ["TID251"]
+
+[tool.mypy]
+strict = true
+python_version = "3.14"
+files = ["packages/untraded-py/src", "packages/untraded-py/tests"]
+
+[tool.pytest.ini_options]
+testpaths = ["packages/untraded-py/tests"]
+addopts = ["--strict-markers", "--strict-config"]

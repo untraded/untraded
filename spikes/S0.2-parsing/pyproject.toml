@@ -1,0 +1,13 @@
+[project]
+name = "s0-2-parsing"
+version = "0.0.0"
+description = "Spike S0.2: what CS2 demos contain and what parsing them costs."
+requires-python = ">=3.14"
+dependencies = [
+    "demoparser2==0.42.0",
+    "polars==2.0.0",
+    "pyarrow==26.0.0",
+]
+
+[tool.uv]
+package = false

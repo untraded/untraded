@@ -1,0 +1,34 @@
+{
+  "name": "untraded",
+  "version": "0.0.2",
+  "description": "Open, transparent Counter-Strike 2 match metrics.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "LICENSE", "README.md"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "prepublishOnly": "pnpm build"
+  },
+  "keywords": ["counter-strike", "cs2", "esports", "analytics", "demo"],
+  "homepage": "https://github.com/untraded/untraded",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/untraded/untraded.git",
+    "directory": "packages/untraded-js"
+  },
+  "bugs": "https://github.com/untraded/untraded/issues",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "vitest": "5.0.4"
+  }
+}
