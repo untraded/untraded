@@ -105,8 +105,17 @@ def peak_rss_mb() -> float:
 
         counters = Counters()
         counters.cb = ctypes.sizeof(counters)
-        handle = ctypes.windll.kernel32.GetCurrentProcess()
-        ctypes.windll.psapi.GetProcessMemoryInfo(handle, ctypes.byref(counters), counters.cb)
+        # Without restype/argtypes, ctypes truncates the pseudo-handle (-1) to a 32-bit int: the
+        # call then fails with ERROR_INVALID_HANDLE and every peak reads as 0.
+        kernel32 = ctypes.WinDLL("kernel32")
+        kernel32.GetCurrentProcess.restype = wintypes.HANDLE
+        psapi = ctypes.WinDLL("psapi")
+        psapi.GetProcessMemoryInfo.argtypes = [wintypes.HANDLE, ctypes.c_void_p, wintypes.DWORD]
+        psapi.GetProcessMemoryInfo.restype = wintypes.BOOL
+        if not psapi.GetProcessMemoryInfo(
+            kernel32.GetCurrentProcess(), ctypes.byref(counters), counters.cb
+        ):
+            raise ctypes.WinError()
         return counters.PeakWorkingSetSize / (1024 * 1024)
 
     import resource
@@ -217,7 +226,7 @@ def main() -> None:
 
     reports: list[dict[str, Any]] = []
     for demo in demos:
-        print(f"→ {demo.name}", flush=True)
+        print(f"-> {demo.name}", flush=True)  # ASCII: the Windows console may be cp1252
         # One fresh process per demo so ru_maxrss is that demo's peak.
         with ProcessPoolExecutor(max_workers=1, mp_context=get_context("spawn")) as pool:
             try:
