@@ -1,6 +1,6 @@
 # 0005. Storage layout
 
-- Status: Accepted
+- Status: Superseded by [0009](0009-storage-and-retention.md)
 - Date: 2026-10-13
 
 ## Context

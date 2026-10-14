@@ -35,10 +35,11 @@ Run `just check` before every commit.
    - changing a formula bumps the metric version; never change behaviour silently;
    - definitions in `docs/metrics-v1.md` are the spec — update the spec and the code in the same PR.
 5. **Parser isolation** (ADR 0002): only `untraded.parsing` may import `demoparser2`. Everything else works on canonical Polars tables. pandas never leaves the adapter.
-6. **Never assume the tickrate.** Read it from the demo header; convert ticks to seconds explicitly.
-7. **No secrets, demos or personal data in git.** `.env` files are ignored; demos stay in `$UNTRADED_CORPUS_DIR`. Test fixtures must be anonymized canonical extracts.
-8. **Quality bar is high everywhere**: `mypy --strict` and TypeScript `strict` pass with zero errors; new code comes with tests. Spikes are the only exception (ruff and Biome still apply).
-9. Prefer small, reviewable changes. Do not add dependencies without a reason stated in the PR.
+6. **Never assume the tickrate.** Compute it from the demo (the header does not carry it); convert ticks to seconds explicitly.
+7. **Rounds come from game state, events are optional** (ADR 0008): cut rounds with the game rules props, check `list_game_events()` per demo, and use the documented fallbacks when an event is missing.
+8. **No secrets, demos or personal data in git.** `.env` files are ignored; demos stay in `$UNTRADED_CORPUS_DIR`. Test fixtures must be anonymized canonical extracts.
+9. **Quality bar is high everywhere**: `mypy --strict` and TypeScript `strict` pass with zero errors; new code comes with tests. Spikes are the only exception (ruff and Biome still apply).
+10. Prefer small, reviewable changes. Do not add dependencies without a reason stated in the PR.
 
 ## Domain notes
 

@@ -5,7 +5,7 @@
 **Legend**
 - **ID**: stable registry identifier. It never changes, even when the formula's version does.
 - **CSDM**: ✅ cross-checked against CS Demo Manager in phase 1; ≈ comparable with a known definition difference; — no equivalent.
-- **⚙** adjustable parameter with its default. **🎯** v0 threshold, to calibrate on the pro corpus.
+- **⚙** adjustable parameter with its default. **🎯** v0 threshold, to calibrate on demos from consenting high-level players ([ADR 0010](adr/0010-reference-data-and-corpus.md)).
 
 ---
 
@@ -13,7 +13,7 @@
 
 | Topic | Rule |
 |---|---|
-| Tickrate | Read from the demo header (64 in matchmaking and FACEIT), **never assumed**. All durations are converted from ticks to seconds. |
+| Tickrate | Computed from each demo (64 in every demo seen so far), **never assumed**: the header does not carry it ([ADR 0008](adr/0008-rounds-from-game-state.md)). All durations are converted from ticks to seconds. |
 | Rounds played | Rounds where the player was connected and on a team at freeze-time end. Warmup, knife rounds and cancelled or replayed rounds are excluded. |
 | Side | The player's team side at round start. Every metric exists overall, **CT** and **T**. |
 | Kills | Enemy kills only. Team kills and suicides are counted separately (`base.team_kills`, `base.suicides`). |
@@ -131,7 +131,7 @@
 | `rating.hltv1` | HLTV Rating 1.0 | (KillRating + 0.7 × SurvivalRating + MultiKillRating) / 2.7, with reference averages 0.679, 0.317 and 1.277 (public formula). Already implemented and published in `untraded` 0.0.1. | ✅ |
 | `rating.hltv2_approx` | HLTV 2.0 (approx.) | 0.0073 × KAST + 0.3591 × KPR − 0.5329 × DPR + 0.2372 × Impact + 0.0032 × ADR + 0.1587, with Impact = 2.13 × KPR + 0.42 × APR − 0.41 and KAST in %. **Always labeled "approx."** | ≈ |
 
-The **open Untraded rating**, based on round win probability, is outside this catalog. It arrives in phase 2 and is trained on the pro corpus prepared in phase 1.
+The **open Untraded rating**, based on round win probability, is outside this catalog. It arrives in phase 2 and is trained on demos from consenting high-level players ([ADR 0010](adr/0010-reference-data-and-corpus.md)).
 
 ## 7. Splits available in v1
 
