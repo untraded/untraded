@@ -18,7 +18,7 @@ dev = [
 package = false
 
 [tool.uv.workspace]
-members = ["packages/untraded-py", "spikes/S0.2-parsing"]
+members = ["packages/untraded-py", "spikes/S0.2-parsing", "spikes/S0.3-faceit-extension"]
 
 [tool.uv.sources]
 untraded = { workspace = true }

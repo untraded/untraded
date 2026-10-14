@@ -13,6 +13,7 @@ resolution-markers = [
 [manifest]
 members = [
     "s0-2-parsing",
+    "s0-3-faceit-extension",
     "untraded",
     "untraded-workspace",
 ]
@@ -729,6 +730,11 @@ requires-dist = [
     { name = "polars", specifier = "==2.0.0" },
     { name = "pyarrow", specifier = "==26.0.0" },
 ]
+
+[[package]]
+name = "s0-3-faceit-extension"
+version = "0.0.0"
+source = { virtual = "spikes/S0.3-faceit-extension" }
 
 [[package]]
 name = "six"

@@ -49,6 +49,10 @@ build:
 spike-valve:
     pnpm --filter s0.1-valve start
 
+# Spike S0.3: local server receiving FACEIT demo URLs from the extension (127.0.0.1:8765)
+spike-faceit-server:
+    uv run --package s0-3-faceit-extension python spikes/S0.3-faceit-extension/server.py
+
 # Spike S0.2: inspect and benchmark every demo in a directory
 spike-parsing dir:
     uv run --package s0-2-parsing python spikes/S0.2-parsing/inspect_demos.py {{dir}}

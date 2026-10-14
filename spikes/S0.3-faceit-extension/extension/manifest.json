@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "Untraded FACEIT demo (spike S0.3)",
+  "version": "0.0.1",
+  "description": "When you download a FACEIT demo, sends its link to a local Untraded server.",
+  "permissions": ["downloads"],
+  "host_permissions": ["http://127.0.0.1/*"],
+  "background": {
+    "service_worker": "background.js",
+    "scripts": ["background.js"]
+  },
+  "action": {
+    "default_title": "Untraded (spike S0.3)"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "s0.3-faceit@untraded.io",
+      "strict_min_version": "128.0"
+    }
+  }
+}
