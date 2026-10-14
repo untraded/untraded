@@ -9,7 +9,7 @@
 # sha256 = "…"                          # of the decompressed .dem
 # bytes = 0                             # decompressed size
 # game_build = ""                       # from the demo header
-# public = false                        # only pro demos may be public
+# public = false                        # always false: no corpus demo is public (ADR 0010)
 # notes = ""
 
 schema_version = 1
