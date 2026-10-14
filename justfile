@@ -60,3 +60,7 @@ spike-parsing dir:
 # Spike S0.4: check round cutting in every .dem of a directory (pro demos)
 spike-rounds dir:
     uv run --package s0-2-parsing python spikes/S0.4-pro/check_rounds.py {{dir}}
+
+# Spike S0.6: storage and CPU cost per match for every demo in one or more directories
+spike-costs +dirs:
+    uv run --package s0-2-parsing python spikes/S0.6-costs/measure.py {{dirs}}
