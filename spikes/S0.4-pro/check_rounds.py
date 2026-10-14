@@ -5,7 +5,7 @@
 Run `just spike-parsing <demo_dir>` first for timings and props; this adds what S0.2 does not check:
   - round_freeze_end count vs. rounds played and final score (gamerules and team entities);
   - round index at each freeze end (a demo that starts mid round 1 has no freeze end for it);
-  - freeze ends during warmup;
+  - freeze ends during warmup, or before any player is in game (pre-match);
   - whether flash_duration can stand in for the missing player_blind event.
 
 Usage: python check_rounds.py <demo_dir>   (.dem files only)
@@ -37,6 +37,8 @@ def check(path: Path) -> str:
         pl.col("total_rounds_played").max(), pl.col("is_warmup_period").any()
     )
     warmup = int(per_round["is_warmup_period"].sum())
+    # parse_ticks returns no row for a tick where no player exists yet.
+    pre_match = len(set(freeze_ends)) - per_round.height
     live = per_round.filter(~pl.col("is_warmup_period"))
     first_round = int(live["total_rounds_played"].min()) + 1 if live.height else None
 
@@ -48,7 +50,8 @@ def check(path: Path) -> str:
     ok = live.height == played == sum(score) and first_round == 1
     return (
         f"{path.name} | {header.get('map_name')} | patch {header.get('patch_version')} | "
-        f"freeze_end {len(freeze_ends)} (warmup {warmup}) | played {played} | score {score} | "
+        f"freeze_end {len(freeze_ends)} (warmup {warmup}, pre-match {pre_match}) | "
+        f"played {played} | score {score} | "
         f"first live round {first_round} | {blinded} players blinded by {len(flashes)} flashes | "
         f"{'OK' if ok else 'CHECK'}"
     )
