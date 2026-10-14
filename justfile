@@ -56,3 +56,7 @@ spike-faceit-server:
 # Spike S0.2: inspect and benchmark every demo in a directory
 spike-parsing dir:
     uv run --package s0-2-parsing python spikes/S0.2-parsing/inspect_demos.py {{dir}}
+
+# Spike S0.4: check round cutting in every .dem of a directory (pro demos)
+spike-rounds dir:
+    uv run --package s0-2-parsing python spikes/S0.4-pro/check_rounds.py {{dir}}
