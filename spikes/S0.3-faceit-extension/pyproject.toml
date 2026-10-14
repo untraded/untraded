@@ -1,0 +1,9 @@
+[project]
+name = "s0-3-faceit-extension"
+version = "0.0.0"
+description = "Spike S0.3: local server receiving FACEIT demo URLs from a browser extension."
+requires-python = ">=3.14"
+dependencies = []
+
+[tool.uv]
+package = false
