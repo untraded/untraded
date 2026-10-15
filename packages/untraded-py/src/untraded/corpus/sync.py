@@ -29,7 +29,9 @@ class Remote(Protocol):
         """File names present in the remote directory."""
         ...
 
-    def upload(self, local: Path, name: str) -> None: ...
+    def upload(self, local: Path, name: str, *, resume: bool = False) -> None:
+        """Uploads to `<name>.part`, then renames it. `resume` continues an existing `.part`."""
+        ...
 
     def download(self, name: str, local: Path) -> None: ...
 
@@ -55,13 +57,13 @@ class SftpRemote:
             PurePosixPath(line).name for line in output if line and not line.startswith("sftp>")
         }
 
-    def upload(self, local: Path, name: str) -> None:
+    def upload(self, local: Path, name: str, *, resume: bool = False) -> None:
         remote = f"{self.path}/{name}"
         partial = f"{remote}.part"
         commands = [f"-mkdir {_quote(parent)}" for parent in _parents(self.path)]
         commands += [
-            f"-rm {_quote(partial)}",
-            f"put {_quote(local.as_posix())} {_quote(partial)}",
+            # reput appends to the partial file; it fails if that file does not exist.
+            f"{'reput' if resume else 'put'} {_quote(local.as_posix())} {_quote(partial)}",
             f"rename {_quote(partial)} {_quote(remote)}",
         ]
         self._run(commands)
@@ -107,7 +109,8 @@ def push(
             report.skipped.append((demo, f"local file {status.value}"))
             continue
         if not dry_run:
-            remote.upload(stored_path(corpus_dir, demo), demo.filename)
+            resume = f"{demo.filename}.part" in present
+            remote.upload(stored_path(corpus_dir, demo), demo.filename, resume=resume)
         report.done.append(demo)
     return report
 

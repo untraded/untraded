@@ -25,8 +25,10 @@ class DirRemote:
     def names(self) -> set[str]:
         return {p.name for p in self.root.iterdir()}
 
-    def upload(self, local: Path, name: str) -> None:
+    def upload(self, local: Path, name: str, *, resume: bool = False) -> None:
+        self.resumed = getattr(self, "resumed", []) + ([name] if resume else [])
         shutil.copyfile(local, self.root / name)
+        (self.root / f"{name}.part").unlink(missing_ok=True)
 
     def download(self, name: str, local: Path) -> None:
         shutil.copyfile(self.root / name, local)
@@ -54,6 +56,17 @@ def test_push_uploads_only_what_the_store_lacks(tmp_path: Path) -> None:
     report = push(manifest, corpus_dir, remote)
 
     assert [d.id for d in report.done] == [manifest.demos[1].id]
+    assert remote.names() == {d.filename for d in manifest.demos}
+
+
+def test_push_resumes_a_partial_upload(tmp_path: Path) -> None:
+    manifest, corpus_dir = corpus_with_demos(tmp_path, 2)
+    remote = DirRemote(tmp_path / "store")
+    (remote.root / f"{manifest.demos[1].filename}.part").write_bytes(b"first bytes")
+
+    push(manifest, corpus_dir, remote)
+
+    assert remote.resumed == [manifest.demos[1].filename]
     assert remote.names() == {d.filename for d in manifest.demos}
 
 
@@ -112,12 +125,15 @@ def test_sftp_batches(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
 
     assert remote.names() == {"abc.dem.zst", "x.part"}
     remote.upload(tmp_path / "abc.dem.zst", "abc.dem.zst")
+    remote.upload(tmp_path / "abc.dem.zst", "abc.dem.zst", resume=True)
 
     assert calls[0]["args"][-1] == "untraded-corpus"
     assert "BatchMode=yes" in calls[0]["args"]
     upload = calls[1]["input"].splitlines()
     assert upload[:2] == ['-mkdir "corpus"', '-mkdir "corpus/demos"']
     assert upload[-1] == 'rename "corpus/demos/abc.dem.zst.part" "corpus/demos/abc.dem.zst"'
+    assert upload[-2].startswith("put ")
+    assert calls[2]["input"].splitlines()[-2].startswith("reput ")
 
 
 def test_sftp_failure_is_reported(monkeypatch: pytest.MonkeyPatch) -> None:
