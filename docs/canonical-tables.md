@@ -1,6 +1,6 @@
 # Canonical tables v1 (specification)
 
-*Draft, 2026-10-15. Status: **proposed** — to be accepted before the parsing adapter (workstream E3) is written.*
+*Version 1, accepted 2026-10-15. The parsing adapter (workstream E3) implements it.*
 
 The canonical tables are what the parsing adapter produces from a demo (ADR 0002), what metrics read, and the **long-term record** of a match: metrics are recomputed from them, and the raw demo may be deleted after parsing (ADR 0009). Anything left out here is lost for every match whose demo is gone. Each column is therefore listed with **its source** and **why it is kept**.
 
@@ -116,7 +116,7 @@ Sources were checked on Premier, FACEIT, LAN and online tournament demos (spikes
 | `detonate_tick`, `detonate_x/y/z` | | detonate event (`inferno_startburn`, `decoy_started` for those types); last trajectory point as fallback | utility metrics |
 | `end_tick` | Int32? | `smokegrenade_expired`, `inferno_expire` | smoke and fire timelines |
 
-### `grenade_path` — grenade trajectories at 16 Hz *(proposed, see § 4)*
+### `grenade_path` — grenade trajectories at 16 Hz *(see § 4)*
 
 `grenade_id`, `tick`, `x`, `y`, `z`. For the 2D viewer and lineups. About 400,000 rows per match at 16 Hz (1.7 million at full rate).
 
@@ -184,9 +184,9 @@ Rows at **16 Hz** (one tick in four at 64 ticks/s, ⚙ adapter parameter) **plus
 
 Every v1 metric is computable from these tables alone: no metric needs the raw demo.
 
-## 4. Choices beyond v1, to confirm
+## 4. Choices beyond v1
 
-Kept although no v1 metric needs them, because a deleted demo cannot be re-parsed:
+Kept although no v1 metric needs them, because a deleted demo cannot be re-parsed (confirmed 2026-10-15):
 
 1. **`shot` context** (position, angles, velocity, stance, accuracy penalty at each shot): aim and movement metrics in later phases. Cost: one extra tick parse at about 4,000 shot ticks per match.
 2. **`grenade_path` at 16 Hz**: 2D viewer and lineups (team phase). Cost: roughly +1 to 2 MB of Parquet per match.
