@@ -19,7 +19,13 @@ classifiers = [
     "Topic :: Games/Entertainment :: First Person Shooters",
     "Typing :: Typed",
 ]
-dependencies = []
+dependencies = [
+    "backports.zstd>=1.0; python_version < '3.14'",
+    "demoparser2==0.42.0",
+]
+
+[project.scripts]
+untraded = "untraded.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/untraded/untraded"

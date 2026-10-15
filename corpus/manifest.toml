@@ -1,15 +1,141 @@
-# Reference demo corpus. Demo files are NEVER committed: they live in $UNTRADED_CORPUS_DIR
-# under their sha256 name (<sha256>.dem.zst). See corpus/README.md.
+# Reference demo corpus (ADR 0010). Demo files are NEVER committed: they live in
+# $UNTRADED_CORPUS_DIR/demos/<sha256><stored_as> and in the private shared store.
+# Edit with `untraded corpus add`; see corpus/README.md.
 #
-# [[demo]]
-# id = "premier-2026-10-14-mirage-01"   # stable, human-readable
-# source = "valve-premier"              # valve-premier | faceit | scrim | pro
-# map = "de_mirage"
-# played_at = "2026-10-14"
-# sha256 = "…"                          # of the decompressed .dem
-# bytes = 0                             # decompressed size
-# game_build = ""                       # from the demo header
-# public = false                        # always false: no corpus demo is public (ADR 0010)
-# notes = ""
+# id          stable, human-readable
+# source      valve-premier | faceit | esea | scrim | pro
+# map         from the demo header
+# played_at   YYYY-MM-DD, when known (the demo does not carry it)
+# sha256      of the decompressed .dem
+# bytes       decompressed size
+# stored_as   suffix of the stored file, as received (ADR 0009)
+# game_build  CS2 patch version, from the demo header
 
 schema_version = 1
+
+[[demo]]
+id = "pro-2026-09-13-ancient-01"
+source = "pro"
+map = "de_ancient"
+played_at = "2026-09-13"
+sha256 = "471bebbd3a02056fce56359e5cec7f7fefe27e79d7ef98f54c11792d752fd173"
+bytes = 373391934
+stored_as = ".dem.zst"
+game_build = "14181"
+
+[[demo]]
+id = "pro-2026-09-13-mirage-01"
+source = "pro"
+map = "de_mirage"
+played_at = "2026-09-13"
+sha256 = "4fd4096962abf9ee4a8323daf5fefde659ddaa7763d5ff716dce87d94e161fdb"
+bytes = 398467360
+stored_as = ".dem.zst"
+game_build = "14181"
+
+[[demo]]
+id = "pro-2026-09-13-dust2-01"
+source = "pro"
+map = "de_dust2"
+played_at = "2026-09-13"
+sha256 = "3831a2ff57773f59f89879132cf5df23dff0c77abb0d26ecf688d8fc44415278"
+bytes = 405258338
+stored_as = ".dem.zst"
+game_build = "14181"
+
+[[demo]]
+id = "pro-2026-09-20-cache-01"
+source = "pro"
+map = "de_cache"
+played_at = "2026-09-20"
+sha256 = "ed8f5d4621c0515c8651c6ee237922e655e7ecaf70ba682b1a48b07a72f57be8"
+bytes = 283521279
+stored_as = ".dem.zst"
+game_build = "14181"
+
+[[demo]]
+id = "pro-2026-09-20-anubis-01"
+source = "pro"
+map = "de_anubis"
+played_at = "2026-09-20"
+sha256 = "1b16bc3383c37de00200b0468ecfb7a11768f09176e8e0f1a80d69e6fa2bf058"
+bytes = 323759438
+stored_as = ".dem.zst"
+game_build = "14181"
+
+[[demo]]
+id = "pro-2026-10-11-cache-01"
+source = "pro"
+map = "de_cache"
+played_at = "2026-10-11"
+sha256 = "b9b20b60330034a63512bc0c57b867486155038214ac5f865af083cb2a2236be"
+bytes = 325998383
+stored_as = ".dem.zst"
+game_build = "14188"
+
+[[demo]]
+id = "pro-2026-10-11-inferno-01"
+source = "pro"
+map = "de_inferno"
+played_at = "2026-10-11"
+sha256 = "9da916c73bb5ff938c63eeb592aac05fa3a61e56c025d672ab6a50c86117d6db"
+bytes = 354013156
+stored_as = ".dem.zst"
+game_build = "14188"
+
+[[demo]]
+id = "pro-2026-10-11-dust2-01"
+source = "pro"
+map = "de_dust2"
+played_at = "2026-10-11"
+sha256 = "5c8743102c5a1e28f8eeb23a838b949d70d9c561435cb2a01394d157f2f4f142"
+bytes = 463801607
+stored_as = ".dem.zst"
+game_build = "14188"
+
+[[demo]]
+id = "pro-2026-10-13-nuke-01"
+source = "pro"
+map = "de_nuke"
+played_at = "2026-10-13"
+sha256 = "d316852e47c9370af9d3a512625b7b77bdec78b65c221a57c780b334b1e8b96a"
+bytes = 380175121
+stored_as = ".dem.zst"
+game_build = "14190"
+
+[[demo]]
+id = "pro-undated-mirage-01"
+source = "pro"
+map = "de_mirage"
+sha256 = "0a4eee24d751627cbada66a34643da4343b5d1948b51711fdff40d1585d3e8aa"
+bytes = 346942478
+stored_as = ".dem.zst"
+game_build = "14190"
+
+[[demo]]
+id = "pro-undated-inferno-01"
+source = "pro"
+map = "de_inferno"
+sha256 = "d99c7ab834f5a99f508742c458c46c09732d17a57773033e2611afda43ba4f18"
+bytes = 344631900
+stored_as = ".dem.zst"
+game_build = "14190"
+
+[[demo]]
+id = "pro-undated-ancient-01"
+source = "pro"
+map = "de_ancient"
+sha256 = "4101c121875d4f77a5b99000280b36e617855f40c18ad53c25e32e85d8436898"
+bytes = 362042077
+stored_as = ".dem.zst"
+game_build = "14190"
+
+[[demo]]
+id = "faceit-2026-10-14-dust2-01"
+source = "faceit"
+map = "de_dust2"
+played_at = "2026-10-14"
+sha256 = "e4fd3c799136c85189e3c36a9ffa2192c3b0f4a5a0f14ddaf2f67a9b62c213c5"
+bytes = 332429720
+stored_as = ".dem.zst"
+game_build = "14181"

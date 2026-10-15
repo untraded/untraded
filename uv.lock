@@ -797,6 +797,15 @@ wheels = [
 name = "untraded"
 version = "0.0.2"
 source = { editable = "packages/untraded-py" }
+dependencies = [
+    { name = "demoparser2" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "backports-zstd", marker = "python_full_version < '3.14'", specifier = ">=1.0" },
+    { name = "demoparser2", specifier = "==0.42.0" },
+]
 
 [[package]]
 name = "untraded-workspace"
