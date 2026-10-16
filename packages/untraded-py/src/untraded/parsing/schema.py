@@ -214,6 +214,45 @@ _GRENADE_PATH: Columns = {
     "z": pl.Float32,
 }
 
+_INVENTORY_CHANGE: Columns = {
+    "tick": pl.Int32,
+    "round": pl.Int16,
+    "steamid": pl.UInt64,
+    "inventory": pl.List(pl.String),
+}
+
+_PLAYER_TICK: Columns = {
+    "tick": pl.Int32,
+    "round": pl.Int16,
+    "steamid": pl.UInt64,
+    "side": Side,
+    "x": pl.Float32,
+    "y": pl.Float32,
+    "z": pl.Float32,
+    "pitch": pl.Float32,
+    "yaw": pl.Float32,
+    "velocity_x": pl.Float32,
+    "velocity_y": pl.Float32,
+    "velocity_z": pl.Float32,
+    "health": pl.Int16,
+    "armor": pl.Int16,
+    "has_helmet": pl.Boolean,
+    "is_alive": pl.Boolean,
+    "place": pl.String,
+    "active_weapon": pl.String,
+    "balance": pl.Int32,
+    "equip_value": pl.Int32,
+    "flash_duration": pl.Float32,
+    "is_scoped": pl.Boolean,
+    "ducking": pl.Boolean,
+    "is_airborne": pl.Boolean,
+    "is_walking": pl.Boolean,
+    "is_defusing": pl.Boolean,
+    "has_defuser": pl.Boolean,
+    "spotted": pl.Boolean,
+    "spotted_by": pl.List(pl.UInt64),
+}
+
 MATCH = pl.Schema(_MATCH)
 PLAYER = pl.Schema(_PLAYER)
 ROUND = pl.Schema(_ROUND)
@@ -225,6 +264,8 @@ ECONOMY = pl.Schema(_ECONOMY)
 SHOT = pl.Schema(_SHOT)
 GRENADE = pl.Schema(_GRENADE)
 GRENADE_PATH = pl.Schema(_GRENADE_PATH)
+INVENTORY_CHANGE = pl.Schema(_INVENTORY_CHANGE)
+PLAYER_TICK = pl.Schema(_PLAYER_TICK)
 
 TABLES: dict[str, pl.Schema] = {
     "match": MATCH,
@@ -238,6 +279,8 @@ TABLES: dict[str, pl.Schema] = {
     "shot": SHOT,
     "grenade": GRENADE,
     "grenade_path": GRENADE_PATH,
+    "inventory_change": INVENTORY_CHANGE,
+    "player_tick": PLAYER_TICK,
 }
 
 

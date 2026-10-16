@@ -16,6 +16,7 @@ from untraded.demofile import (
     demo_suffix,
     digest,
     plain_demo,
+    plain_demo_with_digest,
 )
 
 CONTENT = DEMO_MAGIC + bytes(range(256)) * 9000  # ~2.3 MB: spans several read chunks
@@ -80,3 +81,19 @@ def test_plain_demo_decompresses_only_the_requested_prefix(tmp_path: Path) -> No
     with plain_demo(write(tmp_path, ".dem.zst"), limit=1000) as dem:
         assert dem.read_bytes() == CONTENT[:1000]
     assert not dem.exists()  # temporary file is cleaned up
+
+
+@pytest.mark.parametrize("suffix", [".dem", ".dem.bz2", ".dem.gz", ".dem.zst"])
+def test_plain_demo_with_digest_hashes_in_the_same_pass(tmp_path: Path, suffix: str) -> None:
+    source = write(tmp_path, suffix)
+    with plain_demo_with_digest(source) as (dem, found):
+        assert dem.read_bytes() == CONTENT
+        assert found == digest(source)
+
+
+def test_plain_demo_with_digest_rejects_a_file_that_is_not_a_demo(tmp_path: Path) -> None:
+    with (
+        pytest.raises(NotADemoError),
+        plain_demo_with_digest(write(tmp_path, ".dem.bz2", b"x" * 10)),
+    ):
+        pass

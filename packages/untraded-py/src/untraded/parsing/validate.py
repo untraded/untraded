@@ -40,7 +40,16 @@ def validate(tables: dict[str, pl.DataFrame]) -> None:
         raise CanonicalError("round: ticks are not ordered start <= freeze end < end < next start")
 
     live = rounds["round"].to_list()
-    for name in ("kill", "damage", "blind", "bomb", "shot", "grenade_path"):
+    for name in (
+        "kill",
+        "damage",
+        "blind",
+        "bomb",
+        "shot",
+        "grenade_path",
+        "inventory_change",
+        "player_tick",
+    ):
         events = tables[name]
         if not events.height:
             continue
@@ -75,6 +84,17 @@ def validate(tables: dict[str, pl.DataFrame]) -> None:
         ids = tables[name]["grenade_id"].drop_nulls()
         if not ids.is_in(known).all():
             raise CanonicalError(f"{name}: grenade_id not in the grenade table")
+
+    states = tables["player_tick"]
+    if states.select("tick", "steamid").is_duplicated().any():
+        raise CanonicalError("player_tick: more than one row per player and tick")
+    crowded = (
+        states.filter(pl.col("is_alive")).group_by("tick", "side").len().filter(pl.col("len") > 5)
+    )
+    if crowded.height:
+        raise CanonicalError(
+            f"player_tick: more than 5 players alive on a side at {crowded.height} ticks"
+        )
 
     economy = tables["economy"]
     if economy.select("round", "steamid").is_duplicated().any():

@@ -15,7 +15,7 @@ from pathlib import Path
 import polars as pl
 from demoparser2 import DemoParser
 
-from untraded.demofile import digest, plain_demo
+from untraded.demofile import plain_demo_with_digest
 from untraded.parsing._context import Context, frame, side
 from untraded.parsing.bomb import build_bomb
 from untraded.parsing.combat import build_blind, build_damage
@@ -26,6 +26,7 @@ from untraded.parsing.rounds import cut_rounds
 from untraded.parsing.schema import MODES, SCHEMA_VERSION, CanonicalError, conform
 from untraded.parsing.shots import build_shots
 from untraded.parsing.teams import OTHER, assign_teams
+from untraded.parsing.ticks import build_player_ticks
 from untraded.parsing.validate import validate
 
 STATE_PROPS = [
@@ -56,6 +57,8 @@ class CanonicalMatch:
     shot: pl.DataFrame
     grenade: pl.DataFrame
     grenade_path: pl.DataFrame
+    inventory_change: pl.DataFrame
+    player_tick: pl.DataFrame
 
     @property
     def match_id(self) -> str:
@@ -84,14 +87,19 @@ def parse_demo(
     """Parses a demo (plain or compressed) into validated canonical tables.
 
     `source`, `mode` and `played_at` come from ingestion: the demo carries none of them.
-    `match_id` defaults to the sha256 of the decompressed demo (pass it when already known).
+    `match_id` defaults to the sha256 of the decompressed demo, computed while decompressing.
     """
     if mode not in MODES:
         raise UnsupportedModeError(f"mode {mode!r} is not analysed (supported: {', '.join(MODES)})")
-    match_id = match_id or digest(path).sha256
-    with plain_demo(path) as dem:
+    with plain_demo_with_digest(path) as (dem, found):
         parser = DemoParser(str(dem))
-        canonical = _build(parser, match_id=match_id, source=source, mode=mode, played_at=played_at)
+        canonical = _build(
+            parser,
+            match_id=match_id or found.sha256,
+            source=source,
+            mode=mode,
+            played_at=played_at,
+        )
     validate(canonical.tables())
     return canonical
 
@@ -157,10 +165,11 @@ def _build(
     damage, blind = link_grenades(
         build_damage(ctx), build_blind(ctx), grenade, tickrate=ctx.tickrate
     )
+    kills = build_kills(ctx)
     tables = {
         "player": build_players(ctx),
         "round": rounds,
-        "kill": build_kills(ctx),
+        "kill": kills,
         "damage": damage,
         "blind": blind,
         "bomb": build_bomb(ctx, rounds),
@@ -169,6 +178,9 @@ def _build(
         "grenade": grenade,
         "grenade_path": grenade_path,
     }
+    tables["player_tick"], tables["inventory_change"] = build_player_ticks(
+        ctx, kills["tick"].to_list()
+    )
 
     first = cuts[0]
     ct_first = ctx.teams.ct_team[first.round]

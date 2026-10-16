@@ -46,6 +46,14 @@ def valid_tables() -> dict[str, pl.DataFrame]:
         "shot": table("shot", [{"tick": 15, "round": 1}]),
         "grenade": table("grenade", [{"grenade_id": 1, "round": 1, "throw_tick": 12}]),
         "grenade_path": table("grenade_path", [{"grenade_id": 1, "tick": 12}]),
+        "inventory_change": table("inventory_change", [{"tick": 0, "round": 1, "steamid": 1}]),
+        "player_tick": table(
+            "player_tick",
+            [
+                {"tick": 10, "round": 1, "steamid": 1, "side": "CT", "is_alive": True},
+                {"tick": 10, "round": 1, "steamid": 2, "side": "T", "is_alive": True},
+            ],
+        ),
     }
 
 
@@ -62,7 +70,18 @@ def test_score_must_add_up_to_the_last_round() -> None:
 
 def test_truncated_start_still_counts_the_missing_rounds_in_the_score() -> None:
     tables = valid_tables()
-    for name in ("round", "kill", "damage", "blind", "bomb", "economy", "shot", "grenade"):
+    for name in (
+        "round",
+        "kill",
+        "damage",
+        "blind",
+        "bomb",
+        "economy",
+        "shot",
+        "grenade",
+        "inventory_change",
+        "player_tick",
+    ):
         tables[name] = tables[name].with_columns(pl.col("round") + 4)
     tables["match"] = tables["match"].with_columns(
         pl.lit(5, pl.Int16).alias("first_round"),
@@ -100,6 +119,24 @@ def test_grenade_ids_must_exist() -> None:
     tables = valid_tables()
     tables["damage"] = tables["damage"].with_columns(pl.lit(9, pl.Int32).alias("grenade_id"))
     with pytest.raises(CanonicalError, match="grenade_id"):
+        validate(tables)
+
+
+def test_one_state_per_player_and_tick() -> None:
+    tables = valid_tables()
+    tables["player_tick"] = pl.concat([tables["player_tick"], tables["player_tick"].head(1)])
+    with pytest.raises(CanonicalError, match="one row per player and tick"):
+        validate(tables)
+
+
+def test_at_most_five_players_alive_per_side() -> None:
+    tables = valid_tables()
+    crowd = table(
+        "player_tick",
+        [{"tick": 20, "round": 1, "steamid": i, "side": "T", "is_alive": True} for i in range(6)],
+    )
+    tables["player_tick"] = pl.concat([tables["player_tick"], crowd])
+    with pytest.raises(CanonicalError, match="more than 5 players alive"):
         validate(tables)
 
 
