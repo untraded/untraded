@@ -1,6 +1,6 @@
 # Canonical tables v1 (specification)
 
-*Version 1, accepted 2026-10-15. The parsing adapter (workstream E3) implements it: `match`, `player`, `round` and `kill` are built (`untraded.parsing.parse_demo`), the other tables come next.*
+*Version 1, accepted 2026-10-15. The parsing adapter (workstream E3) implements it: `match`, `player`, `round`, `kill`, `damage`, `blind`, `bomb` and `economy` are built (`untraded.parsing.parse_demo`), the other tables come next.*
 
 The canonical tables are what the parsing adapter produces from a demo (ADR 0002), what metrics read, and the **long-term record** of a match: metrics are recomputed from them, and the raw demo may be deleted after parsing (ADR 0009). Anything left out here is lost for every match whose demo is gone. Each column is therefore listed with **its source** and **why it is kept**.
 
@@ -93,9 +93,9 @@ Sources were checked on Premier, FACEIT, LAN and online tournament demos (spikes
 | `weapon`, `hitgroup` | String, Int8 | event | HE and fire damage, later aim metrics |
 | `dmg_health`, `dmg_armor` | Int16 | event (raw) | |
 | `health_after`, `armor_after` | Int16 | event | |
-| `damage` | Int16 | **capped**: `health` of the victim just before the hit − `health_after` | ADR (metrics-v1 § 0) |
+| `damage` | Int16 | **capped**: `min(dmg_health, health before the hit)`. The health before is the `health_after` of the previous hit on that victim in the round, or 100: health only goes down within a round, the `health` prop at the event tick is already updated for about a third of the hits, and `dmg_health` is rounded down (health often drops by one more point) | ADR (metrics-v1 § 0) |
 | `is_team_damage` | Boolean | sides at the tick | team damage |
-| `grenade_id` | Int32? | matched to the `grenade` thrown by the attacker (HE, fire) | fire ownership check (demoparser2 #317) |
+| `grenade_id` | Int32? | matched to the `grenade` thrown by the attacker (HE, fire); null until the `grenade` table is built | fire ownership check (demoparser2 #317) |
 
 ### `shot` — one row per `weapon_fire`
 
@@ -124,14 +124,14 @@ Sources were checked on Premier, FACEIT, LAN and online tournament demos (spikes
 
 | Column | Type | Source | Why |
 |---|---|---|---|
-| `tick`, `round`, `victim`, `flasher`, `grenade_id` | | `player_blind`; **fallback**: rises of `flash_duration` right after a `flashbang_detonate`, attributed to its thrower (ADR 0008) | `util.enemies_flashed`, blind time |
+| `tick`, `round`, `victim`, `flasher`, `grenade_id` | | `player_blind`; **fallback**: rises of `flash_duration` at the `flashbang_detonate` tick, attributed to its thrower (ADR 0008). On a matchmaking demo with both, the fallback finds 156 of 161 blinds with the same tick, duration and flasher, and no false positive (the missed ones were already blinded). `grenade_id` is null until the `grenade` table is built | `util.enemies_flashed`, blind time |
 | `duration` | Float32 (s) | `blind_duration`, or `flash_duration` | |
 | `is_teammate`, `is_self` | Boolean | sides at the tick | team and self flashes |
 | `from_fallback` | Boolean | adapter | traceability |
 
 ### `bomb` — one row per bomb event
 
-`tick`, `round`, `type` (`plant_begin`, `planted`, `defuse_begin`, `defused`, `exploded`, `dropped`, `picked_up`), `player`, `site`. From the bomb events, when present. Kept for post-plant and retake analysis (team phase).
+`tick`, `round`, `type` (`plant_begin`, `planted`, `defuse_begin`, `defused`, `exploded`, `dropped`, `picked_up`), `player`, `site`. From the bomb events, when present. `site` comes from the player's place for plant events, and from the round's plant for defuses and explosions. Kept for post-plant and retake analysis (team phase).
 
 ### `economy` — one row per player and round
 

@@ -39,6 +39,10 @@ def valid_tables() -> dict[str, pl.DataFrame]:
             ],
         ),
         "kill": table("kill", [{"tick": 20, "round": 1}, {"tick": 80, "round": 2}]),
+        "damage": table("damage", [{"tick": 19, "round": 1, "dmg_health": 120, "damage": 100}]),
+        "blind": table("blind", []),
+        "bomb": table("bomb", [{"tick": 30, "round": 1, "type": "planted", "site": "A"}]),
+        "economy": table("economy", [{"round": 1, "steamid": 1}, {"round": 1, "steamid": 2}]),
     }
 
 
@@ -55,8 +59,8 @@ def test_score_must_add_up_to_the_last_round() -> None:
 
 def test_truncated_start_still_counts_the_missing_rounds_in_the_score() -> None:
     tables = valid_tables()
-    tables["round"] = tables["round"].with_columns(pl.col("round") + 4)  # rounds 5 and 6
-    tables["kill"] = tables["kill"].with_columns(pl.col("round") + 4)
+    for name in ("round", "kill", "damage", "blind", "bomb", "economy"):  # rounds 5 and 6
+        tables[name] = tables[name].with_columns(pl.col("round") + 4)
     tables["match"] = tables["match"].with_columns(
         pl.lit(5, pl.Int16).alias("first_round"),
         pl.lit(4, pl.Int16).alias("score_a"),
@@ -79,6 +83,20 @@ def test_a_kill_outside_live_rounds_is_rejected() -> None:
     tables = valid_tables()
     tables["kill"] = tables["kill"].with_columns(pl.lit(7, pl.Int16).alias("round"))
     with pytest.raises(CanonicalError, match="no live round"):
+        validate(tables)
+
+
+def test_capped_damage_stays_within_raw_damage() -> None:
+    tables = valid_tables()
+    tables["damage"] = tables["damage"].with_columns(pl.lit(101, pl.Int16).alias("damage"))
+    with pytest.raises(CanonicalError, match="capped damage"):
+        validate(tables)
+
+
+def test_one_economy_row_per_player_and_round() -> None:
+    tables = valid_tables()
+    tables["economy"] = pl.concat([tables["economy"], tables["economy"].head(1)])
+    with pytest.raises(CanonicalError, match="economy"):
         validate(tables)
 
 
@@ -105,11 +123,8 @@ def test_parses_a_real_demo(tmp_path: Path) -> None:
     assert info["tickrate"] == pytest.approx(64, abs=0.5)
     assert info["rounds_played"] == match.round.height > 0
     assert match.kill.height > 0
+    assert match.damage.height > match.kill.height
+    assert match.economy.height >= 10 * match.round.height - 10
     target = match.write(tmp_path)
-    assert sorted(p.name for p in target.iterdir()) == [
-        "kill.parquet",
-        "match.parquet",
-        "player.parquet",
-        "round.parquet",
-    ]
+    assert sorted(p.stem for p in target.iterdir()) == sorted(TABLES)
     assert pl.read_parquet(target / "round.parquet").schema == TABLES["round"]

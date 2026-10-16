@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 """Strict Polars schemas of the canonical tables (docs/canonical-tables.md).
 
-Only the tables built so far are defined here: `match`, `player`, `round` and `kill`.
+Only the tables built so far are defined here.
 """
 
 from __future__ import annotations
@@ -111,12 +111,79 @@ _KILL: Columns = {
     "victim_flash_duration": pl.Float32,
 }
 
+_DAMAGE: Columns = {
+    "tick": pl.Int32,
+    "round": pl.Int16,
+    "attacker": pl.UInt64,
+    "victim": pl.UInt64,
+    "weapon": pl.String,
+    "hitgroup": pl.Int8,
+    "dmg_health": pl.Int16,
+    "dmg_armor": pl.Int16,
+    "health_after": pl.Int16,
+    "armor_after": pl.Int16,
+    "damage": pl.Int16,
+    "is_team_damage": pl.Boolean,
+    "grenade_id": pl.Int32,
+}
+
+_BLIND: Columns = {
+    "tick": pl.Int32,
+    "round": pl.Int16,
+    "victim": pl.UInt64,
+    "flasher": pl.UInt64,
+    "grenade_id": pl.Int32,
+    "duration": pl.Float32,
+    "is_teammate": pl.Boolean,
+    "is_self": pl.Boolean,
+    "from_fallback": pl.Boolean,
+}
+
+BombEvent = pl.Enum(
+    ["plant_begin", "planted", "defuse_begin", "defused", "exploded", "dropped", "picked_up"]
+)
+
+_BOMB: Columns = {
+    "tick": pl.Int32,
+    "round": pl.Int16,
+    "type": BombEvent,
+    "player": pl.UInt64,
+    "site": pl.Enum(["A", "B"]),
+}
+
+_ECONOMY: Columns = {
+    "round": pl.Int16,
+    "steamid": pl.UInt64,
+    "side": Side,
+    "money_start": pl.Int32,
+    "spent": pl.Int32,
+    "equip_value": pl.Int32,
+    "round_start_equip_value": pl.Int32,
+    "armor": pl.Int16,
+    "has_helmet": pl.Boolean,
+    "has_defuser": pl.Boolean,
+    "inventory": pl.List(pl.String),
+}
+
 MATCH = pl.Schema(_MATCH)
 PLAYER = pl.Schema(_PLAYER)
 ROUND = pl.Schema(_ROUND)
 KILL = pl.Schema(_KILL)
+DAMAGE = pl.Schema(_DAMAGE)
+BLIND = pl.Schema(_BLIND)
+BOMB = pl.Schema(_BOMB)
+ECONOMY = pl.Schema(_ECONOMY)
 
-TABLES: dict[str, pl.Schema] = {"match": MATCH, "player": PLAYER, "round": ROUND, "kill": KILL}
+TABLES: dict[str, pl.Schema] = {
+    "match": MATCH,
+    "player": PLAYER,
+    "round": ROUND,
+    "kill": KILL,
+    "damage": DAMAGE,
+    "blind": BLIND,
+    "bomb": BOMB,
+    "economy": ECONOMY,
+}
 
 
 class CanonicalError(ValueError):
