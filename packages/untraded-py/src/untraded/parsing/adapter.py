@@ -21,8 +21,10 @@ from untraded.parsing.bomb import build_bomb
 from untraded.parsing.combat import build_blind, build_damage
 from untraded.parsing.core import build_kills, build_players, build_rounds
 from untraded.parsing.economy import build_economy
+from untraded.parsing.grenades import build_grenades, link_grenades
 from untraded.parsing.rounds import cut_rounds
 from untraded.parsing.schema import MODES, SCHEMA_VERSION, CanonicalError, conform
+from untraded.parsing.shots import build_shots
 from untraded.parsing.teams import OTHER, assign_teams
 from untraded.parsing.validate import validate
 
@@ -51,6 +53,9 @@ class CanonicalMatch:
     blind: pl.DataFrame
     bomb: pl.DataFrame
     economy: pl.DataFrame
+    shot: pl.DataFrame
+    grenade: pl.DataFrame
+    grenade_path: pl.DataFrame
 
     @property
     def match_id(self) -> str:
@@ -148,14 +153,21 @@ def _build(
     )
 
     rounds = build_rounds(ctx, probe)
+    grenade, grenade_path = build_grenades(ctx)
+    damage, blind = link_grenades(
+        build_damage(ctx), build_blind(ctx), grenade, tickrate=ctx.tickrate
+    )
     tables = {
         "player": build_players(ctx),
         "round": rounds,
         "kill": build_kills(ctx),
-        "damage": build_damage(ctx),
-        "blind": build_blind(ctx),
+        "damage": damage,
+        "blind": blind,
         "bomb": build_bomb(ctx, rounds),
         "economy": build_economy(ctx),
+        "shot": build_shots(ctx),
+        "grenade": grenade,
+        "grenade_path": grenade_path,
     }
 
     first = cuts[0]

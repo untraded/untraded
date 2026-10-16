@@ -40,13 +40,15 @@ def validate(tables: dict[str, pl.DataFrame]) -> None:
         raise CanonicalError("round: ticks are not ordered start <= freeze end < end < next start")
 
     live = rounds["round"].to_list()
-    for name in ("kill", "damage", "blind", "bomb"):
+    for name in ("kill", "damage", "blind", "bomb", "shot", "grenade_path"):
         events = tables[name]
         if not events.height:
             continue
         if not events["tick"].is_sorted():
             raise CanonicalError(f"{name}: ticks are not increasing")
-        if events["round"].null_count() or not events["round"].is_in(live).all():
+        if "round" in events.columns and (
+            events["round"].null_count() or not events["round"].is_in(live).all()
+        ):
             raise CanonicalError(f"{name}: an event has no live round")
 
     damage = tables["damage"]
@@ -59,6 +61,20 @@ def validate(tables: dict[str, pl.DataFrame]) -> None:
         .all()
     ):
         raise CanonicalError("damage: capped damage outside 0-100 or above dmg_health")
+
+    grenades = tables["grenade"]
+    if grenades.height:
+        if not grenades["throw_tick"].is_sorted():
+            raise CanonicalError("grenade: throws are not in tick order")
+        if grenades["round"].null_count() or not grenades["round"].is_in(live).all():
+            raise CanonicalError("grenade: a throw has no live round")
+        if grenades["grenade_id"].n_unique() != grenades.height:
+            raise CanonicalError("grenade: duplicate grenade_id")
+    known = grenades["grenade_id"].to_list()
+    for name in ("grenade_path", "damage", "blind"):
+        ids = tables[name]["grenade_id"].drop_nulls()
+        if not ids.is_in(known).all():
+            raise CanonicalError(f"{name}: grenade_id not in the grenade table")
 
     economy = tables["economy"]
     if economy.select("round", "steamid").is_duplicated().any():

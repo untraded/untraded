@@ -165,6 +165,55 @@ _ECONOMY: Columns = {
     "inventory": pl.List(pl.String),
 }
 
+_SHOT: Columns = {
+    "tick": pl.Int32,
+    "round": pl.Int16,
+    "shooter": pl.UInt64,
+    "weapon": pl.String,
+    "silenced": pl.Boolean,
+    "x": pl.Float32,
+    "y": pl.Float32,
+    "z": pl.Float32,
+    "pitch": pl.Float32,
+    "yaw": pl.Float32,
+    "velocity_x": pl.Float32,
+    "velocity_y": pl.Float32,
+    "velocity_z": pl.Float32,
+    "is_scoped": pl.Boolean,
+    "ducking": pl.Boolean,
+    "is_airborne": pl.Boolean,
+    "is_walking": pl.Boolean,
+    "accuracy_penalty": pl.Float32,
+}
+
+GrenadeType = pl.Enum(["flash", "he", "smoke", "molotov", "incendiary", "decoy"])
+
+_GRENADE: Columns = {
+    "grenade_id": pl.Int32,
+    "entity_id": pl.Int32,
+    "round": pl.Int16,
+    "thrower": pl.UInt64,
+    "side": Side,
+    "type": GrenadeType,
+    "throw_tick": pl.Int32,
+    "throw_x": pl.Float32,
+    "throw_y": pl.Float32,
+    "throw_z": pl.Float32,
+    "detonate_tick": pl.Int32,
+    "detonate_x": pl.Float32,
+    "detonate_y": pl.Float32,
+    "detonate_z": pl.Float32,
+    "end_tick": pl.Int32,
+}
+
+_GRENADE_PATH: Columns = {
+    "grenade_id": pl.Int32,
+    "tick": pl.Int32,
+    "x": pl.Float32,
+    "y": pl.Float32,
+    "z": pl.Float32,
+}
+
 MATCH = pl.Schema(_MATCH)
 PLAYER = pl.Schema(_PLAYER)
 ROUND = pl.Schema(_ROUND)
@@ -173,6 +222,9 @@ DAMAGE = pl.Schema(_DAMAGE)
 BLIND = pl.Schema(_BLIND)
 BOMB = pl.Schema(_BOMB)
 ECONOMY = pl.Schema(_ECONOMY)
+SHOT = pl.Schema(_SHOT)
+GRENADE = pl.Schema(_GRENADE)
+GRENADE_PATH = pl.Schema(_GRENADE_PATH)
 
 TABLES: dict[str, pl.Schema] = {
     "match": MATCH,
@@ -183,6 +235,9 @@ TABLES: dict[str, pl.Schema] = {
     "blind": BLIND,
     "bomb": BOMB,
     "economy": ECONOMY,
+    "shot": SHOT,
+    "grenade": GRENADE,
+    "grenade_path": GRENADE_PATH,
 }
 
 
