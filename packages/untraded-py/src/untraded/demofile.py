@@ -39,6 +39,7 @@ __all__ = [
     "digest",
     "open_demo",
     "plain_demo",
+    "plain_demo_with_digest",
     "zstd",
 ]
 
@@ -118,3 +119,28 @@ def plain_demo(path: Path, *, limit: int | None = None) -> Iterator[Path]:
             else:
                 dst.write(src.read(limit))
         yield target
+
+
+@contextmanager
+def plain_demo_with_digest(path: Path) -> Iterator[tuple[Path, DemoDigest]]:
+    """Like `plain_demo`, and hashes the demo in the same pass (one decompression, not two)."""
+    if demo_suffix(path) == ".dem":
+        yield path, digest(path)
+        return
+    sha = hashlib.sha256()
+    size = 0
+    with TemporaryDirectory(prefix="untraded-") as tmp:
+        target = Path(tmp) / "demo.dem"
+        try:
+            with open_demo(path) as src, target.open("wb") as dst:
+                chunk = src.read(_CHUNK)
+                if not chunk.startswith(DEMO_MAGIC):
+                    raise NotADemoError(f"{path.name}: not a CS2 demo (missing {DEMO_MAGIC!r})")
+                while chunk:
+                    sha.update(chunk)
+                    size += len(chunk)
+                    dst.write(chunk)
+                    chunk = src.read(_CHUNK)
+        except (EOFError, zstd.ZstdError) as error:
+            raise CorruptDemoError(f"{path.name}: {error}") from error
+        yield target, DemoDigest(sha256=sha.hexdigest(), size=size)

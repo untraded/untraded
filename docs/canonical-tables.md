@@ -1,6 +1,6 @@
 # Canonical tables v1 (specification)
 
-*Version 1, accepted 2026-10-15. The parsing adapter (workstream E3) implements it: `match`, `player`, `round`, `kill`, `damage`, `blind`, `bomb` and `economy` `shot`, `grenade` and `grenade_path` are built (`untraded.parsing.parse_demo`); `inventory_change` and `player_tick` come next.*
+*Version 1, accepted 2026-10-15. The parsing adapter (workstream E3) implements all 13 tables (`untraded.parsing.parse_demo`, `untraded parse`). A 30-round Premier match takes about 34 s and 1.4 GB of memory at peak on a desktop x86 CPU (bz2 decompression and hashing included), and 6.1 MB of Parquet, 5.9 MB of it `player_tick`.*
 
 The canonical tables are what the parsing adapter produces from a demo (ADR 0002), what metrics read, and the **long-term record** of a match: metrics are recomputed from them, and the raw demo may be deleted after parsing (ADR 0009). Anything left out here is lost for every match whose demo is gone. Each column is therefore listed with **its source** and **why it is kept**.
 
@@ -147,11 +147,11 @@ Sources were checked on Premier, FACEIT, LAN and online tournament demos (spikes
 
 ### `inventory_change` — one row each time a player's inventory changes
 
-`tick`, `round`, `steamid`, `inventory` (List[String]). Purchases, drops and pickups are derived from consecutive rows (ADR 0008: no purchase event). Storing changes instead of the inventory at every tick keeps `player_tick` small.
+`tick`, `round`, `steamid`, `inventory` (List[String]). Purchases, drops and pickups are derived from consecutive rows (ADR 0008: no purchase event). Storing changes instead of the inventory at every tick keeps `player_tick` small. Changes are detected on the `player_tick` samples (16 Hz): a change undone within one interval (62 ms) is not seen. There were 4 such changes of 2,363 on a 30-round match, while reading the inventory at every tick doubled the peak memory of a parse (about 2 GB).
 
 ### `player_tick` — player state, sampled
 
-Rows at **16 Hz** (one tick in four at 64 ticks/s, ⚙ adapter parameter) **plus every kill tick and every round's `freeze_end_tick` and `end_tick`**, so that kill-time and round-boundary states are exact.
+Rows at **16 Hz** (one tick in four at 64 ticks/s, ⚙ adapter parameter) within each round, from `start_tick` to `end_tick`, **plus every kill tick and every round's `freeze_end_tick` and `end_tick`**, so that kill-time and round-boundary states are exact. Only players on a team are kept. About 500,000 rows for a 30-round match.
 
 | Column | Type | Source | Why |
 |---|---|---|---|
