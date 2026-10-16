@@ -1,6 +1,6 @@
 # Rapport S0.6 — stockage et CPU par match
 
-*Rempli le 14/10/2026 après `just spike-costs` sur 13 démos (12 pro, 1 FACEIT), sous Linux x86-64 (12 cœurs, Python 3.14, demoparser2 0.42.0). Les démos Premier sont mesurées dans S0.2 ; ce script reste à lancer dessus.*
+*Rempli le 14/10/2026 après `just spike-costs` sur 13 démos (12 pro, 1 FACEIT), sous Linux x86-64 (12 cœurs, Python 3.14, demoparser2 0.42.0). Complété le 16/10/2026 avec des démos Premier, sur ARM et sur x86 (voir plus bas).*
 
 ## Résultat
 | Mesure | Médiane | Maximum |
@@ -27,9 +27,24 @@ Le maximum vient d'une seule démo (464 Mo), mesurée pendant que la machine ét
 - CPU d'un match : environ **36 s** de parsing et d'écriture, plus la décompression bz2 (environ 6 s, S0.2), plus le calcul des métriques (pas encore mesuré).
 - RAM : 2 Go au maximum par parsing (S0.2, S0.4).
 
+## Démos Premier, ARM contre x86 (16/10/2026)
+Même script, 5 démos Premier récentes de chaque côté (taille médiane comparable), médiane / maximum :
+
+| Mesure | ARM : Oracle Ampere A1, Neoverse-N1, 4 cœurs (`server-bench.sh`) | x86-64 : PC Windows, 16 cœurs | Écart ARM |
+|---|---|---|---|
+| Taille du `.dem` | 240 / 324 Mo | 242 / 364 Mo | |
+| Parse + écriture Parquet : CPU | 14,9 / 20,2 s | 12,2 / 17,9 s | +22 % |
+| Parse + écriture Parquet : temps réel | 10,2 / 13,8 s | 9,2 / 10,8 s | +11 % |
+| Décompression bz2 : CPU | 14,2 / 19,6 s | 8,1 / 12,1 s | ×1,75 |
+| zstd niveau 3 : ratio, CPU | 0,709, 3,0 s | 0,713, 1,7 s | ×1,75 |
+| Parquet par match | 4,7 Mo | 4,6 Mo | |
+
+- **Un match Premier coûte environ 30 s de CPU sur ARM** (décompression comprise), contre 20 s sur x86, et **environ 5 Mo de Parquet**.
+- Le parsing (multithread) ne perd que 20 % sur ARM ; ce qui tourne sur un seul cœur (bz2, zstd) est 1,75 fois plus lent.
+- Les démos Premier coûtent environ 2,5 fois moins de CPU que les démos pro (36 s) : elles sont plus petites (240 contre 354 Mo).
+- Mesures indicatives : les deux machines faisaient tourner autre chose (services du serveur, transfert réseau sur le PC).
+
 ## Reste à mesurer
-- Les démos Premier avec ce script (taille médiane et CPU) : sur le PC Windows, `just spike-costs <inbox>`.
-- Le même script sur ARM (serveur Oracle), pour connaître l'écart de performance avec x86.
 - Le coût du calcul des métriques, en phase 1.
 
 ## Décision
