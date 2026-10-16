@@ -15,6 +15,12 @@ export UNTRADED_CORPUS_DIR=~/untraded-corpus
 untraded corpus add ~/Downloads/*.dem.zst --source faceit --played-at 2026-10-14
 untraded corpus list
 untraded corpus verify          # re-hashes every file; --quick checks presence only
+
+export UNTRADED_CORPUS_REMOTE=untraded-corpus:corpus/demos
+untraded corpus push            # upload what the shared store lacks (files are re-hashed first)
+untraded corpus pull            # download what is missing locally (each file is checked)
 ```
+
+`pull` and `push` use the OpenSSH `sftp` client (Linux, macOS and Windows) with a host alias from `~/.ssh/config`: the access key stays in your SSH configuration, never in the repository. Both accept `--dry-run`.
 
 `--source` is one of `valve-premier`, `faceit`, `esea`, `scrim`, `pro`. The demo does not carry its date nor its game mode: pass `--played-at` when known, and only add supported modes (no Wingman). Run the commands from the repository root (or pass `--manifest`), then commit `manifest.toml`.

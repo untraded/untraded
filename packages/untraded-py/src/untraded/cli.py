@@ -11,6 +11,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from untraded import corpus
+from untraded.corpus.sync import SftpRemote, SyncError, SyncReport, pull, push
 from untraded.demofile import CorruptDemoError, NotADemoError
 
 DEFAULT_MANIFEST = Path("corpus") / "manifest.toml"
@@ -20,7 +21,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
         return int(args.run(args))
-    except (corpus.ManifestError, NotADemoError, CorruptDemoError) as error:
+    except (corpus.ManifestError, NotADemoError, CorruptDemoError, SyncError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 2
 
@@ -59,6 +60,19 @@ def _parser() -> argparse.ArgumentParser:
 
     listing = actions.add_parser("list", help="list the demos in the manifest")
     listing.set_defaults(run=_list)
+
+    for name, run, help_text in (
+        ("push", _push, "upload to the shared store the demos it lacks"),
+        ("pull", _pull, "download from the shared store the demos missing locally"),
+    ):
+        sync = actions.add_parser(name, help=help_text)
+        sync.add_argument(
+            "--remote",
+            default=os.environ.get("UNTRADED_CORPUS_REMOTE"),
+            help="shared store as ssh-host:path (default: $UNTRADED_CORPUS_REMOTE)",
+        )
+        sync.add_argument("--dry-run", action="store_true", help="only show what would be done")
+        sync.set_defaults(run=run)
     return parser
 
 
@@ -103,6 +117,36 @@ def _verify(args: argparse.Namespace) -> int:
         print(f"{status.value:<8} {demo.id}")
     print(f"{len(demos) - failures}/{len(demos)} ok")
     return 1 if failures else 0
+
+
+def _remote(args: argparse.Namespace) -> SftpRemote:
+    if not args.remote:
+        raise SyncError("set UNTRADED_CORPUS_REMOTE or pass --remote (ssh-host:path)")
+    return SftpRemote.parse(args.remote)
+
+
+def _push(args: argparse.Namespace) -> int:
+    report = push(
+        corpus.load(args.manifest), _corpus_dir(args), _remote(args), dry_run=args.dry_run
+    )
+    return _print_report(report, "uploaded", args.dry_run)
+
+
+def _pull(args: argparse.Namespace) -> int:
+    report = pull(
+        corpus.load(args.manifest), _corpus_dir(args), _remote(args), dry_run=args.dry_run
+    )
+    return _print_report(report, "downloaded", args.dry_run)
+
+
+def _print_report(report: SyncReport, verb: str, dry_run: bool) -> int:
+    for demo in report.done:
+        print(f"{'would be ' if dry_run else ''}{verb}: {demo.id}")
+    for demo, reason in report.skipped:
+        print(f"skipped: {demo.id} ({reason})")
+    done = f"{len(report.done)} {'to be ' if dry_run else ''}{verb}"
+    print(f"{done}, {len(report.skipped)} skipped")
+    return 1 if report.skipped else 0
 
 
 def _list(args: argparse.Namespace) -> int:
