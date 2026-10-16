@@ -15,12 +15,7 @@ def validate(tables: dict[str, pl.DataFrame]) -> None:
         if frame.schema != TABLES[name]:
             raise CanonicalError(f"{name}: schema differs from the spec")
 
-    match, rounds, kills, players = (
-        tables["match"],
-        tables["round"],
-        tables["kill"],
-        tables["player"],
-    )
+    match, rounds, players = tables["match"], tables["round"], tables["player"]
     if match.height != 1:
         raise CanonicalError(f"match: {match.height} rows, expected 1")
     info = match.row(0, named=True)
@@ -44,11 +39,30 @@ def validate(tables: dict[str, pl.DataFrame]) -> None:
     if not ordered.to_series().all():
         raise CanonicalError("round: ticks are not ordered start <= freeze end < end < next start")
 
-    if kills.height:
-        if not kills["tick"].is_sorted():
-            raise CanonicalError("kill: ticks are not increasing")
-        if kills["round"].null_count() or not kills["round"].is_in(rounds["round"].to_list()).all():
-            raise CanonicalError("kill: a kill has no live round")
+    live = rounds["round"].to_list()
+    for name in ("kill", "damage", "blind", "bomb"):
+        events = tables[name]
+        if not events.height:
+            continue
+        if not events["tick"].is_sorted():
+            raise CanonicalError(f"{name}: ticks are not increasing")
+        if events["round"].null_count() or not events["round"].is_in(live).all():
+            raise CanonicalError(f"{name}: an event has no live round")
+
+    damage = tables["damage"]
+    if (
+        damage.height
+        and not damage.select(
+            pl.col("damage").is_between(0, 100) & (pl.col("damage") <= pl.col("dmg_health"))
+        )
+        .to_series()
+        .all()
+    ):
+        raise CanonicalError("damage: capped damage outside 0-100 or above dmg_health")
+
+    economy = tables["economy"]
+    if economy.select("round", "steamid").is_duplicated().any():
+        raise CanonicalError("economy: more than one row per player and round")
 
     if players["steamid"].n_unique() != players.height:
         raise CanonicalError("player: duplicate steamid")
