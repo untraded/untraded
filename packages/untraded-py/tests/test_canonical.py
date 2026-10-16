@@ -43,6 +43,9 @@ def valid_tables() -> dict[str, pl.DataFrame]:
         "blind": table("blind", []),
         "bomb": table("bomb", [{"tick": 30, "round": 1, "type": "planted", "site": "A"}]),
         "economy": table("economy", [{"round": 1, "steamid": 1}, {"round": 1, "steamid": 2}]),
+        "shot": table("shot", [{"tick": 15, "round": 1}]),
+        "grenade": table("grenade", [{"grenade_id": 1, "round": 1, "throw_tick": 12}]),
+        "grenade_path": table("grenade_path", [{"grenade_id": 1, "tick": 12}]),
     }
 
 
@@ -59,7 +62,7 @@ def test_score_must_add_up_to_the_last_round() -> None:
 
 def test_truncated_start_still_counts_the_missing_rounds_in_the_score() -> None:
     tables = valid_tables()
-    for name in ("round", "kill", "damage", "blind", "bomb", "economy"):  # rounds 5 and 6
+    for name in ("round", "kill", "damage", "blind", "bomb", "economy", "shot", "grenade"):
         tables[name] = tables[name].with_columns(pl.col("round") + 4)
     tables["match"] = tables["match"].with_columns(
         pl.lit(5, pl.Int16).alias("first_round"),
@@ -90,6 +93,13 @@ def test_capped_damage_stays_within_raw_damage() -> None:
     tables = valid_tables()
     tables["damage"] = tables["damage"].with_columns(pl.lit(101, pl.Int16).alias("damage"))
     with pytest.raises(CanonicalError, match="capped damage"):
+        validate(tables)
+
+
+def test_grenade_ids_must_exist() -> None:
+    tables = valid_tables()
+    tables["damage"] = tables["damage"].with_columns(pl.lit(9, pl.Int32).alias("grenade_id"))
+    with pytest.raises(CanonicalError, match="grenade_id"):
         validate(tables)
 
 

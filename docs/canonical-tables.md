@@ -1,6 +1,6 @@
 # Canonical tables v1 (specification)
 
-*Version 1, accepted 2026-10-15. The parsing adapter (workstream E3) implements it: `match`, `player`, `round`, `kill`, `damage`, `blind`, `bomb` and `economy` are built (`untraded.parsing.parse_demo`), the other tables come next.*
+*Version 1, accepted 2026-10-15. The parsing adapter (workstream E3) implements it: `match`, `player`, `round`, `kill`, `damage`, `blind`, `bomb` and `economy` `shot`, `grenade` and `grenade_path` are built (`untraded.parsing.parse_demo`); `inventory_change` and `player_tick` come next.*
 
 The canonical tables are what the parsing adapter produces from a demo (ADR 0002), what metrics read, and the **long-term record** of a match: metrics are recomputed from them, and the raw demo may be deleted after parsing (ADR 0009). Anything left out here is lost for every match whose demo is gone. Each column is therefore listed with **its source** and **why it is kept**.
 
@@ -95,13 +95,13 @@ Sources were checked on Premier, FACEIT, LAN and online tournament demos (spikes
 | `health_after`, `armor_after` | Int16 | event | |
 | `damage` | Int16 | **capped**: `min(dmg_health, health before the hit)`. The health before is the `health_after` of the previous hit on that victim in the round, or 100: health only goes down within a round, the `health` prop at the event tick is already updated for about a third of the hits, and `dmg_health` is rounded down (health often drops by one more point) | ADR (metrics-v1 § 0) |
 | `is_team_damage` | Boolean | sides at the tick | team damage |
-| `grenade_id` | Int32? | matched to the `grenade` thrown by the attacker (HE, fire); null until the `grenade` table is built | fire ownership check (demoparser2 #317) |
+| `grenade_id` | Int32? | the attacker's grenade of the damage's kind (HE, fire, impact) whose throw-to-end window (+1 s) holds the hit | fire ownership check (demoparser2 #317) |
 
 ### `shot` — one row per `weapon_fire`
 
 | Column | Type | Source | Why |
 |---|---|---|---|
-| `tick`, `round`, `shooter`, `weapon`, `silenced` | | event | shot counts |
+| `tick`, `round`, `shooter`, `weapon`, `silenced` | | event (`weapon` without its `weapon_` prefix; grenade throws and knife swings included) | shot counts |
 | `x/y/z`, `pitch`, `yaw`, `velocity_x/y/z` | Float32 | props at the tick | **aim and movement metrics later** (not in v1): lost if not kept |
 | `is_scoped`, `ducking`, `is_airborne`, `is_walking`, `accuracy_penalty` | | props at the tick | same |
 
@@ -109,22 +109,22 @@ Sources were checked on Premier, FACEIT, LAN and online tournament demos (spikes
 
 | Column | Type | Source | Why |
 |---|---|---|---|
-| `grenade_id` | Int32 | sequential within the match (entity ids are reused) | key |
+| `grenade_id` | Int32 | sequential within the match by throw tick; one throw is a run of consecutive ticks of a projectile entity (entity ids are reused) | key |
 | `entity_id`, `round`, `thrower`, `side` | | `parse_grenades` | |
-| `type` | Enum: `flash`, `he`, `smoke`, `molotov`, `incendiary`, `decoy` | `parse_grenades` | `util.thrown_*` |
+| `type` | Enum: `flash`, `he`, `smoke`, `molotov`, `incendiary`, `decoy` | projectile class from `parse_grenades`; molotov vs. incendiary from the thrower's `weapon_fire` | `util.thrown_*` |
 | `throw_tick`, `throw_x/y/z` | | first trajectory point | lineups, display |
-| `detonate_tick`, `detonate_x/y/z` | | detonate event (`inferno_startburn`, `decoy_started` for those types); last trajectory point as fallback | utility metrics |
+| `detonate_tick`, `detonate_x/y/z` | | detonate event of the projectile's entity (`decoy_started` for decoys); for fire, `inferno_startburn` one tick after the projectile ends, from the same thrower (the fire has its own entity id); last trajectory point as fallback | utility metrics |
 | `end_tick` | Int32? | `smokegrenade_expired`, `inferno_expire` | smoke and fire timelines |
 
 ### `grenade_path` — grenade trajectories at 16 Hz *(see § 4)*
 
-`grenade_id`, `tick`, `x`, `y`, `z`. For the 2D viewer and lineups. About 400,000 rows per match at 16 Hz (1.7 million at full rate).
+`grenade_id`, `tick`, `x`, `y`, `z`. For the 2D viewer and lineups. The projectile's flight from the throw to the detonation, at 16 Hz plus its last point: about 17,000 rows and 0.2 MB of Parquet for a 30-round Premier match (the projectile entity stays still for seconds after detonating, and grenades held in hand have no position: neither is kept).
 
 ### `blind` — one row per player blinded
 
 | Column | Type | Source | Why |
 |---|---|---|---|
-| `tick`, `round`, `victim`, `flasher`, `grenade_id` | | `player_blind`; **fallback**: rises of `flash_duration` at the `flashbang_detonate` tick, attributed to its thrower (ADR 0008). On a matchmaking demo with both, the fallback finds 156 of 161 blinds with the same tick, duration and flasher, and no false positive (the missed ones were already blinded). `grenade_id` is null until the `grenade` table is built | `util.enemies_flashed`, blind time |
+| `tick`, `round`, `victim`, `flasher`, `grenade_id` | | `player_blind`; **fallback**: rises of `flash_duration` at the `flashbang_detonate` tick, attributed to its thrower (ADR 0008). On a matchmaking demo with both, the fallback finds 156 of 161 blinds with the same tick, duration and flasher, and no false positive (the missed ones were already blinded). `grenade_id` is the flasher's flash detonating on that tick | `util.enemies_flashed`, blind time |
 | `duration` | Float32 (s) | `blind_duration`, or `flash_duration` | |
 | `is_teammate`, `is_self` | Boolean | sides at the tick | team and self flashes |
 | `from_fallback` | Boolean | adapter | traceability |
