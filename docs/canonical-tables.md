@@ -1,6 +1,6 @@
 # Canonical tables v1 (specification)
 
-*Version 1, accepted 2026-10-15. The parsing adapter (workstream E3) implements it.*
+*Version 1, accepted 2026-10-15. The parsing adapter (workstream E3) implements it: `match`, `player`, `round` and `kill` are built (`untraded.parsing.parse_demo`), the other tables come next.*
 
 The canonical tables are what the parsing adapter produces from a demo (ADR 0002), what metrics read, and the **long-term record** of a match: metrics are recomputed from them, and the raw demo may be deleted after parsing (ADR 0009). Anything left out here is lost for every match whose demo is gone. Each column is therefore listed with **its source** and **why it is kept**.
 
@@ -62,7 +62,7 @@ Sources were checked on Premier, FACEIT, LAN and online tournament demos (spikes
 | `ct_team`, `t_team` | Enum A/B | `team_num` at freeze end | sides per round |
 | `score_a`, `score_b` | Int16 | `team_rounds_total` after the round | match state |
 | `is_overtime` | Boolean | round number vs. regulation length | pistol rounds, splits |
-| `bomb_planted_tick`, `bomb_site`, `bomb_planter` | Int32?, Enum A/B?, UInt64? | `bomb_planted` | post-plant, retakes |
+| `bomb_planted_tick`, `bomb_site`, `bomb_planter` | Int32?, Enum A/B?, UInt64? | `bomb_planted`; the site from the planter's `last_place_name` (`BombsiteA`/`BombsiteB`), since the event only carries an entity id | post-plant, retakes |
 | `bomb_defused_tick`, `bomb_defuser` | Int32?, UInt64? | `bomb_defused` | |
 | `bomb_exploded_tick` | Int32? | `bomb_exploded` | |
 
@@ -75,7 +75,7 @@ Sources were checked on Premier, FACEIT, LAN and online tournament demos (spikes
 | `flash_assist` | Boolean | `assistedflash` (credited to `assister`) | `base.flash_assists`, KAST |
 | `weapon` | String | event | splits, `eco.kills_vs_buy` |
 | `headshot`, `wallbang`, `noscope`, `through_smoke`, `attacker_blind`, `attacker_in_air` | Boolean | event (`penetrated` > 0 for wallbang) | HS %, display, later metrics |
-| `hitgroup`, `distance` | Int8, Float32 | event | display, later metrics |
+| `hitgroup`, `distance` | Int8?, Float32 | event; `hitgroup` is the engine code (0 generic, 1 head, 2 chest, 3 stomach, 4-5 arms, 6-7 legs, 8 neck, 10 gear), null when none (world, bomb) | display, later metrics |
 | `attacker_side`, `victim_side` | Enum | `team_num` at the tick | splits; team kills |
 | `is_team_kill`, `is_suicide` | Boolean | derived | `base.team_kills`, `base.suicides` |
 | `attacker_x/y/z`, `victim_x/y/z` | Float32 | props at the tick | kill and death zones, heatmaps, trade opportunities |

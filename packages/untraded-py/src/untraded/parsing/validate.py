@@ -1,0 +1,54 @@
+# SPDX-FileCopyrightText: 2026 The Untraded Authors
+# SPDX-License-Identifier: MIT
+"""Validation on creation (docs/canonical-tables.md § 5), for the tables built so far."""
+
+from __future__ import annotations
+
+import polars as pl
+
+from untraded.parsing.schema import TABLES, CanonicalError
+
+
+def validate(tables: dict[str, pl.DataFrame]) -> None:
+    """Raises CanonicalError on the first broken rule."""
+    for name, frame in tables.items():
+        if frame.schema != TABLES[name]:
+            raise CanonicalError(f"{name}: schema differs from the spec")
+
+    match, rounds, kills, players = (
+        tables["match"],
+        tables["round"],
+        tables["kill"],
+        tables["player"],
+    )
+    if match.height != 1:
+        raise CanonicalError(f"match: {match.height} rows, expected 1")
+    info = match.row(0, named=True)
+
+    numbers = rounds["round"].to_list()
+    first, last = numbers[0], numbers[-1]
+    if numbers != list(range(first, last + 1)):
+        raise CanonicalError(f"round: numbers are not consecutive: {numbers}")
+    if first != info["first_round"] or len(numbers) != info["rounds_played"]:
+        raise CanonicalError("match: first_round or rounds_played disagree with the round table")
+    # Scores count every round, including those before a truncated start (ADR 0008).
+    if info["score_a"] + info["score_b"] != last:
+        raise CanonicalError(
+            f"match: score {info['score_a']}-{info['score_b']} does not add up to {last} rounds"
+        )
+    ordered = rounds.select(
+        (pl.col("start_tick") <= pl.col("freeze_end_tick"))
+        & (pl.col("freeze_end_tick") < pl.col("end_tick"))
+        & (pl.col("end_tick") < pl.col("start_tick").shift(-1).fill_null(2**31 - 1))
+    )
+    if not ordered.to_series().all():
+        raise CanonicalError("round: ticks are not ordered start <= freeze end < end < next start")
+
+    if kills.height:
+        if not kills["tick"].is_sorted():
+            raise CanonicalError("kill: ticks are not increasing")
+        if kills["round"].null_count() or not kills["round"].is_in(rounds["round"].to_list()).all():
+            raise CanonicalError("kill: a kill has no live round")
+
+    if players["steamid"].n_unique() != players.height:
+        raise CanonicalError("player: duplicate steamid")

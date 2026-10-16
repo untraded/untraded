@@ -22,6 +22,8 @@ classifiers = [
 dependencies = [
     "backports.zstd>=1.0; python_version < '3.14'",
     "demoparser2==0.42.0",
+    "polars>=2.0,<3",
+    "pyarrow>=26",
 ]
 
 [project.scripts]

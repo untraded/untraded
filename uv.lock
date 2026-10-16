@@ -799,12 +799,16 @@ version = "0.0.2"
 source = { editable = "packages/untraded-py" }
 dependencies = [
     { name = "demoparser2" },
+    { name = "polars" },
+    { name = "pyarrow" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "backports-zstd", marker = "python_full_version < '3.14'", specifier = ">=1.0" },
     { name = "demoparser2", specifier = "==0.42.0" },
+    { name = "polars", specifier = ">=2.0,<3" },
+    { name = "pyarrow", specifier = ">=26" },
 ]
 
 [[package]]

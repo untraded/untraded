@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import os
 import sys
 from collections.abc import Sequence
@@ -13,6 +14,7 @@ from pathlib import Path
 from untraded import corpus
 from untraded.corpus.sync import SftpRemote, SyncError, SyncReport, pull, push
 from untraded.demofile import CorruptDemoError, NotADemoError
+from untraded.parsing import MODES, CanonicalError, UnsupportedModeError, parse_demo
 
 DEFAULT_MANIFEST = Path("corpus") / "manifest.toml"
 
@@ -21,7 +23,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
         return int(args.run(args))
-    except (corpus.ManifestError, NotADemoError, CorruptDemoError, SyncError) as error:
+    except (
+        corpus.ManifestError,
+        NotADemoError,
+        CorruptDemoError,
+        SyncError,
+        CanonicalError,
+        UnsupportedModeError,
+    ) as error:
         print(f"error: {error}", file=sys.stderr)
         return 2
 
@@ -29,6 +38,14 @@ def main(argv: Sequence[str] | None = None) -> int:
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="untraded", description=__doc__)
     commands = parser.add_subparsers(required=True, metavar="command")
+
+    parse = commands.add_parser("parse", help="parse a demo into canonical tables (Parquet)")
+    parse.add_argument("demo", type=Path)
+    parse.add_argument("--mode", required=True, choices=MODES, help="game mode of the match")
+    parse.add_argument("--source", default="upload", help="where the demo came from")
+    parse.add_argument("--played-at", type=dt.date.fromisoformat, metavar="YYYY-MM-DD")
+    parse.add_argument("--out", type=Path, default=Path(), help="writes OUT/matches/<match_id>/")
+    parse.set_defaults(run=_parse)
 
     corpus_parser = commands.add_parser("corpus", help="manage the reference demo corpus")
     corpus_parser.add_argument(
@@ -74,6 +91,17 @@ def _parser() -> argparse.ArgumentParser:
         sync.add_argument("--dry-run", action="store_true", help="only show what would be done")
         sync.set_defaults(run=run)
     return parser
+
+
+def _parse(args: argparse.Namespace) -> int:
+    match = parse_demo(args.demo, source=args.source, mode=args.mode, played_at=args.played_at)
+    target = match.write(args.out)
+    info = match.match.row(0, named=True)
+    print(
+        f"{info['map']} {info['score_a']}-{info['score_b']}, {info['rounds_played']} rounds, "
+        f"{match.kill.height} kills, {match.player.height} players -> {target}"
+    )
+    return 0
 
 
 def _corpus_dir(args: argparse.Namespace) -> Path:
