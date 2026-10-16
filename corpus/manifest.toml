@@ -139,3 +139,183 @@ sha256 = "e4fd3c799136c85189e3c36a9ffa2192c3b0f4a5a0f14ddaf2f67a9b62c213c5"
 bytes = 332429720
 stored_as = ".dem.zst"
 game_build = "14181"
+
+[[demo]]
+id = "valve-premier-2026-10-10-nuke-01"
+source = "valve-premier"
+map = "de_nuke"
+played_at = "2026-10-10"
+sha256 = "f93979d0c5d4b5bbcbfd90c310adcbce666e95b9899032362ac343d22b0fa799"
+bytes = 171986345
+stored_as = ".dem.bz2"
+game_build = "14190"
+
+[[demo]]
+id = "valve-premier-2026-10-10-inferno-01"
+source = "valve-premier"
+map = "de_inferno"
+played_at = "2026-10-10"
+sha256 = "c63a48dde09c5483909d79f82fe86b9420702241e19e27c966bdd488e964a20e"
+bytes = 188159676
+stored_as = ".dem.bz2"
+game_build = "14190"
+
+[[demo]]
+id = "valve-premier-2026-10-10-mirage-01"
+source = "valve-premier"
+map = "de_mirage"
+played_at = "2026-10-10"
+sha256 = "1b2af6dad22ef933130464068da3f68b821a51e0c50c4fb56cdd1c462b161d75"
+bytes = 269419323
+stored_as = ".dem.zst"
+game_build = "14190"
+
+[[demo]]
+id = "valve-premier-2026-10-11-anubis-01"
+source = "valve-premier"
+map = "de_anubis"
+played_at = "2026-10-11"
+sha256 = "c6d0a0db22d8d97fcc342e9afd12761b5e77364b307a32bd97aea4d0124ad262"
+bytes = 298950644
+stored_as = ".dem.bz2"
+game_build = "14190"
+
+[[demo]]
+id = "valve-premier-2026-10-11-anubis-02"
+source = "valve-premier"
+map = "de_anubis"
+played_at = "2026-10-11"
+sha256 = "48c3f881dcd7a6c8661833edd6f1d729451ac17cc63157bcc7ac033895baee13"
+bytes = 245059564
+stored_as = ".dem.bz2"
+game_build = "14190"
+
+[[demo]]
+id = "valve-premier-2026-10-11-cache-01"
+source = "valve-premier"
+map = "de_cache"
+played_at = "2026-10-11"
+sha256 = "3b161d7a4c75c335dddcf7908c666e0e528d833b598dd65f5cd5e2f9d2fced07"
+bytes = 177423879
+stored_as = ".dem.bz2"
+game_build = "14190"
+
+[[demo]]
+id = "valve-premier-2026-10-11-inferno-01"
+source = "valve-premier"
+map = "de_inferno"
+played_at = "2026-10-11"
+sha256 = "f5f5416ece6ed6bd9838e7d843b52211cedcfff8b364f146086635bb5dde575b"
+bytes = 285928263
+stored_as = ".dem.bz2"
+game_build = "14190"
+
+[[demo]]
+id = "valve-premier-2026-10-11-dust2-01"
+source = "valve-premier"
+map = "de_dust2"
+played_at = "2026-10-11"
+sha256 = "f0a55075980d945cc810bcd793ad857f596e930c1404fdec2a0413e101d72b26"
+bytes = 177569729
+stored_as = ".dem.bz2"
+game_build = "14190"
+
+[[demo]]
+id = "valve-premier-2026-10-11-dust2-02"
+source = "valve-premier"
+map = "de_dust2"
+played_at = "2026-10-11"
+sha256 = "bf6df6914b2c7d3b290d727cafa92e67e14340bd36ef59992861d3c89bd24d09"
+bytes = 215253161
+stored_as = ".dem.bz2"
+game_build = "14190"
+
+[[demo]]
+id = "valve-premier-2026-10-11-cache-02"
+source = "valve-premier"
+map = "de_cache"
+played_at = "2026-10-11"
+sha256 = "e5f2f30c52ca3d83c3d16fba3ecaaa0836be9ad35cacc03e33acb7e952ccbc40"
+bytes = 143847358
+stored_as = ".dem.bz2"
+game_build = "14190"
+
+[[demo]]
+id = "valve-premier-2026-10-11-mirage-01"
+source = "valve-premier"
+map = "de_mirage"
+played_at = "2026-10-11"
+sha256 = "e59d12ec75c87113410f2919952167c85fbbd365487f2dc162f43aa97b3f45df"
+bytes = 156661001
+stored_as = ".dem.bz2"
+game_build = "14190"
+
+[[demo]]
+id = "valve-premier-2026-10-11-cache-03"
+source = "valve-premier"
+map = "de_cache"
+played_at = "2026-10-11"
+sha256 = "dc6c2cb4410a0f9ca9e7d9a316af15161c55ed27e0f75531d0c0b81ea9b58034"
+bytes = 65229522
+stored_as = ".dem.bz2"
+game_build = "14190"
+notes = "ended early at 7-0 (likely surrender)"
+
+[[demo]]
+id = "valve-premier-2026-10-12-dust2-01"
+source = "valve-premier"
+map = "de_dust2"
+played_at = "2026-10-12"
+sha256 = "e6f31d7ad843873442d3b6c20e196769e420486aa49727614ae886d28f42110d"
+bytes = 203197622
+stored_as = ".dem.bz2"
+game_build = "14190"
+
+[[demo]]
+id = "valve-premier-2026-10-12-ancient-01"
+source = "valve-premier"
+map = "de_ancient"
+played_at = "2026-10-12"
+sha256 = "4e0c0ab4cb0992783297ec8dea319b70f68db517396f5a41ec5a221a90e06fc2"
+bytes = 162619405
+stored_as = ".dem.bz2"
+game_build = "14190"
+
+[[demo]]
+id = "valve-premier-2026-10-12-anubis-01"
+source = "valve-premier"
+map = "de_anubis"
+played_at = "2026-10-12"
+sha256 = "b921a3316a33f5a2154f16477245f5a633fc80e21c93a07788d6160837e15585"
+bytes = 364208311
+stored_as = ".dem.bz2"
+game_build = "14190"
+
+[[demo]]
+id = "valve-premier-2026-10-13-ancient-01"
+source = "valve-premier"
+map = "de_ancient"
+played_at = "2026-10-13"
+sha256 = "601b3a388cf95c8158298236e5be97d1b82e506102d8af93fa13993f1cedfc08"
+bytes = 241791102
+stored_as = ".dem.bz2"
+game_build = "14190"
+
+[[demo]]
+id = "valve-premier-2026-10-13-anubis-01"
+source = "valve-premier"
+map = "de_anubis"
+played_at = "2026-10-13"
+sha256 = "dba5572dcb9e6642b8b19debd6a3dbf6ee358e8fa91841f60bb270410a368d67"
+bytes = 314167423
+stored_as = ".dem.bz2"
+game_build = "14190"
+
+[[demo]]
+id = "faceit-undated-dust2-01"
+source = "faceit"
+map = "de_dust2"
+sha256 = "f4a9e6e4b395dcbd6df53441e4b3022a722aa43a63797f31af4ae582caa4132c"
+bytes = 327556735
+stored_as = ".dem.zst"
+game_build = "14176"
