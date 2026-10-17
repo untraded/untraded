@@ -178,7 +178,7 @@ def build_kills(ctx: Context) -> pl.DataFrame:
         pl.col("user_inventory").alias("victim_inventory"),
         pl.col("user_flash_duration").alias("victim_flash_duration"),
     )
-    kills = drop_ghost_kills(kills, ctx.unavailable)
+    kills = drop_repeated_deaths(kills, ctx.unavailable)
     return kills.with_columns(
         (pl.col("attacker") == pl.col("victim")).fill_null(False).alias("is_suicide"),
         (
@@ -190,51 +190,22 @@ def build_kills(ctx: Context) -> pl.DataFrame:
     )
 
 
-# Weapons that can still kill after their owner died.
-DELAYED_WEAPONS = ["hegrenade", "inferno", "molotov", "incgrenade", "planted_c4", "world"]
+def drop_repeated_deaths(kills: pl.DataFrame, unavailable: list[str]) -> pl.DataFrame:
+    """Keeps the first death of each player in a round, and records the others in `unavailable`.
 
-
-def drop_ghost_kills(kills: pl.DataFrame, unavailable: list[str]) -> pl.DataFrame:
-    """Removes impossible `player_death` events, and records what was changed in `unavailable`.
-
-    Seen in one matchmaking demo of 26 (6 events of 4,058), likely after a reconnection: a player
-    already dead in the round dies again (at the position of the first death), or is credited
-    with gun kills. A repeated death is dropped. A gun kill by a player who died earlier in the
-    round keeps its victim, who did die, but its attacker becomes unknown (null).
+    After a disconnection, a bot replaces the player and a dead teammate can take it over: its
+    kills are credited to that teammate (as on the in-game scoreboard, and kept here), and its
+    death shows as a second death of the teammate, which is dropped. Seen in 2 matchmaking demos
+    of 26 (2 deaths of 4,058).
     """
     ordered = kills.with_row_index("order")
-    first_death = ordered.group_by("round", "victim").agg(
-        pl.col("tick").min().alias("died_at"), pl.col("order").min().alias("first_order")
-    )
-    repeated = ordered.join(first_death, on=["round", "victim"]).filter(
-        pl.col("order") != pl.col("first_order")
-    )["order"]
-    kept = ordered.filter(~pl.col("order").is_in(repeated.to_list()))
-    shooter_dead = (
-        kept.join(
-            first_death.rename({"victim": "attacker"}).drop("first_order"),
-            on=["round", "attacker"],
-            how="left",
-        )
-        .select(
-            (
-                (pl.col("died_at") < pl.col("tick")) & ~pl.col("weapon").is_in(DELAYED_WEAPONS)
-            ).fill_null(False)
-        )
-        .to_series()
-    )
-    if repeated.len():
+    first = ordered.group_by("round", "victim").agg(pl.col("order").min())["order"]
+    repeated = ordered.height - first.len()
+    if repeated:
         unavailable.append(
-            f"kill: {repeated.len()} repeated deaths of an already dead player dropped"
+            f"kill: {repeated} repeated deaths dropped (a bot taken over by a dead player)"
         )
-    if shooter_dead.any():
-        unavailable.append(
-            f"kill.attacker: unknown for {shooter_dead.sum()} gun kills credited to a dead player"
-        )
-    return kept.with_columns(
-        pl.when(shooter_dead).then(None).otherwise(pl.col("attacker")).alias("attacker"),
-        pl.when(shooter_dead).then(None).otherwise(pl.col("attacker_side")).alias("attacker_side"),
-    ).drop("order")
+    return ordered.filter(pl.col("order").is_in(first.to_list())).drop("order")
 
 
 def build_players(ctx: Context) -> pl.DataFrame:

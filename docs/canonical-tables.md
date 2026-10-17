@@ -84,7 +84,7 @@ Sources were checked on Premier, FACEIT, LAN and online tournament demos (spikes
 | `victim_inventory` | List[String] | `inventory` at the tick | `util.unused_value_at_death` |
 | `victim_flash_duration` | Float32 | `flash_duration` at the tick | `util.flash_to_kill` |
 
-Impossible events are cleaned and recorded in `match.unavailable`: a repeated death of a player already dead in the round is dropped, and a gun kill credited to a player who died earlier in the round keeps its victim but gets an unknown (null) attacker. Seen in one matchmaking demo of 26 (6 events of 4,058), likely after a reconnection. Grenades, fire and the bomb can still kill after their owner died.
+After a disconnection, a bot replaces the player and a dead teammate can take it over: the bot's kills are credited to that teammate, as on the in-game scoreboard, and kept; the bot's death shows as a second death of the teammate in the round, which is dropped and counted in `match.unavailable` (2 deaths of 4,058 in 26 matchmaking demos).
 
 ### `damage` — one row per `player_hurt`
 
