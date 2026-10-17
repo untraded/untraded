@@ -11,6 +11,7 @@ from typing import Any
 import polars as pl
 import pytest
 
+from untraded.derive import derive
 from untraded.parsing import CanonicalError, UnsupportedModeError, parse_demo
 from untraded.parsing.schema import TABLES, conform
 from untraded.parsing.validate import validate
@@ -172,6 +173,9 @@ def test_parses_a_real_demo(tmp_path: Path) -> None:
     assert match.kill.height > 0
     assert match.damage.height > match.kill.height
     assert match.economy.height >= 10 * match.round.height - 10
+    model = derive(match.tables())
+    assert model.round_player["kills"].sum() == model.death["is_enemy_kill"].sum()
+    assert model.death["is_opening"].sum() <= match.round.height
     target = match.write(tmp_path)
     assert sorted(p.stem for p in target.iterdir()) == sorted(TABLES)
     assert pl.read_parquet(target / "round.parquet").schema == TABLES["round"]
