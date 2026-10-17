@@ -84,6 +84,8 @@ Sources were checked on Premier, FACEIT, LAN and online tournament demos (spikes
 | `victim_inventory` | List[String] | `inventory` at the tick | `util.unused_value_at_death` |
 | `victim_flash_duration` | Float32 | `flash_duration` at the tick | `util.flash_to_kill` |
 
+Impossible events are cleaned and recorded in `match.unavailable`: a repeated death of a player already dead in the round is dropped, and a gun kill credited to a player who died earlier in the round keeps its victim but gets an unknown (null) attacker. Seen in one matchmaking demo of 26 (6 events of 4,058), likely after a reconnection. Grenades, fire and the bomb can still kill after their owner died.
+
 ### `damage` — one row per `player_hurt`
 
 | Column | Type | Source | Why |
