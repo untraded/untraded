@@ -124,6 +124,8 @@ SUMMARY = {
     "base.adr": "ADR",
     "base.hs_pct": "HS%",
     "base.kast": "KAST%",
+    "duel.opening_kills": "OK",
+    "trade.untraded_deaths": "UD",
 }
 
 
