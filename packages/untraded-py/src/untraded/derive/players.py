@@ -39,6 +39,7 @@ def build_round_players(
         left_on=["tick", "victim", "attacker"],
         right_on=["tick", "victim", "killer"],
         how="semi",
+        nulls_equal=True,  # kills of bots have no victim
     )
     assists = (
         enemy_kills.filter(pl.col("assister").is_not_null())

@@ -32,10 +32,10 @@ def test_overkill_is_capped_by_the_health_left() -> None:
     assert out["damage"].to_list() == [30, 70]
 
 
-def test_rounded_down_damage_is_never_exceeded() -> None:
+def test_damage_is_the_health_lost_not_the_rounded_down_dmg_health() -> None:
     # dmg_health is rounded down: health drops by 15 for a reported 14
-    out = capped_damage(hurts((10, 1, 1, 6, 14, 85), (20, 1, 1, 6, 14, 70)))
-    assert out["damage"].to_list() == [14, 14]
+    out = capped_damage(hurts((10, 1, 1, 6, 14, 85), (20, 1, 1, 6, 14, 71)))
+    assert out["damage"].to_list() == [15, 14]
 
 
 def test_hits_on_the_same_tick_chain_in_event_order() -> None:

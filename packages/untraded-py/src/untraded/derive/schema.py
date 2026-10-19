@@ -42,6 +42,7 @@ _DEATH: Columns = {
     "round": pl.Int16,
     "victim": pl.UInt64,
     "victim_team": Team,
+    "victim_bot": pl.Boolean,
     "killer": pl.UInt64,
     "killer_team": Team,
     "is_enemy_kill": pl.Boolean,

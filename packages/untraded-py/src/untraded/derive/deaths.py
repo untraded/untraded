@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import polars as pl
 
+from untraded.parsing.schema import Team
+
 _POSITION = ("x", "y", "z")
 
 
@@ -32,9 +34,19 @@ def build_deaths(
             teams.rename({"steamid": "attacker", "team": "killer_team"}), on="attacker", how="left"
         )
         .with_columns(
+            # A bot nobody controls has no steamid: its team is the killer's opposite (see
+            # parsing.core.mark_bot_victims). A taken-over bot is on its controller's team.
+            pl.when(pl.col("victim").is_null())
+            .then(_opposite(pl.col("killer_team")))
+            .otherwise(pl.col("victim_team"))
+            .alias("victim_team"),
+            # A bot's death is nobody's death.
+            pl.when(pl.col("victim_bot")).then(None).otherwise(pl.col("victim")).alias("victim"),
+        )
+        .with_columns(
             (
                 pl.col("attacker").is_not_null()
-                & (pl.col("attacker") != pl.col("victim"))
+                & (pl.col("attacker") != pl.col("victim")).fill_null(True)
                 & (pl.col("killer_team") != pl.col("victim_team"))
             )
             .fill_null(False)
@@ -88,6 +100,7 @@ def build_deaths(
             "round",
             "victim",
             "victim_team",
+            "victim_bot",
             pl.col("attacker").alias("killer"),
             "killer_team",
             "is_enemy_kill",
@@ -99,6 +112,10 @@ def build_deaths(
         )
     )
     return death, opportunities
+
+
+def _opposite(team: pl.Expr) -> pl.Expr:
+    return team.cast(pl.String).replace_strict({"A": "B", "B": "A"}, default=None).cast(Team)
 
 
 def _distance(prefix: str) -> pl.Expr:

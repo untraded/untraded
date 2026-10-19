@@ -7,7 +7,7 @@ from __future__ import annotations
 import polars as pl
 
 from untraded.parsing._context import Context, frame, side, steamid
-from untraded.parsing.schema import KILL
+from untraded.parsing.schema import KILL, Side
 from untraded.parsing.teams import OTHER
 
 REGULATION_ROUNDS = 24
@@ -178,7 +178,8 @@ def build_kills(ctx: Context) -> pl.DataFrame:
         pl.col("user_inventory").alias("victim_inventory"),
         pl.col("user_flash_duration").alias("victim_flash_duration"),
     )
-    kills = drop_repeated_deaths(kills, ctx.unavailable)
+    kills = drop_disconnections(kills, _disconnections(ctx), ctx.unavailable)
+    kills = mark_bot_victims(kills, ctx.unavailable)
     return kills.with_columns(
         (pl.col("attacker") == pl.col("victim")).fill_null(False).alias("is_suicide"),
         (
@@ -190,22 +191,61 @@ def build_kills(ctx: Context) -> pl.DataFrame:
     )
 
 
-def drop_repeated_deaths(kills: pl.DataFrame, unavailable: list[str]) -> pl.DataFrame:
-    """Keeps the first death of each player in a round, and records the others in `unavailable`.
+def _disconnections(ctx: Context) -> pl.DataFrame:
+    events = ctx.event("player_disconnect")
+    if "user_steamid" not in events.columns:
+        return pl.DataFrame(schema={"tick": pl.Int32, "victim": pl.UInt64})
+    return events.select("tick", steamid("user_steamid").alias("victim"))
 
-    After a disconnection, a bot replaces the player and a dead teammate can take it over: its
-    kills are credited to that teammate (as on the in-game scoreboard, and kept here), and its
-    death shows as a second death of the teammate, which is dropped. Seen in 2 matchmaking demos
-    of 26 (2 deaths of 4,058).
+
+def drop_disconnections(
+    kills: pl.DataFrame, disconnections: pl.DataFrame, notes: list[str]
+) -> pl.DataFrame:
+    """Drops the `world` suicide the game records when a player disconnects (same tick as their
+    `player_disconnect`): leaving is not a death. Seen in 4 matchmaking demos of 18, 3 of them
+    after the last round's end."""
+    left = kills.filter(pl.col("weapon") == "world").join(
+        disconnections, on=["tick", "victim"], how="semi"
+    )
+    if left.height:
+        notes.append(f"kill: {left.height} disconnections dropped (not deaths)")
+    return kills.join(left.select("tick", "victim"), on=["tick", "victim"], how="anti")
+
+
+def mark_bot_victims(kills: pl.DataFrame, notes: list[str]) -> pl.DataFrame:
+    """Adds `victim_bot`: the victim is a bot, so the kill counts for the killer but the death is
+    nobody's.
+
+    - A bot nobody controls has no steamid, name or side in the event: `victim` stays null, and
+      its side is taken as the killer's opposite (a bot replaces a disconnected player; a team
+      kill on such a bot cannot be told apart).
+    - A dead player can take over a bot of their team: the bot's kills are credited to that
+      player (as on the in-game scoreboard), and its death shows as a second death of the player
+      in the round. `victim` keeps that player's steamid.
     """
     ordered = kills.with_row_index("order")
-    first = ordered.group_by("round", "victim").agg(pl.col("order").min())["order"]
-    repeated = ordered.height - first.len()
-    if repeated:
-        unavailable.append(
-            f"kill: {repeated} repeated deaths dropped (a bot taken over by a dead player)"
+    first = (
+        ordered.filter(pl.col("victim").is_not_null())
+        .group_by("round", "victim")
+        .agg(pl.col("order").min())["order"]
+    )
+    taken_over = pl.col("victim").is_not_null() & ~pl.col("order").is_in(first.to_list())
+    marked = ordered.with_columns(
+        (pl.col("victim").is_null() | taken_over).alias("victim_bot"),
+        pl.when(pl.col("victim").is_null() & pl.col("victim_side").is_null())
+        .then(
+            pl.col("attacker_side").replace_strict(
+                {"CT": "T", "T": "CT"}, default=None, return_dtype=pl.String
+            )
         )
-    return ordered.filter(pl.col("order").is_in(first.to_list())).drop("order")
+        .otherwise(pl.col("victim_side").cast(pl.String))
+        .cast(Side)
+        .alias("victim_side"),
+    )
+    bots = marked["victim_bot"].sum()
+    if bots:
+        notes.append(f"kill: {bots} kills of bots (no death counted)")
+    return marked.drop("order")
 
 
 def build_players(ctx: Context) -> pl.DataFrame:
