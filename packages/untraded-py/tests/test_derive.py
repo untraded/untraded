@@ -80,6 +80,19 @@ def test_a_kill_of_a_taken_over_bot_counts_for_the_killer_but_is_nobody_s_death(
     assert bot.select("victim", "victim_team", "is_enemy_kill").rows() == [(None, "A", True)]
 
 
+def test_a_trade_on_the_same_tick_counts_but_not_a_mutual_kill() -> None:
+    # 6 kills 1 and 2 kills 6 on the same tick: traded after 0 s; 3 and 7 kill each other
+    found, _ = build_deaths(
+        kills((200, 6, 1), (200, 2, 6), (300, 3, 7), (300, 7, 3)),
+        TEAMS,
+        ROUNDS,
+        states([100, 200, 300], {1: 200, 6: 200, 3: 300, 7: 300}),
+        64,
+    )
+    traded = dict(zip(found["victim"].to_list(), found["trade_delay_s"].to_list(), strict=True))
+    assert traded == {1: 0.0, 6: None, 7: None, 3: None}
+
+
 def test_opening_trade_and_avenge() -> None:
     # 6 kills 1 (opening) at 200; 2 kills 6 at 400 (3.1 s later): 1's death is traded by 2
     found, _ = build_deaths(

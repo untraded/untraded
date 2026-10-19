@@ -74,6 +74,22 @@ def cut_rounds(state: pl.DataFrame) -> list[RoundCut]:
     return [cuts[number] for number in sorted(cuts)]
 
 
+def surrender_in_freeze(state: pl.DataFrame, cuts: list[RoundCut]) -> str | None:
+    """The side that won by surrender when the vote passed during freeze time, after the last
+    live round: the round count goes up without a freeze end, so that round is not played (and
+    not cut). None when the match did not end that way."""
+    if not cuts:
+        return None
+    after = state.filter(pl.col("tick") > cuts[-1].end_tick)
+    played = after["total_rounds_played"].to_list()
+    base = state.filter(pl.col("tick") == cuts[-1].end_tick)["total_rounds_played"].to_list()
+    for i, total in enumerate(played):
+        if base and total > base[0]:
+            reason = REASONS.get(after["round_win_reason"][i], "other")
+            return WIN_STATUS.get(after["round_win_status"][i]) if reason == "surrender" else None
+    return None
+
+
 def event_rounds(
     events: pl.DataFrame, rounds: list[RoundCut], *, last_event_tick: int | None
 ) -> pl.DataFrame:

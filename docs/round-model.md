@@ -33,7 +33,7 @@ A round is played when the player is on a team at freeze-time end (the `economy`
 | `victim_bot` | Boolean | the victim is a bot (`kill.victim_bot`): `victim` is then null, since the death is nobody's, and `victim_team` is the team of the bot (its controller's, or the killer's opposite). The kill still counts for the killer |
 | `is_enemy_kill` | Boolean | killer on the other team |
 | `is_opening` | Boolean | first enemy kill of the round after freeze-time end |
-| `trade_delay_s`, `trader` | Float32?, UInt64? | the killer is later killed by the victim's team in the round: after this delay, by this player. **Traded** = delay ≤ W |
+| `trade_delay_s`, `trader` | Float32?, UInt64? | the killer is then killed by the victim's team in the round, later or on the same tick (delay 0): after this delay, by this player. When the victim and the killer kill each other on the same tick, nobody is traded. **Traded** = delay ≤ W |
 | `avenges_delay_s` | Float32? | this kill's victim had killed a teammate of the killer this long before (the latest such kill). **Trade kill** = delay ≤ W |
 | `nearest_teammate_distance` | Float32? | distance from the victim to the nearest living teammate, at the death tick |
 

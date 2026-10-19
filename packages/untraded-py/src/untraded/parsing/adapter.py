@@ -22,7 +22,7 @@ from untraded.parsing.combat import build_blind, build_damage
 from untraded.parsing.core import build_kills, build_players, build_rounds
 from untraded.parsing.economy import build_economy
 from untraded.parsing.grenades import build_grenades, link_grenades
-from untraded.parsing.rounds import cut_rounds
+from untraded.parsing.rounds import cut_rounds, surrender_in_freeze
 from untraded.parsing.schema import MODES, SCHEMA_VERSION, CanonicalError, conform
 from untraded.parsing.shots import build_shots
 from untraded.parsing.teams import OTHER, assign_teams
@@ -131,6 +131,13 @@ def _build(
     cuts = cut_rounds(state)
     if not cuts:
         raise CanonicalError("no live round found in the demo")
+    notes: list[str] = []
+    if (surrendered := surrender_in_freeze(state, cuts)) is not None:
+        notes.append(
+            f"round: the {'CT' if surrendered == 'T' else 'T'} side surrendered during the freeze "
+            f"time after round {cuts[-1].round}; that round was not played, and the official score "
+            f"counts it for the {surrendered} side"
+        )
     timed = state.drop_nulls("game_time")
     tickrate = (timed["tick"][-1] - timed["tick"][0]) / (
         timed["game_time"][-1] - timed["game_time"][0]
@@ -158,6 +165,7 @@ def _build(
         tickrate=tickrate,
         last_event_tick=int(panel["tick"].min()) if panel is not None and panel.height else None,  # type: ignore[arg-type]
         on_team=on_team,
+        unavailable=notes,
     )
 
     rounds = build_rounds(ctx, probe)
