@@ -87,6 +87,20 @@ def test_kast_uses_the_trade_window_parameter() -> None:
     assert values(ds, "base.kast", **{"trade.window_s": 3.0}) == {1: pytest.approx(100 / 3)}
 
 
+def test_a_flash_assist_counts_less_than_an_assist() -> None:
+    ds = Dataset.from_matches(
+        [
+            match(
+                "m",
+                "de_nuke",
+                [{"round": 1, "steamid": 1, "side": "CT", "assists": 2, "flash_assists": 2}],
+            )
+        ]
+    )
+    assert values(ds, "base.assist_score") == {1: 3.0}
+    assert values(ds, "base.assist_score", **{"assist.flash_weight": 1.0}) == {1: 4.0}
+
+
 def test_results_record_version_and_parameters() -> None:
     out = compute(Dataset.from_matches([ONE]), ["base.kast"], params={"trade.window_s": 3.0})
     assert out["version"][0] == REGISTRY["base.kast"].version

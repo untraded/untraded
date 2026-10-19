@@ -64,7 +64,7 @@ def hltv1(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
 
 @metric(
     "rating.hltv2_approx",
-    version="1.0.0",
+    version="1.1.0",
     name="HLTV 2.0 (approx.)",
     unit="ratio",
     params=KAST,
