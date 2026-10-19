@@ -43,14 +43,15 @@ def render() -> str:
         lines += [
             f"## {title}",
             "",
-            "| ID | Version | Name | Unit | Definition | Parameters | Reads |",
-            "|---|---|---|---|---|---|---|",
+            "| ID | Version | Name | Kind | Unit | Definition | Parameters | Reads |",
+            "|---|---|---|---|---|---|---|---|",
         ]
         for m in metrics:
             params = ", ".join(f"`{k} = {json.dumps(v)}`" for k, v in m.params.items()) or "—"
             uses = ", ".join(f"`{t}`" for t in m.uses) or "—"
             lines.append(
-                f"| `{m.id}` | {m.version} | {m.name} | {m.unit} | {m.doc} | {params} | {uses} |"
+                f"| `{m.id}` | {m.version} | {m.name} | {m.kind} | {m.unit} | {m.doc} | {params} "
+                f"| {uses} |"
             )
         lines.append("")
     return "\n".join(lines)

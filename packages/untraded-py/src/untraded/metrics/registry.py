@@ -12,11 +12,17 @@ import polars as pl
 
 from untraded.metrics.dataset import Dataset
 
-Unit = Literal["count", "per_round", "pct", "damage_per_round", "ratio", "units", "seconds"]
+Unit = Literal[
+    "count", "per_round", "pct", "damage_per_round", "ratio", "units", "seconds", "table"
+]
 Scope = Literal["player"]
+Kind = Literal["value", "table"]
+"""`value`: one number per player (`compute`). `table`: rows per player with dimensions such as
+map, side and zone (`compute_table`), e.g. distributions and raw exports."""
 ParamValue = float | int | bool
 Compute = Callable[[Dataset, Mapping[str, ParamValue]], pl.DataFrame]
-"""Returns one row per player: `steamid`, `value` (Float64, null when undefined)."""
+"""`value` metrics return one row per player: `steamid`, `value` (Float64, null when undefined).
+`table` metrics return `steamid` plus their own columns, documented in `doc`."""
 
 
 @dataclass(frozen=True)
@@ -35,6 +41,7 @@ class Metric:
     uses: tuple[str, ...] = ()
     """Tables read (canonical and derived)."""
     scope: Scope = "player"
+    kind: Kind = "value"
 
 
 REGISTRY: dict[str, Metric] = {}
@@ -49,6 +56,7 @@ def metric(
     doc: str,
     params: Mapping[str, ParamValue] | None = None,
     uses: tuple[str, ...] = (),
+    kind: Kind = "value",
 ) -> Callable[[Compute], Compute]:
     """Registers a metric. The decorated function computes it on a dataset."""
 
@@ -64,6 +72,7 @@ def metric(
             compute=compute,
             params=dict(params or {}),
             uses=uses,
+            kind=kind,
         )
         return compute
 
