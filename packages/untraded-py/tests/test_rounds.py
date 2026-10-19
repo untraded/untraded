@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import polars as pl
 
-from untraded.parsing.rounds import RoundCut, cut_rounds, event_rounds
+from untraded.parsing.rounds import RoundCut, cut_rounds, event_rounds, surrender_in_freeze
 
 FREEZE, LIVE, AFTER = "freeze", "live", "after"
 
@@ -87,6 +87,16 @@ def test_drops_a_round_the_demo_does_not_finish_and_maps_surrender() -> None:
         (4728, LIVE, 1, 0, 0, False),  # demo ends before this round does
     )
     assert cut_rounds(state) == [RoundCut(1, 65, 1000, 3000, "CT", "surrender")]
+
+
+def test_a_surrender_during_freeze_time_is_not_a_round() -> None:
+    # after round 2, the CT side surrenders before the next freeze end: the count goes up
+    state = pl.concat(
+        [two_rounds(), timeline((9448, FREEZE, 2, 0, 0, False), (9900, FREEZE, 3, 2, 18, False))]
+    )
+    assert len(cut_rounds(state)) == 2
+    assert surrender_in_freeze(state, cut_rounds(state)) == "T"
+    assert surrender_in_freeze(two_rounds(), cut_rounds(two_rounds())) is None
 
 
 def test_unknown_reason_is_other() -> None:
