@@ -83,3 +83,25 @@
 | `pos.recurring_death_spot` | 1.0.0 | Recurring death spot | table | table | Per map and side: zones holding at least `pos.recurring_death_share` of the player's **untraded** deaths, when the player played at least `pos.recurring_min_rounds` rounds there. Columns: `steamid`, `map`, `side`, `zone`, `untraded_deaths`, `share_pct`, `rounds`. | `trade.window_s = 5.0`, `pos.recurring_death_share = 0.25`, `pos.recurring_min_rounds = 8` | `death`, `kill`, `round_player` |
 | `pos.setup_diversity` | 1.0.0 | Predictability | table | table | Normalized entropy of the T+20 s zone distribution, per map and side: 0 = always the same zone, 1 = spread evenly over the zones used (entropy ÷ ln of the number of distinct zones; 0 with a single zone). Columns: `steamid`, `map`, `side`, `rounds`, `zones`, `diversity`. | — | `round_player` |
 | `pos.setup_zone_t20` | 1.0.0 | Position at T+20 s | table | table | The player's zone 20 s after freeze-time end (rounds where they are alive then), per map and side: CT setups, T defaults. Columns: `steamid`, `map`, `side`, `zone`, `rounds`, `share_pct`. | — | `round_player` |
+
+## Utility
+
+| ID | Version | Name | Kind | Unit | Definition | Parameters | Reads |
+|---|---|---|---|---|---|---|---|
+| `util.blind_per_flash` | 1.0.0 | Flash efficiency | value | seconds | Enemy blind time dealt ÷ flashes thrown. | — | `blind`, `death`, `grenade` |
+| `util.enemies_flashed` | 1.0.0 | Enemies flashed | value | count | Living enemies blinded by the player's flashes for at least `flash.min_blind_s`. | `flash.min_blind_s = 1.0` | `blind`, `death` |
+| `util.enemy_blind_time` | 1.0.0 | Blind time dealt | value | seconds | Sum of the blind durations of living enemies (every blind, no minimum). | — | `blind`, `death` |
+| `util.fire_damage` | 1.0.0 | Fire damage | value | hp | Capped damage of the player's molotovs and incendiaries (fire and impact) to enemies, counting only damage linked to one of the player's own grenades (demoparser2 #317). | — | `damage` |
+| `util.flash_to_kill` | 1.0.0 | Decisive flashes | value | count | Enemies blinded by the player and killed by the player's team (the player included) while still blind: blind tick ≤ kill tick ≤ blind tick + duration. One count per kill, for each player whose flash was still active. | — | `blind`, `death`, `round_player`, `match` |
+| `util.he_damage` | 1.0.0 | HE damage | value | hp | Capped damage of the player's HE grenades to enemies. | — | `damage` |
+| `util.he_team_damage` | 1.0.0 | HE team damage | value | hp | Capped damage of the player's HE grenades to teammates (self-damage excluded). | — | `damage` |
+| `util.self_flashed` | 1.0.0 | Self-flashes | value | count | Times the player blinded themselves for at least `flash.min_blind_s`. | `flash.min_blind_s = 1.0` | `blind`, `death` |
+| `util.team_blind_time` | 1.0.0 | Team blind time | value | seconds | Sum of the blind durations of living teammates (every blind, no minimum). | — | `blind`, `death` |
+| `util.teammates_flashed` | 1.0.0 | Teammates flashed | value | count | Living teammates (not the player) blinded by the player's flashes for at least `flash.min_blind_s`. | `flash.min_blind_s = 1.0` | `blind`, `death` |
+| `util.thrown_decoy` | 1.0.0 | Decoy thrown | value | count | Grenades of type `decoy` thrown. | — | `grenade` |
+| `util.thrown_flash` | 1.0.0 | Flash thrown | value | count | Grenades of type `flash` thrown. | — | `grenade` |
+| `util.thrown_he` | 1.0.0 | HE thrown | value | count | Grenades of type `he` thrown. | — | `grenade` |
+| `util.thrown_molotov` | 1.0.0 | Molotov thrown | value | count | Grenades of type `molotov` thrown (molotov and incendiary merged). | — | `grenade` |
+| `util.thrown_per_round` | 1.0.0 | Utility per round | value | per_round | Grenades thrown (all types) ÷ rounds played. | — | `grenade`, `round_player` |
+| `util.thrown_smoke` | 1.0.0 | Smoke thrown | value | count | Grenades of type `smoke` thrown. | — | `grenade` |
+| `util.unused_value_at_death` | 1.0.0 | Wasted utility | value | dollars | Buy value of the grenades in the player's inventory at death, averaged over their deaths (flash 200, HE 300, smoke 300, molotov 400, incendiary 500, decoy 50). | — | `death`, `kill` |
