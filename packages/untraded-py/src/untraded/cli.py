@@ -7,6 +7,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import io
+import json
 import os
 import sys
 from collections.abc import Sequence
@@ -15,7 +16,7 @@ from tempfile import TemporaryDirectory
 
 import polars as pl
 
-from untraded import corpus
+from untraded import corpus, report
 from untraded.corpus.sync import SftpRemote, SyncError, SyncReport, pull, push
 from untraded.demofile import CorruptDemoError, NotADemoError
 from untraded.derive import derive
@@ -58,7 +59,15 @@ def _parser() -> argparse.ArgumentParser:
     analyze.add_argument("demo", type=Path)
     analyze.add_argument("--mode", required=True, choices=MODES, help="game mode of the match")
     analyze.add_argument("--side", choices=["CT", "T"], help="only rounds played on this side")
-    analyze.add_argument("--out", type=Path, help="also write tables and metrics as Parquet")
+    analyze.add_argument(
+        "--format",
+        choices=["table", "json"],
+        default="table",
+        help="report on stdout: terminal table (default) or JSON",
+    )
+    analyze.add_argument(
+        "--out", type=Path, help="also write tables and metrics as Parquet: OUT/matches/<id>/"
+    )
     analyze.set_defaults(run=_analyze)
 
     check = commands.add_parser(
@@ -127,58 +136,30 @@ def _parse(args: argparse.Namespace) -> int:
     return 0
 
 
-SUMMARY = {
-    "base.kills": "K",
-    "base.deaths": "D",
-    "base.assists": "A",
-    "base.kd_diff": "+/-",
-    "base.adr": "ADR",
-    "base.hs_pct": "HS%",
-    "base.kast": "KAST%",
-    "duel.opening_kills": "OK",
-    "trade.untraded_deaths": "UD",
-    "rating.hltv1": "HLTV1",
-    "rating.hltv2_approx": "HLTV2~",
-}
-DECIMALS = {"rating.hltv1": 2, "rating.hltv2_approx": 2}
-
-
 def _analyze(args: argparse.Namespace) -> int:
     # Player names may hold characters the console cannot encode (e.g. cp1252 on Windows).
     if isinstance(sys.stdout, io.TextIOWrapper):
         sys.stdout.reconfigure(errors="replace")
     canonical = parse_demo(args.demo, source="upload", mode=args.mode)
-    tables = {**canonical.tables(), **derive(canonical.tables()).tables()}
-    dataset = Dataset.from_matches([tables])
-    if args.side:
-        dataset = dataset.split(side=args.side)
-    results = compute(dataset)
+    derived = derive(canonical.tables()).tables()
+    tables = {**canonical.tables(), **derived}
     if args.out:
+        dataset = Dataset.from_matches([tables])
+        if args.side:
+            dataset = dataset.split(side=args.side)
         target = canonical.write(args.out)
-        for name, frame in derive(canonical.tables()).tables().items():
+        for name, frame in derived.items():
             frame.write_parquet(target / f"{name}.parquet", compression="zstd")
-        results.write_parquet(target / "metrics.parquet", compression="zstd")
+        compute(dataset).write_parquet(target / "metrics.parquet", compression="zstd")
         for metric_id in sorted(m.id for m in REGISTRY.values() if m.kind == "table"):
             compute_table(dataset, metric_id).write_parquet(
                 target / f"metric_{metric_id}.parquet", compression="zstd"
             )
-    info = canonical.match.row(0, named=True)
-    side = f", {args.side} side" if args.side else ""
-    print(
-        f"{info['map']} {info['score_a']}-{info['score_b']} ({info['rounds_played']} rounds{side})"
-    )
-    wide = results.filter(pl.col("metric").is_in(list(SUMMARY))).pivot(
-        on="metric", index="steamid", values="value"
-    )
-    rows = canonical.player.select("steamid", "team", "name").join(wide, on="steamid")
-    print(f"{'team':<5}{'player':<24}" + "".join(f"{label:>7}" for label in SUMMARY.values()))
-    for row in rows.sort("team", "base.kills", descending=[False, True]).iter_rows(named=True):
-        cells = "".join(
-            f"{row[key]:>7.{DECIMALS.get(key, 0)}f}" if row[key] is not None else f"{'-':>7}"
-            for key in SUMMARY
-        )
-        print(f"{row['team']:<5}{row['name'][:23]:<24}{cells}")
-    print("HLTV2~: community approximation of HLTV Rating 2.0 (approx.)")
+    match_report = report.build_report(tables, side=args.side)
+    if args.format == "json":
+        print(json.dumps(report.to_json(match_report), ensure_ascii=False, indent=2))
+    else:
+        print(report.render_table(match_report))
     return 0
 
 
