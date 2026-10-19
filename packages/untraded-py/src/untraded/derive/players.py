@@ -99,5 +99,7 @@ def build_round_players(
             pl.col("kills", "deaths", "assists", "flash_assists", "damage").fill_null(0),
             pl.col("opening_kill", "opening_death", "survived").fill_null(False),
         )
+        # A death after the round end (an exit frag) drops the weapons: not a survival.
+        .with_columns((pl.col("survived") & (pl.col("deaths") == 0)).alias("survived"))
         .sort("round", "steamid")
     )

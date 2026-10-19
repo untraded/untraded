@@ -19,7 +19,7 @@ A round is played when the player is on a team at freeze-time end (the `economy`
 | `deaths` | Int16 | 0 or 1, any cause |
 | `assists`, `flash_assists` | Int16 | enemy kills assisted, split by the `assistedflash` flag |
 | `damage` | Int32 | capped damage dealt to enemies |
-| `survived` | Boolean | alive at `round.end_tick` |
+| `survived` | Boolean | alive at `round.end_tick` and no death in the round, including after its end: an exit frag drops the weapons |
 | `death_tick`, `death_trade_delay_s` | Int32?, Float32? | when the player died, and how long until the killer was killed by the player's team (null: never in that round) |
 | `opening_kill`, `opening_death` | Boolean | the player made, or was the victim of, the round's opening kill |
 | `setup_place` | String? | zone 20 s after freeze-time end (⚙ `setup.offset_s`), null if dead by then |

@@ -11,6 +11,7 @@ import polars as pl
 from untraded.derive.buys import BuyThresholds, build_team_rounds
 from untraded.derive.clutches import build_clutches
 from untraded.derive.deaths import build_deaths
+from untraded.derive.players import build_round_players
 
 # Team A: players 1-3 on CT. Team B: players 6-8 on T. Tickrate 64.
 TEAMS = pl.DataFrame({"steamid": [1, 2, 3, 6, 7, 8], "team": ["A"] * 3 + ["B"] * 3})
@@ -193,4 +194,31 @@ def test_buy_types() -> None:
         (3, "B"): "full",  # T at 4,100
         (13, "A"): "pistol",
         (13, "B"): "pistol",
+    }
+
+
+def test_a_death_after_the_round_end_is_not_a_survival() -> None:
+    # 6 kills 1 at 5200, after the round end (5000): 1 was alive at the end but dropped the weapons
+    found, _ = build_deaths(
+        kills((5200, 6, 1)), TEAMS, ROUNDS, states([100, 5000, 5200], {1: 5200}), 64
+    )
+    rows = build_round_players(
+        economy=pl.DataFrame({"round": [1, 1], "steamid": [1, 2], "side": ["CT", "CT"]}),
+        teams=TEAMS,
+        rounds=ROUNDS,
+        kills=kills((5200, 6, 1)).with_columns(
+            pl.lit(None, pl.Int64).alias("assister"), pl.lit(False).alias("flash_assist")
+        ),
+        deaths=found,
+        damage=pl.DataFrame(
+            schema={"round": pl.Int64, "attacker": pl.Int64, "victim": pl.Int64, "damage": pl.Int64}
+        ),
+        states=states([100, 5000, 5200], {1: 5200}).with_columns(
+            pl.lit("BombsiteA").alias("place")
+        ),
+        tickrate=64,
+    )
+    assert dict(zip(rows["steamid"].to_list(), rows["survived"].to_list(), strict=True)) == {
+        1: False,
+        2: True,
     }

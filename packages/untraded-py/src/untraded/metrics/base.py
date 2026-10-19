@@ -63,6 +63,27 @@ def flash_assists(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
     return total(ds, "flash_assists")
 
 
+@metric(
+    "base.assist_score",
+    version="1.0.0",
+    name="Weighted assists",
+    unit="count",
+    uses=RP,
+    params={"assist.flash_weight": 0.5},
+    doc="Assists + `assist.flash_weight` * flash assists: a flash assist counts, but less "
+    "than an assist.",
+)
+def assist_score(ds: Dataset, p: Mapping[str, ParamValue]) -> pl.DataFrame:
+    return (
+        total(ds, "assists")
+        .join(total(ds, "flash_assists"), on="steamid", suffix="_f")
+        .select(
+            "steamid",
+            (pl.col("value") + float(p["assist.flash_weight"]) * pl.col("value_f")).alias("value"),
+        )
+    )
+
+
 def _kill_flag(ds: Dataset, flag: str) -> pl.DataFrame:
     rows = ds.kept(ds["kill"].filter(pl.col(flag)), player="attacker")
     return per_player(
@@ -177,13 +198,14 @@ def hs_pct(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
 
 @metric(
     "base.kast",
-    version="1.0.0",
+    version="1.1.0",
     name="KAST",
     unit="pct",
     uses=RP,
     params={"trade.window_s": 5.0, "kast.count_flash_assist": False},
     doc="% of rounds played where the player got a Kill, an Assist (flash assists excluded "
-    "by default), Survived, or was Traded (death traded within `trade.window_s`).",
+    "by default), Survived (alive at round end, no death after it), or was Traded (death "
+    "traded within `trade.window_s`).",
 )
 def kast(ds: Dataset, params: Mapping[str, ParamValue]) -> pl.DataFrame:
     return round_share(ds, kast_round(params))
@@ -234,11 +256,12 @@ def rounds_with_kill_pct(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFra
 
 @metric(
     "base.survival_pct",
-    version="1.0.0",
+    version="1.1.0",
     name="Survival",
     unit="pct",
     uses=RP,
-    doc="% of rounds where the player is alive at round end.",
+    doc="% of rounds where the player is alive at round end and does not die after it (a death "
+    "after the round end drops the weapons).",
 )
 def survival_pct(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
     return round_share(ds, pl.col("survived"))

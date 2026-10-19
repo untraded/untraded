@@ -8,12 +8,13 @@
 |---|---|---|---|---|---|---|---|
 | `base.adr` | 1.0.0 | ADR | value | damage_per_round | Sum of capped damage to enemies ÷ rounds played. | — | `round_player` |
 | `base.apr` | 1.0.0 | Assists per round | value | per_round | Assists ÷ rounds played. | — | `round_player` |
+| `base.assist_score` | 1.0.0 | Weighted assists | value | count | Assists + `assist.flash_weight` * flash assists: a flash assist counts, but less than an assist. | `assist.flash_weight = 0.5` | `round_player` |
 | `base.assists` | 1.0.0 | Assists | value | count | Enemy kills where the player is the assister, flash assists excluded. | — | `round_player` |
 | `base.deaths` | 1.0.0 | Deaths | value | count | Number of deaths: by an enemy, a teammate, suicide, fall damage or the bomb. | — | `round_player` |
 | `base.dpr` | 1.0.0 | Deaths per round | value | per_round | Deaths ÷ rounds played. | — | `round_player` |
 | `base.flash_assists` | 1.0.0 | Flash assists | value | count | Enemy kills with `assistedflash` credited to the player. | — | `round_player` |
 | `base.hs_pct` | 1.0.0 | HS % | value | pct | Headshot kills ÷ kills * 100. | — | `death`, `kill` |
-| `base.kast` | 1.0.0 | KAST | value | pct | % of rounds played where the player got a Kill, an Assist (flash assists excluded by default), Survived, or was Traded (death traded within `trade.window_s`). | `trade.window_s = 5.0`, `kast.count_flash_assist = false` | `round_player` |
+| `base.kast` | 1.1.0 | KAST | value | pct | % of rounds played where the player got a Kill, an Assist (flash assists excluded by default), Survived (alive at round end, no death after it), or was Traded (death traded within `trade.window_s`). | `trade.window_s = 5.0`, `kast.count_flash_assist = false` | `round_player` |
 | `base.kd_diff` | 1.0.0 | K-D | value | count | kills - deaths. | — | `round_player` |
 | `base.kills` | 1.0.0 | Kills | value | count | Number of kills (enemy kills only). | — | `round_player` |
 | `base.kpr` | 1.0.0 | Kills per round | value | per_round | Kills ÷ rounds played. | — | `round_player` |
@@ -24,7 +25,7 @@
 | `base.multikills_5` | 1.0.0 | 5K | value | count | Number of rounds with exactly 5 kills. | — | `round_player` |
 | `base.rounds_with_kill_pct` | 1.0.0 | Rounds with a kill | value | pct | % of rounds with at least one kill. | — | `round_player` |
 | `base.suicides` | 1.0.0 | Suicides | value | count | Deaths where the player is both attacker and victim. | — | `kill` |
-| `base.survival_pct` | 1.0.0 | Survival | value | pct | % of rounds where the player is alive at round end. | — | `round_player` |
+| `base.survival_pct` | 1.1.0 | Survival | value | pct | % of rounds where the player is alive at round end and does not die after it (a death after the round end drops the weapons). | — | `round_player` |
 | `base.team_kills` | 1.0.0 | Team kills | value | count | Teammates killed by the player. | — | `kill` |
 
 ## Duels
@@ -120,4 +121,4 @@
 | ID | Version | Name | Kind | Unit | Definition | Parameters | Reads |
 |---|---|---|---|---|---|---|---|
 | `rating.hltv1` | 1.0.0 | HLTV Rating 1.0 | value | ratio | (KillRating + 0.7 * SurvivalRating + MultiKillRating) / 2.7, each component being the player's per-round value over HLTV's reference average (KPR 0.679, survival 0.317, multi-kill points 1.277, with N² points for a round of N kills). Public formula. | — | `round_player` |
-| `rating.hltv2_approx` | 1.0.0 | HLTV 2.0 (approx.) | value | ratio | Community approximation, **always labeled approx.**: 0.0073 * KAST + 0.3591 * KPR - 0.5329 * DPR + 0.2372 * Impact + 0.0032 * ADR + 0.1587, with Impact = 2.13 * KPR + 0.42 * APR - 0.41 and KAST in % (`base.kast`, same parameters). Its error against HLTV's published values is not known. | `trade.window_s = 5.0`, `kast.count_flash_assist = false` | `round_player` |
+| `rating.hltv2_approx` | 1.1.0 | HLTV 2.0 (approx.) | value | ratio | Community approximation, **always labeled approx.**: 0.0073 * KAST + 0.3591 * KPR - 0.5329 * DPR + 0.2372 * Impact + 0.0032 * ADR + 0.1587, with Impact = 2.13 * KPR + 0.42 * APR - 0.41 and KAST in % (`base.kast`, same parameters). Its error against HLTV's published values is not known. | `trade.window_s = 5.0`, `kast.count_flash_assist = false` | `round_player` |
