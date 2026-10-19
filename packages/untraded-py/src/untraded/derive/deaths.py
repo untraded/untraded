@@ -4,7 +4,8 @@
 
 A is killed by enemy B at tick t. If a teammate C of A kills B later in the same round (or on the
 same tick), A's death is traded after `trade_delay_s`, by C (the trader); C's kill `avenges_delay_s`
-after A's death. When A and B kill each other on the same tick, nobody is traded.
+after A's death. When A and B kill each other on the same tick, nobody is traded; A's own
+grenade or fire killing B later does trade A's death.
 The trade window W (5 s by default) is applied by the metrics: traded = delay <= W.
 """
 
@@ -153,14 +154,20 @@ def _trades(deaths: pl.DataFrame, tickrate: float) -> pl.DataFrame:
         pl.col("attacker").alias("trader"),
         pl.col("killer_team").alias("trader_team"),
     )
-    # The same tick counts (a delay of 0), unless the victim killed the killer themselves.
+    # The same tick counts (a delay of 0), unless the victim and the killer killed each other.
+    # Later, the victim's own grenade or fire can still kill the killer: that counts.
     traded = (
         enemy.select("order", "round", "attacker", "victim", "tick", "victim_team")
         .join(revenge, on=["round", "attacker"])
         .filter(
-            (pl.col("revenge_tick") >= pl.col("tick"))
+            (
+                (pl.col("revenge_tick") > pl.col("tick"))
+                | (
+                    (pl.col("revenge_tick") == pl.col("tick"))
+                    & (pl.col("trader") != pl.col("victim")).fill_null(True)
+                )
+            )
             & (pl.col("trader_team") == pl.col("victim_team"))
-            & (pl.col("trader") != pl.col("victim")).fill_null(True)
         )
         .select(
             "order",
@@ -180,9 +187,14 @@ def _trades(deaths: pl.DataFrame, tickrate: float) -> pl.DataFrame:
         enemy.select("order", "round", "victim", "attacker", "tick", "killer_team")
         .join(earlier, on=["round", "victim"])
         .filter(
-            (pl.col("earlier_tick") <= pl.col("tick"))
+            (
+                (pl.col("earlier_tick") < pl.col("tick"))
+                | (
+                    (pl.col("earlier_tick") == pl.col("tick"))
+                    & (pl.col("earlier_victim") != pl.col("attacker")).fill_null(True)
+                )
+            )
             & (pl.col("earlier_victim_team") == pl.col("killer_team"))
-            & (pl.col("earlier_victim") != pl.col("attacker")).fill_null(True)
         )
         .group_by("order")
         .agg(pl.col("tick").first(), pl.col("earlier_tick").max())
