@@ -11,6 +11,7 @@ import os
 import sys
 from collections.abc import Sequence
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import polars as pl
 
@@ -20,6 +21,7 @@ from untraded.demofile import CorruptDemoError, NotADemoError
 from untraded.derive import derive
 from untraded.metrics import REGISTRY, Dataset, compute, compute_table
 from untraded.parsing import MODES, CanonicalError, UnsupportedModeError, parse_demo
+from untraded.validation import csdm
 
 DEFAULT_MANIFEST = Path("corpus") / "manifest.toml"
 
@@ -58,6 +60,15 @@ def _parser() -> argparse.ArgumentParser:
     analyze.add_argument("--side", choices=["CT", "T"], help="only rounds played on this side")
     analyze.add_argument("--out", type=Path, help="also write tables and metrics as Parquet")
     analyze.set_defaults(run=_analyze)
+
+    check = commands.add_parser(
+        "compare-csdm", help="compare our stats with CS Demo Manager's analyzer, demo by demo"
+    )
+    check.add_argument("demos", nargs="+", type=Path)
+    check.add_argument("--csda", required=True, type=Path, help="cs-demo-analyzer executable")
+    check.add_argument("--mode", required=True, choices=MODES, help="game mode of the matches")
+    check.add_argument("--out", type=Path, help="also write the comparison as Parquet")
+    check.set_defaults(run=_compare_csdm)
 
     corpus_parser = commands.add_parser("corpus", help="manage the reference demo corpus")
     corpus_parser.add_argument(
@@ -168,6 +179,36 @@ def _analyze(args: argparse.Namespace) -> int:
         )
         print(f"{row['team']:<5}{row['name'][:23]:<24}{cells}")
     print("HLTV2~: community approximation of HLTV Rating 2.0 (approx.)")
+    return 0
+
+
+def _compare_csdm(args: argparse.Namespace) -> int:
+    if isinstance(sys.stdout, io.TextIOWrapper):
+        sys.stdout.reconfigure(errors="replace")
+    frames = []
+    with TemporaryDirectory(prefix="untraded-compare-") as tmp:
+        for demo in args.demos:
+            canonical = parse_demo(demo, source="upload", mode=args.mode)
+            tables = canonical.tables()
+            ds = Dataset.from_matches([{**tables, **derive(tables).tables()}])
+            export = csdm.load_export(csdm.run_csda(args.csda, demo, Path(tmp) / "export.json"))
+            match_id = canonical.match["match_id"][0]
+            frames.append(
+                csdm.compare(csdm.our_values(ds), csdm.csdm_values(export)).with_columns(
+                    pl.lit(match_id).alias("match_id")
+                )
+            )
+            print(f"{demo.name}: compared")
+    comparison = pl.concat(frames)
+    if args.out is not None:
+        args.out.mkdir(parents=True, exist_ok=True)
+        comparison.write_parquet(args.out / "comparison.parquet")
+    print(f"{'field':<22}{'rule':>6}{'players':>9}{'gaps':>6}{'max diff':>10}")
+    for row in csdm.summary(comparison).iter_rows(named=True):
+        print(
+            f"{row['field']:<22}{row['rule']:>6}{row['players']:>9}{row['gaps']:>6}"
+            f"{row['max_abs_diff'] if row['max_abs_diff'] is not None else float('nan'):>10.2f}"
+        )
     return 0
 
 
