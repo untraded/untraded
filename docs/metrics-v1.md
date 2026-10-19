@@ -78,13 +78,15 @@
 
 ## 3. Positioning (priority)
 
+These metrics are distributions per map and side, not one number per player: the registry exposes them as `table` metrics (`untraded.metrics.compute_table`), with the columns listed in [metrics-reference.md](metrics-reference.md).
+
 | ID | Name | Definition | CSDM |
 |---|---|---|---|
 | `pos.death_zones` | Death zones | Distribution of deaths by zone, per map and side, with the traded % for each zone | — |
 | `pos.kill_zones` | Kill zones | Distribution of kills by zone (killer position), per map and side | — |
 | `pos.setup_zone_t20` | Position at T+20 s | The player's zone 20 s after freeze-time end (⚙ `setup.offset_s = 20`), distribution per map and side: CT setups, T defaults | — |
-| `pos.setup_diversity` | Predictability | Normalized entropy of that distribution (0 = always the same spot, 1 = no pattern) | — |
-| `pos.recurring_death_spot` | Recurring death spot | For each map and side: a zone holding ≥ X % of the player's **untraded** deaths over ≥ N rounds. ⚙🎯 `X = 25 %`, `N = 8`. **First building block of pattern-based advice.** | — |
+| `pos.setup_diversity` | Predictability | Normalized entropy of that distribution, per map and side: entropy ÷ ln of the number of distinct zones used (0 = always the same spot, 1 = spread evenly; 0 with a single zone) | — |
+| `pos.recurring_death_spot` | Recurring death spot | For each map and side: a zone holding ≥ X % of the player's **untraded** deaths, when the player played ≥ N rounds there. ⚙🎯 `pos.recurring_death_share = 0.25`, `pos.recurring_min_rounds = 8`. **First building block of pattern-based advice.** | — |
 | `pos.heatmap_points` | Heatmap points | Raw export of kill and death positions (killer and victim), per map and side. Rendering comes in phase 2. | ≈ |
 
 ## 4. Utility
