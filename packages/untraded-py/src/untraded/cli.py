@@ -126,7 +126,10 @@ SUMMARY = {
     "base.kast": "KAST%",
     "duel.opening_kills": "OK",
     "trade.untraded_deaths": "UD",
+    "rating.hltv1": "HLTV1",
+    "rating.hltv2_approx": "HLTV2~",
 }
+DECIMALS = {"rating.hltv1": 2, "rating.hltv2_approx": 2}
 
 
 def _analyze(args: argparse.Namespace) -> int:
@@ -160,9 +163,11 @@ def _analyze(args: argparse.Namespace) -> int:
     print(f"{'team':<5}{'player':<24}" + "".join(f"{label:>7}" for label in SUMMARY.values()))
     for row in rows.sort("team", "base.kills", descending=[False, True]).iter_rows(named=True):
         cells = "".join(
-            f"{row[key]:>7.0f}" if row[key] is not None else f"{'-':>7}" for key in SUMMARY
+            f"{row[key]:>7.{DECIMALS.get(key, 0)}f}" if row[key] is not None else f"{'-':>7}"
+            for key in SUMMARY
         )
         print(f"{row['team']:<5}{row['name'][:23]:<24}{cells}")
+    print("HLTV2~: community approximation of HLTV Rating 2.0 (approx.)")
     return 0
 
 

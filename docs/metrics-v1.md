@@ -134,8 +134,12 @@ These metrics are distributions per map and side, not one number per player: the
 
 | ID | Name | Definition | CSDM |
 |---|---|---|---|
-| `rating.hltv1` | HLTV Rating 1.0 | (KillRating + 0.7 × SurvivalRating + MultiKillRating) / 2.7, with reference averages 0.679, 0.317 and 1.277 (public formula). Already implemented and published in `untraded` 0.0.1. | ✅ |
-| `rating.hltv2_approx` | HLTV 2.0 (approx.) | 0.0073 × KAST + 0.3591 × KPR − 0.5329 × DPR + 0.2372 × Impact + 0.0032 × ADR + 0.1587, with Impact = 2.13 × KPR + 0.42 × APR − 0.41 and KAST in %. **Always labeled "approx."** | ≈ |
+| `rating.hltv1` | HLTV Rating 1.0 | (KillRating + 0.7 × SurvivalRating + MultiKillRating) / 2.7, with reference averages 0.679, 0.317 and 1.277 (public formula); a round of N kills is worth N² multi-kill points. Kills are enemy kills, deaths any death. Same formula as `rating_hltv_1`, published in `untraded` 0.0.1. | ✅ |
+| `rating.hltv2_approx` | HLTV 2.0 (approx.) | 0.0073 × KAST + 0.3591 × KPR − 0.5329 × DPR + 0.2372 × Impact + 0.0032 × ADR + 0.1587, with Impact = 2.13 × KPR + 0.42 × APR − 0.41 and KAST in % (`base.kast`, same parameters). **Always labeled "approx."** | ≈ |
+
+**Validation.**
+- HLTV 1.0: the demos of the 1.0 era are CS:GO demos, which the CS2 parser does not read, so it is checked against independent calculations. The reference average player rates exactly 1.00. Over 18 Premier matches, the mean of each lobby is 0.99, ranging from 0.91 to 1.04. The comparison with CS Demo Manager comes with E8.
+- HLTV 2.0 (approx.): HLTV does not publish the formula, and no published error margin was found for this community approximation. It is measured against CS Demo Manager in E8. Over the same matches, its lobby mean is 1.10 and it correlates at 0.95 with the 1.0.
 
 The **open Untraded rating**, based on round win probability, is outside this catalog. It arrives in phase 2 and is trained on demos from consenting high-level players ([ADR 0010](adr/0010-reference-data-and-corpus.md)).
 

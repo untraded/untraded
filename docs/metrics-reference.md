@@ -114,3 +114,10 @@
 | `eco.equipment_lost_at_death` | 1.0.0 | Equipment lost | value | dollars | The player's equipment value at the tick of death, averaged over their deaths. | — | `death`, `kill` |
 | `eco.kills_vs_buy` | 1.0.0 | Kills by economy | table | table | The player's enemy kills per (killer weapon class, victim weapon class). The class is the best weapon held: `awp`, `rifle` (other snipers included), `heavy` (shotguns and machine guns), `smg`, else `pistol`. The killer's inventory is the last change before the kill, the victim's is read at the kill. Columns: `steamid`, `killer_class`, `victim_class`, `kills`. | — | `death`, `kill`, `inventory_change` |
 | `eco.win_pct_by_matchup` | 1.0.0 | Win % by economy | table | table | % of rounds won per (team buy type, opponent buy type) pair. Columns: `steamid`, `buy_type`, `opponent_buy_type`, `rounds`, `win_pct`. | — | `team_round`, `round_player` |
+
+## Ratings
+
+| ID | Version | Name | Kind | Unit | Definition | Parameters | Reads |
+|---|---|---|---|---|---|---|---|
+| `rating.hltv1` | 1.0.0 | HLTV Rating 1.0 | value | ratio | (KillRating + 0.7 * SurvivalRating + MultiKillRating) / 2.7, each component being the player's per-round value over HLTV's reference average (KPR 0.679, survival 0.317, multi-kill points 1.277, with N² points for a round of N kills). Public formula. | — | `round_player` |
+| `rating.hltv2_approx` | 1.0.0 | HLTV 2.0 (approx.) | value | ratio | Community approximation, **always labeled approx.**: 0.0073 * KAST + 0.3591 * KPR - 0.5329 * DPR + 0.2372 * Impact + 0.0032 * ADR + 0.1587, with Impact = 2.13 * KPR + 0.42 * APR - 0.41 and KAST in % (`base.kast`, same parameters). Its error against HLTV's published values is not known. | `trade.window_s = 5.0`, `kast.count_flash_assist = false` | `round_player` |
