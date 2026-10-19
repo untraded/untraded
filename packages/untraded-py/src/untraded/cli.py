@@ -18,7 +18,7 @@ from untraded import corpus
 from untraded.corpus.sync import SftpRemote, SyncError, SyncReport, pull, push
 from untraded.demofile import CorruptDemoError, NotADemoError
 from untraded.derive import derive
-from untraded.metrics import Dataset, compute
+from untraded.metrics import REGISTRY, Dataset, compute, compute_table
 from untraded.parsing import MODES, CanonicalError, UnsupportedModeError, parse_demo
 
 DEFAULT_MANIFEST = Path("corpus") / "manifest.toml"
@@ -144,6 +144,10 @@ def _analyze(args: argparse.Namespace) -> int:
         for name, frame in derive(canonical.tables()).tables().items():
             frame.write_parquet(target / f"{name}.parquet", compression="zstd")
         results.write_parquet(target / "metrics.parquet", compression="zstd")
+        for metric_id in sorted(m.id for m in REGISTRY.values() if m.kind == "table"):
+            compute_table(dataset, metric_id).write_parquet(
+                target / f"metric_{metric_id}.parquet", compression="zstd"
+            )
     info = canonical.match.row(0, named=True)
     side = f", {args.side} side" if args.side else ""
     print(
