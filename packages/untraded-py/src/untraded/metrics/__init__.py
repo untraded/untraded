@@ -20,6 +20,7 @@ from untraded.metrics import base as _base  # noqa: F401 (registers the metrics)
 from untraded.metrics import duels as _duels  # noqa: F401
 from untraded.metrics import economy as _economy  # noqa: F401
 from untraded.metrics import positioning as _positioning  # noqa: F401
+from untraded.metrics import ratings as _ratings  # noqa: F401
 from untraded.metrics import utility as _utility  # noqa: F401
 from untraded.metrics.dataset import Dataset
 from untraded.metrics.registry import REGISTRY, Metric, ParamValue, metric
