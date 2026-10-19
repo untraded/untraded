@@ -13,7 +13,16 @@ import polars as pl
 from untraded.metrics.dataset import Dataset
 
 Unit = Literal[
-    "count", "per_round", "pct", "damage_per_round", "ratio", "units", "seconds", "table"
+    "count",
+    "per_round",
+    "pct",
+    "damage_per_round",
+    "ratio",
+    "units",
+    "seconds",
+    "hp",
+    "dollars",
+    "table",
 ]
 Scope = Literal["player"]
 Kind = Literal["value", "table"]

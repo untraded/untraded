@@ -96,14 +96,16 @@ These metrics are distributions per map and side, not one number per player: the
 | `util.thrown_{flash,he,molotov,smoke,decoy}` | Grenades thrown | Counts by type (molotov and incendiary merged) | ✅ |
 | `util.thrown_per_round` | Utility per round | Total thrown ÷ rounds played | — |
 | `util.enemies_flashed` | Enemies flashed | Enemies blinded by the player's flashes for at least ⚙ `flash.min_blind_s = 1.0` | ≈ |
-| `util.enemy_blind_time` | Blind time dealt | Sum of enemy blind durations (s) | ✅ |
+| `util.enemy_blind_time` | Blind time dealt | Sum of enemy blind durations (s), every blind (the minimum only applies to counts) | ✅ |
 | `util.blind_per_flash` | Flash efficiency | Enemy blind time dealt ÷ flashes thrown | — |
-| `util.teammates_flashed`, `util.team_blind_time` | Team flashes | Count and duration on teammates, same threshold | ✅ |
-| `util.self_flashed` | Self-flashes | Times the player blinded themselves | — |
-| `util.flash_to_kill` | Decisive flashes | Enemies blinded by the player and killed by the player's team **while still blind** | — |
-| `util.he_damage`, `util.he_team_damage` | HE damage | Capped damage to enemies and to teammates | ✅ |
+| `util.teammates_flashed`, `util.team_blind_time` | Team flashes | Count (same minimum) and total duration on teammates, the player excluded | ✅ |
+| `util.self_flashed` | Self-flashes | Times the player blinded themselves, same minimum | — |
+| `util.flash_to_kill` | Decisive flashes | Enemies blinded by the player and killed by the player's team **while still blind** (blind tick ≤ kill tick ≤ blind tick + duration; no minimum) | — |
+| `util.he_damage`, `util.he_team_damage` | HE damage | Capped damage to enemies and to teammates; self-damage counts as neither | ✅ |
 | `util.fire_damage` | Fire damage | Capped molotov and incendiary damage to enemies (fire ownership is verified, see demoparser2 issue #317) | ✅ |
-| `util.unused_value_at_death` | Wasted utility | Value ($) of grenades in the inventory at death, averaged per death | — |
+| `util.unused_value_at_death` | Wasted utility | Value ($) of grenades in the inventory at death, averaged per death (buy prices: flash 200, HE 300, smoke 300, molotov 400, incendiary 500, decoy 50) | — |
+
+`player_blind` also fires on players who are already dead: flash metrics only count blinds of living players. Fire damage counts only damage linked to one of the player's own grenades (fire and impact).
 
 ## 5. Economy
 
