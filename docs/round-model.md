@@ -43,7 +43,7 @@ A round is played when the player is on a team at freeze-time end (the `economy`
 
 ### `clutch` — one row per clutch
 
-`round`, `steamid`, `team`, `side`, `enemies` (N), `start_tick`, `won`. Starting lineups are the players alive at freeze-time end. Deaths up to the round end are applied tick by tick, deaths on the same tick together; a team left with one player facing at least one enemy starts a clutch, at most once per team and round. When both teams are down to one player on the same tick, both players are in a 1v1.
+`round`, `steamid`, `team`, `side`, `enemies` (N), `start_tick`, `won`. Starting lineups are the players alive at freeze-time end. Deaths up to the round end are applied tick by tick, deaths on the same tick together, and a player who leaves the server mid-round (no longer alive in `player_tick`, without a death) leaves the lineup at that tick; a team left with one player facing at least one enemy starts a clutch, at most once per team and round. When both teams are down to one player on the same tick, both players are in a 1v1.
 
 ### `team_round` — one row per team and round
 
