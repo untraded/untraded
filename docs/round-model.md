@@ -30,6 +30,7 @@ A round is played when the player is on a team at freeze-time end (the `economy`
 | Column | Type | Definition |
 |---|---|---|
 | `tick`, `round`, `victim`, `victim_team`, `killer`, `killer_team` | | from `kill`; killer null for the bomb or the world |
+| `victim_bot` | Boolean | the victim is a bot (`kill.victim_bot`): `victim` is then null, since the death is nobody's, and `victim_team` is the team of the bot (its controller's, or the killer's opposite). The kill still counts for the killer |
 | `is_enemy_kill` | Boolean | killer on the other team |
 | `is_opening` | Boolean | first enemy kill of the round after freeze-time end |
 | `trade_delay_s`, `trader` | Float32?, UInt64? | the killer is later killed by the victim's team in the round: after this delay, by this player. **Traded** = delay ≤ W |
