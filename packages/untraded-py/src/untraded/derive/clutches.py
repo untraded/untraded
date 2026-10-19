@@ -16,9 +16,10 @@ def build_clutches(
     """One row per clutch: who, against how many, from which tick, and whether the team won.
 
     Players alive at freeze end are the starting lineups. Deaths up to the round end are applied
-    tick by tick (deaths on the same tick together); a team left with one player and at least one
-    enemy alive starts a clutch, at most once per team and round. When both teams are down to one
-    player on the same tick, both players are in a 1v1 clutch.
+    tick by tick (deaths on the same tick together), and a player who leaves the server mid-round
+    (no longer alive in `player_tick`, without a death) leaves the lineup then. A team left with
+    one player and at least one enemy alive starts a clutch, at most once per team and round.
+    When both teams are down to one player on the same tick, both players are in a 1v1 clutch.
     """
     lineups = (
         states.join(
@@ -32,7 +33,43 @@ def build_clutches(
     )
     ends = dict(zip(rounds["round"].to_list(), rounds["end_tick"].to_list(), strict=True))
     winners = dict(zip(rounds["round"].to_list(), rounds["winner_team"].to_list(), strict=True))
-    by_round = deaths.sort("tick").group_by("round", maintain_order=True)
+    # A player who leaves the server mid-round (a disconnection is not a death) leaves the lineup
+    # at the first tick they are no longer alive in player_tick.
+    ends_df = rounds.select("round", "end_tick")
+    victims = deaths.select("round", pl.col("victim").alias("steamid")).drop_nulls()
+    sampled = states.select("round", "tick").unique().sort("tick")
+    last_alive = (
+        states.filter(pl.col("is_alive"))
+        .join(lineups.select("round", "steamid"), on=["round", "steamid"], how="semi")
+        .group_by("round", "steamid")
+        .agg(pl.col("tick").max().alias("last_alive"))
+        .join(ends_df, on="round")
+        .filter(pl.col("last_alive") < pl.col("end_tick"))
+        .join(victims, on=["round", "steamid"], how="anti")
+    )
+    # The departure is the first player_tick sample of the round without them (none: not seen).
+    departures = (
+        last_alive.join(sampled, on="round")
+        .filter((pl.col("tick") > pl.col("last_alive")) & (pl.col("tick") <= pl.col("end_tick")))
+        .group_by("round", "steamid")
+        .agg(pl.col("tick").min())
+        .select("tick", "round", pl.col("steamid").alias("victim"))
+    )
+    events = pl.concat(
+        [
+            deaths.select(
+                pl.col("tick").cast(pl.Int64),
+                pl.col("round").cast(pl.Int64),
+                pl.col("victim").cast(pl.UInt64),
+            ),
+            departures.select(
+                pl.col("tick").cast(pl.Int64),
+                pl.col("round").cast(pl.Int64),
+                pl.col("victim").cast(pl.UInt64),
+            ),
+        ]
+    )
+    by_round = events.sort("tick").group_by("round", maintain_order=True)
     deaths_of = {int(number): group for (number,), group in by_round}
 
     rows = []
