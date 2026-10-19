@@ -148,6 +148,28 @@ def test_clutch_starts_when_one_player_is_left_against_enemies() -> None:
     assert found.select("steamid", "enemies", "start_tick", "won").rows() == [(1, 2, 300, True)]
 
 
+def test_a_player_who_left_the_server_is_not_in_the_clutch() -> None:
+    # 2 disconnects after tick 200 (no death, gone from player_tick); 3 dies at 300: 1 is alone
+    # against 3 enemies from 300
+    died = pl.DataFrame({"tick": [300], "round": [1], "victim": [3]})
+    gone = states([100, 200, 300, 5000], {3: 300}).filter(
+        (pl.col("tick") <= 200) | (pl.col("steamid") != 2)
+    )
+    found = build_clutches(died, ROUNDS, gone, TEAMS)
+    assert found.select("steamid", "enemies", "start_tick").rows() == [(1, 3, 300)]
+
+
+def test_a_departure_can_start_a_clutch_on_its_own() -> None:
+    # 3 dies at 300, then 2 leaves after 400: 1 is alone against 3 enemies from 500,
+    # the first sample without 2
+    died = pl.DataFrame({"tick": [300], "round": [1], "victim": [3]})
+    gone = states([100, 300, 400, 500, 5000], {3: 300}).filter(
+        (pl.col("tick") <= 400) | (pl.col("steamid") != 2)
+    )
+    found = build_clutches(died, ROUNDS, gone, TEAMS)
+    assert found.select("steamid", "enemies", "start_tick").rows() == [(1, 3, 500)]
+
+
 def test_both_last_players_are_in_a_1v1() -> None:
     # two players of each team die on the same tick: 1 and 8 are both left alone, in a 1v1
     died = pl.DataFrame({"tick": [200] * 4, "round": [1] * 4, "victim": [2, 3, 6, 7]})
