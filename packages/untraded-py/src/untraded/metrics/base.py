@@ -186,11 +186,16 @@ def hs_pct(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
     "by default), Survived, or was Traded (death traded within `trade.window_s`).",
 )
 def kast(ds: Dataset, params: Mapping[str, ParamValue]) -> pl.DataFrame:
+    return round_share(ds, kast_round(params))
+
+
+def kast_round(params: Mapping[str, ParamValue]) -> pl.Expr:
+    """Whether a `round_player` row counts for KAST (also used by the HLTV 2.0 approximation)."""
     assisted = pl.col("assists") > 0
     if params["kast.count_flash_assist"]:
         assisted = assisted | (pl.col("flash_assists") > 0)
     traded = (pl.col("death_trade_delay_s") <= params["trade.window_s"]).fill_null(False)
-    return round_share(ds, (pl.col("kills") > 0) | assisted | pl.col("survived") | traded)
+    return (pl.col("kills") > 0) | assisted | pl.col("survived") | traded
 
 
 def _multikill(count: int) -> None:
