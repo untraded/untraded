@@ -93,6 +93,14 @@ def test_a_trade_on_the_same_tick_counts_but_not_a_mutual_kill() -> None:
     assert traded == {1: 0.0, 6: None, 7: None, 3: None}
 
 
+def test_the_victim_s_own_fire_killing_the_killer_later_trades_the_death() -> None:
+    # 6 kills 1 at 200; 1's molotov kills 6 at 300 (1.6 s later)
+    found, _ = build_deaths(
+        kills((200, 6, 1), (300, 1, 6)), TEAMS, ROUNDS, states([100, 200, 300], {1: 200}), 64
+    )
+    assert found.filter(pl.col("victim") == 1)["trade_delay_s"].to_list() == [1.5625]
+
+
 def test_opening_trade_and_avenge() -> None:
     # 6 kills 1 (opening) at 200; 2 kills 6 at 400 (3.1 s later): 1's death is traded by 2
     found, _ = build_deaths(
