@@ -11,7 +11,7 @@ import polars as pl
 
 Columns = dict[str, pl.DataType | type[pl.DataType]]
 
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "1.1"
 
 MODES = ("premier", "faceit", "esea", "scrim", "pro")
 """Supported game modes. The demo does not carry its mode: it is an ingestion input (ADR 0008)."""
@@ -97,6 +97,7 @@ _KILL: Columns = {
     "victim_side": Side,
     "is_team_kill": pl.Boolean,
     "is_suicide": pl.Boolean,
+    "victim_bot": pl.Boolean,
     "attacker_x": pl.Float32,
     "attacker_y": pl.Float32,
     "attacker_z": pl.Float32,

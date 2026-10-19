@@ -78,13 +78,18 @@ Sources were checked on Premier, FACEIT, LAN and online tournament demos (spikes
 | `hitgroup`, `distance` | Int8?, Float32 | event; `hitgroup` is the engine code (0 generic, 1 head, 2 chest, 3 stomach, 4-5 arms, 6-7 legs, 8 neck, 10 gear), null when none (world, bomb) | display, later metrics |
 | `attacker_side`, `victim_side` | Enum | `team_num` at the tick | splits; team kills |
 | `is_team_kill`, `is_suicide` | Boolean | derived | `base.team_kills`, `base.suicides` |
+| `victim_bot` | Boolean | the victim is a bot (see below) | kills of bots count, their deaths do not |
 | `attacker_x/y/z`, `victim_x/y/z` | Float32 | props at the tick | kill and death zones, heatmaps, trade opportunities |
 | `attacker_place`, `victim_place` | String | `last_place_name` at the tick | `pos.*` |
 | `attacker_equip_value`, `victim_equip_value` | Int32 | `current_equip_value` at the tick | `eco.equipment_lost_at_death`, `eco.kills_vs_buy` |
 | `victim_inventory` | List[String] | `inventory` at the tick | `util.unused_value_at_death` |
 | `victim_flash_duration` | Float32 | `flash_duration` at the tick | `util.flash_to_kill` |
 
-After a disconnection, a bot replaces the player and a dead teammate can take it over: the bot's kills are credited to that teammate, as on the in-game scoreboard, and kept; the bot's death shows as a second death of the teammate in the round, which is dropped and counted in `match.unavailable` (2 deaths of 4,058 in 26 matchmaking demos).
+**Bots** (`victim_bot`, Boolean): after a disconnection, a bot replaces the player. A kill of a bot counts for the killer, but the death is nobody's, and `match.unavailable` counts these kills.
+- A bot nobody controls has no steamid, name or side in the event: `victim` is null, and `victim_side` is the killer's opposite (a team kill on such a bot cannot be told apart).
+- A dead teammate can take the bot over: the bot's kills are credited to that teammate, as on the in-game scoreboard, and the bot's death shows as a second death of the teammate in the round. `victim` keeps the teammate's steamid, flagged `victim_bot`.
+
+**Disconnections**: the game records a `world` suicide at the tick a player disconnects (their `player_disconnect`). Leaving is not a death: these rows are dropped and counted in `match.unavailable`. Seen in 4 of 18 matchmaking demos, 3 of them after the last round's end.
 
 ### `damage` — one row per `player_hurt`
 
@@ -95,7 +100,7 @@ After a disconnection, a bot replaces the player and a dead teammate can take it
 | `weapon`, `hitgroup` | String, Int8 | event | HE and fire damage, later aim metrics |
 | `dmg_health`, `dmg_armor` | Int16 | event (raw) | |
 | `health_after`, `armor_after` | Int16 | event | |
-| `damage` | Int16 | **capped**: `min(dmg_health, health before the hit)`. The health before is the `health_after` of the previous hit on that victim in the round, or 100: health only goes down within a round, the `health` prop at the event tick is already updated for about a third of the hits, and `dmg_health` is rounded down (health often drops by one more point) | ADR (metrics-v1 § 0) |
+| `damage` | Int16 | **capped**: the health the hit removed, `health before − health_after`. The health before is the `health_after` of the previous hit on that victim in the round, or 100: health only goes down within a round, and the `health` prop at the event tick is already updated for about a third of the hits. `dmg_health` is rounded down, so health often drops by one more point than it says; CS Demo Manager also counts the health lost. Without `health_after`: `min(dmg_health, health before)` | ADR (metrics-v1 § 0) |
 | `is_team_damage` | Boolean | sides at the tick | team damage |
 | `grenade_id` | Int32? | the attacker's grenade of the damage's kind (HE, fire, impact) whose throw-to-end window (+1 s) holds the hit | fire ownership check (demoparser2 #317) |
 
@@ -208,4 +213,4 @@ Left out on purpose:
 - Live freeze ends = rounds played = `score_a + score_b`, unless `incomplete_start` (ADR 0008).
 - Every event row has a round, or is dropped as warmup or pre-match.
 - Each player has at most one row per sampled tick; at most 5 players per side are alive.
-- Capped damage is between 0 and 100, and never exceeds `dmg_health`.
+- Capped damage is between 0 and 100, and never exceeds `dmg_health` + 1.

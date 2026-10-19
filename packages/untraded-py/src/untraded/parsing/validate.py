@@ -64,12 +64,12 @@ def validate(tables: dict[str, pl.DataFrame]) -> None:
     if (
         damage.height
         and not damage.select(
-            pl.col("damage").is_between(0, 100) & (pl.col("damage") <= pl.col("dmg_health"))
+            pl.col("damage").is_between(0, 100) & (pl.col("damage") <= pl.col("dmg_health") + 1)
         )
         .to_series()
         .all()
     ):
-        raise CanonicalError("damage: capped damage outside 0-100 or above dmg_health")
+        raise CanonicalError("damage: capped damage outside 0-100 or above dmg_health + 1")
 
     grenades = tables["grenade"]
     if grenades.height:

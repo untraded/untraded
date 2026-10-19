@@ -37,19 +37,27 @@ def build_damage(ctx: Context) -> pl.DataFrame:
 
 
 def capped_damage(hurts: pl.DataFrame) -> pl.DataFrame:
-    """Adds `damage` (capped by the health left) and `is_team_damage`, sorted by tick.
+    """Adds `damage` (the health the hit removed) and `is_team_damage`, sorted by tick.
 
     Health only goes down within a round and starts at 100, so the health before a hit is the
     health after the previous hit on the same victim in that round. The `health` prop at the
-    event tick is not reliable for this (already updated in about a third of the hits), and
-    `dmg_health` is rounded down while health drops by whole points: the capped damage is
-    `min(dmg_health, health before)`, never more than the raw damage.
+    event tick is not reliable for this (already updated in about a third of the hits). The
+    damage is the health lost, `health before - health after`: `dmg_health` is rounded down
+    while health drops by whole points, so it is often one point short (CS Demo Manager also
+    counts the health lost). Without `health_after`, it falls back to `min(dmg_health, health
+    before)`.
     """
     before = (
         pl.col("health_after").shift(1).over("round", "victim", order_by=["tick", "order"])
     ).fill_null(FULL_HEALTH)
     return (
-        hurts.with_columns(pl.min_horizontal("dmg_health", before).clip(0).alias("damage"))
+        hurts.with_columns(
+            pl.when(pl.col("health_after").is_not_null())
+            .then(before - pl.col("health_after"))
+            .otherwise(pl.min_horizontal("dmg_health", before))
+            .clip(0)
+            .alias("damage")
+        )
         .with_columns(
             (
                 (pl.col("attacker") != pl.col("victim"))

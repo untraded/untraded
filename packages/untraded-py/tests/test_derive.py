@@ -26,8 +26,9 @@ ROUNDS = pl.DataFrame(
 )
 
 
-def kills(*rows: tuple[int, int | None, int]) -> pl.DataFrame:
-    """Rows of (tick, attacker, victim); positions: player p stands at (p * 100, 0, 0)."""
+def kills(*rows: tuple[int, int | None, int], bots: tuple[int, ...] = ()) -> pl.DataFrame:
+    """Rows of (tick, attacker, victim); positions: player p stands at (p * 100, 0, 0). Kills
+    at the ticks in `bots` are kills of a bot (`victim_bot`)."""
     return pl.DataFrame(
         {
             "tick": [r[0] for r in rows],
@@ -40,6 +41,7 @@ def kills(*rows: tuple[int, int | None, int]) -> pl.DataFrame:
             "victim_x": [float(r[2] * 100) for r in rows],
             "victim_y": [0.0] * len(rows),
             "victim_z": [0.0] * len(rows),
+            "victim_bot": [r[0] in bots for r in rows],
         },
         schema_overrides={"attacker": pl.Int64},
     )
@@ -63,6 +65,19 @@ def states(ticks: list[int], dead: dict[int, int]) -> pl.DataFrame:
                 }
             )
     return pl.DataFrame(rows)
+
+
+def test_a_kill_of_a_taken_over_bot_counts_for_the_killer_but_is_nobody_s_death() -> None:
+    # 1 died at 200 and took over a bot, which 6 kills at 300
+    found, _ = build_deaths(
+        kills((200, 6, 1), (300, 6, 1), bots=(300,)),
+        TEAMS,
+        ROUNDS,
+        states([100, 200, 300], {1: 200}),
+        64,
+    )
+    bot = found.filter(pl.col("tick") == 300)
+    assert bot.select("victim", "victim_team", "is_enemy_kill").rows() == [(None, "A", True)]
 
 
 def test_opening_trade_and_avenge() -> None:
