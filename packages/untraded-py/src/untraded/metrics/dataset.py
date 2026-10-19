@@ -23,7 +23,8 @@ class Dataset:
     tables: Mapping[str, pl.DataFrame]
     """Every table with `match_id` (and `map` on `round_player`)."""
     played: pl.DataFrame
-    """The rounds kept: `match_id`, `round`, `steamid`, `side`, `team`, `map`."""
+    """The rounds kept: `match_id`, `round`, `steamid`, `side`, `team`, `map`, and with the round
+    model's `team_round`, `buy_type` and `opponent_buy_type`."""
 
     @classmethod
     def from_matches(cls, matches: Iterable[MatchTables]) -> Dataset:
@@ -39,15 +40,22 @@ class Dataset:
         played = merged["round_player"].select(
             "match_id", "round", "steamid", "side", "team", "map"
         )
+        if "team_round" in merged:
+            played = _with_buy_types(played, merged["team_round"])
         return cls(tables=merged, played=played)
 
-    def split(self, *, side: str | None = None, map: str | None = None) -> Dataset:
-        """Keeps the rounds a player played on that side, and/or on that map."""
+    def split(
+        self, *, side: str | None = None, map: str | None = None, buy: str | None = None
+    ) -> Dataset:
+        """Keeps the rounds a player played on that side, on that map, and/or with that team
+        buy type (metrics-v1 § 5)."""
         kept = self.played
         if side is not None:
             kept = kept.filter(pl.col("side") == side)
         if map is not None:
             kept = kept.filter(pl.col("map") == map)
+        if buy is not None:
+            kept = kept.filter(pl.col("buy_type") == buy)
         return replace(self, played=kept)
 
     def __getitem__(self, table: str) -> pl.DataFrame:
@@ -68,3 +76,12 @@ class Dataset:
     def round_players(self) -> pl.DataFrame:
         """`round_player` rows of the kept rounds."""
         return self.kept(self.tables["round_player"])
+
+
+def _with_buy_types(played: pl.DataFrame, team_round: pl.DataFrame) -> pl.DataFrame:
+    buys = team_round.select("match_id", "round", "team", pl.col("buy_type").cast(pl.String))
+    opponents = buys.rename({"team": "opponent", "buy_type": "opponent_buy_type"})
+    both = buys.join(opponents, on=["match_id", "round"]).filter(
+        pl.col("team") != pl.col("opponent")
+    )
+    return played.join(both.drop("opponent"), on=["match_id", "round", "team"], how="left")

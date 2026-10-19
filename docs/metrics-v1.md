@@ -123,10 +123,12 @@ These metrics are distributions per map and side, not one number per player: the
 
 | ID | Name | Definition | CSDM |
 |---|---|---|---|
-| `eco.buy_type` | Buy type | The player's team buy type per round (derived, exposed as a split) | ✅ |
+| `eco.buy_type` | Buy type | The player's team buy type per round (derived, exposed as a split: `Dataset.split(buy=...)`); the metric counts rounds per buy type with the % won | ✅ |
 | `eco.win_pct_by_matchup` | Win % by economy | % of rounds won per (team buy type, opponent buy type) pair | — |
 | `eco.equipment_lost_at_death` | Equipment lost | The player's equipment value at the tick of death, averaged per death | — |
-| `eco.kills_vs_buy` | Kills by economy | Kills split by (killer equipment, victim equipment) class: pistol, SMG, rifle, AWP | — |
+| `eco.kills_vs_buy` | Kills by economy | Enemy kills split by (killer, victim) weapon class: the best weapon held, among `awp`, `rifle` (other snipers included), `heavy` (shotguns and machine guns), `smg`, else `pistol`. The killer's inventory is its last change before the kill | — |
+
+`eco.buy_type`, `eco.win_pct_by_matchup` and `eco.kills_vs_buy` are table metrics (§ 3).
 
 ## 6. Ratings
 

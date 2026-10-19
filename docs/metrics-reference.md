@@ -105,3 +105,12 @@
 | `util.thrown_per_round` | 1.0.0 | Utility per round | value | per_round | Grenades thrown (all types) ÷ rounds played. | — | `grenade`, `round_player` |
 | `util.thrown_smoke` | 1.0.0 | Smoke thrown | value | count | Grenades of type `smoke` thrown. | — | `grenade` |
 | `util.unused_value_at_death` | 1.0.0 | Wasted utility | value | dollars | Buy value of the grenades in the player's inventory at death, averaged over their deaths (flash 200, HE 300, smoke 300, molotov 400, incendiary 500, decoy 50). | — | `death`, `kill` |
+
+## Economy
+
+| ID | Version | Name | Kind | Unit | Definition | Parameters | Reads |
+|---|---|---|---|---|---|---|---|
+| `eco.buy_type` | 1.0.0 | Buy type | table | table | Rounds played per team buy type (`pistol`, `eco`, `semi`, `force`, `full`), with the % won. The buy type is also a split: `Dataset.split(buy=...)`. Columns: `steamid`, `buy_type`, `rounds`, `win_pct`. | — | `team_round`, `round_player` |
+| `eco.equipment_lost_at_death` | 1.0.0 | Equipment lost | value | dollars | The player's equipment value at the tick of death, averaged over their deaths. | — | `death`, `kill` |
+| `eco.kills_vs_buy` | 1.0.0 | Kills by economy | table | table | The player's enemy kills per (killer weapon class, victim weapon class). The class is the best weapon held: `awp`, `rifle` (other snipers included), `heavy` (shotguns and machine guns), `smg`, else `pistol`. The killer's inventory is the last change before the kill, the victim's is read at the kill. Columns: `steamid`, `killer_class`, `victim_class`, `kills`. | — | `death`, `kill`, `inventory_change` |
+| `eco.win_pct_by_matchup` | 1.0.0 | Win % by economy | table | table | % of rounds won per (team buy type, opponent buy type) pair. Columns: `steamid`, `buy_type`, `opponent_buy_type`, `rounds`, `win_pct`. | — | `team_round`, `round_player` |
