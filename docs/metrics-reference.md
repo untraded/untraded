@@ -26,3 +26,49 @@
 | `base.suicides` | 1.0.0 | Suicides | count | Deaths where the player is both attacker and victim. | — | `kill` |
 | `base.survival_pct` | 1.0.0 | Survival | pct | % of rounds where the player is alive at round end. | — | `round_player` |
 | `base.team_kills` | 1.0.0 | Team kills | count | Teammates killed by the player. | — | `kill` |
+
+## Duels
+
+| ID | Version | Name | Unit | Definition | Parameters | Reads |
+|---|---|---|---|---|---|---|
+| `duel.isolated_death_pct` | 1.0.0 | Isolated death % | pct | Isolated deaths ÷ deaths * 100. | `trade.window_s = 5.0`, `isolation.radius = 1000.0` | `death`, `round_player` |
+| `duel.isolated_deaths` | 1.0.0 | Isolated deaths | count | **Untraded** deaths where the nearest living teammate was more than `isolation.radius` away. A death with no living teammate (last player alive) is not isolated. | `trade.window_s = 5.0`, `isolation.radius = 1000.0` | `death` |
+| `duel.nearest_teammate_at_death` | 1.0.0 | Spacing at death | units | Median, over deaths with a living teammate, of the distance to the nearest one. | — | `death` |
+| `duel.opening_attempt_pct` | 1.0.0 | Opening frequency | pct | Opening duels ÷ rounds played * 100. | — | `round_player` |
+| `duel.opening_attempts` | 1.0.0 | Opening duels | count | Opening kills + opening deaths. | — | `round_player` |
+| `duel.opening_deaths` | 1.0.0 | Opening deaths | count | Rounds where the player is the opening victim. | — | `round_player` |
+| `duel.opening_kills` | 1.0.0 | Opening kills | count | Rounds where the player makes the opening kill (first enemy kill after freeze end). | — | `round_player` |
+| `duel.opening_success_pct` | 1.0.0 | Opening success | pct | Opening kills ÷ opening duels * 100. | — | `round_player` |
+| `duel.opening_win_conversion_pct` | 1.0.0 | Opening conversion | pct | % of rounds with an opening kill by the player that the team wins. | — | `round_player` |
+
+## Trades
+
+| ID | Version | Name | Unit | Definition | Parameters | Reads |
+|---|---|---|---|---|---|---|
+| `trade.death_opportunities` | 1.0.0 | Tradable deaths | count | The player's deaths where at least one teammate had a trade opportunity. | `trade.opportunity_distance = 1000.0` | `trade_opportunity` |
+| `trade.kill_conversion_pct` | 1.0.0 | Opportunity conversion | pct | Trade kills ÷ trade opportunities * 100. | `trade.window_s = 5.0`, `trade.opportunity_distance = 1000.0` | `death`, `trade_opportunity` |
+| `trade.kill_opportunities` | 1.0.0 | Trade opportunities | count | Times a teammate of the player was killed while the player was alive and within `trade.opportunity_distance` of the killer. | `trade.opportunity_distance = 1000.0` | `trade_opportunity` |
+| `trade.trade_kills` | 1.0.0 | Trade kills (5 s) | count | Kills of an enemy who killed a teammate of the player within `trade.window_s` before. | `trade.window_s = 5.0` | `death` |
+| `trade.trade_kills_w3` | 1.0.0 | Trade kills (3 s) | count | Kills of an enemy who killed a teammate of the player within `trade.window_w3_s` before. | `trade.window_w3_s = 3.0` | `death` |
+| `trade.traded_death_pct` | 1.0.0 | Traded death % (5 s) | pct | Traded deaths ÷ deaths * 100. | `trade.window_s = 5.0` | `death`, `round_player` |
+| `trade.traded_death_pct_w3` | 1.0.0 | Traded death % (3 s) | pct | Traded deaths ÷ deaths * 100. | `trade.window_w3_s = 3.0` | `death`, `round_player` |
+| `trade.traded_deaths` | 1.0.0 | Traded deaths (5 s) | count | The player's deaths whose killer was killed by a teammate within `trade.window_s`. | `trade.window_s = 5.0` | `death` |
+| `trade.traded_deaths_w3` | 1.0.0 | Traded deaths (3 s) | count | The player's deaths whose killer was killed by a teammate within `trade.window_w3_s`. | `trade.window_w3_s = 3.0` | `death` |
+| `trade.untraded_deaths` | 1.0.0 | Untraded deaths (5 s) | count | Deaths - traded deaths (the product's signature metric). | `trade.window_s = 5.0` | `death`, `round_player` |
+| `trade.untraded_deaths_w3` | 1.0.0 | Untraded deaths (3 s) | count | Deaths - traded deaths (the product's signature metric). | `trade.window_w3_s = 3.0` | `death`, `round_player` |
+
+## Clutches
+
+| ID | Version | Name | Unit | Definition | Parameters | Reads |
+|---|---|---|---|---|---|---|
+| `clutch.attempts_1v1` | 1.0.0 | 1v1 attempts | count | Rounds where the player becomes the last one alive on the team, facing 1 living enemy. | — | `clutch` |
+| `clutch.attempts_1v2` | 1.0.0 | 1v2 attempts | count | Rounds where the player becomes the last one alive on the team, facing 2 living enemies. | — | `clutch` |
+| `clutch.attempts_1v3` | 1.0.0 | 1v3 attempts | count | Rounds where the player becomes the last one alive on the team, facing 3 living enemies. | — | `clutch` |
+| `clutch.attempts_1v4` | 1.0.0 | 1v4 attempts | count | Rounds where the player becomes the last one alive on the team, facing 4 living enemies. | — | `clutch` |
+| `clutch.attempts_1v5` | 1.0.0 | 1v5 attempts | count | Rounds where the player becomes the last one alive on the team, facing 5 living enemies. | — | `clutch` |
+| `clutch.win_pct` | 1.0.0 | Clutch success | pct | Clutch wins ÷ clutch attempts * 100, over all N. | — | `clutch` |
+| `clutch.wins_1v1` | 1.0.0 | 1v1 wins | count | 1v1 clutches the team wins. | — | `clutch` |
+| `clutch.wins_1v2` | 1.0.0 | 1v2 wins | count | 1v2 clutches the team wins. | — | `clutch` |
+| `clutch.wins_1v3` | 1.0.0 | 1v3 wins | count | 1v3 clutches the team wins. | — | `clutch` |
+| `clutch.wins_1v4` | 1.0.0 | 1v4 wins | count | 1v4 clutches the team wins. | — | `clutch` |
+| `clutch.wins_1v5` | 1.0.0 | 1v5 wins | count | 1v5 clutches the team wins. | — | `clutch` |

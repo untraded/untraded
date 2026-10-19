@@ -50,7 +50,7 @@
 - **Trade**: A is killed by enemy B at tick *t*. If a teammate C of A kills B within ]*t*, *t* + W], then:
   - **A's death is traded**;
   - **C gets a trade kill**.
-- **W**, the trade window: ⚙ `trade.window_s = 5.0` (HLTV and CSDM convention). A 3-second variant is computed alongside with the `_w3` suffix.
+- **W**, the trade window: ⚙ `trade.window_s = 5.0` (HLTV and CSDM convention). A 3-second variant is computed alongside with the `_w3` suffix (⚙ `trade.window_w3_s = 3.0`).
 - **Trade opportunity**: A is killed by B. Every teammate C of A who is **alive** at that tick and **within D units of B's position** has a trade opportunity.
   - ⚙🎯 `trade.opportunity_distance = 1000` u.
 
@@ -69,9 +69,9 @@
 | `trade.kill_opportunities` | Trade opportunities | The player's trade opportunities (as defined above) | — |
 | `trade.kill_conversion_pct` | Opportunity conversion | Trade kills ÷ trade opportunities × 100 | — |
 | `trade.death_opportunities` | Tradable deaths | The player's deaths where at least one teammate had a trade opportunity | — |
-| `duel.isolated_deaths` | Isolated deaths | **Untraded** deaths where the nearest living teammate was more than R units away. ⚙🎯 `isolation.radius = 1000` u | — |
+| `duel.isolated_deaths` | Isolated deaths | **Untraded** deaths where the nearest living teammate was more than R units away. ⚙🎯 `isolation.radius = 1000` u. A death with no living teammate (last player alive) is not isolated | — |
 | `duel.isolated_death_pct` | Isolated death % | Isolated deaths ÷ deaths × 100 | — |
-| `duel.nearest_teammate_at_death` | Spacing at death | Median, over deaths, of the distance to the nearest living teammate (u) | — |
+| `duel.nearest_teammate_at_death` | Spacing at death | Median, over deaths with a living teammate, of the distance to the nearest one (u) | — |
 | `clutch.attempts_1v{1..5}` | Clutch attempts | Rounds where the player becomes the last one alive on the team, facing N living enemies | ✅ |
 | `clutch.wins_1v{1..5}` | Clutch wins | …and the team wins the round | ✅ |
 | `clutch.win_pct` | Clutch success | Clutch wins ÷ clutch attempts × 100, over all N | ✅ |
