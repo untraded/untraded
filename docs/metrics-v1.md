@@ -33,15 +33,16 @@
 | `base.deaths` | Deaths | Number of deaths | ✅ |
 | `base.assists` | Assists | Enemy kills where the player is the `assister`, **flash assists excluded** | ✅ |
 | `base.flash_assists` | Flash assists | Enemy kills with `assistedflash` credited to the player | ✅ |
+| `base.assist_score` | Weighted assists | Assists + ⚙ `assist.flash_weight = 0.5` × flash assists: a flash assist counts, but less than an assist | — |
 | `base.team_kills`, `base.suicides` | Team kills, suicides | Counts | ✅ |
 | `base.kd_diff` | K−D | kills − deaths | ✅ |
 | `base.kpr`, `base.dpr`, `base.apr` | Per round | kills, deaths or assists ÷ rounds played | ✅ |
 | `base.adr` | ADR | Sum of capped damage to enemies ÷ rounds played | ✅ (≤ 1 %) |
 | `base.hs_pct` | HS % | Headshot kills ÷ kills × 100 | ✅ |
-| `base.kast` | KAST | % of rounds played where the player got a **K**ill, an **A**ssist (flash assists excluded by default, ⚙ `kast.count_flash_assist = false`), **S**urvived, or was **T**raded (§ 2) | ✅ (≤ 1 %) |
+| `base.kast` | KAST | % of rounds played where the player got a **K**ill, an **A**ssist (flash assists excluded by default, ⚙ `kast.count_flash_assist = false`), **S**urvived (alive at round end and no death after it), or was **T**raded (§ 2) | ✅ (≤ 1 %) |
 | `base.multikills_{1..5}` | 1K to 5K | Number of rounds with **exactly** N kills | ✅ |
 | `base.rounds_with_kill_pct` | Rounds with a kill | % of rounds with at least one kill | — |
-| `base.survival_pct` | Survival | % of rounds where the player is alive at round end | ✅ |
+| `base.survival_pct` | Survival | % of rounds where the player is alive at round end **and does not die after it**: a death after the round end (an exit frag) drops the weapons, so it is not a survival | ✅ |
 
 ## 2. Duels and trades (priority)
 
