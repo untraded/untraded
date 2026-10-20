@@ -17,16 +17,22 @@ uv run untraded-worker run         # until SIGINT or SIGTERM; --once stops when 
 |---|---|---|
 | `UNTRADED_DATABASE_URL` | the `compose.dev.yaml` database | PostgreSQL |
 | `UNTRADED_STORE_DIR` | `store` | object store: raw demos and Parquet tables (ADR 0009) |
+| `UNTRADED_DEMO_RETENTION_DAYS` | unset (kept) | raw demo retention after the parse (ADR 0009) |
 
 - `queue.py`: claim with `FOR UPDATE SKIP LOCKED`, exponential backoff, `dead` after
-  `max_attempts`, abandoned jobs put back after 30 minutes.
+  `max_attempts`, abandoned jobs put back after 30 minutes (3 hours for `download`).
 - `runner.py`: the loop. The claim commits first; the handler's writes and the completion then
   commit together, and a failure (Rust panics included) is rolled back and recorded.
 - `store.py`: the local object store; an S3-compatible one implements the same methods later.
 - `jobs.py`: the handlers by kind. `parse` (`{"match_id": ...}`): demo from the store, canonical
   tables, round model and metrics (scopes `match`, `ct`, `t`), Parquet under `matches/{id}/`,
   SQL tables, `workspace_match`, status `ready` (`failed` once the job is dead). A demo already
-  known by its sha256 is merged into its match. `download` comes next.
+  known by its sha256 is merged into its match. `download` (`{"match_id": ..., "url": ...}`):
+  resumable HTTP download (Valve drops connections), stored as received under
+  `demos/{sha256}{suffix}`, then a `parse` job; a demo gone from the server (404, 410) makes the
+  match `unavailable`.
+- `retention.py`: deletes raw demos `UNTRADED_DEMO_RETENTION_DAYS` after the parse (unset: kept;
+  0: at the next sweep), swept when the worker is idle.
 - `analysis.py` and `load.py`: the analysis without a database, and its loading (idempotent:
   a reparse replaces the match's rows).
 

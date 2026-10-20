@@ -1,18 +1,22 @@
 # SPDX-FileCopyrightText: 2026 The Untraded Authors
 # SPDX-License-Identifier: AGPL-3.0-only
-"""`untraded-worker run`: process the job queue (UNTRADED_DATABASE_URL, UNTRADED_STORE_DIR)."""
+"""`untraded-worker run`: process the job queue (UNTRADED_DATABASE_URL, UNTRADED_STORE_DIR,
+UNTRADED_DEMO_RETENTION_DAYS)."""
 
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import logging
 from collections.abc import Sequence
 from pathlib import Path
 
-from untraded_worker import conninfo, store_dir
+from untraded_worker import conninfo, retention, store_dir
 from untraded_worker.jobs import ON_DEAD, handlers
-from untraded_worker.runner import Worker
+from untraded_worker.runner import Periodic, Worker
 from untraded_worker.store import LocalStore
+
+RETENTION_EVERY = dt.timedelta(minutes=10)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -25,12 +29,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    known = handlers(LocalStore(Path(store_dir())))
+    store = LocalStore(Path(store_dir()))
+    known = handlers(store)
     kinds = args.kinds.split(",") if args.kinds else list(known)
     unknown = set(kinds) - set(known)
     if unknown:
         parser.error(f"unknown job kinds: {sorted(unknown)} (known: {sorted(known)})")
-    worker = Worker(conninfo(), {k: known[k] for k in kinds}, on_dead=ON_DEAD)
+    keep = retention.configured()
+    periodic = [] if keep is None else [Periodic(RETENTION_EVERY, retention.Sweep(store, keep))]
+    worker = Worker(conninfo(), {k: known[k] for k in kinds}, on_dead=ON_DEAD, periodic=periodic)
     if args.name:
         worker.name = args.name
     processed = worker.run(once=args.once)

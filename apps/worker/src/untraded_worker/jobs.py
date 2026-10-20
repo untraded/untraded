@@ -1,6 +1,11 @@
 # SPDX-FileCopyrightText: 2026 The Untraded Authors
 # SPDX-License-Identifier: AGPL-3.0-only
-"""The job handlers, by kind. `download` arrives in the next pull request.
+"""The job handlers, by kind.
+
+`download` (payload `{"match_id": "<uuid>", "url": "<demo URL>"}`): fetches the match's demo
+(Valve serves `.dem.bz2`), checks it is a CS2 demo, stores it as received under
+`demos/{sha256}{suffix}` (sha256 of the decompressed demo, ADR 0009), and queues its `parse`.
+A demo the server no longer has (404, 410) makes the match `unavailable`.
 
 `parse` (payload `{"match_id": "<uuid>"}`): the match's raw demo is in the store (`demo_key`).
 The worker parses it, derives the round model, computes the metrics, writes the Parquet tables
@@ -12,16 +17,20 @@ stored twice: the new match row is merged into the existing one.
 from __future__ import annotations
 
 import datetime as dt
+import urllib.parse
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 import psycopg
 
+from untraded.demofile import CorruptDemoError, NotADemoError, demo_suffix, digest
 from untraded.parsing import CanonicalMatch, parse_demo
-from untraded_worker import load
+from untraded_worker import load, queue
 from untraded_worker.analysis import analyze
+from untraded_worker.download import DemoGone, fetch
 from untraded_worker.queue import Job
 from untraded_worker.runner import DeadHandler, Handler
 from untraded_worker.store import LocalStore
@@ -100,6 +109,50 @@ class ParseJob:
             self.store.delete(duplicate_demo)
 
 
+@dataclass(frozen=True)
+class DownloadJob:
+    store: LocalStore
+    fetch: Callable[[str, Path], object] = field(default=fetch)
+    """`download.fetch`; tests replace it."""
+
+    def __call__(self, conn: psycopg.Connection[Any], job: Job) -> None:
+        # No row lock here: a download can take 20 minutes on Valve's throttled servers.
+        match_id = uuid.UUID(str(job.payload["match_id"]))
+        url = str(job.payload["url"])
+        row = conn.execute("SELECT demo_key FROM match WHERE id = %s", (match_id,)).fetchone()
+        if row is None or row[0] is not None:
+            return  # deleted meanwhile, or already downloaded
+        name = Path(urllib.parse.urlsplit(url).path).name
+        try:
+            suffix = demo_suffix(Path(name))
+        except NotADemoError as error:
+            raise JobError(f"{url}: {error}") from error
+        incoming = self.store.path(f"incoming/{match_id}{suffix}")
+        try:
+            self.fetch(url, incoming)
+        except DemoGone as gone:
+            conn.execute(
+                "UPDATE match SET status = 'unavailable', error = %s WHERE id = %s",
+                (f"demo gone from the server ({gone})", match_id),
+            )
+            return
+        try:
+            found = digest(incoming)
+        except (NotADemoError, CorruptDemoError):
+            incoming.unlink()  # download it again next time
+            raise
+        key = f"demos/{found.sha256}{suffix}"
+        if self.store.exists(key):
+            incoming.unlink()  # the same demo, brought by another match: merged at parse
+        else:
+            self.store.move_in(key, incoming)
+        conn.execute(
+            "UPDATE match SET demo_key = %s, status = 'parsing', error = NULL WHERE id = %s",
+            (key, match_id),
+        )
+        queue.enqueue(conn, "parse", {"match_id": str(match_id)})
+
+
 def match_failed(conn: psycopg.Connection[Any], job: Job, error: str) -> None:
     conn.execute(
         "UPDATE match SET status = 'failed', error = %s WHERE id = %s",
@@ -108,7 +161,7 @@ def match_failed(conn: psycopg.Connection[Any], job: Job, error: str) -> None:
 
 
 def handlers(store: LocalStore) -> dict[str, Handler]:
-    return {"parse": ParseJob(store)}
+    return {"download": DownloadJob(store), "parse": ParseJob(store)}
 
 
-ON_DEAD: dict[str, DeadHandler] = {"parse": match_failed}
+ON_DEAD: dict[str, DeadHandler] = {"download": match_failed, "parse": match_failed}

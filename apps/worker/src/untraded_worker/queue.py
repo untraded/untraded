@@ -22,6 +22,8 @@ BACKOFF_BASE = dt.timedelta(seconds=30)
 BACKOFF_MAX = dt.timedelta(hours=1)
 STALE_AFTER = dt.timedelta(minutes=30)
 """A running job not finished after this long is considered abandoned (a parse takes < 1 min)."""
+STALE_AFTER_BY_KIND: Mapping[str, dt.timedelta] = {"download": dt.timedelta(hours=3)}
+"""Slower kinds: a Valve download can take 20 minutes or more (throttled servers)."""
 
 
 @dataclass(frozen=True)
@@ -107,12 +109,24 @@ def fail(conn: psycopg.Connection[Any], job: Job, error: str) -> bool:
     return dead
 
 
-def requeue_stale(conn: psycopg.Connection[Any], older_than: dt.timedelta = STALE_AFTER) -> int:
+def requeue_stale(
+    conn: psycopg.Connection[Any],
+    older_than: dt.timedelta = STALE_AFTER,
+    by_kind: Mapping[str, dt.timedelta] = STALE_AFTER_BY_KIND,
+) -> int:
     """Puts back in the queue the jobs left running by a worker that died; returns how many."""
     cursor = conn.execute(
-        "UPDATE job SET status = 'queued', locked_by = NULL, "
-        "last_error = coalesce(last_error, 'abandoned by its worker') "
-        "WHERE status = 'running' AND locked_at < now() - %s",
-        (older_than,),
+        """
+        UPDATE job SET status = 'queued', locked_by = NULL,
+                       last_error = coalesce(last_error, 'abandoned by its worker')
+        WHERE status = 'running'
+          AND locked_at < now() - coalesce(
+              (%(by_kind)s::jsonb ->> kind)::double precision * interval '1 second',
+              %(default)s)
+        """,
+        {
+            "by_kind": Jsonb({k: v.total_seconds() for k, v in by_kind.items()}),
+            "default": older_than,
+        },
     )
     return cursor.rowcount
