@@ -70,8 +70,8 @@ function Rounds({ rounds, label, overtime }: { rounds: Round[]; label: string; o
             title={`${round.round} · ${round.winner_side ?? "?"} · ${round.reason}${round.is_overtime ? ` · ${overtime}` : ""}`}
             className={cn(
               "flex h-8 w-7 flex-col items-center justify-center rounded text-[10px] tabular-nums",
-              round.winner_team === "A" ? "bg-ct/20" : "bg-t/20",
-              round.winner_side === "CT" ? "text-ct" : "text-t",
+              round.winner_team === "A" ? "bg-side-ct/20" : "bg-side-t/20",
+              round.winner_side === "CT" ? "text-side-ct" : "text-side-t",
             )}
           >
             <span className="font-semibold">{round.round}</span>

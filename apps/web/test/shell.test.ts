@@ -6,12 +6,12 @@ import { pickTheme } from "../src/i18n/locale";
 
 describe("shell", () => {
   it("marks the section a page belongs to", () => {
-    expect(sectionOf("/report")).toBe("report");
+    expect(sectionOf("/")).toBe("home");
     expect(sectionOf("/sessions")).toBe("sessions");
     expect(sectionOf("/sessions/0000")).toBe("sessions");
     expect(sectionOf("/matches/0000")).toBe("matches");
     expect(sectionOf("/settings")).toBe("settings");
-    expect(sectionOf("/")).toBeNull();
+    expect(sectionOf("/report")).toBeNull();
     expect(sectionOf("/sessionsx")).toBeNull();
   });
 
