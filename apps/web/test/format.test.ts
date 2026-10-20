@@ -7,6 +7,9 @@ import {
   day,
   delta,
   family,
+  gap,
+  gapPercent,
+  gapTrend,
   killDiff,
   mapName,
   metric,
@@ -93,5 +96,37 @@ describe("trend", () => {
   it("calls a difference that rounds to zero the same", () => {
     expect(trend({ ...base, better: "higher", delta: 0.04 })).toBe("same");
     expect(trend({ ...base, better: "higher", delta: null })).toBe("same");
+  });
+});
+
+describe("gap", () => {
+  const base = {
+    metric_id: "base.adr",
+    version: "1.0.0",
+    name: "ADR",
+    unit: "damage_per_round",
+    basis: "value" as const,
+    delta: null,
+  };
+
+  it("is a share of the reference, positive when better", () => {
+    expect(gap({ ...base, better: "higher", session: 90, reference: 75 })).toBeCloseTo(20);
+    expect(gap({ ...base, better: "lower", session: 0.3, reference: 0.25 })).toBeCloseTo(-20);
+  });
+
+  it("is undefined without a reference, for a zero reference or a neutral metric", () => {
+    expect(gap({ ...base, better: "higher", session: 90, reference: null })).toBeNull();
+    expect(gap({ ...base, better: "higher", session: 90, reference: 0 })).toBeNull();
+    expect(gap({ ...base, better: "neutral", session: 90, reference: 75 })).toBeNull();
+  });
+
+  it("reads small gaps as stable and signs whole percents", () => {
+    expect(gapTrend(4.9)).toBe("same");
+    expect(gapTrend(-5)).toBe("worse");
+    expect(gapTrend(12)).toBe("better");
+    expect(gapTrend(null)).toBe("same");
+    expect(gapPercent(-24.4, "fr")).toBe("−24 %");
+    expect(gapPercent(12.6, "en")).toBe("+13 %");
+    expect(gapPercent(0.2, "en")).toBe("0 %");
   });
 });

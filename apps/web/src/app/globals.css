@@ -26,7 +26,8 @@
  * - highlight: the brand accent, for actions and selection only, never to mark data;
  * - link, line-soft (row separators);
  * - win and loss: results, and gaps that are better or worse (never colour alone: add a sign);
- * - ct and t: the sides.
+ * - ct and t: the sides, as the `side-ct` and `side-t` colours (a colour named `t` would
+ *   collide with Tailwind's `border-t`, which would then also paint top borders).
  * Every text colour passes WCAG AA on the background and on cards.
  */
 :root {
@@ -98,8 +99,8 @@
   --color-link: var(--link);
   --color-win: var(--win);
   --color-loss: var(--loss);
-  --color-ct: var(--ct);
-  --color-t: var(--t);
+  --color-side-ct: var(--ct);
+  --color-side-t: var(--t);
   /* Corners: 3 px for small controls, 4 px for buttons and fields, 6 px for blocks. */
   --radius-sm: calc(var(--radius) * 0.5);
   --radius-md: calc(var(--radius) * 0.67);
