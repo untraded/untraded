@@ -53,7 +53,7 @@ PARAMETERS: dict[str, Parameter] = {
         ),
         Parameter(
             "trade.opportunity_distance",
-            1000.0,
+            1300.0,
             "units",
             "A living teammate of the victim within this straight-line distance of the killer "
             "had a trade opportunity.",
@@ -94,7 +94,7 @@ PARAMETERS: dict[str, Parameter] = {
         ),
         Parameter(
             "pos.recurring_min_rounds",
-            8,
+            32,
             "rounds",
             "Rounds the player must have played on a map and side before a zone can be recurring.",
             calibrate=True,

@@ -4,7 +4,7 @@
 
 | Version | Kind | Unit | Reads | Code |
 |---|---|---|---|---|
-| 1.1.0 | table | table | `death`, `kill`, `round_player` | [`recurring_death_spot` in `metrics/positioning.py`](https://github.com/untraded/untraded/blob/main/packages/untraded-py/src/untraded/metrics/positioning.py) |
+| 1.2.0 | table | table | `death`, `kill`, `round_player` | [`recurring_death_spot` in `metrics/positioning.py`](https://github.com/untraded/untraded/blob/main/packages/untraded-py/src/untraded/metrics/positioning.py) |
 
 ## Definition
 
@@ -16,7 +16,7 @@ Per map and side: zones holding at least `pos.recurring_death_share` of the play
 |---|---|---|
 | `trade.window_s` | 5.0 s | Trade window W: a death is traded when a teammate kills the killer within W seconds, both ends included (the same tick, and exactly W). 5 s is the usual convention (HLTV, CS Demo Manager); CS Demo Manager excludes exactly W. |
 | `pos.recurring_death_share` | 0.25 ratio | Share of the player's untraded deaths on a map and side that makes a zone recurring. 🎯 v0, to calibrate. |
-| `pos.recurring_min_rounds` | 8 rounds | Rounds the player must have played on a map and side before a zone can be recurring. 🎯 v0, to calibrate. |
+| `pos.recurring_min_rounds` | 32 rounds | Rounds the player must have played on a map and side before a zone can be recurring. 🎯 v0, to calibrate. |
 
 ## Example
 
@@ -40,3 +40,4 @@ See also the [shared conventions](README.md#shared-conventions) of every metric.
 
 - **1.0.0**: First version (#34).
 - **1.1.0**: Trades now count a kill on the same tick (delay 0) (#41) and the victim's own grenade or fire killing the killer later (#42); two players killing each other on the same tick trade nothing.
+- **1.2.0**: `pos.recurring_min_rounds` 8 -> 32 rounds: at 8, only 8 % of the spots found in half of a player's rounds came back in the other half (docs/calibration.md).

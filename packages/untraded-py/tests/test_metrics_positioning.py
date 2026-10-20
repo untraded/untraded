@@ -84,14 +84,17 @@ def test_normalized_entropy_bounds() -> None:
 
 
 def test_recurring_death_spot_needs_share_and_rounds() -> None:
-    spots = compute_table(dataset(), "pos.recurring_death_spot")
+    # 32 rounds by default: this player only has 8 on the map and side
+    assert compute_table(dataset(), "pos.recurring_death_spot").is_empty()
+    eight = {"pos.recurring_min_rounds": 8}
+    spots = compute_table(dataset(), "pos.recurring_death_spot", params=eight)
     # 3 untraded deaths of 4 in Ramp (75 %) and 1 in Outside (25 %), over 8 rounds
     assert spots.select("zone", "untraded_deaths", "rounds").rows() == [
         ("Ramp", 3, 8),
         ("Outside", 1, 8),
     ]
     stricter = compute_table(
-        dataset(), "pos.recurring_death_spot", params={"pos.recurring_death_share": 0.5}
+        dataset(), "pos.recurring_death_spot", params={**eight, "pos.recurring_death_share": 0.5}
     )
     assert stricter["zone"].to_list() == ["Ramp"]
     assert compute_table(

@@ -17,7 +17,7 @@ from tempfile import TemporaryDirectory
 
 import polars as pl
 
-from untraded import corpus, fixtures, reference, report, resources
+from untraded import calibration, corpus, fixtures, reference, report, resources
 from untraded.corpus.sync import SftpRemote, SyncError, SyncReport, pull, push
 from untraded.demofile import CorruptDemoError, NotADemoError
 from untraded.derive import derive
@@ -115,6 +115,15 @@ def _parser() -> argparse.ArgumentParser:
     )
     ref.add_argument("--format", choices=["table", "json"], default="table")
     ref.set_defaults(run=_reference)
+
+    calibrate = commands.add_parser(
+        "calibrate",
+        help="measure the 🎯 thresholds on parsed matches (consenting players only, ADR 0010)",
+    )
+    calibrate.add_argument(
+        "matches", nargs="+", type=Path, help="match directories written by `untraded parse`"
+    )
+    calibrate.set_defaults(run=_calibrate)
 
     check = commands.add_parser(
         "compare-csdm", help="compare our stats with CS Demo Manager's analyzer, demo by demo"
@@ -339,6 +348,39 @@ def _reference(args: argparse.Namespace) -> int:
         cells = [row[k] for k in ("session", "reference", "delta")]
         text = [f"{v:.2f}" if v is not None else "-" for v in cells]
         print(f"{row['metric']:<28}{row['basis']:>10}{text[0]:>10}{text[1]:>11}{text[2]:>9}")
+    return 0
+
+
+def _calibrate(args: argparse.Namespace) -> int:
+    if isinstance(sys.stdout, io.TextIOWrapper):
+        sys.stdout.reconfigure(errors="replace")
+    matches = []
+    for directory in args.matches:
+        tables = CanonicalMatch.read(directory).tables()
+        matches.append({**tables, **derive(tables).tables()})
+    ds = Dataset.from_matches(matches)
+    rounds = ds["round"].height
+    print(f"{len(matches)} matches, {rounds} rounds (docs/calibration.md explains each rule)")
+    with pl.Config(tbl_rows=60, tbl_hide_dataframe_shape=True, float_precision=2):
+        profile = calibration.buy_profile(ds)
+        print()
+        print("Buy types: team rounds outside pistol rounds, by equipment value")
+        print(profile)
+        print("least populated bucket, 500-2500 $:", calibration.buy_valleys(profile, 500, 2500))
+        print("least populated bucket, 3000-5500 $:", calibration.buy_valleys(profile, 3000, 5500))
+        isolation = calibration.isolation_profile(ds)
+        print()
+        print("isolation.radius: traded share by distance to the nearest teammate")
+        print(isolation)
+        print("suggested:", calibration.isolation_radius(isolation))
+        distances = calibration.trade_distances(ds)
+        quantiles = {q: distances.quantile(q) for q in (0.5, 0.75, 0.9, 0.95)}
+        print()
+        print(f"trade.opportunity_distance: trader to killer, {distances.len()} real trades")
+        print(", ".join(f"{int(q * 100)} %: {v:.0f} u" for q, v in quantiles.items() if v))
+        print()
+        print("pos.recurring_*: spots replicated across the two halves of the rounds")
+        print(calibration.recurring_replication(ds))
     return 0
 
 
