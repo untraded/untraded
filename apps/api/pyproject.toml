@@ -1,0 +1,24 @@
+[build-system]
+requires = ["hatchling==1.32.4"]
+build-backend = "hatchling.build"
+
+[project]
+name = "untraded-api"
+version = "0.0.0"
+description = "The Untraded API: Steam sign-in, matches and session reports."
+license = "AGPL-3.0-only"
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi==0.142.2",
+    # Calls Steam's OpenID endpoint; also FastAPI's TestClient.
+    "httpx==0.28.1",
+    "psycopg[binary]==3.3.6",
+    "psycopg-pool==3.3.3",
+    "uvicorn==0.54.0",
+]
+
+[project.scripts]
+untraded-api = "untraded_api.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/untraded_api"]
