@@ -28,7 +28,7 @@ Sources were checked on Premier, FACEIT, LAN and online tournament demos (spikes
 | `match_id` | String | sha256 of the decompressed demo | identity, deduplication |
 | `schema_version` | String | this spec | recomputation (ADR 0003, 0009) |
 | `parser`, `parser_version` | String | adapter | traceability |
-| `source`, `mode`, `played_at` | String, String, Date? | **ingestion input** (the demo carries none of them) | splits, filtering (ADR 0008) |
+| `source`, `mode`, `played_at` | String, String, Date? | **ingestion input** (the demo carries none of them; for `premier`, the players' `rank_type` must be 11 when the demo has it, or the parse is refused) | splits, filtering (ADR 0008) |
 | `map`, `game_build`, `server_name` | String | header | splits, patch analysis |
 | `tickrate` | Float32 | computed: ticks ÷ elapsed `game_time` | every duration |
 | `ticks` | Int32 | last tick | |
