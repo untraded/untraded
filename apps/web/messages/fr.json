@@ -155,6 +155,97 @@
           "analyst": "{zone}, {map} ({side}) : {events} morts non tradées cette session, {history} sur la période."
         }
       }
+    },
+    "actionsTitle": "Quoi faire"
+  },
+  "actions": {
+    "kinds": {
+      "adjust": "Ajustement",
+      "drill": "Exercice"
+    },
+    "adjust": {
+      "trade_distance": {
+        "title": "Reste à portée de trade",
+        "how": "Joue à côté ou juste derrière un coéquipier, assez près pour sortir sur son tueur en moins de deux secondes. Jamais à plus d'un angle du plus proche."
+      },
+      "play_with_entry": {
+        "title": "Joue en binôme avec ton entry",
+        "how": "Quand l'équipe prend de l'espace, entre en deuxième. Ton rôle est de trader le duel de l'entry, pas de prendre un angle seul de ton côté."
+      },
+      "info_before_peek": {
+        "title": "Prends l'info avant de peek",
+        "how": "Utilitaire, son ou call d'un coéquipier d'abord. Un peek à sec sur un angle inconnu, c'est pile ou face."
+      },
+      "follow_entry": {
+        "title": "Va vers le contact",
+        "how": "Quand un coéquipier se bat près de toi, va tout de suite vers le duel, viseur là où le tueur doit être. Attendre le call, c'est trop tard."
+      },
+      "use_utility_to_peek": {
+        "title": "Prends le premier duel avec un utilitaire",
+        "how": "Flashe-toi pour entrer ou demande une flash, ou smoke le passage. Prends les duels d'ouverture avec un avantage, ou laisse-les venir à toi."
+      },
+      "play_the_advantage": {
+        "title": "Joue la supériorité numérique",
+        "how": "Après le kill d'ouverture, ralentis : regroupe-toi, trade, utilise le nombre. Chasser seul redonne l'avantage à l'adversaire."
+      },
+      "regroup_after_opening": {
+        "title": "Regroupe-toi après l'ouverture",
+        "how": "Annonce le kill, prends l'espace qu'il ouvre avec ton équipe, et évite un deuxième duel à sec."
+      },
+      "clutch_time": {
+        "title": "Joue la montre en clutch",
+        "how": "Joue pour l'info et le temps. Prends les duels un par un, depuis des positions où ils doivent passer, et fais du defuse ou du plant leur problème."
+      },
+      "use_utility_before_death": {
+        "title": "Lance tes utilitaires avant le duel",
+        "how": "Si tu risques de prendre un duel, lance tes grenades d'abord. Un utilitaire resté sur ton corps, c'est de l'argent et de l'aide perdus pour l'équipe."
+      },
+      "call_your_flashes": {
+        "title": "Annonce tes flashs",
+        "how": "Dis « flash » avant de lancer, et lance au-delà de la ligne de vue de tes coéquipiers, pas en travers."
+      },
+      "change_position": {
+        "title": "Change de position",
+        "how": "Les adversaires ont lu ce spot. Joue une autre position sur le même site, ou la même depuis un autre angle."
+      },
+      "change_timing": {
+        "title": "Change de timing",
+        "how": "Même spot, autre moment : plus tôt, plus tard, ou seulement après un utilitaire. Casse le schéma qu'ils attendent."
+      }
+    },
+    "drill": {
+      "trade_timing": {
+        "title": "Entraîne la sortie pour trader",
+        "how": "Sur des serveurs retake ou 5v5, sors juste après le contact de ton coéquipier, en une à deux secondes. Revois les rounds ci-dessus et note quand tu aurais pu sortir."
+      },
+      "prefire": {
+        "title": "Prefire tes chemins",
+        "how": "Yprac Prefire (Workshop) sur cette carte : nettoie chaque angle de tes chemins habituels jusqu'à ce qu'aucun bot ne te surprenne. 10 minutes avant de jouer."
+      },
+      "retake_servers": {
+        "title": "Joue sur des serveurs retake",
+        "how": "Beaucoup de situations courtes en 1vX : concentre-toi sur la gestion du temps et sur l'isolement d'un duel à la fois."
+      },
+      "aim_botz": {
+        "title": "Aim Botz, première balle",
+        "how": "Aim Botz (Workshop), 10 minutes par jour : 100 kills à l'arrêt, première balle à hauteur de tête, puis 100 après un contre-strafe."
+      },
+      "crosshair_placement": {
+        "title": "Placement du viseur",
+        "how": "Parcours la carte viseur à hauteur de tête sur chaque angle, puis joue en deathmatch en ne pensant qu'à l'endroit où est ton viseur avant que l'ennemi apparaisse."
+      },
+      "counter_strafe": {
+        "title": "Contre-strafe",
+        "how": "En serveur privé ou sur un entraîneur de contre-strafe du Workshop : déplace-toi, tape la touche opposée, tire une balle. Le tir doit partir une fois arrêté."
+      },
+      "lineups": {
+        "title": "Apprends tes lineups",
+        "how": "Yprac ou une map de lineups pour ta carte la plus jouée : deux smokes et deux flashs par site que tu joues, pour que tes utilitaires partent avant le duel."
+      },
+      "pop_flashes": {
+        "title": "Pop flashs",
+        "how": "En serveur privé : entraîne des flashs par-dessus les murs et les angles que tu joues, qui éclatent avant que l'ennemi puisse se retourner, et loin de tes coéquipiers."
+      }
     }
   }
 }
