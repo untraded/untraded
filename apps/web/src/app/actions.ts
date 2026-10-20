@@ -5,7 +5,15 @@
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { LOCALE_COOKIE, LOCALES, type Locale, TONE_COOKIE, TONES } from "@/i18n/locale";
+import {
+  LOCALE_COOKIE,
+  LOCALES,
+  type Locale,
+  THEME_COOKIE,
+  THEMES,
+  TONE_COOKIE,
+  TONES,
+} from "@/i18n/locale";
 import { apiPost, SESSION_COOKIE } from "@/lib/api";
 
 /** Ends the session in the database, then drops the cookie. */
@@ -37,7 +45,18 @@ export async function setTone(formData: FormData): Promise<void> {
   }
 }
 
-/** 👍/👎 on a priority; voting the same way again takes the vote back. */
+export async function setTheme(formData: FormData): Promise<void> {
+  const theme = String(formData.get("theme"));
+  if ((THEMES as readonly string[]).includes(theme)) {
+    (await cookies()).set(THEME_COOKIE, theme, {
+      maxAge: 60 * 60 * 24 * 365,
+      sameSite: "lax",
+      path: "/",
+    });
+  }
+}
+
+/** Useful or not useful, on a priority; voting the same way again takes the vote back. */
 export async function vote(formData: FormData): Promise<void> {
   const advice = String(formData.get("advice"));
   const session = String(formData.get("session"));
