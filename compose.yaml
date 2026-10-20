@@ -1,8 +1,8 @@
 # SPDX-FileCopyrightText: 2026 The Untraded Authors
 # SPDX-License-Identifier: AGPL-3.0-only
 #
-# Self-hosting: the ingestion chain (database, migrations, worker, collector). See
-# docs/self-hosting.md. Secrets come from the environment (a `.env` next to this file, or the
+# Self-hosting: the ingestion chain (database, migrations, worker, collector) and the site (API
+# and web). See docs/self-hosting.md. Secrets come from the environment (a `.env` next to this file, or the
 # stack variables of Portainer), never from git.
 #
 #   docker compose up -d --build
@@ -92,6 +92,44 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+    logging: *logging
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    image: untraded/api:local
+    # Built here, never pulled (a re-pull would look for it on Docker Hub).
+    pull_policy: build
+    restart: unless-stopped
+    environment:
+      <<: *database-url
+      # The site's address as browsers see it; the web relays /api to this service.
+      UNTRADED_PUBLIC_URL: ${UNTRADED_SITE_URL:-http://localhost:3000}/api
+      UNTRADED_WEB_URL: ${UNTRADED_SITE_URL:-http://localhost:3000}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    logging: *logging
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    image: untraded/web:local
+    # Built here, never pulled (a re-pull would look for it on Docker Hub).
+    pull_policy: build
+    restart: unless-stopped
+    environment:
+      UNTRADED_API_INTERNAL_URL: http://api:8000
+      # Dates and times render on the server, in this time zone.
+      TZ: ${UNTRADED_TIME_ZONE:-UTC}
+    ports:
+      # Only the web is published, on the loopback by default: put a reverse proxy with HTTPS in
+      # front (UNTRADED_BIND=172.17.0.1 lets a proxy running in Docker reach it).
+      - "${UNTRADED_BIND:-127.0.0.1}:${UNTRADED_WEB_PORT:-3000}:3000"
+    depends_on:
+      - api
     logging: *logging
 
 volumes:
