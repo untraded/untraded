@@ -7,10 +7,12 @@ from __future__ import annotations
 import argparse
 import logging
 from collections.abc import Sequence
+from pathlib import Path
 
-from untraded_worker import conninfo
-from untraded_worker.jobs import HANDLERS
+from untraded_worker import conninfo, store_dir
+from untraded_worker.jobs import ON_DEAD, handlers
 from untraded_worker.runner import Worker
+from untraded_worker.store import LocalStore
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -23,13 +25,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    kinds = args.kinds.split(",") if args.kinds else list(HANDLERS)
-    unknown = set(kinds) - set(HANDLERS)
+    known = handlers(LocalStore(Path(store_dir())))
+    kinds = args.kinds.split(",") if args.kinds else list(known)
+    unknown = set(kinds) - set(known)
     if unknown:
-        parser.error(f"unknown job kinds: {sorted(unknown)} (known: {sorted(HANDLERS)})")
-    if not kinds:
-        parser.error("no job handler is registered yet")
-    worker = Worker(conninfo(), {k: HANDLERS[k] for k in kinds})
+        parser.error(f"unknown job kinds: {sorted(unknown)} (known: {sorted(known)})")
+    worker = Worker(conninfo(), {k: known[k] for k in kinds}, on_dead=ON_DEAD)
     if args.name:
         worker.name = args.name
     processed = worker.run(once=args.once)
