@@ -1,0 +1,94 @@
+# SPDX-FileCopyrightText: 2026 The Untraded Authors
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# Self-hosting: the ingestion chain (database, migrations, worker, collector). See
+# docs/self-hosting.md. Secrets come from the environment (a `.env` next to this file, or the
+# stack variables of Portainer), never from git.
+#
+#   docker compose up -d --build
+name: untraded
+
+x-database-url: &database-url
+  UNTRADED_DATABASE_URL: postgresql://untraded:${UNTRADED_DB_PASSWORD:?set UNTRADED_DB_PASSWORD}@db:5432/untraded
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: untraded
+      POSTGRES_PASSWORD: ${UNTRADED_DB_PASSWORD:?set UNTRADED_DB_PASSWORD}
+      POSTGRES_DB: untraded
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "untraded"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    logging: *logging
+
+  # Applies the migrations, then exits; the services wait for it.
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    image: untraded/worker:local
+    command: ["untraded-db", "upgrade"]
+    environment:
+      <<: *database-url
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+    logging: *logging
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    image: untraded/worker:local
+    restart: unless-stopped
+    environment:
+      <<: *database-url
+      # Raw demos are kept unless set: 0 deletes them once parsed (ADR 0009).
+      UNTRADED_DEMO_RETENTION_DAYS: ${UNTRADED_DEMO_RETENTION_DAYS:-}
+    volumes:
+      - store:/data/store
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    logging: *logging
+
+  collector:
+    build:
+      context: .
+      dockerfile: apps/collector/Dockerfile
+    image: untraded/collector:local
+    restart: unless-stopped
+    environment:
+      <<: *database-url
+      UNTRADED_SECRET_KEY: ${UNTRADED_SECRET_KEY:?set UNTRADED_SECRET_KEY}
+      STEAM_WEB_API_KEY: ${STEAM_WEB_API_KEY:?set STEAM_WEB_API_KEY}
+      BOT_ACCOUNT_NAME: ${BOT_ACCOUNT_NAME:?set BOT_ACCOUNT_NAME}
+      # Seeds the bot state on a fresh volume: a container cannot prompt for Steam Guard.
+      BOT_REFRESH_TOKEN: ${BOT_REFRESH_TOKEN:-}
+      COLLECTOR_INTERVAL_SECONDS: ${COLLECTOR_INTERVAL_SECONDS:-3600}
+      MAX_MATCHES_PER_RUN: ${MAX_MATCHES_PER_RUN:-20}
+    volumes:
+      - collector-data:/data
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    logging: *logging
+
+volumes:
+  db-data:
+  store:
+  collector-data:

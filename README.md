@@ -19,12 +19,17 @@ Untraded is an open-source, self-hostable Counter-Strike 2 analyzer and coach. I
 |---|---|---|
 | `packages/untraded-py` | Python metrics library ([`untraded` on PyPI](https://pypi.org/project/untraded/)) | MIT |
 | `packages/untraded-js` | TypeScript helpers and shared types ([`untraded` on npm](https://www.npmjs.com/package/untraded)) | MIT |
-| `apps/` | Collector, worker, API, web app, FACEIT extension (coming in phase 2) | AGPL-3.0-only |
+| `apps/` | Collector and worker (phase 2); API, web app and FACEIT extension to come | AGPL-3.0-only |
+| `db/` | Database migrations (`untraded-db`) | AGPL-3.0-only |
 | `spikes/` | Throwaway phase 0 experiments, each with a report | AGPL-3.0-only |
 | `corpus/` | Manifest of reference demos (the demos themselves are never committed) | AGPL-3.0-only |
 | `docs/` | Roadmap, metric catalog, architecture decision records | AGPL-3.0-only |
 
 Licensing follows the [REUSE](https://reuse.software) specification: every file declares its license.
+
+## Self-hosting
+
+`docker compose up -d --build` runs the ingestion chain: your Valve matches are collected, parsed and analysed into PostgreSQL. There is no web interface yet. See [docs/self-hosting.md](docs/self-hosting.md).
 
 ## Development
 
