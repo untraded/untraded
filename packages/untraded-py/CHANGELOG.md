@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- `parse_demo(mode="premier")` refuses a Valve matchmaking demo whose players' `rank_type` is not Premier (11), with `UnsupportedModeError`: Valve's share-code chain also returns Competitive and Wingman matches. Demos without a rank type are trusted.
+
 ## 0.1.0 (2026-10-20)
 
 The metrics engine (phase 1 of Untraded).

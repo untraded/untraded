@@ -37,11 +37,40 @@ STATE_PROPS = [
     "round_win_reason",
     "game_time",
 ]
-ROUND_PROPS = ["team_num", "team_rounds_total", "team_clan_name", "rank", "comp_wins"]
+RANK_TYPE_PROP = "CCSPlayerController.m_iCompetitiveRankType"
+"""demoparser2 has no short name for it, and silently drops unknown props."""
+ROUND_PROPS = [
+    "team_num",
+    "team_rounds_total",
+    "team_clan_name",
+    "rank",
+    "comp_wins",
+    RANK_TYPE_PROP,
+]
+
+PREMIER_RANK_TYPE = 11
+RANK_TYPES = {6: "Competitive", 7: "Wingman", 10: "Danger Zone", 11: "Premier", 12: "Competitive"}
+"""Valve's `rank_type` player prop: the matchmaking mode, as the players' ranks count it."""
 
 
 class UnsupportedModeError(ValueError):
     """The game mode is not analysed (e.g. Wingman, Competitive): filter it before parsing."""
+
+
+def check_premier(mode: str, on_team: pl.DataFrame) -> None:
+    """A `premier` demo must say so: Valve's share-code chain also returns Competitive and
+    Wingman matches, and only the demo tells them apart (players' `rank_type`, 11 for Premier).
+    Demos without a rank type (older builds, other servers) are trusted."""
+    if mode != "premier" or "rank_type" not in on_team.columns:
+        return
+    known = on_team["rank_type"].drop_nulls()
+    known = known.filter(known > 0)
+    if known.is_empty() or PREMIER_RANK_TYPE in known.to_list():
+        return
+    found = int(known.mode().sort()[0])
+    raise UnsupportedModeError(
+        f"not a Premier match: rank type {found} ({RANK_TYPES.get(found, 'unknown')})"
+    )
 
 
 @dataclass(frozen=True)
@@ -157,8 +186,10 @@ def _build(
     )
 
     probe_ticks = sorted({c.freeze_end_tick for c in cuts} | {c.end_tick for c in cuts})
-    probe = frame(parser.parse_ticks(ROUND_PROPS, ticks=probe_ticks)).with_columns(
-        pl.col("tick").cast(pl.Int32), side("team_num").alias("side")
+    probe = (
+        frame(parser.parse_ticks(ROUND_PROPS, ticks=probe_ticks))
+        .rename({RANK_TYPE_PROP: "rank_type"}, strict=False)
+        .with_columns(pl.col("tick").cast(pl.Int32), side("team_num").alias("side"))
     )
     freeze_ends = pl.DataFrame(
         {
@@ -167,6 +198,7 @@ def _build(
         }
     )
     on_team = probe.join(freeze_ends, on="tick").filter(pl.col("side").is_not_null())
+    check_premier(mode, on_team)
     panel = (
         frame(parser.parse_event("cs_win_panel_match")) if "cs_win_panel_match" in events else None
     )

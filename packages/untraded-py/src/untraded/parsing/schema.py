@@ -14,7 +14,9 @@ Columns = dict[str, pl.DataType | type[pl.DataType]]
 SCHEMA_VERSION = "1.1"
 
 MODES = ("premier", "faceit", "esea", "scrim", "pro")
-"""Supported game modes. The demo does not carry its mode: it is an ingestion input (ADR 0008)."""
+"""Supported game modes. The demo does not carry its mode: it is an ingestion input (ADR 0008).
+Valve matchmaking demos tell Premier apart from Competitive and Wingman (`rank_type`): see
+`untraded.parsing.adapter.check_premier`."""
 
 Side = pl.Enum(["CT", "T"])
 Team = pl.Enum(["A", "B"])

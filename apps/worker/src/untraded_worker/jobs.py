@@ -11,7 +11,9 @@ A demo the server no longer has (404, 410) makes the match `unavailable`.
 The worker parses it, derives the round model, computes the metrics, writes the Parquet tables
 under `matches/{id}/`, loads the SQL tables, refreshes who sees the match, and marks it `ready`.
 A demo already known by its sha256 (the same match brought by two players, ADR 0009) is not
-stored twice: the new match row is merged into the existing one.
+stored twice: the new match row is merged into the existing one. A demo of a mode we do not
+analyse (a Competitive or Wingman match in Valve's share-code chain) makes the match
+`unavailable` and its demo is deleted.
 """
 
 from __future__ import annotations
@@ -27,7 +29,7 @@ from typing import Any
 import psycopg
 
 from untraded.demofile import CorruptDemoError, NotADemoError, demo_suffix, digest
-from untraded.parsing import CanonicalMatch, parse_demo
+from untraded.parsing import CanonicalMatch, UnsupportedModeError, parse_demo
 from untraded_worker import load, queue
 from untraded_worker.analysis import analyze
 from untraded_worker.download import DemoGone, fetch
@@ -63,12 +65,16 @@ class ParseJob:
             "SELECT kind::text FROM match_source WHERE match_id = %s ORDER BY received_at LIMIT 1",
             (match_id,),
         ).fetchone()
-        canonical = self.parse(
-            self.store.path(demo_key),
-            source=source[0] if source else "upload",
-            mode=mode,
-            played_at=played_at.date() if isinstance(played_at, dt.datetime) else None,
-        )
+        try:
+            canonical = self.parse(
+                self.store.path(demo_key),
+                source=source[0] if source else "upload",
+                mode=mode,
+                played_at=played_at.date() if isinstance(played_at, dt.datetime) else None,
+            )
+        except UnsupportedModeError as error:
+            self._out_of_scope(conn, match_id, demo_key, str(error))
+            return
 
         known = conn.execute(
             "SELECT id, demo_key FROM match WHERE sha256 = %s AND id <> %s FOR UPDATE",
@@ -88,6 +94,23 @@ class ParseJob:
             (prefix, match_id),
         )
         load.refresh_access(conn, match_id)
+
+    def _out_of_scope(
+        self, conn: psycopg.Connection[Any], match_id: uuid.UUID, demo_key: str, reason: str
+    ) -> None:
+        """A mode we do not analyse (e.g. a Competitive match in Valve's share-code chain): the
+        match stays, so the collector does not bring it again, but its demo goes."""
+        conn.execute(
+            "UPDATE match SET status = 'unavailable', error = %s, demo_deleted_at = now() "
+            "WHERE id = %s",
+            (reason, match_id),
+        )
+        shared = conn.execute(
+            "SELECT 1 FROM match WHERE demo_key = %s AND id <> %s AND demo_deleted_at IS NULL",
+            (demo_key, match_id),
+        ).fetchone()
+        if shared is None:
+            self.store.delete(demo_key)  # last: not transactional
 
     def _merge(
         self,

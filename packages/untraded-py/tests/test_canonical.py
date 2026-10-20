@@ -13,6 +13,7 @@ import pytest
 
 from untraded.derive import derive
 from untraded.parsing import CanonicalError, UnsupportedModeError, parse_demo
+from untraded.parsing.adapter import check_premier
 from untraded.parsing.schema import TABLES, conform
 from untraded.parsing.validate import validate
 
@@ -161,6 +162,27 @@ def test_conform_orders_and_casts_but_refuses_missing_or_extra_columns() -> None
 def test_unsupported_modes_are_refused_before_parsing(tmp_path: Path) -> None:
     with pytest.raises(UnsupportedModeError):
         parse_demo(tmp_path / "x.dem", source="valve", mode="wingman")
+
+
+@pytest.mark.parametrize(
+    ("mode", "rank_types"),
+    [
+        ("premier", [11, 11, 0, None]),
+        ("premier", [None, 0]),  # no rank type in the demo: trusted
+        ("faceit", [12, 12]),  # only Premier is checked
+    ],
+)
+def test_check_premier_accepts(mode: str, rank_types: list[int | None]) -> None:
+    check_premier(mode, pl.DataFrame({"rank_type": rank_types}, schema={"rank_type": pl.Int64}))
+    check_premier(mode, pl.DataFrame({"steamid": [1]}))  # older parser output
+
+
+@pytest.mark.parametrize(
+    ("rank_types", "message"), [([12, 12, 0], r"rank type 12 \(Competitive\)"), ([7], "Wingman")]
+)
+def test_check_premier_refuses_other_matchmaking_modes(rank_types: list[int], message: str) -> None:
+    with pytest.raises(UnsupportedModeError, match=message):
+        check_premier("premier", pl.DataFrame({"rank_type": rank_types}))
 
 
 @pytest.mark.skipif(DEMO is None, reason="set UNTRADED_TEST_DEMO to a real demo file")

@@ -14,7 +14,7 @@ import polars as pl
 import psycopg
 import pytest
 
-from untraded.parsing import CanonicalMatch
+from untraded.parsing import CanonicalMatch, UnsupportedModeError
 from untraded_worker import queue
 from untraded_worker.analysis import Analysis
 from untraded_worker.jobs import ON_DEAD, JobError, ParseJob
@@ -174,3 +174,20 @@ def test_a_dead_parse_marks_the_match_failed(
     assert row is not None
     assert row[0] == "failed"
     assert row[1].startswith(JobError.__name__)
+
+
+def test_a_match_of_another_mode_is_set_aside(db: psycopg.Connection[Any], tmp_path: Path) -> None:
+    def competitive(path: Path, **_: Any) -> CanonicalMatch:
+        raise UnsupportedModeError("not a Premier match: rank type 12 (Competitive)")
+
+    store = LocalStore(tmp_path)
+    (tmp_path / "demos").mkdir()
+    (tmp_path / "demos" / "a.dem").write_bytes(b"demo")
+    match_id = _match(db)
+    ParseJob(store, competitive)(db, queue.Job(1, "parse", {"match_id": str(match_id)}, 1, 5))
+    row = db.execute(
+        "SELECT status::text, error, demo_deleted_at IS NOT NULL FROM match WHERE id = %s",
+        (match_id,),
+    ).fetchone()
+    assert row == ("unavailable", "not a Premier match: rank type 12 (Competitive)", True)
+    assert not store.exists("demos/a.dem")
