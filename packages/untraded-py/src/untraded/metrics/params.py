@@ -4,6 +4,7 @@
 
 Metric parameters are applied when a metric is computed (`compute(..., params=...)`). Derivation
 parameters are applied when the round model is built: changing one means deriving again.
+Reference parameters choose the matches of the player's own reference (`untraded.reference`).
 `calibrate` marks the v0 thresholds still to calibrate on demos from consenting high-level
 players (🎯, ADR 0010).
 """
@@ -16,8 +17,9 @@ from typing import Literal
 from untraded.derive.buys import BuyThresholds
 from untraded.derive.players import SETUP_OFFSET_S
 from untraded.metrics.registry import ParamValue
+from untraded.reference import MIN_MATCHES, MIN_ROUNDS, WINDOW_DAYS
 
-Stage = Literal["metric", "derive"]
+Stage = Literal["metric", "derive", "reference"]
 
 
 @dataclass(frozen=True)
@@ -128,6 +130,28 @@ PARAMETERS: dict[str, Parameter] = {
             "A T buy is a full buy at or above this average equipment value per player.",
             calibrate=True,
             stage="derive",
+        ),
+        Parameter(
+            "reference.window_days",
+            WINDOW_DAYS,
+            "days",
+            "The player's own reference covers this many days before the session, the session "
+            "excluded.",
+            stage="reference",
+        ),
+        Parameter(
+            "reference.min_matches",
+            MIN_MATCHES,
+            "matches",
+            "Below this many matches in the window, the reference is not shown.",
+            stage="reference",
+        ),
+        Parameter(
+            "reference.min_rounds",
+            MIN_ROUNDS,
+            "rounds",
+            "Below this many rounds played in the window, the reference is not shown.",
+            stage="reference",
         ),
     )
 }

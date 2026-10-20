@@ -157,6 +157,15 @@ Every metric can be computed on any subset of rounds:
 
 By design, there are no splits by fatigue, tilt, time of day or ping.
 
+### Self reference
+
+A session is compared with the player's own reference ([ADR 0010](adr/0010-reference-data-and-corpus.md), `untraded.reference`, `untraded reference`):
+- the reference covers the ⚙ `reference.window_days = 30` days **before** the session's first day. The session itself is excluded, so that a very good or very bad evening does not pull its own reference towards it;
+- it is computed over **all the rounds** of those matches (§ 0), never averaged from per-match values;
+- it is shown only from ⚙ `reference.min_matches = 5` matches and ⚙ `reference.min_rounds = 100` rounds. Below that, the comparison says there are not enough matches yet;
+- **totals** (counts, damage in HP, blind time dealt) are compared **per round**, since the session and the reference do not have the same number of rounds. Rates, ratios and medians are compared as they are. A test checks this classification on every metric: on the same match counted twice, a total doubles and a rate does not;
+- dates are match days (`match.played_at`): a match played earlier on the session's first day is in neither. Undated matches are left out of the reference.
+
 ---
 
 ## 8. Out of v1 (for reference)
