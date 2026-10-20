@@ -64,6 +64,9 @@ def test_load_is_complete_and_idempotent(db: psycopg.Connection[Any], analysis: 
         (match_id,),
     ).fetchone()
     assert wide == (analysis.tables["player"].height,)  # metric_current is set
+    directions = dict(db.execute("SELECT metric_id, better FROM metric_definition").fetchall())
+    assert directions["base.deaths"] == "lower"
+    assert directions["base.adr"] == "higher"
     row = db.execute(
         "SELECT map, rounds_played, parser_version FROM match WHERE id = %s", (match_id,)
     ).fetchone()

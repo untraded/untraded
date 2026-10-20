@@ -68,6 +68,7 @@ def _traded(window: ParamValue) -> pl.Expr:
     version="1.1.0",
     name="Death zones",
     unit="table",
+    better="neutral",
     kind="table",
     params=WINDOW,
     uses=("death", "kill"),
@@ -91,6 +92,7 @@ def death_zones(ds: Dataset, p: Mapping[str, ParamValue]) -> pl.DataFrame:
     version="1.0.0",
     name="Kill zones",
     unit="table",
+    better="neutral",
     kind="table",
     uses=("death", "kill"),
     doc="Enemy kills by the killer's zone, per map and side. Columns: `steamid`, `map`, "
@@ -122,6 +124,7 @@ def _setups(ds: Dataset) -> pl.DataFrame:
     version="1.0.0",
     name="Position at T+20 s",
     unit="table",
+    better="neutral",
     kind="table",
     uses=("round_player",),
     doc="The player's zone 20 s after freeze-time end (rounds where they are alive then), "
@@ -151,6 +154,7 @@ def _normalized_entropy(counts: list[int]) -> float:
     version="1.0.0",
     name="Predictability",
     unit="table",
+    better="neutral",
     kind="table",
     uses=("round_player",),
     doc="Normalized entropy of the T+20 s zone distribution, per map and side: 0 = always "
@@ -175,6 +179,7 @@ def setup_diversity(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
     version="1.2.0",
     name="Recurring death spot",
     unit="table",
+    better="neutral",
     kind="table",
     params={**WINDOW, **RECURRING},
     uses=("death", "kill", "round_player"),
@@ -210,6 +215,7 @@ def recurring_death_spot(ds: Dataset, p: Mapping[str, ParamValue]) -> pl.DataFra
     version="1.0.0",
     name="Heatmap points",
     unit="table",
+    better="neutral",
     kind="table",
     uses=("death", "kill"),
     doc="Raw kill and death positions per map and side (rendering comes in phase 2). "

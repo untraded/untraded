@@ -2,9 +2,9 @@
 
 *Generated from the metric registry by `python -m untraded.metrics.docs`: do not edit by hand. The specification is [metrics-v1.md](../metrics-v1.md).*
 
-| Version | Kind | Unit | Reads | Code |
-|---|---|---|---|---|
-| 1.0.0 | value | count | `blind`, `death` | [`teammates_flashed` in `metrics/utility.py`](https://github.com/untraded/untraded/blob/main/packages/untraded-py/src/untraded/metrics/utility.py) |
+| Version | Kind | Unit | Better | Reads | Code |
+|---|---|---|---|---|---|
+| 1.0.0 | value | count | lower | `blind`, `death` | [`teammates_flashed` in `metrics/utility.py`](https://github.com/untraded/untraded/blob/main/packages/untraded-py/src/untraded/metrics/utility.py) |
 
 ## Definition
 

@@ -97,6 +97,7 @@ def test_player_metrics(client: TestClient, match_id: uuid.UUID) -> None:
     assert {m["scope"] for m in body["metrics"]} == {"match", "ct", "t"}
     adr = next(m for m in body["metrics"] if m["metric_id"] == "base.adr")
     assert adr["unit"] == REGISTRY["base.adr"].unit
+    assert adr["better"] == "higher"
 
 
 def test_a_stranger_sees_nothing(client: TestClient, match_id: uuid.UUID) -> None:

@@ -8,6 +8,7 @@ import { ComparisonCard } from "@/components/comparison";
 import { ResultBadge } from "@/components/result-badge";
 import type { Locale } from "@/i18n/locale";
 import { type Comparison, getSession } from "@/lib/api";
+import { cn } from "@/lib/cn";
 import {
   dateRange,
   day,
@@ -18,6 +19,8 @@ import {
   metric,
   number,
   score,
+  trend,
+  trendClass,
 } from "@/lib/format";
 
 const FAMILIES = ["rating", "base", "duel", "trade", "clutch", "util", "eco", "pos"];
@@ -173,7 +176,7 @@ function MetricRow({
           <td className="px-3 py-1.5 text-right tabular-nums text-zinc-400">
             {metric(c.reference, c.unit, c.basis, locale)}
           </td>
-          <td className="px-3 py-1.5 text-right tabular-nums">
+          <td className={cn("px-3 py-1.5 text-right tabular-nums", trendClass(trend(c)))}>
             {delta(c.delta, c.unit, c.basis, locale)}
           </td>
         </>

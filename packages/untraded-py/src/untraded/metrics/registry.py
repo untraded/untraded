@@ -26,6 +26,10 @@ Unit = Literal[
 ]
 Scope = Literal["player"]
 Kind = Literal["value", "table"]
+Better = Literal["higher", "lower", "neutral"]
+"""Which way is an improvement, for the player: more kills is better (`higher`), more deaths is
+worse (`lower`), and some numbers are a style, not a level (`neutral`: opening attempts, utility
+thrown of one type). Advice rules and the colours of the session report read it."""
 """`value`: one number per player (`compute`). `table`: rows per player with dimensions such as
 map, side and zone (`compute_table`), e.g. distributions and raw exports."""
 ParamValue = float | int | bool
@@ -42,6 +46,8 @@ class Metric:
     """Semantic version of the formula: a formula change bumps it (ADR 0003)."""
     name: str
     unit: Unit
+    better: Better
+    """Which way is an improvement; `neutral` for table metrics."""
     doc: str
     """Definition, as in docs/metrics-v1.md."""
     compute: Compute = field(repr=False)
@@ -62,6 +68,7 @@ def metric(
     version: str,
     name: str,
     unit: Unit,
+    better: Better,
     doc: str,
     params: Mapping[str, ParamValue] | None = None,
     uses: tuple[str, ...] = (),
@@ -77,6 +84,7 @@ def metric(
             version=version,
             name=name,
             unit=unit,
+            better=better,
             doc=doc,
             compute=compute,
             params=dict(params or {}),

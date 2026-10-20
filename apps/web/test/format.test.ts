@@ -13,6 +13,7 @@ import {
   number,
   percent,
   score,
+  trend,
 } from "../src/lib/format";
 
 const line = { kills: 20, deaths: 14, adr: 81.4, kast: 72.2, hltv1: 1.18, untraded_deaths: 3 };
@@ -70,5 +71,27 @@ describe("metric values", () => {
     expect(family("trade.untraded_deaths")).toBe("trade");
     expect(day("2026-10-18", "en")).toBe("Oct 18, 2026");
     expect(dateRange("2026-10-19T18:00:00Z", "2026-10-19T19:30:00Z", "en")).toMatch(/–/);
+  });
+});
+
+describe("trend", () => {
+  const base = {
+    metric_id: "base.adr",
+    version: "1.0.0",
+    name: "ADR",
+    unit: "damage_per_round",
+    basis: "value" as const,
+    session: 80,
+    reference: 75,
+  };
+  it("reads the metric's direction", () => {
+    expect(trend({ ...base, better: "higher", delta: 5 })).toBe("better");
+    expect(trend({ ...base, better: "lower", delta: 5 })).toBe("worse");
+    expect(trend({ ...base, better: "lower", delta: -5 })).toBe("better");
+    expect(trend({ ...base, better: "neutral", delta: 5 })).toBe("same");
+  });
+  it("calls a difference that rounds to zero the same", () => {
+    expect(trend({ ...base, better: "higher", delta: 0.04 })).toBe("same");
+    expect(trend({ ...base, better: "higher", delta: null })).toBe("same");
   });
 });
