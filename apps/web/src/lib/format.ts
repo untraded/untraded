@@ -4,7 +4,7 @@
 // Display helpers, pure (tested without a browser).
 
 import type { Locale } from "@/i18n/locale";
-import type { PlayerLine } from "./api";
+import type { Comparison, PlayerLine } from "./api";
 
 const DASH = "–";
 
@@ -51,4 +51,72 @@ export function score(
 ): string {
   if (scoreA === null || scoreB === null) return DASH;
   return team === "B" ? `${scoreB} – ${scoreA}` : `${scoreA} – ${scoreB}`;
+}
+
+/** Decimals and suffix of a metric's values, from its unit and how it is compared. */
+function style(unit: string, basis: Comparison["basis"]): { digits: number; suffix: string } {
+  if (basis === "per_round") return { digits: 2, suffix: "" };
+  switch (unit) {
+    case "pct":
+      return { digits: 1, suffix: " %" };
+    case "damage_per_round":
+      return { digits: 1, suffix: "" };
+    case "seconds":
+      return { digits: 2, suffix: " s" };
+    case "dollars":
+      return { digits: 0, suffix: " $" };
+    case "units":
+      return { digits: 0, suffix: "" };
+    default:
+      return { digits: 2, suffix: "" };
+  }
+}
+
+/** A metric value, as its unit reads. */
+export function metric(
+  value: number | null,
+  unit: string,
+  basis: Comparison["basis"],
+  locale: Locale,
+): string {
+  if (value === null || !Number.isFinite(value)) return DASH;
+  const { digits, suffix } = style(unit, basis);
+  return `${number(value, locale, digits)}${suffix}`;
+}
+
+/** A difference, always signed. */
+export function delta(
+  value: number | null,
+  unit: string,
+  basis: Comparison["basis"],
+  locale: Locale,
+): string {
+  if (value === null || !Number.isFinite(value)) return DASH;
+  const { digits } = style(unit, basis);
+  const rounded = Number(value.toFixed(digits));
+  const text = metric(Math.abs(value), unit, basis, locale);
+  return rounded > 0 ? `+${text}` : rounded < 0 ? `−${text}` : text;
+}
+
+/** `base.adr` → `base`: the family a metric belongs to. */
+export function family(metricId: string): string {
+  return metricId.split(".")[0] ?? metricId;
+}
+
+export function dateRange(startIso: string, endIso: string, locale: Locale): string {
+  const start = new Date(startIso);
+  const end = new Date(endIso);
+  const day = new Intl.DateTimeFormat(locale, { dateStyle: "medium" });
+  const time = new Intl.DateTimeFormat(locale, { timeStyle: "short" });
+  return day.format(start) === day.format(end)
+    ? `${day.format(start)}, ${time.format(start)} – ${time.format(end)}`
+    : `${dateTime(startIso, locale)} – ${dateTime(endIso, locale)}`;
+}
+
+/** A calendar day (`2026-10-18`), as written in the user's language. */
+export function day(isoDate: string, locale: Locale): string {
+  const [year = 0, month = 1, date = 1] = isoDate.split("-").map(Number);
+  return new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone: "UTC" }).format(
+    new Date(Date.UTC(year, month - 1, date)),
+  );
 }

@@ -125,6 +125,55 @@ export async function apiPost(path: string): Promise<void> {
   });
 }
 
+export interface Comparison {
+  metric_id: string;
+  version: string;
+  name: string;
+  unit: string;
+  /** `value`, or `per_round` for totals compared per round played. */
+  basis: "value" | "per_round";
+  session: number | null;
+  reference: number | null;
+  delta: number | null;
+}
+
+export interface SessionSummary {
+  id: string;
+  started_at: string;
+  ended_at: string;
+  matches: number;
+  rounds: number;
+  wins: number;
+  losses: number;
+  ties: number;
+  enough: boolean;
+  headlines: Comparison[];
+}
+
+export interface SessionList {
+  items: SessionSummary[];
+  limit: number;
+  offset: number;
+}
+
+export interface SessionReport extends SessionSummary {
+  reference: {
+    since: string;
+    until: string;
+    matches: number;
+    rounds: number;
+    enough: boolean;
+    min_matches: number;
+    min_rounds: number;
+  };
+  match_list: MatchSummary[];
+  metrics: Comparison[];
+}
+
 export const getMe = () => apiGet<Me>("/me");
 export const getMatches = (offset = 0) => apiGet<MatchList>(`/matches?limit=30&offset=${offset}`);
+export const getSessions = (offset = 0) =>
+  apiGet<SessionList>(`/sessions?limit=20&offset=${offset}`);
+export const getSession = (id: string) =>
+  apiGet<SessionReport>(`/sessions/${encodeURIComponent(id)}`);
 export const getMatch = (id: string) => apiGet<MatchDetail>(`/matches/${encodeURIComponent(id)}`);

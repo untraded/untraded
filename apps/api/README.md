@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 # untraded-api
 
 The HTTP API (FastAPI). AGPL-3.0-only. So far: Steam sign-in, the signed-in user and the
-matches; session reports come next.
+matches and session reports.
 
 ```bash
 just db-up && just db-migrate
@@ -30,6 +30,8 @@ UNTRADED_PUBLIC_URL=http://localhost:8000 UNTRADED_WEB_URL=http://localhost:3000
 | `GET /me` | the signed-in user (401 otherwise) |
 | `GET /matches?limit=&offset=` | the matches the user may see, most recent first, with the user's team, result and headline numbers |
 | `GET /matches/{id}` | a match: score, rounds, players and their headline numbers (404 when not visible) |
+| `GET /sessions?limit=&offset=` | the user's play sessions, most recent first, with their record and headline comparisons |
+| `GET /sessions/{id}` | a session's report: reference window, matches, and every metric against the player's own 30 days |
 | `GET /matches/{id}/players/{steam_id}` | every value metric of a player in that match, on the scopes `match`, `ct` and `t` |
 | `GET /health` | liveness |
 

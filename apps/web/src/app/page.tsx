@@ -9,7 +9,7 @@ export default async function Home({
 }: {
   searchParams: Promise<{ signin?: string }>;
 }) {
-  if (await getMe()) redirect("/matches");
+  if (await getMe()) redirect("/sessions");
   const t = await getTranslations("home");
   const { signin } = await searchParams;
   const problem =
