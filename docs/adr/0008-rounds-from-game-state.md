@@ -31,5 +31,6 @@ ADR 0002 assumed demos carry the round and purchase events that metric tools usu
 
 - The adapter is more complex than reading events, but behaves the same on every server we have seen.
 - The spike check becomes a test: live freeze ends = rounds played = final score, on fixtures that include a truncated online demo.
+  - *Update 2026-10-20*: the fixtures are windows of consecutive rounds, so each one is a match with a truncated start (`first_round` > 1, score counting the rounds before). No online tournament demo is used, as those are pro demos (ADR 0010).
 - Metrics must handle a missing table (e.g. no purchases, if inventory is unreadable) explicitly, and say so in their output.
 - Any new event or prop a metric depends on must first be checked on the corpus, across servers.

@@ -25,6 +25,7 @@ Separately, demos contain the SteamIDs and names of every player in the match.
   - the files live in a **private shared store** (S3-compatible or SFTP), configured outside the repository and synced to `$UNTRADED_CORPUS_DIR` by a `corpus` command;
   - no corpus demo is public.
 - **Test fixtures** are anonymized canonical extracts: SteamIDs and names are replaced, and only the rounds a test needs are kept.
+  - *Update 2026-10-20*: fixtures come from Premier and FACEIT demos only, never from pro demos, as they are published in the repository. Each is a window of consecutive rounds (`untraded.fixtures`, `untraded fixture extract`). Players become 1 to N and `A1`… `B5`; the server name, team names, date, rank and match id are removed; positions and events are unchanged. The tests fail if a steamid of an event is not a renumbered player.
 
 ## Consequences
 

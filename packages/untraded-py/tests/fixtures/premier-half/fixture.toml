@@ -1,0 +1,6 @@
+demo = "valve-premier-2026-10-11-cache-01"
+rounds = [11, 15]
+mode = "premier"
+map = "de_cache"
+schema_version = "1.1"
+parser = "demoparser2 0.42.0"
