@@ -28,11 +28,11 @@ export default async function Matches({
     <section>
       <h1 className="mb-6 text-2xl font-semibold">{t("title")}</h1>
       {list.items.length === 0 ? (
-        <p className="text-zinc-400">{t("empty")}</p>
+        <p className="text-muted-foreground">{t("empty")}</p>
       ) : (
-        <div className="overflow-x-auto rounded border border-zinc-800">
+        <div className="overflow-x-auto rounded border border-border">
           <table className="w-full text-sm">
-            <thead className="bg-zinc-900 text-left text-xs uppercase tracking-wide text-zinc-400">
+            <thead className="bg-card text-left text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
                 <th className="px-3 py-2 font-medium">{t("date")}</th>
                 <th className="px-3 py-2 font-medium">{t("map")}</th>
@@ -46,7 +46,7 @@ export default async function Matches({
             </thead>
             <tbody>
               {list.items.map((match) => (
-                <tr key={match.id} className="border-t border-zinc-800 hover:bg-zinc-900/60">
+                <tr key={match.id} className="border-t border-border hover:bg-card">
                   <td className="px-3 py-2 whitespace-nowrap">
                     <Link href={`/matches/${match.id}`} className="hover:underline">
                       {dateTime(match.played_at, locale)}
@@ -71,7 +71,7 @@ export default async function Matches({
           </table>
         </div>
       )}
-      <nav className="mt-4 flex justify-between text-sm text-zinc-400">
+      <nav className="mt-4 flex justify-between text-sm text-muted-foreground">
         {offset > 0 ? (
           <Link href={`/matches?offset=${Math.max(0, offset - PAGE)}`}>← {t("newer")}</Link>
         ) : (

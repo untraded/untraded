@@ -1,7 +1,9 @@
 // SPDX-FileCopyrightText: 2026 The Untraded Authors
 // SPDX-License-Identifier: AGPL-3.0-only
+import { ThumbsDown, ThumbsUp } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { setTone, vote } from "@/app/actions";
+import { Button } from "@/components/ui/button";
 import { type Locale, TONES, type Tone } from "@/i18n/locale";
 import type { Advice } from "@/lib/api";
 import { cn } from "@/lib/cn";
@@ -33,7 +35,9 @@ export async function Priorities({
               value={option}
               className={cn(
                 "rounded px-2 py-0.5",
-                option === tone ? "bg-zinc-800 text-white" : "text-zinc-500 hover:text-zinc-200",
+                option === tone
+                  ? "bg-muted text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
               )}
             >
               {t(option)}
@@ -42,7 +46,7 @@ export async function Priorities({
         </form>
       </div>
       {advice.length === 0 ? (
-        <p className="text-sm text-zinc-400">{t("none")}</p>
+        <p className="text-sm text-muted-foreground">{t("none")}</p>
       ) : (
         <ol className="space-y-3">
           {advice.map((item) => (
@@ -78,30 +82,34 @@ async function Priority({
     history: args.history_events ?? 0,
   });
   return (
-    <li className="rounded border border-zinc-700 bg-zinc-900/40 p-4">
+    <li className="rounded border border-border bg-card p-4">
       <div className="flex gap-3">
-        <span className="text-2xl font-semibold text-zinc-500 tabular-nums">{item.priority}</span>
+        <span className="text-2xl font-semibold text-muted-foreground tabular-nums">
+          {item.priority}
+        </span>
         <div className="flex-1">
           <p className="font-medium">{text}</p>
-          <p className="mt-1 text-xs text-zinc-500">
+          <p className="mt-1 text-xs text-muted-foreground">
             {t("cost", { touched: args.rounds_touched, lost: args.rounds_lost })}
           </p>
           <details className="mt-3 text-sm">
-            <summary className="cursor-pointer text-zinc-300">
+            <summary className="cursor-pointer text-foreground">
               {t("evidence", { count: item.evidence.length })}
             </summary>
-            <p className="mt-2 text-xs text-zinc-500">{t("copy")}</p>
+            <p className="mt-2 text-xs text-muted-foreground">{t("copy")}</p>
             <ul className="mt-1 space-y-1">
               {item.evidence.map((event) => (
                 <li
                   key={`${event.match_id}-${event.tick}`}
                   className="flex flex-wrap items-baseline gap-x-3"
                 >
-                  <span className="w-20 text-zinc-400">{t("round", { round: event.round })}</span>
-                  <span className="w-20 text-zinc-500">
+                  <span className="w-20 text-muted-foreground">
+                    {t("round", { round: event.round })}
+                  </span>
+                  <span className="w-20 text-muted-foreground">
                     {mapName(event.map ?? null)} {event.side ?? ""}
                   </span>
-                  <code className="select-all rounded bg-zinc-800 px-1.5 py-0.5 text-xs">
+                  <code className="select-all rounded bg-muted px-1.5 py-0.5 text-xs">
                     demo_gototick {event.goto_tick}
                   </code>
                 </li>
@@ -114,32 +122,30 @@ async function Priority({
           <input type="hidden" name="advice" value={item.id} />
           <input type="hidden" name="session" value={sessionId} />
           <input type="hidden" name="current" value={item.my_vote ?? 0} />
-          <button
+          <Button
             type="submit"
             name="vote"
             value={1}
+            variant="ghost"
+            size="icon-sm"
             aria-pressed={item.my_vote === 1}
+            aria-label={t("useful")}
             title={t("useful")}
-            className={cn(
-              "rounded px-2 py-1",
-              item.my_vote === 1 ? "bg-win/20" : "opacity-50 hover:opacity-100",
-            )}
           >
-            👍
-          </button>
-          <button
+            <ThumbsUp aria-hidden="true" />
+          </Button>
+          <Button
             type="submit"
             name="vote"
             value={-1}
+            variant="ghost"
+            size="icon-sm"
             aria-pressed={item.my_vote === -1}
+            aria-label={t("notUseful")}
             title={t("notUseful")}
-            className={cn(
-              "rounded px-2 py-1",
-              item.my_vote === -1 ? "bg-loss/20" : "opacity-50 hover:opacity-100",
-            )}
           >
-            👎
-          </button>
+            <ThumbsDown aria-hidden="true" />
+          </Button>
         </form>
       </div>
     </li>
@@ -154,15 +160,15 @@ async function Actions({ ids, title }: { ids: string[]; title: string }) {
   if (known.length === 0) return null;
   return (
     <div className="mt-3">
-      <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">{title}</p>
+      <p className="text-xs font-medium text-muted-foreground">{title}</p>
       <ul className="mt-1 space-y-2 text-sm">
         {known.map((id) => (
           <li key={id}>
-            <span className="mr-2 rounded bg-zinc-800 px-1.5 py-0.5 text-xs text-zinc-400">
+            <span className="mr-2 rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
               {t(`kinds.${id.split(".")[0]}`)}
             </span>
             <span className="font-medium">{t(`${id}.title`)}</span>
-            <p className="mt-0.5 text-zinc-400">{t(`${id}.how`)}</p>
+            <p className="mt-0.5 text-muted-foreground">{t(`${id}.how`)}</p>
           </li>
         ))}
       </ul>

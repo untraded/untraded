@@ -134,5 +134,5 @@ export function trend(comparison: Comparison): Trend {
 
 /** Tailwind classes of a difference's colour. */
 export function trendClass(t: Trend): string {
-  return t === "better" ? "text-win" : t === "worse" ? "text-loss" : "text-zinc-400";
+  return t === "better" ? "text-win" : t === "worse" ? "text-loss" : "text-muted-foreground";
 }

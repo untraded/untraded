@@ -11,8 +11,8 @@ export async function FollowUps({ items, locale }: { items: FollowUp[]; locale: 
   const t = await getTranslations("advice");
   return (
     <section className="mt-6">
-      <h2 className="mb-2 text-sm font-medium text-zinc-400">{t("followTitle")}</h2>
-      <ul className="divide-y divide-zinc-800 rounded border border-zinc-800 text-sm">
+      <h2 className="mb-2 text-sm font-medium text-muted-foreground">{t("followTitle")}</h2>
+      <ul className="divide-y divide-border rounded border border-border text-sm">
         {items.map((item) => {
           const format = (value: number | null) => metric(value, item.unit, item.basis, locale);
           const moved = trend({
@@ -39,7 +39,7 @@ export async function FollowUps({ items, locale }: { items: FollowUp[]; locale: 
                 })}
               </span>
               {item.reference !== null && (
-                <span className="text-xs text-zinc-500">
+                <span className="text-xs text-muted-foreground">
                   {t("followReference", { reference: format(item.reference) })}
                 </span>
               )}
