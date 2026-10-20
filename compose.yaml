@@ -40,6 +40,8 @@ services:
       context: .
       dockerfile: apps/worker/Dockerfile
     image: untraded/worker:local
+    # Built here, never pulled (a re-pull would look for it on Docker Hub).
+    pull_policy: build
     command: ["untraded-db", "upgrade"]
     environment:
       <<: *database-url
@@ -54,6 +56,8 @@ services:
       context: .
       dockerfile: apps/worker/Dockerfile
     image: untraded/worker:local
+    # Built here, never pulled (a re-pull would look for it on Docker Hub).
+    pull_policy: build
     restart: unless-stopped
     environment:
       <<: *database-url
@@ -71,6 +75,8 @@ services:
       context: .
       dockerfile: apps/collector/Dockerfile
     image: untraded/collector:local
+    # Built here, never pulled (a re-pull would look for it on Docker Hub).
+    pull_policy: build
     restart: unless-stopped
     environment:
       <<: *database-url
