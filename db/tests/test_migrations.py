@@ -4,14 +4,19 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
+import psycopg
+import pytest
+from alembic import command
 from alembic.script import ScriptDirectory
 
 from untraded_db import MIGRATIONS
 from untraded_db.cli import config
 
 ROOT = Path(__file__).parents[2]
+TEST_URL = os.environ.get("UNTRADED_TEST_DATABASE_URL", "")
 
 
 def test_the_initial_migration_is_the_reference_schema_of_adr_0011() -> None:
@@ -25,3 +30,14 @@ def test_the_migrations_form_one_line_from_0001() -> None:
     revisions = list(scripts.walk_revisions())
     assert revisions[-1].revision == "0001"
     assert revisions[-1].down_revision is None
+    assert [r.revision for r in reversed(revisions)] == ["0001", "0002"]
+
+
+@pytest.mark.db
+@pytest.mark.skipif(not TEST_URL, reason="UNTRADED_TEST_DATABASE_URL is not set")
+def test_migration_0002_goes_down_and_up_again() -> None:
+    cfg = config(TEST_URL.replace("postgresql://", "postgresql+psycopg://", 1))
+    command.downgrade(cfg, "0001")
+    command.upgrade(cfg, "head")
+    with psycopg.connect(TEST_URL.replace("postgresql+psycopg://", "postgresql://", 1)) as conn:
+        assert conn.execute("SELECT version_num FROM alembic_version").fetchall() == [("0002",)]
