@@ -2,9 +2,9 @@
 
 *Generated from the metric registry by `python -m untraded.metrics.docs`: do not edit by hand. The specification is [metrics-v1.md](../metrics-v1.md).*
 
-| Version | Kind | Unit | Reads | Code |
-|---|---|---|---|---|
-| 1.0.0 | table | table | `team_round`, `round_player` | [`win_pct_by_matchup` in `metrics/economy.py`](https://github.com/untraded/untraded/blob/main/packages/untraded-py/src/untraded/metrics/economy.py) |
+| Version | Kind | Unit | Better | Reads | Code |
+|---|---|---|---|---|---|
+| 1.0.0 | table | table | neutral | `team_round`, `round_player` | [`win_pct_by_matchup` in `metrics/economy.py`](https://github.com/untraded/untraded/blob/main/packages/untraded-py/src/untraded/metrics/economy.py) |
 
 ## Definition
 

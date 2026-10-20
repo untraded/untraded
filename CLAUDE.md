@@ -31,7 +31,7 @@ Run `just check` before every commit.
 2. **SPDX header on every source file**: `SPDX-License-Identifier: MIT` under `packages/`, `AGPL-3.0-only` elsewhere, plus `SPDX-FileCopyrightText: 2026 The Untraded Authors`.
 3. **Conventional Commits** (`feat(metrics): …`, `fix(parsing): …`, `docs: …`, `chore: …`). One topic per PR.
 4. **Metrics** (see ADR 0003 and 0007):
-   - every metric has a stable ID, a semantic version, a written definition, explicit parameters with defaults, and tests;
+   - every metric has a stable ID, a semantic version, a written definition, explicit parameters with defaults, which way is an improvement (`better`), and tests;
    - changing a formula bumps the metric version; never change behaviour silently;
    - definitions in `docs/metrics-v1.md` are the spec — update the spec and the code in the same PR;
    - `docs/metrics/` is generated (pages, parameters, examples on the `premier-half` fixture): run `just docs` after a metric change. `just fixtures-expect` rewrites the fixtures' `expected_metrics.json` (the non-regression guard): run it only for an intended change, bump the versions of the metrics that moved, and explain the diff. Limits and version history live in `untraded.metrics.notes`, parameters in `untraded.metrics.params`.

@@ -2,9 +2,9 @@
 
 *Generated from the metric registry by `python -m untraded.metrics.docs`: do not edit by hand. The specification is [metrics-v1.md](../metrics-v1.md).*
 
-| Version | Kind | Unit | Reads | Code |
-|---|---|---|---|---|
-| 1.0.0 | value | dollars | `death`, `kill` | [`equipment_lost_at_death` in `metrics/economy.py`](https://github.com/untraded/untraded/blob/main/packages/untraded-py/src/untraded/metrics/economy.py) |
+| Version | Kind | Unit | Better | Reads | Code |
+|---|---|---|---|---|---|
+| 1.0.0 | value | dollars | lower | `death`, `kill` | [`equipment_lost_at_death` in `metrics/economy.py`](https://github.com/untraded/untraded/blob/main/packages/untraded-py/src/untraded/metrics/economy.py) |
 
 ## Definition
 

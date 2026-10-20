@@ -197,9 +197,11 @@ def register_metrics(conn: psycopg.Connection[Any]) -> None:
     """
     for m in REGISTRY.values():
         conn.execute(
-            "INSERT INTO metric_definition (metric_id, version, name, unit, kind, params, doc) "
-            "VALUES (%s, %s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
-            (m.id, m.version, m.name, m.unit, m.kind, Jsonb(dict(m.params)), m.doc),
+            "INSERT INTO metric_definition (metric_id, version, name, unit, kind, params, doc, "
+            "better) VALUES (%s, %s, %s, %s, %s, %s, %s, %s) "
+            # Metadata only (the formula is the version's): it may be corrected in place.
+            "ON CONFLICT (metric_id, version) DO UPDATE SET better = EXCLUDED.better",
+            (m.id, m.version, m.name, m.unit, m.kind, Jsonb(dict(m.params)), m.doc, m.better),
         )
         conn.execute(
             "INSERT INTO metric_current (metric_id, version) VALUES (%s, %s) "

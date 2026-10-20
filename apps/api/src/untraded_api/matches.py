@@ -96,6 +96,8 @@ class MetricValue(BaseModel):
     version: str
     name: str
     unit: str
+    better: str
+    """`higher`, `lower` or `neutral`: which way is an improvement."""
     scope: str
     """`match`, or the rounds played on one side: `ct`, `t`."""
     value: float | None
@@ -250,7 +252,7 @@ def get_player_metrics(match_id: uuid.UUID, steam_id: SteamId, conn: ConnDep) ->
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no such player in a visible match")
     rows = conn.execute(
         """
-        SELECT v.metric_id, v.version, d.name, d.unit, v.scope::text, v.value
+        SELECT v.metric_id, v.version, d.name, d.unit, d.better, v.scope::text, v.value
         FROM metric_value v
         JOIN metric_current c USING (metric_id, version)
         JOIN metric_definition d USING (metric_id, version)
@@ -263,7 +265,15 @@ def get_player_metrics(match_id: uuid.UUID, steam_id: SteamId, conn: ConnDep) ->
         match_id=match_id,
         steam_id=steam_id,
         metrics=[
-            MetricValue(metric_id=r[0], version=r[1], name=r[2], unit=r[3], scope=r[4], value=r[5])
+            MetricValue(
+                metric_id=r[0],
+                version=r[1],
+                name=r[2],
+                unit=r[3],
+                better=r[4],
+                scope=r[5],
+                value=r[6],
+            )
             for r in rows
         ],
     )

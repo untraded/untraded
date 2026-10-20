@@ -2,9 +2,9 @@
 
 *Generated from the metric registry by `python -m untraded.metrics.docs`: do not edit by hand. The specification is [metrics-v1.md](../metrics-v1.md).*
 
-| Version | Kind | Unit | Reads | Code |
-|---|---|---|---|---|
-| 1.1.0 | value | pct | `round_player` | [`survival_pct` in `metrics/base.py`](https://github.com/untraded/untraded/blob/main/packages/untraded-py/src/untraded/metrics/base.py) |
+| Version | Kind | Unit | Better | Reads | Code |
+|---|---|---|---|---|---|
+| 1.1.0 | value | pct | higher | `round_player` | [`survival_pct` in `metrics/base.py`](https://github.com/untraded/untraded/blob/main/packages/untraded-py/src/untraded/metrics/base.py) |
 
 ## Definition
 

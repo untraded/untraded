@@ -30,14 +30,14 @@ def test_the_migrations_form_one_line_from_0001() -> None:
     revisions = list(scripts.walk_revisions())
     assert revisions[-1].revision == "0001"
     assert revisions[-1].down_revision is None
-    assert [r.revision for r in reversed(revisions)] == ["0001", "0002"]
+    assert [r.revision for r in reversed(revisions)] == ["0001", "0002", "0003"]
 
 
 @pytest.mark.db
 @pytest.mark.skipif(not TEST_URL, reason="UNTRADED_TEST_DATABASE_URL is not set")
-def test_migration_0002_goes_down_and_up_again() -> None:
+def test_the_migrations_go_down_and_up_again() -> None:
     cfg = config(TEST_URL.replace("postgresql://", "postgresql+psycopg://", 1))
     command.downgrade(cfg, "0001")
     command.upgrade(cfg, "head")
     with psycopg.connect(TEST_URL.replace("postgresql+psycopg://", "postgresql://", 1)) as conn:
-        assert conn.execute("SELECT version_num FROM alembic_version").fetchall() == [("0002",)]
+        assert conn.execute("SELECT version_num FROM alembic_version").fetchall() == [("0003",)]

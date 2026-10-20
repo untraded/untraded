@@ -2,9 +2,9 @@
 
 *Generated from the metric registry by `python -m untraded.metrics.docs`: do not edit by hand. The specification is [metrics-v1.md](../metrics-v1.md).*
 
-| Version | Kind | Unit | Reads | Code |
-|---|---|---|---|---|
-| 1.0.0 | value | hp | `damage` | [`he_team_damage` in `metrics/utility.py`](https://github.com/untraded/untraded/blob/main/packages/untraded-py/src/untraded/metrics/utility.py) |
+| Version | Kind | Unit | Better | Reads | Code |
+|---|---|---|---|---|---|
+| 1.0.0 | value | hp | lower | `damage` | [`he_team_damage` in `metrics/utility.py`](https://github.com/untraded/untraded/blob/main/packages/untraded-py/src/untraded/metrics/utility.py) |
 
 ## Definition
 

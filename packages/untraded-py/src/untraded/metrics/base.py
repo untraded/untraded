@@ -20,6 +20,7 @@ RP = ("round_player",)
     version="1.0.0",
     name="Kills",
     unit="count",
+    better="higher",
     uses=RP,
     doc="Number of kills (enemy kills only).",
 )
@@ -32,6 +33,7 @@ def kills(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
     version="1.0.0",
     name="Deaths",
     unit="count",
+    better="lower",
     uses=RP,
     doc="Number of deaths: by an enemy, a teammate, suicide, fall damage or the bomb.",
 )
@@ -44,6 +46,7 @@ def deaths(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
     version="1.0.0",
     name="Assists",
     unit="count",
+    better="higher",
     uses=RP,
     doc="Enemy kills where the player is the assister, flash assists excluded.",
 )
@@ -56,6 +59,7 @@ def assists(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
     version="1.0.0",
     name="Flash assists",
     unit="count",
+    better="higher",
     uses=RP,
     doc="Enemy kills with `assistedflash` credited to the player.",
 )
@@ -68,6 +72,7 @@ def flash_assists(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
     version="1.0.0",
     name="Weighted assists",
     unit="count",
+    better="higher",
     uses=RP,
     params={"assist.flash_weight": 0.5},
     doc="Assists + `assist.flash_weight` * flash assists: a flash assist counts, but less "
@@ -96,6 +101,7 @@ def _kill_flag(ds: Dataset, flag: str) -> pl.DataFrame:
     version="1.0.0",
     name="Team kills",
     unit="count",
+    better="lower",
     uses=("kill",),
     doc="Teammates killed by the player.",
 )
@@ -108,6 +114,7 @@ def team_kills(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
     version="1.0.0",
     name="Suicides",
     unit="count",
+    better="lower",
     uses=("kill",),
     doc="Deaths where the player is both attacker and victim.",
 )
@@ -115,7 +122,15 @@ def suicides(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
     return _kill_flag(ds, "is_suicide")
 
 
-@metric("base.kd_diff", version="1.0.0", name="K-D", unit="count", uses=RP, doc="kills - deaths.")
+@metric(
+    "base.kd_diff",
+    version="1.0.0",
+    name="K-D",
+    unit="count",
+    better="higher",
+    uses=RP,
+    doc="kills - deaths.",
+)
 def kd_diff(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
     return (
         total(ds, "kills")
@@ -129,6 +144,7 @@ def kd_diff(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
     version="1.0.0",
     name="Kills per round",
     unit="per_round",
+    better="higher",
     uses=RP,
     doc="Kills ÷ rounds played.",
 )
@@ -141,6 +157,7 @@ def kpr(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
     version="1.0.0",
     name="Deaths per round",
     unit="per_round",
+    better="lower",
     uses=RP,
     doc="Deaths ÷ rounds played.",
 )
@@ -153,6 +170,7 @@ def dpr(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
     version="1.0.0",
     name="Assists per round",
     unit="per_round",
+    better="higher",
     uses=RP,
     doc="Assists ÷ rounds played.",
 )
@@ -165,6 +183,7 @@ def apr(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
     version="1.0.0",
     name="ADR",
     unit="damage_per_round",
+    better="higher",
     uses=RP,
     doc="Sum of capped damage to enemies ÷ rounds played.",
 )
@@ -177,6 +196,7 @@ def adr(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
     version="1.0.0",
     name="HS %",
     unit="pct",
+    better="higher",
     uses=("death", "kill"),
     doc="Headshot kills ÷ kills * 100.",
 )
@@ -201,6 +221,7 @@ def hs_pct(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
     version="1.1.0",
     name="KAST",
     unit="pct",
+    better="higher",
     uses=RP,
     params={"trade.window_s": 5.0, "kast.count_flash_assist": False},
     doc="% of rounds played where the player got a Kill, an Assist (flash assists excluded "
@@ -226,6 +247,8 @@ def _multikill(count: int) -> None:
         version="1.0.0",
         name=f"{count}K",
         unit="count",
+        # A 1K is also a round without a multi-kill: neither better nor worse.
+        better="higher" if count > 1 else "neutral",
         uses=RP,
         doc=f"Number of rounds with exactly {count} kill{'s' if count > 1 else ''}.",
     )
@@ -247,6 +270,7 @@ for _count in range(1, 6):
     version="1.0.0",
     name="Rounds with a kill",
     unit="pct",
+    better="higher",
     uses=RP,
     doc="% of rounds with at least one kill.",
 )
@@ -259,6 +283,7 @@ def rounds_with_kill_pct(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFra
     version="1.1.0",
     name="Survival",
     unit="pct",
+    better="higher",
     uses=RP,
     doc="% of rounds where the player is alive at round end and does not die after it (a death "
     "after the round end drops the weapons).",

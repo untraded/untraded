@@ -100,11 +100,16 @@ def _index() -> str:
         "",
     ]
     for title, metrics in _families():
-        lines += [f"## {title}", "", "| Metric | Name | Version | Unit | vs. CS Demo Manager |"]
-        lines.append("|---|---|---|---|---|")
+        lines += [
+            f"## {title}",
+            "",
+            "| Metric | Name | Version | Unit | Better | vs. CS Demo Manager |",
+            "|---|---|---|---|---|---|",
+        ]
         for m in metrics:
             lines.append(
-                f"| [`{m.id}`]({m.id}.md) | {m.name} | {m.version} | {m.unit} | {_csdm(m.id)} |"
+                f"| [`{m.id}`]({m.id}.md) | {m.name} | {m.version} | {m.unit} | {m.better} "
+                f"| {_csdm(m.id)} |"
             )
         lines.append("")
     return "\n".join(lines)
@@ -143,9 +148,10 @@ def _page(m: Metric, example: str, where: str) -> str:
     function = m.compute.__name__
     lines = [f"# `{m.id}`: {m.name}", "", GENERATED, ""]
     lines += [
-        "| Version | Kind | Unit | Reads | Code |",
-        "|---|---|---|---|---|",
-        f"| {m.version} | {m.kind} | {m.unit} | {', '.join(f'`{t}`' for t in m.uses) or '—'} "
+        "| Version | Kind | Unit | Better | Reads | Code |",
+        "|---|---|---|---|---|---|",
+        f"| {m.version} | {m.kind} | {m.unit} | {m.better} "
+        f"| {', '.join(f'`{t}`' for t in m.uses) or '—'} "
         f"| [`{function}` in `{module}`]({CODE}/{module}) |",
         "",
         "## Definition",

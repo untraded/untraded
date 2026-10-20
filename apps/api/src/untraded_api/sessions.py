@@ -30,6 +30,8 @@ class Comparison(BaseModel):
     version: str
     name: str
     unit: str
+    better: str
+    """`higher`, `lower` or `neutral`: which way is an improvement."""
     basis: str
     """`value`, or `per_round` for totals compared per round played."""
     session: float | None
@@ -96,8 +98,8 @@ WHERE s.steam_id = (SELECT steam_id FROM app_user WHERE id = %(user)s)
 """
 
 COMPARISONS = """
-SELECT m.session_id, m.metric_id, m.version, d.name, d.unit, m.basis, m.session, m.reference,
-       m.delta
+SELECT m.session_id, m.metric_id, m.version, d.name, d.unit, d.better, m.basis, m.session,
+       m.reference, m.delta
 FROM play_session_metric m
 JOIN metric_definition d USING (metric_id, version)
 WHERE m.session_id = ANY(%(sessions)s)
@@ -110,10 +112,11 @@ def _comparison(row: tuple[Any, ...]) -> Comparison:
         version=row[2],
         name=row[3],
         unit=row[4],
-        basis=row[5],
-        session=row[6],
-        reference=row[7],
-        delta=row[8],
+        better=row[5],
+        basis=row[6],
+        session=row[7],
+        reference=row[8],
+        delta=row[9],
     )
 
 

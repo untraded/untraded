@@ -38,6 +38,7 @@ def _count(ds: Dataset, rows: pl.DataFrame, player: str) -> pl.DataFrame:
     version="1.0.0",
     name="Opening kills",
     unit="count",
+    better="higher",
     uses=RP,
     doc="Rounds where the player makes the opening kill (first enemy kill after freeze end).",
 )
@@ -50,6 +51,7 @@ def opening_kills(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
     version="1.0.0",
     name="Opening deaths",
     unit="count",
+    better="lower",
     uses=RP,
     doc="Rounds where the player is the opening victim.",
 )
@@ -69,6 +71,7 @@ def _attempts(ds: Dataset) -> pl.DataFrame:
     version="1.0.0",
     name="Opening duels",
     unit="count",
+    better="neutral",
     uses=RP,
     doc="Opening kills + opening deaths.",
 )
@@ -81,6 +84,7 @@ def opening_attempts(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
     version="1.0.0",
     name="Opening success",
     unit="pct",
+    better="higher",
     uses=RP,
     doc="Opening kills ÷ opening duels * 100.",
 )
@@ -93,6 +97,7 @@ def opening_success_pct(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFram
     version="1.0.0",
     name="Opening frequency",
     unit="pct",
+    better="neutral",
     uses=RP,
     doc="Opening duels ÷ rounds played * 100.",
 )
@@ -105,6 +110,7 @@ def opening_attempt_pct(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFram
     version="1.0.0",
     name="Opening conversion",
     unit="pct",
+    better="higher",
     uses=RP,
     doc="% of rounds with an opening kill by the player that the team wins.",
 )
@@ -143,6 +149,7 @@ def _trade_metrics(suffix: str, param: str, default: float) -> None:
         version="1.1.0",
         name=f"Trade kills ({seconds})",
         unit="count",
+        better="higher",
         params=params,
         uses=("death",),
         doc=f"Kills of an enemy who killed a teammate of the player within `{param}` before.",
@@ -155,6 +162,7 @@ def _trade_metrics(suffix: str, param: str, default: float) -> None:
         version="1.1.0",
         name=f"Traded deaths ({seconds})",
         unit="count",
+        better="neutral",
         params=params,
         uses=("death",),
         doc=f"The player's deaths whose killer was killed by a teammate within `{param}`.",
@@ -167,6 +175,7 @@ def _trade_metrics(suffix: str, param: str, default: float) -> None:
         version="1.1.0",
         name=f"Traded death % ({seconds})",
         unit="pct",
+        better="higher",
         params=params,
         uses=("death", "round_player"),
         doc="Traded deaths ÷ deaths * 100.",
@@ -179,6 +188,7 @@ def _trade_metrics(suffix: str, param: str, default: float) -> None:
         version="1.1.0",
         name=f"Untraded deaths ({seconds})",
         unit="count",
+        better="lower",
         params=params,
         uses=("death", "round_player"),
         doc="Deaths - traded deaths (the product's signature metric).",
@@ -201,6 +211,7 @@ def _opportunities(ds: Dataset, distance: ParamValue) -> pl.DataFrame:
     version="1.1.0",
     name="Trade opportunities",
     unit="count",
+    better="neutral",
     params=OPPORTUNITY,
     uses=("trade_opportunity",),
     doc="Times a teammate of the player was killed while the player was alive and within "
@@ -215,6 +226,7 @@ def kill_opportunities(ds: Dataset, p: Mapping[str, ParamValue]) -> pl.DataFrame
     version="1.2.0",
     name="Opportunity conversion",
     unit="pct",
+    better="higher",
     params={**WINDOW, **OPPORTUNITY},
     uses=("death", "trade_opportunity"),
     doc="Trade kills ÷ trade opportunities * 100.",
@@ -232,6 +244,7 @@ def kill_conversion_pct(ds: Dataset, p: Mapping[str, ParamValue]) -> pl.DataFram
     version="1.1.0",
     name="Tradable deaths",
     unit="count",
+    better="neutral",
     params=OPPORTUNITY,
     uses=("trade_opportunity",),
     doc="The player's deaths where at least one teammate had a trade opportunity.",
@@ -268,6 +281,7 @@ ISOLATION_DOC = (
     version="1.1.0",
     name="Isolated deaths",
     unit="count",
+    better="lower",
     params={**WINDOW, **ISOLATION},
     uses=("death",),
     doc=ISOLATION_DOC,
@@ -281,6 +295,7 @@ def isolated_deaths(ds: Dataset, p: Mapping[str, ParamValue]) -> pl.DataFrame:
     version="1.1.0",
     name="Isolated death %",
     unit="pct",
+    better="lower",
     params={**WINDOW, **ISOLATION},
     uses=("death", "round_player"),
     doc="Isolated deaths ÷ deaths * 100.",
@@ -296,6 +311,7 @@ def isolated_death_pct(ds: Dataset, p: Mapping[str, ParamValue]) -> pl.DataFrame
     version="1.0.0",
     name="Spacing at death",
     unit="units",
+    better="lower",
     uses=("death",),
     doc="Median, over deaths with a living teammate, of the distance to the nearest one.",
 )
@@ -320,6 +336,7 @@ def _clutch_metrics(enemies: int) -> None:
         version="1.1.0",
         name=f"1v{enemies} attempts",
         unit="count",
+        better="neutral",
         uses=("clutch",),
         doc=f"Rounds where the player becomes the last one alive on the team, facing "
         f"{enemies} living enem{'ies' if enemies > 1 else 'y'}.",
@@ -333,6 +350,7 @@ def _clutch_metrics(enemies: int) -> None:
         version="1.1.0",
         name=f"1v{enemies} wins",
         unit="count",
+        better="higher",
         uses=("clutch",),
         doc=f"1v{enemies} clutches the team wins.",
     )
@@ -350,6 +368,7 @@ for _enemies in range(1, 6):
     version="1.1.0",
     name="Clutch success",
     unit="pct",
+    better="higher",
     uses=("clutch",),
     doc="Clutch wins ÷ clutch attempts * 100, over all N.",
 )

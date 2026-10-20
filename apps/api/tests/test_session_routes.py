@@ -123,6 +123,7 @@ def test_session_report(client: TestClient, session_id: uuid.UUID) -> None:
     assert set(metrics) == set(COMPARED)
     assert metrics["base.kills"]["basis"] == "per_round"
     assert metrics["base.adr"]["name"] == REGISTRY["base.adr"].name
+    assert metrics["trade.untraded_deaths"]["better"] == "lower"
 
 
 def test_a_stranger_sees_no_session(client: TestClient, session_id: uuid.UUID) -> None:

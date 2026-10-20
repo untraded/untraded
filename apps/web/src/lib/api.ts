@@ -128,6 +128,8 @@ export interface Comparison {
   version: string;
   name: string;
   unit: string;
+  /** Which way is an improvement. */
+  better: "higher" | "lower" | "neutral";
   /** `value`, or `per_round` for totals compared per round played. */
   basis: "value" | "per_round";
   session: number | null;

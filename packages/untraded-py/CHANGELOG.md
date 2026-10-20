@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Every metric says which way is an improvement: `Metric.better` (`higher`, `lower` or `neutral`), a required argument of `@metric`, shown in the generated docs. No formula changes, so no version bumps.
 - `parse_demo(mode="premier")` refuses a Valve matchmaking demo whose players' `rank_type` is not Premier (11), with `UnsupportedModeError`: Valve's share-code chain also returns Competitive and Wingman matches. Demos without a rank type are trusted.
 
 ## 0.1.0 (2026-10-20)

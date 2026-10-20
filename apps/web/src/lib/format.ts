@@ -120,3 +120,19 @@ export function day(isoDate: string, locale: Locale): string {
     new Date(Date.UTC(year, month - 1, date)),
   );
 }
+
+export type Trend = "better" | "worse" | "same";
+
+/** Whether the session improves on the reference, once rounded as displayed. */
+export function trend(comparison: Comparison): Trend {
+  const { delta: value, better, unit, basis } = comparison;
+  if (value === null || better === "neutral") return "same";
+  const rounded = Number(value.toFixed(style(unit, basis).digits));
+  if (rounded === 0) return "same";
+  return rounded > 0 === (better === "higher") ? "better" : "worse";
+}
+
+/** Tailwind classes of a difference's colour. */
+export function trendClass(t: Trend): string {
+  return t === "better" ? "text-win" : t === "worse" ? "text-loss" : "text-zinc-400";
+}
