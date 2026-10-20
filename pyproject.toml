@@ -3,7 +3,7 @@
 name = "untraded-workspace"
 version = "0.0.0"
 requires-python = ">=3.14"
-dependencies = ["untraded", "untraded-db", "untraded-worker"]
+dependencies = ["untraded", "untraded-api", "untraded-db", "untraded-worker"]
 
 [dependency-groups]
 dev = [
@@ -19,10 +19,11 @@ dev = [
 package = false
 
 [tool.uv.workspace]
-members = ["packages/untraded-py", "db", "apps/worker", "spikes/S0.2-parsing", "spikes/S0.3-faceit-extension"]
+members = ["packages/untraded-py", "db", "apps/api", "apps/worker", "spikes/S0.2-parsing", "spikes/S0.3-faceit-extension"]
 
 [tool.uv.sources]
 untraded = { workspace = true }
+untraded-api = { workspace = true }
 untraded-db = { workspace = true }
 untraded-worker = { workspace = true }
 
@@ -48,7 +49,7 @@ select = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["untraded", "untraded_db", "untraded_worker"]
+known-first-party = ["untraded", "untraded_api", "untraded_db", "untraded_worker"]
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "demoparser2".msg = "Only untraded.parsing may import demoparser2 (ADR 0002)."
@@ -63,11 +64,11 @@ strict = true
 python_version = "3.14"
 files = [
     "packages/untraded-py/src", "packages/untraded-py/tests", "db/src", "db/tests",
-    "apps/worker/src", "apps/worker/tests",
+    "apps/api/src", "apps/api/tests", "apps/worker/src", "apps/worker/tests",
 ]
 
 [tool.pytest.ini_options]
-testpaths = ["packages/untraded-py/tests", "db/tests", "apps/worker/tests"]
+testpaths = ["packages/untraded-py/tests", "db/tests", "apps/api/tests", "apps/worker/tests"]
 addopts = ["--strict-markers", "--strict-config"]
 markers = [
     "db: needs PostgreSQL with the migrations applied (UNTRADED_TEST_DATABASE_URL), skipped otherwise",
