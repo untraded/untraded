@@ -10,7 +10,8 @@ import io
 import json
 import os
 import sys
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, replace
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -55,12 +56,28 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="untraded", description=__doc__)
     commands = parser.add_subparsers(required=True, metavar="command")
 
-    parse = commands.add_parser("parse", help="parse a demo into canonical tables (Parquet)")
-    parse.add_argument("demo", type=Path)
-    parse.add_argument("--mode", required=True, choices=MODES, help="game mode of the match")
-    parse.add_argument("--source", default="upload", help="where the demo came from")
-    parse.add_argument("--played-at", type=dt.date.fromisoformat, metavar="YYYY-MM-DD")
+    parse = commands.add_parser(
+        "parse", help="parse demos into canonical tables (Parquet), several at once"
+    )
+    parse.add_argument("demos", nargs="+", type=Path)
+    parse.add_argument("--mode", required=True, choices=MODES, help="game mode of the matches")
+    parse.add_argument("--source", default="upload", help="where the demos came from")
+    dates = parse.add_mutually_exclusive_group()
+    dates.add_argument(
+        "--played-at", type=dt.date.fromisoformat, metavar="YYYY-MM-DD", help="one demo only"
+    )
+    dates.add_argument(
+        "--dates-from",
+        type=Path,
+        metavar="MANIFEST",
+        help="take each demo's date from a corpus manifest, by the demo's sha256",
+    )
     parse.add_argument("--out", type=Path, default=Path(), help="writes OUT/matches/<match_id>/")
+    parse.add_argument(
+        "--jobs",
+        type=_positive_int,
+        help="demos parsed at once (default: as many as the free RAM allows, adjusted live)",
+    )
     parse.set_defaults(run=_parse)
 
     analyze = commands.add_parser("analyze", help="parse a demo and print its players' metrics")
@@ -186,14 +203,60 @@ def _positive_int(value: str) -> int:
 
 
 def _parse(args: argparse.Namespace) -> int:
-    match = parse_demo(args.demo, source=args.source, mode=args.mode, played_at=args.played_at)
-    target = match.write(args.out)
+    demos: list[Path] = args.demos
+    if args.played_at is not None and len(demos) > 1:
+        raise corpus.ManifestError("--played-at needs a single demo: use --dates-from")
+    dates: dict[str, dt.date] = {}
+    if args.dates_from is not None:
+        for demo in corpus.load(args.dates_from).demos:
+            if demo.played_at:
+                dates[demo.sha256] = dt.date.fromisoformat(demo.played_at)
+    tasks = [
+        ParseTask(demo, args.source, args.mode, args.played_at, dates, args.out) for demo in demos
+    ]
+
+    def started(index: int, running: int, threads: int) -> None:
+        if len(demos) > 1:
+            print(f"{demos[index].name}: started, {running} running, {threads} threads", flush=True)
+
+    failed: list[int] = []
+
+    def failure(error: resources.TaskError) -> None:
+        failed.append(error.index)
+        reason = str(error).partition(": ")[2] or str(error)
+        print(f"{demos[error.index].name}: FAILED, {reason}", flush=True)
+
+    for index, summary in resources.run_adaptive(
+        _parse_one, tasks, jobs=args.jobs, on_start=started, on_error=failure
+    ):
+        print(f"{demos[index].name}: {summary}", flush=True)
+    if failed:
+        print(f"{len(failed)} of {len(demos)} demo(s) failed", file=sys.stderr)
+        return 1
+    return 0
+
+
+@dataclass(frozen=True)
+class ParseTask:
+    demo: Path
+    source: str
+    mode: str
+    played_at: dt.date | None
+    dates: Mapping[str, dt.date]
+    out: Path
+
+
+def _parse_one(task: ParseTask) -> str:
+    """One demo of `parse`; module-level so it can run in a worker process."""
+    match = parse_demo(task.demo, source=task.source, mode=task.mode, played_at=task.played_at)
+    if task.played_at is None and (day := task.dates.get(match.match_id)) is not None:
+        match = replace(match, match=match.match.with_columns(pl.lit(day).alias("played_at")))
+    target = match.write(task.out)
     info = match.match.row(0, named=True)
-    print(
+    return (
         f"{info['map']} {info['score_a']}-{info['score_b']}, {info['rounds_played']} rounds, "
         f"{match.kill.height} kills, {match.player.height} players -> {target}"
     )
-    return 0
 
 
 def _analyze(args: argparse.Namespace) -> int:
