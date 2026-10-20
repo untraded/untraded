@@ -36,6 +36,11 @@ test:
     uv run pytest
     pnpm test
 
+# Regenerate the metric pages (docs/metrics/) and the fixtures' expected values, after an intended metric change
+docs:
+    uv run untraded fixture expect packages/untraded-py/tests/fixtures/faceit-bots packages/untraded-py/tests/fixtures/premier-abandon packages/untraded-py/tests/fixtures/premier-half
+    uv run python -m untraded.metrics.docs
+
 # Verify every file declares its license (REUSE)
 reuse:
     uv run reuse lint
