@@ -88,5 +88,73 @@
     "rating": "Ratings",
     "trade": "Trades",
     "util": "Utility"
+  },
+  "advice": {
+    "title": "Priorities",
+    "none": "Nothing stands out against your reference this session.",
+    "tone": "Tone",
+    "coach": "Coach",
+    "analyst": "Analyst",
+    "evidence": "{count, plural, one {# round to watch} other {# rounds to watch}}",
+    "round": "Round {round}",
+    "copy": "In CS2, open the demo, then",
+    "useful": "Useful",
+    "notUseful": "Not useful",
+    "cost": "{touched, plural, one {# round} other {# rounds}}, {lost} lost",
+    "follow": "To follow: {metric}",
+    "rules": {
+      "trade": {
+        "untraded_deaths": {
+          "coach": "{events} deaths without a trade. Play close enough to a teammate for them to trade you.",
+          "analyst": "{events} untraded deaths: {session} per round, against {reference}."
+        },
+        "isolated_deaths": {
+          "coach": "{events} deaths with no teammate in trade range. Don't take fights alone.",
+          "analyst": "{events} isolated deaths: {session} of your deaths, against {reference}."
+        },
+        "missed_trades": {
+          "coach": "{events} times a teammate died near you and you didn't trade. Be ready to swing right after the contact.",
+          "analyst": "{events} trade opportunities missed: conversion {session}, against {reference}."
+        }
+      },
+      "duel": {
+        "opening_deaths": {
+          "coach": "You lost {events} opening duels. Take the first fight with information or utility, or let it come to you.",
+          "analyst": "{events} opening deaths: opening success {session}, against {reference}."
+        },
+        "openings_lost": {
+          "coach": "{events} rounds lost after your opening kill. Play the advantage: regroup and trade, don't hunt.",
+          "analyst": "{events} rounds lost after an opening kill: conversion {session}, against {reference}."
+        }
+      },
+      "clutch": {
+        "clutches_lost": {
+          "coach": "{events} clutches lost. Use the clock and take the duels one at a time.",
+          "analyst": "{events} clutches lost: success {session}, against {reference}."
+        }
+      },
+      "combat": {
+        "duels_without_damage": {
+          "coach": "{events} times you died without touching your killer. Work on crosshair placement and the first bullet.",
+          "analyst": "{events} duels lost without damage; HS % {session}, against {reference}."
+        }
+      },
+      "util": {
+        "wasted_utility": {
+          "coach": "You died {events} times with grenades still on you. Throw them before taking the fight.",
+          "analyst": "{events} deaths with unused grenades: {session} per death, against {reference}."
+        },
+        "team_flashes": {
+          "coach": "Your flashes blinded teammates {events} times. Call them, and throw them past your teammates.",
+          "analyst": "{events} teammates flashed: {session} per round, against {reference}."
+        }
+      },
+      "pos": {
+        "recurring_death_spot": {
+          "coach": "You keep dying untraded at {zone} on {map} ({side}): {events} times this session. Change the position or the timing.",
+          "analyst": "{zone}, {map} ({side}): {events} untraded deaths this session, {history} over the period."
+        }
+      }
+    }
   }
 }

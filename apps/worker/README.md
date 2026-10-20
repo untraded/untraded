@@ -35,6 +35,8 @@ uv run untraded-worker run         # until SIGINT or SIGTERM; --once stops when 
   match. Matches with at most one hour between the end of one and the start of the next form a
   session; its report (`play_session_metric`) compares it with the player's 30 days before
   (`untraded.reference`), recomputed from the Parquet tables.
+- `advice.py`: the session's priorities, right after its report: the rules of `untraded.advice`
+  against the same reference, the three costliest kept, each event with its `demo_gototick`.
 - `levels.py`: references by level (Premier rating bands of 2,500 points), pooled from every
   player of the collected matches as anonymous aggregates (opt-out respected, at least 20
   players), recomputed hourly; sessions without enough history of their own use them.

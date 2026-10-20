@@ -15,7 +15,7 @@ from contextlib import asynccontextmanager
 import httpx
 from fastapi import FastAPI
 
-from untraded_api import auth, matches, sessions
+from untraded_api import auth, feedback, matches, sessions
 from untraded_api.db import Database
 from untraded_api.deps import COOKIE
 from untraded_api.settings import Settings
@@ -48,4 +48,5 @@ def create_app(settings: Settings, *, steam_client: httpx.Client | None = None) 
     app.include_router(auth.router)
     app.include_router(matches.router)
     app.include_router(sessions.router)
+    app.include_router(feedback.router)
     return app

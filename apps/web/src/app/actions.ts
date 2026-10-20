@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { LOCALE_COOKIE, LOCALES, type Locale } from "@/i18n/locale";
+import { LOCALE_COOKIE, LOCALES, type Locale, TONE_COOKIE, TONES } from "@/i18n/locale";
 import { apiPost, SESSION_COOKIE } from "@/lib/api";
 
 /** Ends the session in the database, then drops the cookie. */
@@ -23,4 +24,26 @@ export async function setLocale(formData: FormData): Promise<void> {
       path: "/",
     });
   }
+}
+
+export async function setTone(formData: FormData): Promise<void> {
+  const tone = String(formData.get("tone"));
+  if ((TONES as readonly string[]).includes(tone)) {
+    (await cookies()).set(TONE_COOKIE, tone, {
+      maxAge: 60 * 60 * 24 * 365,
+      sameSite: "lax",
+      path: "/",
+    });
+  }
+}
+
+/** 👍/👎 on a priority; voting the same way again takes the vote back. */
+export async function vote(formData: FormData): Promise<void> {
+  const advice = String(formData.get("advice"));
+  const session = String(formData.get("session"));
+  const value = Number(formData.get("vote"));
+  const current = Number(formData.get("current"));
+  if (![1, -1].includes(value) || !/^[0-9a-f-]{36}$/.test(advice)) return;
+  await apiPost(`/advice/${advice}/feedback`, { vote: value === current ? 0 : value });
+  revalidatePath(`/sessions/${session}`);
 }
