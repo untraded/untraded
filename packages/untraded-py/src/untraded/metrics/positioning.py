@@ -16,7 +16,7 @@ from untraded.metrics.dataset import Dataset
 from untraded.metrics.registry import ParamValue, metric
 
 WINDOW = {"trade.window_s": 5.0}
-RECURRING = {"pos.recurring_death_share": 0.25, "pos.recurring_min_rounds": 8}
+RECURRING = {"pos.recurring_death_share": 0.25, "pos.recurring_min_rounds": 32}
 KEYS = ["steamid", "map", "side"]
 
 
@@ -172,7 +172,7 @@ def setup_diversity(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
 
 @metric(
     "pos.recurring_death_spot",
-    version="1.1.0",
+    version="1.2.0",
     name="Recurring death spot",
     unit="table",
     kind="table",

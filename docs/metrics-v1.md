@@ -54,7 +54,7 @@
   - When A and B kill each other on the same tick, nobody is traded. A's own grenade or fire killing B after A's death does trade it.
 - **W**, the trade window: ⚙ `trade.window_s = 5.0` (HLTV and CSDM convention). A 3-second variant is computed alongside with the `_w3` suffix (⚙ `trade.window_w3_s = 3.0`).
 - **Trade opportunity**: A is killed by B. Every teammate C of A who is **alive** at that tick and **within D units of B's position** has a trade opportunity.
-  - ⚙🎯 `trade.opportunity_distance = 1000` u.
+  - ⚙🎯 `trade.opportunity_distance = 1300` u (calibrated, [calibration.md](calibration.md)).
 
 | ID | Name | Definition | CSDM |
 |---|---|---|---|
@@ -88,7 +88,7 @@ These metrics are distributions per map and side, not one number per player: the
 | `pos.kill_zones` | Kill zones | Distribution of kills by zone (killer position), per map and side | — |
 | `pos.setup_zone_t20` | Position at T+20 s | The player's zone 20 s after freeze-time end (⚙ `setup.offset_s = 20`), distribution per map and side: CT setups, T defaults | — |
 | `pos.setup_diversity` | Predictability | Normalized entropy of that distribution, per map and side: entropy ÷ ln of the number of distinct zones used (0 = always the same spot, 1 = spread evenly; 0 with a single zone) | — |
-| `pos.recurring_death_spot` | Recurring death spot | For each map and side: a zone holding ≥ X % of the player's **untraded** deaths, when the player played ≥ N rounds there. ⚙🎯 `pos.recurring_death_share = 0.25`, `pos.recurring_min_rounds = 8`. **First building block of pattern-based advice.** | — |
+| `pos.recurring_death_spot` | Recurring death spot | For each map and side: a zone holding ≥ X % of the player's **untraded** deaths, when the player played ≥ N rounds there. ⚙🎯 `pos.recurring_death_share = 0.25`, `pos.recurring_min_rounds = 32` (calibrated, [calibration.md](calibration.md)). **First building block of pattern-based advice.** | — |
 | `pos.heatmap_points` | Heatmap points | Raw export of kill and death positions (killer and victim), per map and side. Rendering comes in phase 2. | ≈ |
 
 ## 4. Utility
