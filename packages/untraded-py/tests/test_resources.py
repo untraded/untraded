@@ -70,14 +70,23 @@ def test_threads_share_the_cpus_between_the_demos_expected_to_run() -> None:
     assert s.threads(None, started=[], now=NOW) == 12
 
 
-def test_demo_memory_is_learned_from_the_largest_peak() -> None:
+def test_demo_memory_is_learned_from_the_largest_peak_never_below_the_first_guess() -> None:
     s = scheduler()
     s.observe(1 * GIB)
     s.observe(None)
-    assert s.task_memory == int(1 * GIB * resources.PEAK_MARGIN)
+    assert s.task_memory == 2 * GIB  # a child process may not be measured (Windows)
     s.observe(3 * GIB)
     s.observe(2 * GIB)
     assert s.task_memory == int(3 * GIB * resources.PEAK_MARGIN)
+
+
+def test_a_running_demo_stays_reserved_as_long_as_the_longest_finished_one() -> None:
+    s = scheduler()
+    s.observe(None, seconds=10.0)
+    assert s.ramp_seconds == resources.RAMP_SECONDS
+    s.observe(None, seconds=35.0)
+    # 10 GB free, 2 GB reserve: a demo started 30 s ago still counts as ramping up.
+    assert s.headroom(10 * GIB, started=[NOW - 30], now=NOW) == 6 * GIB
 
 
 def test_this_machine_is_measured() -> None:
@@ -101,9 +110,33 @@ def test_run_adaptive_makes_progress_without_free_ram() -> None:
     assert starts == [1, 1, 1]  # one at a time
 
 
-def test_run_adaptive_raises_the_first_failure() -> None:
-    with pytest.raises(ValueError, match="not a number"):
-        list(run_adaptive(int, ["1", "not a number", "3"], jobs=2))
+@pytest.mark.parametrize("jobs", [1, 2])
+def test_run_adaptive_raises_the_first_failure_with_its_index(jobs: int) -> None:
+    with pytest.raises(resources.TaskError, match=r"item 1: ValueError") as raised:
+        list(run_adaptive(int, ["1", "not a number", "3"], jobs=jobs))
+    assert raised.value.index == 1
+    assert isinstance(raised.value.__cause__, resources.WorkerError)
+
+
+class _Panic(BaseException):
+    """Like demoparser2's PanicException: not an Exception."""
+
+
+def _panics(_: object) -> None:
+    raise _Panic("range end index 16 out of range\nmore lines")
+
+
+def test_any_failure_of_an_item_becomes_a_plain_worker_error() -> None:
+    with pytest.raises(resources.WorkerError, match=r"^_Panic: range end index 16 out of range$"):
+        resources._call(_panics, None)
+
+
+@pytest.mark.parametrize("jobs", [1, 2])
+def test_with_on_error_the_batch_goes_on(jobs: int) -> None:
+    failures: list[resources.TaskError] = []
+    results = dict(run_adaptive(int, ["1", "x", "3", "y"], jobs=jobs, on_error=failures.append))
+    assert results == {0: 1, 2: 3}
+    assert sorted(f.index for f in failures) == [1, 3]
 
 
 def test_workers_get_thread_limits_and_the_parent_keeps_its_environment() -> None:

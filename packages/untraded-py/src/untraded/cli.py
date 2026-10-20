@@ -204,15 +204,25 @@ def _compare_csdm(args: argparse.Namespace) -> int:
         detail = f", {running} running, {threads} threads" if threads else ""
         print(f"{demos[index].name}: started{detail}", flush=True)
 
+    failed: dict[int, str] = {}
+
+    def failure(error: resources.TaskError) -> None:
+        failed[error.index] = str(error).partition(": ")[2] or str(error)
+        print(f"{demos[error.index].name}: FAILED, {failed[error.index]}", flush=True)
+
     tasks = [(demo, args.csda, args.mode) for demo in demos]
     frames: dict[int, pl.DataFrame] = {}
     for index, frame in resources.run_adaptive(
-        _compare_one, tasks, jobs=args.jobs, on_start=started
+        _compare_one, tasks, jobs=args.jobs, on_start=started, on_error=failure
     ):
         frames[index] = frame
-        print(f"[{len(frames)}/{len(demos)}] {demos[index].name}: compared", flush=True)
+        done = len(frames) + len(failed)
+        print(f"[{done}/{len(demos)}] {demos[index].name}: compared", flush=True)
+    if not frames:
+        print("error: no demo could be compared", file=sys.stderr)
+        return 1
     # Input order, whatever the completion order, so the output does not depend on the workers.
-    comparison = pl.concat([frames[i] for i in range(len(demos))])
+    comparison = pl.concat([frames[i] for i in sorted(frames)])
     if args.out is not None:
         args.out.mkdir(parents=True, exist_ok=True)
         comparison.write_parquet(args.out / "comparison.parquet")
@@ -222,6 +232,11 @@ def _compare_csdm(args: argparse.Namespace) -> int:
             f"{row['field']:<22}{row['rule']:>6}{row['players']:>9}{row['gaps']:>6}"
             f"{row['max_abs_diff'] if row['max_abs_diff'] is not None else float('nan'):>10.2f}"
         )
+    if failed:
+        print(f"{len(failed)} demo(s) failed and are not in the comparison:", file=sys.stderr)
+        for index in sorted(failed):
+            print(f"  {demos[index]}: {failed[index]}", file=sys.stderr)
+        return 1
     return 0
 
 
