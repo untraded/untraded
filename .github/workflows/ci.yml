@@ -41,6 +41,26 @@ jobs:
       - run: pnpm test
       - run: pnpm build
 
+  # The reference schema of phase 2 (ADR 0011) must stay valid, and its tenant isolation hold.
+  schema:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+    steps:
+      - uses: actions/checkout@v7
+      - run: psql -v ON_ERROR_STOP=1 -f docs/db/schema.sql -f docs/db/rls-check.sql
+
   licensing:
     runs-on: ubuntu-latest
     steps:
