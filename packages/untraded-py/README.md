@@ -19,6 +19,8 @@ Demos can be `.dem`, `.dem.bz2`, `.dem.gz` or `.dem.zst`. The modes are `premier
 
 `untraded compare-csdm` checks our stats against CS Demo Manager's analyzer (see `docs/validation-csdm.md`).
 
+`untraded fixture extract match.dem.zst --mode premier --rounds 11-15 --name my-bug --out my-bug/` writes an anonymized extract of a few rounds: steamids, names, server, teams, date and rank are removed. It is enough to reproduce most metric issues, so you can attach it to a bug report instead of your demo.
+
 ## Library
 
 ```python

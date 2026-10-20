@@ -16,7 +16,7 @@ from tempfile import TemporaryDirectory
 
 import polars as pl
 
-from untraded import corpus, report, resources
+from untraded import corpus, fixtures, report, resources
 from untraded.corpus.sync import SftpRemote, SyncError, SyncReport, pull, push
 from untraded.demofile import CorruptDemoError, NotADemoError
 from untraded.derive import derive
@@ -38,6 +38,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         SyncError,
         CanonicalError,
         UnsupportedModeError,
+        fixtures.FixtureError,
     ) as error:
         print(f"error: {error}", file=sys.stderr)
         return 2
@@ -83,6 +84,26 @@ def _parser() -> argparse.ArgumentParser:
         help="demos compared at once (default: as many as the free RAM allows, adjusted live)",
     )
     check.set_defaults(run=_compare_csdm)
+
+    fixture = commands.add_parser(
+        "fixture", help="anonymized extract of a few rounds, for tests and bug reports"
+    )
+    fixture_actions = fixture.add_subparsers(required=True, metavar="action")
+    extract = fixture_actions.add_parser(
+        "extract", help="parse a demo and write an anonymized window of rounds"
+    )
+    extract.add_argument("demo", type=Path)
+    extract.add_argument("--mode", required=True, choices=MODES, help="game mode of the match")
+    extract.add_argument("--rounds", required=True, type=_round_range, metavar="FIRST-LAST")
+    extract.add_argument("--name", required=True, help="fixture name, also its match id")
+    extract.add_argument("--out", required=True, type=Path, help="fixture directory to write")
+    extract.add_argument("--demo-id", help="where it comes from, e.g. its corpus id")
+    extract.set_defaults(run=_fixture_extract)
+    expect = fixture_actions.add_parser(
+        "expect", help="recompute expected_metrics.json after an intended metric change"
+    )
+    expect.add_argument("dirs", nargs="+", type=Path)
+    expect.set_defaults(run=_fixture_expect)
 
     corpus_parser = commands.add_parser("corpus", help="manage the reference demo corpus")
     corpus_parser.add_argument(
@@ -217,6 +238,40 @@ def _compare_one(task: tuple[Path, Path, str]) -> pl.DataFrame:
     return csdm.compare(csdm.our_values(ds), csdm.csdm_values(export)).with_columns(
         pl.lit(match_id).alias("match_id")
     )
+
+
+def _round_range(value: str) -> tuple[int, int]:
+    first, _, last = value.partition("-")
+    try:
+        bounds = int(first), int(last or first)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"expected FIRST-LAST, got {value!r}") from None
+    if not 1 <= bounds[0] <= bounds[1]:
+        raise argparse.ArgumentTypeError(f"expected 1 <= FIRST <= LAST, got {value!r}")
+    return bounds
+
+
+def _fixture_extract(args: argparse.Namespace) -> int:
+    first, last = args.rounds
+    canonical = parse_demo(args.demo, source="upload", mode=args.mode)
+    window = fixtures.anonymize(fixtures.extract(canonical.tables(), first, last), args.name)
+    meta = fixtures.metadata(
+        demo=args.demo_id or args.demo.name, first=first, last=last, tables=window
+    )
+    fixtures.write(args.out, window, meta)
+    size = sum(f.stat().st_size for f in args.out.iterdir())
+    print(
+        f"{args.name}: rounds {first}-{last}, {window['player'].height} players, "
+        f"{size / 1e6:.2f} MB -> {args.out}"
+    )
+    return 0
+
+
+def _fixture_expect(args: argparse.Namespace) -> int:
+    for directory in args.dirs:
+        fixtures.write_expected(directory, fixtures.read(directory))
+        print(f"{directory}: {fixtures.EXPECTED} rewritten")
+    return 0
 
 
 def _corpus_dir(args: argparse.Namespace) -> Path:
