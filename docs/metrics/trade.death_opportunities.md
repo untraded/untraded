@@ -31,7 +31,7 @@ No equivalent in CS Demo Manager.
 ## Limits
 
 - An opportunity is a distance, not a sight line. The distance is a v0 threshold (🎯).
-- A death is traded only when the killer is then killed **by the victim's team**, within `trade.window_s` and the same tick included. A killer killed by their own teammate does not trade it, unlike CS Demo Manager.
+- A death is traded only when the killer is then killed **by the victim's team**, within `trade.window_s`, both ends included. CS Demo Manager differs in four ways: a killer killed by their own teammate trades the death, a player controlling a bot can trade, the kill of an enemy who had just killed a teammate is a trade kill, and a trade at exactly 5.00 s does not count (validation-csdm § 5).
 - Distances are straight lines between positions, through walls.
 
 See also the [shared conventions](README.md#shared-conventions) of every metric.

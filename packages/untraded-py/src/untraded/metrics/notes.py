@@ -23,8 +23,10 @@ FAMILY_LIMITS: dict[str, tuple[str, ...]] = {
     ),
     "trade": (
         "A death is traded only when the killer is then killed **by the victim's team**, within "
-        "`trade.window_s` and the same tick included. A killer killed by their own teammate does "
-        "not trade it, unlike CS Demo Manager.",
+        "`trade.window_s`, both ends included. CS Demo Manager differs in four ways: a killer "
+        "killed by their own teammate trades the death, a player controlling a bot can trade, the "
+        "kill of an enemy who had just killed a teammate is a trade kill, and a trade at exactly "
+        "5.00 s does not count (validation-csdm § 5).",
         "Distances are straight lines between positions, through walls.",
     ),
     "clutch": (
@@ -59,9 +61,10 @@ LIMITS: dict[str, tuple[str, ...]] = {
     ),
     "base.hs_pct": ("Undefined (empty) for a player without kills.",),
     "base.kast": (
-        "Differs from CS Demo Manager by design: it counts rounds the player missed as survived, "
-        "a player killed by a teammate as surviving, flash-only assists, and trades by the "
-        "killer's own teammate (validation-csdm § 4 and § 5).",
+        "Differs from CS Demo Manager by design. CS Demo Manager counts a round the player "
+        "missed as survived, a player killed by a teammate as surviving, a flash-only assist, and "
+        "a trade by the killer's own teammate; Untraded counts none of them (validation-csdm "
+        "§ 1, § 4 and § 5).",
         "Flash assists do not count by default (`kast.count_flash_assist`).",
     ),
     "base.survival_pct": (
@@ -147,15 +150,45 @@ FIRST_PR: dict[str, int] = {
 }
 """Pull request that added each family at 1.0.0."""
 
+_TRADES = (
+    "Trades now count a kill on the same tick (delay 0) (#41) and the victim's own grenade or "
+    "fire killing the killer later (#42); two players killing each other on the same tick "
+    "trade nothing."
+)
+_CLUTCHES = "A player who leaves the server mid-round leaves the team's lineup (#44)."
+
 CHANGES: dict[str, dict[str, str]] = {
     "base.assist_score": {"1.0.0": "First version (#43)."},
     "base.kast": {
-        "1.1.0": "A death after the round end is not a survival (#43), as in CS Demo Manager.",
+        "1.1.0": "A death after the round end is not a survival (#43), as in CS Demo Manager. "
+        + _TRADES,
     },
     "base.survival_pct": {
         "1.1.0": "A death after the round end is not a survival: the weapons are lost (#43).",
     },
-    "rating.hltv2_approx": {"1.1.0": "Follows `base.kast` 1.1.0 (#43)."},
+    "rating.hltv2_approx": {"1.1.0": "Follows `base.kast` 1.1.0 (#41, #42, #43)."},
+    **{
+        metric_id: {"1.1.0": _TRADES}
+        for metric_id in (
+            *(
+                f"trade.{name}{suffix}"
+                for name in ("trade_kills", "traded_deaths", "traded_death_pct", "untraded_deaths")
+                for suffix in ("", "_w3")
+            ),
+            "trade.kill_conversion_pct",
+            "duel.isolated_deaths",
+            "duel.isolated_death_pct",
+            "pos.death_zones",
+            "pos.recurring_death_spot",
+        )
+    },
+    **{
+        metric_id: {"1.1.0": _CLUTCHES}
+        for metric_id in (
+            *(f"clutch.{kind}_1v{n}" for kind in ("attempts", "wins") for n in range(1, 6)),
+            "clutch.win_pct",
+        )
+    },
 }
 """What changed in each version above 1.0.0, or a first version outside its family's PR."""
 

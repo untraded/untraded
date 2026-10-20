@@ -26,6 +26,7 @@ Separately, demos contain the SteamIDs and names of every player in the match.
   - no corpus demo is public.
 - **Test fixtures** are anonymized canonical extracts: SteamIDs and names are replaced, and only the rounds a test needs are kept.
   - *Update 2026-10-20*: fixtures come from Premier and FACEIT demos only, never from pro demos, as they are published in the repository. Each is a window of consecutive rounds (`untraded.fixtures`, `untraded fixture extract`). Players become 1 to N and `A1`… `B5`; the server name, team names, date, rank and match id are removed; positions and events are unchanged. The tests fail if a steamid of an event is not a renumbered player.
+  - *Update 2026-10-20 (review)*: knives become `knife` in inventories and weapon names (a knife skin is close to a signature of its owner). `fixture.toml` no longer names the source demo: the public corpus manifest would date the match and lead back to its players. The fixture-to-demo mapping is kept in the private repository, and the parser check reads it from `UNTRADED_FIXTURE_SOURCES`. The demo ids of the first version remain in the git history.
 
 ## Consequences
 

@@ -18,11 +18,15 @@ from polars.testing import assert_frame_equal
 from untraded import fixtures
 from untraded.cli import _round_range
 from untraded.parsing import parse_demo
+from untraded.parsing.schema import TABLES
 
 FIXTURES = Path(__file__).parent / "fixtures"
 NAMES = sorted(p.name for p in FIXTURES.iterdir() if (p / fixtures.META).exists())
 MANIFEST = Path(__file__).parents[3] / "corpus" / "manifest.toml"
 CORPUS = os.environ.get("UNTRADED_CORPUS_DIR")
+SOURCES = os.environ.get("UNTRADED_FIXTURE_SOURCES")
+"""A private TOML file, `<fixture name> = "<corpus demo id>"`: the source demos are not named in
+this public repository (the manifest would date the matches and lead back to the players)."""
 
 
 def test_the_three_fixtures_exist() -> None:
@@ -32,7 +36,7 @@ def test_the_three_fixtures_exist() -> None:
 @pytest.mark.parametrize("name", NAMES)
 def test_metrics_match_the_expected_values(name: str) -> None:
     """Fails when a change moves a metric. If the change is intended, run
-    `untraded fixture expect packages/untraded-py/tests/fixtures/*` and review the diff."""
+    `just fixtures-expect` and review the diff."""
     directory = FIXTURES / name
     actual = fixtures.expected_metrics(fixtures.read(directory))
     _assert_close(actual, fixtures.read_expected(directory), path=name)
@@ -54,6 +58,28 @@ def test_fixtures_hold_no_personal_data(name: str) -> None:
             values = tables[table][column]
             flat = values.explode() if values.dtype == pl.List else values
             assert set(flat.drop_nulls().to_list()) <= {0, *range(1, players.height + 1)}
+    for table, columns in fixtures.ITEM_COLUMNS.items():
+        for column in columns:
+            items = set(tables[table][column].explode().drop_nulls().to_list())
+            assert not {i for i in items if "nife" in i or "ayonet" in i} - {fixtures.KNIFE}
+    for table, columns in fixtures.WEAPON_COLUMNS.items():
+        for column in columns:
+            weapons = set(tables[table][column].to_list())
+            assert not {w for w in weapons if w.startswith(("knife", "bayonet"))} - {"knife"}
+    assert "demo" not in fixtures.read_meta(FIXTURES / name)
+
+
+def test_every_steamid_column_of_the_schema_is_anonymized() -> None:
+    """A new steamid column in the canonical schema must be added to PLAYER_COLUMNS."""
+    steamid_types = (pl.UInt64, pl.List(pl.UInt64))
+    columns = {
+        (table, column)
+        for table, schema in TABLES.items()
+        for column, dtype in schema.items()
+        if dtype in steamid_types
+    }
+    listed = {(t, c) for t, cs in fixtures.PLAYER_COLUMNS.items() for c in cs}
+    assert columns == listed
 
 
 def test_extract_keeps_a_valid_window_with_the_real_score() -> None:
@@ -92,15 +118,21 @@ def test_round_range(text: str, bounds: tuple[int, int]) -> None:
 
 
 @pytest.mark.parametrize("name", NAMES)
-@pytest.mark.skipif(CORPUS is None, reason="set UNTRADED_CORPUS_DIR to check the parser")
+@pytest.mark.skipif(
+    CORPUS is None or SOURCES is None,
+    reason="set UNTRADED_CORPUS_DIR and UNTRADED_FIXTURE_SOURCES to check the parser",
+)
 def test_parser_still_produces_the_fixture(name: str) -> None:
     """Parses the source demo again and compares the extract with the committed fixture."""
     directory = FIXTURES / name
     meta = fixtures.read_meta(directory)
+    source = tomllib.loads(Path(str(SOURCES)).read_text(encoding="utf-8")).get(name)
+    if source is None:
+        pytest.skip(f"{name} has no source in {SOURCES}")
     demos = {d["id"]: d for d in tomllib.loads(MANIFEST.read_text(encoding="utf-8"))["demo"]}
-    found = list((Path(str(CORPUS)) / "demos").glob(demos[meta["demo"]]["sha256"] + ".*"))
+    found = list((Path(str(CORPUS)) / "demos").glob(demos[source]["sha256"] + ".*"))
     if not found:
-        pytest.skip(f"{meta['demo']} is not in the local corpus")
+        pytest.skip(f"{source} is not in the local corpus")
     first, last = meta["rounds"]
     tables = parse_demo(found[0], source="upload", mode=meta["mode"]).tables()
     fresh = fixtures.anonymize(fixtures.extract(tables, first, last), name)

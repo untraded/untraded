@@ -1,4 +1,3 @@
-demo = "faceit-undated-dust2-01"
 rounds = [19, 23]
 mode = "faceit"
 map = "de_dust2"

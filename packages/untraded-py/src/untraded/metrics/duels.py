@@ -140,7 +140,7 @@ def _trade_metrics(suffix: str, param: str, default: float) -> None:
 
     @metric(
         f"trade.trade_kills{suffix}",
-        version="1.0.0",
+        version="1.1.0",
         name=f"Trade kills ({seconds})",
         unit="count",
         params=params,
@@ -152,7 +152,7 @@ def _trade_metrics(suffix: str, param: str, default: float) -> None:
 
     @metric(
         f"trade.traded_deaths{suffix}",
-        version="1.0.0",
+        version="1.1.0",
         name=f"Traded deaths ({seconds})",
         unit="count",
         params=params,
@@ -164,7 +164,7 @@ def _trade_metrics(suffix: str, param: str, default: float) -> None:
 
     @metric(
         f"trade.traded_death_pct{suffix}",
-        version="1.0.0",
+        version="1.1.0",
         name=f"Traded death % ({seconds})",
         unit="pct",
         params=params,
@@ -176,7 +176,7 @@ def _trade_metrics(suffix: str, param: str, default: float) -> None:
 
     @metric(
         f"trade.untraded_deaths{suffix}",
-        version="1.0.0",
+        version="1.1.0",
         name=f"Untraded deaths ({seconds})",
         unit="count",
         params=params,
@@ -212,7 +212,7 @@ def kill_opportunities(ds: Dataset, p: Mapping[str, ParamValue]) -> pl.DataFrame
 
 @metric(
     "trade.kill_conversion_pct",
-    version="1.0.0",
+    version="1.1.0",
     name="Opportunity conversion",
     unit="pct",
     params={**WINDOW, **OPPORTUNITY},
@@ -265,7 +265,7 @@ ISOLATION_DOC = (
 
 @metric(
     "duel.isolated_deaths",
-    version="1.0.0",
+    version="1.1.0",
     name="Isolated deaths",
     unit="count",
     params={**WINDOW, **ISOLATION},
@@ -278,7 +278,7 @@ def isolated_deaths(ds: Dataset, p: Mapping[str, ParamValue]) -> pl.DataFrame:
 
 @metric(
     "duel.isolated_death_pct",
-    version="1.0.0",
+    version="1.1.0",
     name="Isolated death %",
     unit="pct",
     params={**WINDOW, **ISOLATION},
@@ -317,7 +317,7 @@ def _clutches(ds: Dataset) -> pl.DataFrame:
 def _clutch_metrics(enemies: int) -> None:
     @metric(
         f"clutch.attempts_1v{enemies}",
-        version="1.0.0",
+        version="1.1.0",
         name=f"1v{enemies} attempts",
         unit="count",
         uses=("clutch",),
@@ -330,7 +330,7 @@ def _clutch_metrics(enemies: int) -> None:
 
     @metric(
         f"clutch.wins_1v{enemies}",
-        version="1.0.0",
+        version="1.1.0",
         name=f"1v{enemies} wins",
         unit="count",
         uses=("clutch",),
@@ -347,7 +347,7 @@ for _enemies in range(1, 6):
 
 @metric(
     "clutch.win_pct",
-    version="1.0.0",
+    version="1.1.0",
     name="Clutch success",
     unit="pct",
     uses=("clutch",),

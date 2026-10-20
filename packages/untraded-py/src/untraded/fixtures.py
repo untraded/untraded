@@ -5,11 +5,14 @@
 An extract keeps a window of consecutive rounds, so it is still a valid match: one with a
 truncated start (ADR 0008), whose score is the real score after the last round kept. Players are
 renumbered 1 to N (team A first, then team B, by steamid) and named `A1`, `B1`...; the server,
-team names, date, rank and match id are removed. Positions, ticks and events are unchanged.
+team names, date, rank and match id are removed, and every knife becomes `knife` (a knife skin
+is close to a signature of its owner). Positions, ticks and events are unchanged.
 
-A fixture directory holds one Parquet file per canonical table, `fixture.toml` (where it comes
-from) and `expected_metrics.json` (every metric of the registry on the extract), so the derived
-tables and metrics can be checked without the demo.
+A fixture directory holds one Parquet file per canonical table, `fixture.toml` (window, map,
+mode, versions) and `expected_metrics.json` (every metric of the registry on the extract), so
+the derived tables and metrics can be checked without the demo. The source demo is not named
+there: the public corpus manifest would date the match and lead back to its players. The
+fixture-to-demo mapping is kept privately (`UNTRADED_FIXTURE_SOURCES`, see the parser test).
 """
 
 from __future__ import annotations
@@ -48,6 +51,46 @@ PLAYER_COLUMNS: dict[str, tuple[str, ...]] = {
     "player_tick": ("steamid", "spotted_by"),
 }
 """Every column holding a steamid (personal data, ADR 0010)."""
+
+ITEM_COLUMNS: dict[str, tuple[str, ...]] = {
+    "economy": ("inventory",),
+    "inventory_change": ("inventory",),
+    "kill": ("victim_inventory",),
+}
+"""Inventories (item names, such as "Butterfly Knife")."""
+WEAPON_COLUMNS: dict[str, tuple[str, ...]] = {
+    "kill": ("weapon",),
+    "damage": ("weapon",),
+    "shot": ("weapon",),
+}
+"""Weapon class names (such as `knife_butterfly`)."""
+KNIFE = "knife"
+
+
+def _is_knife_item(item: pl.Expr) -> pl.Expr:
+    return item.str.contains("(?i)knife|bayonet|karambit|daggers")
+
+
+def _is_knife_weapon(weapon: pl.Expr) -> pl.Expr:
+    return weapon.str.starts_with("knife") | weapon.str.starts_with("bayonet")
+
+
+def generic_knives(tables: Mapping[str, pl.DataFrame]) -> Tables:
+    """Every knife, in inventories and as a weapon, becomes `knife`."""
+    out = dict(tables)
+    for table, columns in ITEM_COLUMNS.items():
+        out[table] = out[table].with_columns(
+            pl.col(c).list.eval(
+                pl.when(_is_knife_item(pl.element())).then(pl.lit(KNIFE)).otherwise(pl.element())
+            )
+            for c in columns
+        )
+    for table, columns in WEAPON_COLUMNS.items():
+        out[table] = out[table].with_columns(
+            pl.when(_is_knife_weapon(pl.col(c))).then(pl.lit(KNIFE)).otherwise(pl.col(c)).alias(c)
+            for c in columns
+        )
+    return out
 
 
 class FixtureError(ValueError):
@@ -92,8 +135,8 @@ def extract(tables: Mapping[str, pl.DataFrame], first: int, last: int) -> Tables
 
 
 def anonymize(tables: Mapping[str, pl.DataFrame], name: str) -> Tables:
-    """Replaces steamids, names and identifying match fields. Raises if a steamid of an event is
-    not a player of the extract, so nothing personal can slip through."""
+    """Replaces steamids, names, knives and identifying match fields. Raises if a steamid of an
+    event is not a player of the extract, so nothing personal can slip through."""
     players = tables["player"].sort("team", "steamid")
     ids = players["steamid"].to_list()
     mapping = {old: new for new, old in enumerate(ids, start=1)}
@@ -120,6 +163,7 @@ def anonymize(tables: Mapping[str, pl.DataFrame], name: str) -> Tables:
                 mapped = expr.replace(mapping)
             replaced = replaced.with_columns(mapped.cast(frame[column].dtype))
         out[table] = replaced
+    out = generic_knives(out)
     out["player"] = (
         out["player"]
         .sort("steamid")
@@ -202,12 +246,10 @@ def read_expected(directory: Path) -> dict[str, Any]:
     return result
 
 
-def metadata(
-    *, demo: str, first: int, last: int, tables: Mapping[str, pl.DataFrame]
-) -> dict[str, Any]:
+def metadata(*, first: int, last: int, tables: Mapping[str, pl.DataFrame]) -> dict[str, Any]:
+    """What `fixture.toml` records. Not the source demo: see the module docstring."""
     info = tables["match"].row(0, named=True)
     return {
-        "demo": demo,
         "rounds": [first, last],
         "mode": info["mode"],
         "map": info["map"],

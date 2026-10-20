@@ -4,7 +4,7 @@
 
 | Version | Kind | Unit | Reads | Code |
 |---|---|---|---|---|
-| 1.0.0 | value | pct | `death`, `round_player` | [`traded_death_pct` in `metrics/duels.py`](https://github.com/untraded/untraded/blob/main/packages/untraded-py/src/untraded/metrics/duels.py) |
+| 1.1.0 | value | pct | `death`, `round_player` | [`traded_death_pct` in `metrics/duels.py`](https://github.com/untraded/untraded/blob/main/packages/untraded-py/src/untraded/metrics/duels.py) |
 
 ## Definition
 
@@ -14,7 +14,7 @@ Traded deaths ÷ deaths * 100.
 
 | Parameter | Default | Meaning |
 |---|---|---|
-| `trade.window_s` | 5.0 s | Trade window W: a death is traded when a teammate kills the killer within W seconds, the same tick included (HLTV and CS Demo Manager convention). |
+| `trade.window_s` | 5.0 s | Trade window W: a death is traded when a teammate kills the killer within W seconds, both ends included (the same tick, and exactly W). 5 s is the usual convention (HLTV, CS Demo Manager); CS Demo Manager excludes exactly W. |
 
 ## Example
 
@@ -26,11 +26,11 @@ On the `premier-half` fixture: a Premier match on de_cache, rounds 11 to 15, ano
 
 ## Against CS Demo Manager
 
-No equivalent in CS Demo Manager.
+No field of its own in CS Demo Manager; compared through deaths and traded deaths, both compared: see [validation-csdm.md](../validation-csdm.md).
 
 ## Limits
 
-- A death is traded only when the killer is then killed **by the victim's team**, within `trade.window_s` and the same tick included. A killer killed by their own teammate does not trade it, unlike CS Demo Manager.
+- A death is traded only when the killer is then killed **by the victim's team**, within `trade.window_s`, both ends included. CS Demo Manager differs in four ways: a killer killed by their own teammate trades the death, a player controlling a bot can trade, the kill of an enemy who had just killed a teammate is a trade kill, and a trade at exactly 5.00 s does not count (validation-csdm § 5).
 - Distances are straight lines between positions, through walls.
 
 See also the [shared conventions](README.md#shared-conventions) of every metric.
@@ -38,3 +38,4 @@ See also the [shared conventions](README.md#shared-conventions) of every metric.
 ## History
 
 - **1.0.0**: First version (#33).
+- **1.1.0**: Trades now count a kill on the same tick (delay 0) (#41) and the victim's own grenade or fire killing the killer later (#42); two players killing each other on the same tick trade nothing.

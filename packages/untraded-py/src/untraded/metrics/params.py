@@ -40,7 +40,8 @@ PARAMETERS: dict[str, Parameter] = {
             5.0,
             "s",
             "Trade window W: a death is traded when a teammate kills the killer within W "
-            "seconds, the same tick included (HLTV and CS Demo Manager convention).",
+            "seconds, both ends included (the same tick, and exactly W). 5 s is the usual "
+            "convention (HLTV, CS Demo Manager); CS Demo Manager excludes exactly W.",
         ),
         Parameter(
             "trade.window_w3_s",
