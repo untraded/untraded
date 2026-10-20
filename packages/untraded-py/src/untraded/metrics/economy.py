@@ -54,6 +54,7 @@ def _rounds_won(ds: Dataset, *keys: str) -> pl.DataFrame:
     version="1.0.0",
     name="Buy type",
     unit="table",
+    better="neutral",
     kind="table",
     uses=("team_round", "round_player"),
     doc="Rounds played per team buy type (`pistol`, `eco`, `semi`, `force`, `full`), with the "
@@ -69,6 +70,7 @@ def buy_type(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
     version="1.0.0",
     name="Win % by economy",
     unit="table",
+    better="neutral",
     kind="table",
     uses=("team_round", "round_player"),
     doc="% of rounds won per (team buy type, opponent buy type) pair. Columns: `steamid`, "
@@ -83,6 +85,7 @@ def win_pct_by_matchup(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame
     version="1.0.0",
     name="Equipment lost",
     unit="dollars",
+    better="lower",
     uses=("death", "kill"),
     doc="The player's equipment value at the tick of death, averaged over their deaths.",
 )
@@ -111,6 +114,7 @@ def _weapon_class(inventory: pl.Expr) -> pl.Expr:
     version="1.0.0",
     name="Kills by economy",
     unit="table",
+    better="neutral",
     kind="table",
     uses=("death", "kill", "inventory_change"),
     doc="The player's enemy kills per (killer weapon class, victim weapon class). The class is "

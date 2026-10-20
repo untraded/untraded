@@ -43,6 +43,7 @@ def _totals(ds: Dataset, params: Mapping[str, ParamValue] | None = None) -> pl.D
     version="1.0.0",
     name="HLTV Rating 1.0",
     unit="ratio",
+    better="higher",
     uses=("round_player",),
     doc="(KillRating + 0.7 * SurvivalRating + MultiKillRating) / 2.7, each component being the "
     "player's per-round value over HLTV's reference average (KPR 0.679, survival 0.317, "
@@ -67,6 +68,7 @@ def hltv1(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
     version="1.1.0",
     name="HLTV 2.0 (approx.)",
     unit="ratio",
+    better="higher",
     params=KAST,
     uses=("round_player",),
     doc="Community approximation, **always labeled approx.**: 0.0073 * KAST + 0.3591 * KPR - "

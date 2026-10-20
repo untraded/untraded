@@ -58,6 +58,7 @@ def _thrown_metric(name: str, types: tuple[str, ...]) -> None:
         version="1.0.0",
         name=f"{name.capitalize() if name != 'he' else 'HE'} thrown",
         unit="count",
+        better="neutral",
         uses=("grenade",),
         doc=f"Grenades of type `{name}` thrown{merged}.",
     )
@@ -74,6 +75,7 @@ for _name, _types in THROWN.items():
     version="1.0.0",
     name="Utility per round",
     unit="per_round",
+    better="higher",
     uses=("grenade", "round_player"),
     doc="Grenades thrown (all types) ÷ rounds played.",
 )
@@ -113,6 +115,7 @@ def _long(threshold: ParamValue) -> pl.Expr:
     version="1.0.0",
     name="Enemies flashed",
     unit="count",
+    better="higher",
     params=MIN_BLIND,
     uses=("blind", "death"),
     doc="Living enemies blinded by the player's flashes for at least `flash.min_blind_s`.",
@@ -126,6 +129,7 @@ def enemies_flashed(ds: Dataset, p: Mapping[str, ParamValue]) -> pl.DataFrame:
     version="1.0.0",
     name="Blind time dealt",
     unit="seconds",
+    better="higher",
     uses=("blind", "death"),
     doc="Sum of the blind durations of living enemies (every blind, no minimum).",
 )
@@ -138,6 +142,7 @@ def enemy_blind_time(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
     version="1.0.0",
     name="Flash efficiency",
     unit="seconds",
+    better="higher",
     uses=("blind", "death", "grenade"),
     doc="Enemy blind time dealt ÷ flashes thrown.",
 )
@@ -151,6 +156,7 @@ def blind_per_flash(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
     version="1.0.0",
     name="Teammates flashed",
     unit="count",
+    better="lower",
     params=MIN_BLIND,
     uses=("blind", "death"),
     doc="Living teammates (not the player) blinded by the player's flashes for at least "
@@ -165,6 +171,7 @@ def teammates_flashed(ds: Dataset, p: Mapping[str, ParamValue]) -> pl.DataFrame:
     version="1.0.0",
     name="Team blind time",
     unit="seconds",
+    better="lower",
     uses=("blind", "death"),
     doc="Sum of the blind durations of living teammates (every blind, no minimum).",
 )
@@ -177,6 +184,7 @@ def team_blind_time(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
     version="1.0.0",
     name="Self-flashes",
     unit="count",
+    better="lower",
     params=MIN_BLIND,
     uses=("blind", "death"),
     doc="Times the player blinded themselves for at least `flash.min_blind_s`.",
@@ -191,6 +199,7 @@ def self_flashed(ds: Dataset, p: Mapping[str, ParamValue]) -> pl.DataFrame:
     version="1.0.0",
     name="Decisive flashes",
     unit="count",
+    better="higher",
     uses=("blind", "death", "round_player", "match"),
     doc="Enemies blinded by the player and killed by the player's team (the player included) "
     "while still blind: blind tick ≤ kill tick ≤ blind tick + duration. One count per kill, "
@@ -244,6 +253,7 @@ def _grenade_damage(ds: Dataset, weapons: tuple[str, ...], *, team: bool) -> pl.
     version="1.0.0",
     name="HE damage",
     unit="hp",
+    better="higher",
     uses=("damage",),
     doc="Capped damage of the player's HE grenades to enemies.",
 )
@@ -256,6 +266,7 @@ def he_damage(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
     version="1.0.0",
     name="HE team damage",
     unit="hp",
+    better="lower",
     uses=("damage",),
     doc="Capped damage of the player's HE grenades to teammates (self-damage excluded).",
 )
@@ -268,6 +279,7 @@ def he_team_damage(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
     version="1.0.0",
     name="Fire damage",
     unit="hp",
+    better="higher",
     uses=("damage",),
     doc="Capped damage of the player's molotovs and incendiaries (fire and impact) to enemies, "
     "counting only damage linked to one of the player's own grenades (demoparser2 #317).",
@@ -284,6 +296,7 @@ def fire_damage(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
     version="1.0.0",
     name="Wasted utility",
     unit="dollars",
+    better="lower",
     uses=("death", "kill"),
     doc="Buy value of the grenades in the player's inventory at death, averaged over their "
     "deaths (flash 200, HE 300, smoke 300, molotov 400, incendiary 500, decoy 50).",

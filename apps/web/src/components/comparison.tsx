@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import type { Locale } from "@/i18n/locale";
 import type { Comparison } from "@/lib/api";
-import { delta, metric } from "@/lib/format";
+import { delta, metric, trend, trendClass } from "@/lib/format";
 
 /** One metric: the session's value, and how far it is from the player's own 30 days. */
 export function ComparisonCard({
@@ -26,8 +26,10 @@ export function ComparisonCard({
       </p>
       {comparison.reference !== null && (
         <p className="text-xs text-zinc-500 tabular-nums">
-          {delta(comparison.delta, unit, basis, locale)} ·{" "}
-          {metric(comparison.reference, unit, basis, locale)}
+          <span className={trendClass(trend(comparison))}>
+            {delta(comparison.delta, unit, basis, locale)}
+          </span>{" "}
+          · {metric(comparison.reference, unit, basis, locale)}
         </p>
       )}
     </div>

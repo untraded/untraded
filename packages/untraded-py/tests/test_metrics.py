@@ -123,3 +123,20 @@ def test_several_matches_are_recomputed_over_all_rounds() -> None:
 
 def test_undefined_ratios_are_null() -> None:
     assert values(Dataset.from_matches([ONE]), "base.hs_pct") == {1: None}
+
+
+def test_every_metric_says_which_way_is_better() -> None:
+    assert {m.better for m in REGISTRY.values()} <= {"higher", "lower", "neutral"}
+    assert all(m.better == "neutral" for m in REGISTRY.values() if m.kind == "table")
+    # A total and its rate, or the same metric over another trade window, agree.
+    for a, b in [
+        ("base.kills", "base.kpr"),
+        ("base.deaths", "base.dpr"),
+        ("base.assists", "base.apr"),
+        ("trade.untraded_deaths", "trade.untraded_deaths_w3"),
+        ("trade.traded_death_pct", "trade.traded_death_pct_w3"),
+        ("clutch.wins_1v1", "clutch.win_pct"),
+    ]:
+        assert REGISTRY[a].better == REGISTRY[b].better, (a, b)
+    assert REGISTRY["base.deaths"].better == "lower"
+    assert REGISTRY["rating.hltv1"].better == "higher"
