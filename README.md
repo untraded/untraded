@@ -4,7 +4,7 @@
 
 Untraded is an open-source, self-hostable Counter-Strike 2 analyzer and coach. It fetches your matches, parses the demos, and tells you — after every session — the one to three things to fix, with the rounds that prove it. Every metric has a public formula, and your data stays yours.
 
-> **Status: pre-alpha.** We are in phase 0 (de-risking) and phase 1 (metrics engine). Nothing here is usable by players yet. See the [roadmap](docs/roadmap.md).
+> **Status: alpha.** Phase 1 is done: the [`untraded`](packages/untraded-py) metrics engine and command line (`pip install untraded`) are usable, and validated against CS Demo Manager on 30 matches. Phase 2 (solo beta: collector, web app, advice) has started. See the [roadmap](docs/roadmap.md).
 
 ## Why
 
@@ -37,7 +37,7 @@ just check     # lint, type-check, test, license check
 
 ## Contributing
 
-Contributions are welcome once phase 1 stabilizes. Read [CONTRIBUTING.md](CONTRIBUTING.md); a light [Contributor License Agreement](CLA.md) is signed through a pull request comment.
+Contributions are welcome, starting with the metrics engine. Read [CONTRIBUTING.md](CONTRIBUTING.md); a light [Contributor License Agreement](CLA.md) is signed through a pull request comment.
 
 ## Disclaimer
 
