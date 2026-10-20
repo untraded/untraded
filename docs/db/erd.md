@@ -1,6 +1,6 @@
 # Phase 2 database: entity-relationship diagram
 
-The reference schema is [schema.sql](schema.sql), and the decisions behind it are in [ADR 0011](../adr/0011-phase-2-database-schema.md). Only keys and the columns that carry a relationship are shown here.
+The reference schema is [schema.sql](schema.sql), and the decisions behind it are in [ADR 0011](../adr/0011-phase-2-database-schema.md). Since then, the migrations in `db/` are the source of truth (ADR 0006): see [Migration 0002](#migration-0002-sessions) at the end. Only keys and the columns that carry a relationship are shown here.
 
 ## Tenancy, players and access
 
@@ -168,3 +168,49 @@ erDiagram
 ```
 
 `damage`, `blind`, `grenade` and `economy` are keyed like `kill` (by `match_id` with a tick and a sequence, a grenade id, or a round and a player). The job queue (`job`) has no relationships.
+
+## Migration 0002: sessions
+
+Match end times (`match.ended_at`), sign-in sessions, play sessions and their report, and the
+`untraded_api` role that row-level security applies to
+([`0002_sessions.sql`](../../db/src/untraded_db/migrations/versions/0002_sessions.sql)).
+
+```mermaid
+erDiagram
+    app_user ||--o{ auth_session : "signs in with"
+    player ||--o{ play_session : plays
+    play_session ||--o{ play_session_match : groups
+    match ||--o{ play_session_match : "is in"
+    play_session ||--o{ play_session_metric : reports
+
+    auth_session {
+        bytea token_hash PK "sha256 of the cookie token"
+        uuid user_id FK
+        timestamptz expires_at
+    }
+    play_session {
+        uuid id PK
+        bigint steam_id FK
+        timestamptz started_at
+        timestamptz ended_at
+        bool enough "reference shown"
+    }
+    play_session_metric {
+        uuid session_id PK
+        text metric_id PK
+        text version PK
+        text basis "value | per_round"
+        float session
+        float reference
+        float delta
+    }
+```
+
+- A **play session** groups a player's matches while there is at most one hour between the end
+  of one and the start of the next. Its report compares it with the player's own 30 days before
+  (`untraded.reference`).
+- The API reaches `auth_session` only through `open_auth_session` (sign-in is by invitation: the
+  Steam account needs a user), `auth_session_user` and `close_auth_session`.
+- `untraded_api` reads every table except `auth_session`, `ingest_source` and `job`, writes
+  none, and `metric_wide_current` now runs with the caller's rights (`security_invoker`), so
+  row-level security applies through it too.
