@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "untraded"
-version = "0.0.2"
+version = "0.1.0"
 description = "Open, transparent Counter-Strike 2 match metrics."
 readme = "README.md"
 license = "MIT"
@@ -13,7 +13,7 @@ requires-python = ">=3.11"
 authors = [{ name = "The Untraded Authors" }]
 keywords = ["counter-strike", "cs2", "esports", "analytics", "demo"]
 classifiers = [
-    "Development Status :: 2 - Pre-Alpha",
+    "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
     "Topic :: Games/Entertainment :: First Person Shooters",
