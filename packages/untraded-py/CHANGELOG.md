@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Advice** (`untraded.advice`): an open rule engine. A rule fires when the session is worse than the reference by `advice.min_gap_pct` and has enough events, with its evidence (the very events its metric counts), its cost in rounds, and its priority. Batch 1: 10 rules (trades, spacing, opening duels, clutches, aim, utility, recurring death spot). See `docs/advice.md`.
 - Every metric says which way is an improvement: `Metric.better` (`higher`, `lower` or `neutral`), a required argument of `@metric`, shown in the generated docs. No formula changes, so no version bumps.
 - `parse_demo(mode="premier")` refuses a Valve matchmaking demo whose players' `rank_type` is not Premier (11), with `UnsupportedModeError`: Valve's share-code chain also returns Competitive and Wingman matches. Demos without a rank type are trusted.
 
