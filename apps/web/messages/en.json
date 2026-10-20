@@ -1,0 +1,51 @@
+{
+  "brand": { "tagline": "Never die untraded." },
+  "nav": { "matches": "Matches", "signOut": "Sign out", "language": "Language" },
+  "home": {
+    "title": "Your CS2 matches, analysed in the open",
+    "lead": "Untraded collects your Premier matches, parses the demos and shows what matters, with every formula public.",
+    "signIn": "Sign in with Steam",
+    "beta": "The beta is by invitation.",
+    "notInvited": "This Steam account is not invited to the beta yet.",
+    "failed": "Steam could not confirm the sign-in. Please try again."
+  },
+  "matches": {
+    "title": "Matches",
+    "empty": "No match yet. New Premier matches appear here a few minutes after they end.",
+    "date": "Date",
+    "map": "Map",
+    "score": "Score",
+    "result": "Result",
+    "kd": "K–D",
+    "adr": "ADR",
+    "kast": "KAST",
+    "rating": "Rating 1.0",
+    "untraded": "Untraded deaths",
+    "status": "Status",
+    "older": "Older matches",
+    "newer": "Newer matches"
+  },
+  "result": { "win": "Win", "loss": "Loss", "tie": "Tie" },
+  "status": {
+    "pending": "Waiting",
+    "downloading": "Downloading",
+    "parsing": "Analysing",
+    "ready": "Ready",
+    "failed": "Failed",
+    "unavailable": "Unavailable"
+  },
+  "match": {
+    "back": "All matches",
+    "teamA": "Team A",
+    "teamB": "Team B",
+    "startedCt": "started CT",
+    "startedT": "started T",
+    "rounds": "Rounds",
+    "player": "Player",
+    "kills": "K",
+    "deaths": "D",
+    "notReady": "This match is not analysed yet.",
+    "missing": "Missing from this demo: {items}",
+    "overtime": "OT"
+  }
+}

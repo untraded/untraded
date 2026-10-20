@@ -7,3 +7,6 @@ packages:
 allowBuilds:
   esbuild: true
   protobufjs: false
+  # Next.js and Tailwind ship prebuilt binaries: their install scripts are not needed.
+  "@parcel/watcher": false
+  "@swc/core": false
