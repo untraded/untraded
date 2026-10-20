@@ -41,7 +41,7 @@ jobs:
       - run: pnpm test
       - run: pnpm build
 
-  # The reference schema of phase 2 (ADR 0011) must stay valid, and its tenant isolation hold.
+  # The migrations must apply to PostgreSQL 16 (ADR 0011), and the tenant isolation hold.
   schema:
     runs-on: ubuntu-latest
     services:
@@ -57,9 +57,16 @@ jobs:
       PGHOST: localhost
       PGUSER: postgres
       PGPASSWORD: postgres
+      UNTRADED_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/postgres
     steps:
       - uses: actions/checkout@v7
-      - run: psql -v ON_ERROR_STOP=1 -f docs/db/schema.sql -f docs/db/rls-check.sql
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.13.0"
+      - run: uv sync --all-packages --locked
+      # The migrations, as a deployment applies them (db/), then the tenant isolation check.
+      - run: uv run untraded-db upgrade
+      - run: psql -v ON_ERROR_STOP=1 -f docs/db/rls-check.sql
 
   licensing:
     runs-on: ubuntu-latest

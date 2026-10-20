@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling==1.32.4"]
+build-backend = "hatchling.build"
+
+[project]
+name = "untraded-db"
+version = "0.0.0"
+description = "Database migrations of the Untraded services (ADR 0006, 0011)."
+license = "AGPL-3.0-only"
+requires-python = ">=3.14"
+dependencies = [
+    # Migrations are owned by Python, with Alembic (ADR 0006).
+    "alembic==1.20.0",
+    # PostgreSQL driver for SQLAlchemy and the services.
+    "psycopg[binary]==3.3.6",
+]
+
+[project.scripts]
+untraded-db = "untraded_db.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/untraded_db"]

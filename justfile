@@ -44,6 +44,18 @@ docs:
 fixtures-expect:
     uv run untraded fixture expect packages/untraded-py/tests/fixtures/faceit-bots packages/untraded-py/tests/fixtures/premier-abandon packages/untraded-py/tests/fixtures/premier-half
 
+# Start the development PostgreSQL (compose.dev.yaml)
+db-up:
+    docker compose -f compose.dev.yaml up -d --wait
+
+# Apply every database migration (UNTRADED_DATABASE_URL, the development database by default)
+db-migrate:
+    uv run untraded-db upgrade
+
+# Stop the development PostgreSQL (its data volume is kept)
+db-down:
+    docker compose -f compose.dev.yaml down
+
 # Verify every file declares its license (REUSE)
 reuse:
     uv run reuse lint

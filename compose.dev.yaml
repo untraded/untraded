@@ -1,0 +1,25 @@
+# SPDX-FileCopyrightText: 2026 The Untraded Authors
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# Development services only (not for production): `just db-up`, `just db-migrate`.
+name: untraded-dev
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: untraded
+      POSTGRES_PASSWORD: untraded  # development only
+      POSTGRES_DB: untraded
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "untraded"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres-data:

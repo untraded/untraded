@@ -3,7 +3,7 @@
 name = "untraded-workspace"
 version = "0.0.0"
 requires-python = ">=3.14"
-dependencies = ["untraded"]
+dependencies = ["untraded", "untraded-db"]
 
 [dependency-groups]
 dev = [
@@ -19,10 +19,11 @@ dev = [
 package = false
 
 [tool.uv.workspace]
-members = ["packages/untraded-py", "spikes/S0.2-parsing", "spikes/S0.3-faceit-extension"]
+members = ["packages/untraded-py", "db", "spikes/S0.2-parsing", "spikes/S0.3-faceit-extension"]
 
 [tool.uv.sources]
 untraded = { workspace = true }
+untraded-db = { workspace = true }
 
 [tool.ruff]
 line-length = 100
@@ -46,7 +47,7 @@ select = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["untraded"]
+known-first-party = ["untraded", "untraded_db"]
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "demoparser2".msg = "Only untraded.parsing may import demoparser2 (ADR 0002)."
@@ -59,8 +60,8 @@ known-first-party = ["untraded"]
 [tool.mypy]
 strict = true
 python_version = "3.14"
-files = ["packages/untraded-py/src", "packages/untraded-py/tests"]
+files = ["packages/untraded-py/src", "packages/untraded-py/tests", "db/src", "db/tests"]
 
 [tool.pytest.ini_options]
-testpaths = ["packages/untraded-py/tests"]
+testpaths = ["packages/untraded-py/tests", "db/tests"]
 addopts = ["--strict-markers", "--strict-config"]
