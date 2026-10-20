@@ -136,3 +136,45 @@ export function trend(comparison: Comparison): Trend {
 export function trendClass(t: Trend): string {
   return t === "better" ? "text-win" : t === "worse" ? "text-loss" : "text-muted-foreground";
 }
+
+/** Below this share of the reference (in %), a gap reads as stable. */
+export const STABLE_GAP = 5;
+
+/**
+ * How far the session is from the reference, in % of the reference, oriented so that a positive
+ * gap is always an improvement (whatever way the metric runs). `null` when there is nothing to
+ * compare, when the reference is zero, or for a neutral metric (no better way).
+ */
+export function gap(comparison: Comparison): number | null {
+  const { session, reference, better } = comparison;
+  if (session === null || reference === null || reference === 0 || better === "neutral") {
+    return null;
+  }
+  const share = ((session - reference) / Math.abs(reference)) * 100;
+  return better === "higher" ? share : -share;
+}
+
+/** The trend of an oriented gap, with a stable band around zero. */
+export function gapTrend(value: number | null): Trend {
+  if (value === null || Math.abs(value) < STABLE_GAP) return "same";
+  return value > 0 ? "better" : "worse";
+}
+
+/** An oriented gap, signed, in whole percent: `+12 %`, `−24 %`. */
+export function gapPercent(value: number | null, locale: Locale): string {
+  if (value === null || !Number.isFinite(value)) return DASH;
+  const rounded = Math.round(value);
+  const text = `${number(Math.abs(rounded), locale)} %`;
+  return rounded > 0 ? `+${text}` : rounded < 0 ? `−${text}` : text;
+}
+
+/** A day without the year, for titles: `20 oct.`, `Oct 20`. */
+export function shortDay(iso: string, locale: Locale): string {
+  return new Intl.DateTimeFormat(locale, { day: "numeric", month: "short" }).format(new Date(iso));
+}
+
+/** A time of day: `23:00`, `11:00 PM`. */
+export function time(iso: string | null, locale: Locale): string {
+  if (!iso) return DASH;
+  return new Intl.DateTimeFormat(locale, { timeStyle: "short" }).format(new Date(iso));
+}

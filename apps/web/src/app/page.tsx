@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import { LogIn } from "lucide-react";
-import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { getLocale, getTranslations } from "next-intl/server";
 import { setLocale } from "@/app/actions";
 import { Choice } from "@/components/choice";
+import { Dashboard } from "@/components/dashboard";
 import { buttonVariants } from "@/components/ui/button";
-import { LOCALES } from "@/i18n/locale";
+import { LOCALES, pickTone, TONE_COOKIE } from "@/i18n/locale";
 import { getMe, PUBLIC_API_PATH } from "@/lib/api";
 import { cn } from "@/lib/cn";
 
@@ -16,7 +17,9 @@ export default async function Home({
 }: {
   searchParams: Promise<{ signin?: string }>;
 }) {
-  if (await getMe()) redirect("/report");
+  if (await getMe()) {
+    return <Dashboard tone={pickTone((await cookies()).get(TONE_COOKIE)?.value)} />;
+  }
   const t = await getTranslations("home");
   const settings = await getTranslations("settings");
   const { signin } = await searchParams;

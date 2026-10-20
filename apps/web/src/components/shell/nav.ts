@@ -4,18 +4,12 @@
 // The app's sections: where they live and which pages belong to them. Only sections whose page
 // exists are listed; Progress, Import and Formulas join when they are built.
 
-import {
-  CalendarDays,
-  Crosshair,
-  FileText,
-  type LucideIcon,
-  SlidersHorizontal,
-} from "lucide-react";
+import { CalendarDays, Crosshair, House, type LucideIcon, SlidersHorizontal } from "lucide-react";
 
-export type Section = "report" | "sessions" | "matches" | "settings";
+export type Section = "home" | "sessions" | "matches" | "settings";
 
 export const SECTIONS: Record<Section, { href: string; icon: LucideIcon }> = {
-  report: { href: "/report", icon: FileText },
+  home: { href: "/", icon: House },
   sessions: { href: "/sessions", icon: CalendarDays },
   matches: { href: "/matches", icon: Crosshair },
   settings: { href: "/settings", icon: SlidersHorizontal },
@@ -23,7 +17,7 @@ export const SECTIONS: Record<Section, { href: string; icon: LucideIcon }> = {
 
 /** The section a page belongs to, to mark it in the navigation. */
 export function sectionOf(pathname: string): Section | null {
-  if (pathname === "/report") return "report";
+  if (pathname === "/") return "home";
   for (const section of ["sessions", "matches", "settings"] as const) {
     const { href } = SECTIONS[section];
     if (pathname === href || pathname.startsWith(`${href}/`)) return section;

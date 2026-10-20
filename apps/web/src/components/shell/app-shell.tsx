@@ -30,7 +30,7 @@ export async function AppShell({
     >
       <aside className="sticky top-0 hidden h-dvh flex-col gap-0.5 border-r border-border bg-card px-2.5 py-3 md:flex">
         <div className="flex items-center justify-center gap-2 px-1 pb-3 lg:justify-between lg:group-data-[collapsed=true]/shell:flex-col lg:group-data-[collapsed=true]/shell:justify-center">
-          <Link href="/report" aria-label="Untraded" className="px-1 text-base font-bold">
+          <Link href="/" aria-label="Untraded" className="px-1 text-base font-bold">
             <span
               aria-hidden="true"
               className="hidden lg:inline lg:group-data-[collapsed=true]/shell:hidden"
@@ -60,7 +60,7 @@ export async function AppShell({
           />
         </div>
         <nav aria-label={t("main")} className="flex flex-1 flex-col gap-0.5">
-          <NavLink section="report" label={t("report")} place="sidebar" />
+          <NavLink section="home" label={t("home")} place="sidebar" />
           <NavLink section="sessions" label={t("sessions")} place="sidebar" />
           <NavLink section="matches" label={t("matches")} place="sidebar" />
           <div className="mt-auto">
@@ -71,7 +71,7 @@ export async function AppShell({
 
       <div className="min-w-0">
         <header className="sticky top-0 z-10 flex h-13 items-center border-b border-border bg-card px-4 md:hidden">
-          <Link href="/report" className="font-bold">
+          <Link href="/" className="font-bold">
             Untraded
           </Link>
         </header>
@@ -84,7 +84,7 @@ export async function AppShell({
         aria-label={t("main")}
         className="fixed inset-x-0 bottom-0 z-10 grid grid-cols-4 border-t border-border bg-card pb-[env(safe-area-inset-bottom)] md:hidden"
       >
-        <NavLink section="report" label={t("reportShort")} place="tab" />
+        <NavLink section="home" label={t("home")} place="tab" />
         <NavLink section="sessions" label={t("sessions")} place="tab" />
         <NavLink section="matches" label={t("matches")} place="tab" />
         <MoreSheet labels={{ more: t("more"), settings: t("settings"), signOut: t("signOut") }} />
