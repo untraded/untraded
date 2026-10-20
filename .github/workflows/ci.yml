@@ -58,6 +58,7 @@ jobs:
       PGUSER: postgres
       PGPASSWORD: postgres
       UNTRADED_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/postgres
+      UNTRADED_TEST_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/postgres
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
@@ -67,6 +68,8 @@ jobs:
       # The migrations, as a deployment applies them (db/), then the tenant isolation check.
       - run: uv run untraded-db upgrade
       - run: psql -v ON_ERROR_STOP=1 -f docs/db/rls-check.sql
+      # The tests that need the database (marked `db`, skipped by the python job).
+      - run: uv run pytest -m db
 
   licensing:
     runs-on: ubuntu-latest

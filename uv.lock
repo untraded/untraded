@@ -16,6 +16,7 @@ members = [
     "s0-3-faceit-extension",
     "untraded",
     "untraded-db",
+    "untraded-worker",
     "untraded-workspace",
 ]
 
@@ -1051,12 +1052,30 @@ requires-dist = [
 ]
 
 [[package]]
+name = "untraded-worker"
+version = "0.0.0"
+source = { editable = "apps/worker" }
+dependencies = [
+    { name = "psycopg", extra = ["binary"] },
+    { name = "untraded" },
+    { name = "untraded-db" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "psycopg", extras = ["binary"], specifier = "==3.3.6" },
+    { name = "untraded", editable = "packages/untraded-py" },
+    { name = "untraded-db", editable = "db" },
+]
+
+[[package]]
 name = "untraded-workspace"
 version = "0.0.0"
 source = { virtual = "." }
 dependencies = [
     { name = "untraded" },
     { name = "untraded-db" },
+    { name = "untraded-worker" },
 ]
 
 [package.dev-dependencies]
@@ -1072,6 +1091,7 @@ dev = [
 requires-dist = [
     { name = "untraded", editable = "packages/untraded-py" },
     { name = "untraded-db", editable = "db" },
+    { name = "untraded-worker", editable = "apps/worker" },
 ]
 
 [package.metadata.requires-dev]
