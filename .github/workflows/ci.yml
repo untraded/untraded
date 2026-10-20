@@ -70,6 +70,14 @@ jobs:
       - run: psql -v ON_ERROR_STOP=1 -f docs/db/rls-check.sql
       # The tests that need the database (marked `db`, skipped by the python job).
       - run: uv run pytest -m db
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter @untraded/collector
+      # The collector's database tests (skipped by the typescript job).
+      - run: pnpm --filter @untraded/collector test
 
   licensing:
     runs-on: ubuntu-latest

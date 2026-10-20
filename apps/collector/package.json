@@ -1,0 +1,24 @@
+{
+  "name": "@untraded/collector",
+  "private": true,
+  "type": "module",
+  "license": "AGPL-3.0-only",
+  "scripts": {
+    "start": "tsx src/main.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "csgo-sharecode": "7.0.1",
+    "globaloffensive": "3.3.0",
+    "pg": "8.23.1",
+    "steam-user": "5.3.0",
+    "tsx": "4.23.15"
+  },
+  "devDependencies": {
+    "@types/node": "26",
+    "@types/pg": "8.23.1",
+    "@types/steam-user": "5.1.1",
+    "vitest": "5.0.5"
+  }
+}

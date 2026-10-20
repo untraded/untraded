@@ -31,6 +31,10 @@ coverage/
 spikes/**/.state.json
 spikes/**/out/
 
+# Collector state (holds the bot's refresh token)
+apps/collector/data/
+**/.state.json
+
 # OS and editors
 .DS_Store
 .idea/
