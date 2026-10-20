@@ -28,6 +28,9 @@ from untraded_worker.queue import Job
 
 Handler = Callable[[psycopg.Connection[Any], Job], None]
 """Runs one job inside a transaction that also marks the job done."""
+DeadHandler = Callable[[psycopg.Connection[Any], Job, str], None]
+"""Called when a job of its kind dies (no attempt left), with the error, in the transaction
+that records it: e.g. to mark the match `failed`."""
 
 POLL_SECONDS = 30.0
 STOP_SIGNALS = (signal.SIGINT, signal.SIGTERM)
@@ -38,6 +41,7 @@ log = logging.getLogger("untraded.worker")
 class Worker:
     conninfo: str
     handlers: Mapping[str, Handler]
+    on_dead: Mapping[str, DeadHandler] = field(default_factory=dict)
     name: str = field(default_factory=socket.gethostname)
     poll_seconds: float = POLL_SECONDS
     stopping: bool = False
@@ -90,8 +94,11 @@ class Worker:
         except (KeyboardInterrupt, SystemExit):
             raise
         except BaseException as error:  # a Rust panic (demoparser2) is a BaseException
+            description = _describe(error)
             with conn.transaction():
-                dead = queue.fail(conn, job, _describe(error))
+                dead = queue.fail(conn, job, description)
+                if dead and job.kind in self.on_dead:
+                    self.on_dead[job.kind](conn, job, description)
             log.warning("job %s failed%s: %s", job.id, " (dead)" if dead else "", error)
             return True
         log.info("job %s done", job.id)

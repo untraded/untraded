@@ -23,7 +23,12 @@ uv run untraded-worker run         # until SIGINT or SIGTERM; --once stops when 
 - `runner.py`: the loop. The claim commits first; the handler's writes and the completion then
   commit together, and a failure (Rust panics included) is rolled back and recorded.
 - `store.py`: the local object store; an S3-compatible one implements the same methods later.
-- `jobs.py`: the handlers by kind (`parse` and `download` come next).
+- `jobs.py`: the handlers by kind. `parse` (`{"match_id": ...}`): demo from the store, canonical
+  tables, round model and metrics (scopes `match`, `ct`, `t`), Parquet under `matches/{id}/`,
+  SQL tables, `workspace_match`, status `ready` (`failed` once the job is dead). A demo already
+  known by its sha256 is merged into its match. `download` comes next.
+- `analysis.py` and `load.py`: the analysis without a database, and its loading (idempotent:
+  a reparse replaces the match's rows).
 
 The tests marked `db` need `UNTRADED_TEST_DATABASE_URL` (they empty the `job` table); CI runs
 them on PostgreSQL 16.
