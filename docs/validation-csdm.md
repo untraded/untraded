@@ -14,6 +14,7 @@ untraded compare-csdm --csda node_modules/@akiver/cs-demo-analyzer/dist/bin/linu
 ```
 
 `untraded compare-csdm` parses each demo, runs the analyzer on it, prints one line per field (players, gaps, largest difference) and, with `--out`, writes every comparison row to `comparison.parquet`. The code is `untraded.validation.csdm`.
+Demos are compared in parallel: by default with 60 % of the CPUs and of the RAM available at start (about 2 GB per demo), or with `--jobs N` workers.
 
 ## Results (19/10/2026)
 
