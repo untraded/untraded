@@ -55,14 +55,18 @@ describe.skipIf(!pool)("PgStore", () => {
       matchId: "3000000000000000001",
       url: "http://replay/730/1.dem.bz2",
       playedAt,
+      endedAt: new Date("2026-10-19T20:40:00Z"),
     });
     expect(await s.hasMatch("3000000000000000001")).toBe(true);
     expect(await s.hasMatch("3000000000000000002")).toBe(false);
-    const match = await db.query("SELECT id, status::text, mode::text, played_at FROM match");
+    const match = await db.query(
+      "SELECT id, status::text, mode::text, played_at, ended_at FROM match",
+    );
     expect(match.rows[0]).toMatchObject({
       status: "downloading",
       mode: "premier",
       played_at: playedAt,
+      ended_at: new Date("2026-10-19T20:40:00Z"),
     });
     const job = await db.query("SELECT kind, payload FROM job");
     expect(job.rows).toEqual([
@@ -83,6 +87,7 @@ describe.skipIf(!pool)("PgStore", () => {
       matchId: "3000000000000000001",
       url: undefined,
       playedAt: undefined,
+      endedAt: undefined,
     });
     const match = await db.query("SELECT status::text FROM match");
     expect(match.rows[0].status).toBe("unavailable");

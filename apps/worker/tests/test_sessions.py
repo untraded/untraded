@@ -1,0 +1,160 @@
+# SPDX-FileCopyrightText: 2026 The Untraded Authors
+# SPDX-License-Identifier: AGPL-3.0-only
+from __future__ import annotations
+
+import dataclasses
+import datetime as dt
+import uuid
+from pathlib import Path
+from typing import Any
+
+import polars as pl
+import psycopg
+import pytest
+
+from untraded.metrics import REGISTRY
+from untraded_worker import queue
+from untraded_worker.analysis import Analysis
+from untraded_worker.load import load_match
+from untraded_worker.sessions import PlayedMatch, SessionJob, queue_sessions, session_of
+from untraded_worker.store import LocalStore
+
+DAY = dt.datetime(2026, 10, 19, tzinfo=dt.UTC)
+ME = 1  # a player of the fixture
+
+
+def at(hours: float, minutes: float = 40, days: int = 0) -> tuple[dt.datetime, dt.datetime]:
+    start = DAY + dt.timedelta(days=days, hours=hours)
+    return start, start + dt.timedelta(minutes=minutes)
+
+
+def played(*spans: tuple[dt.datetime, dt.datetime]) -> list[PlayedMatch]:
+    return [PlayedMatch(uuid.uuid4(), f"{i:064x}", s, e, "") for i, (s, e) in enumerate(spans)]
+
+
+def test_a_session_runs_while_breaks_last_at_most_an_hour() -> None:
+    matches = played(at(18), at(19.5), at(20.5), at(22.5), at(0, days=1))
+    # 18:40 -> 19:30 (50 min) and 20:10 -> 20:30 (20 min): one session; 21:10 -> 22:30 is more
+    # than an hour; 23:10 -> 00:00 the next day stays within it.
+    assert session_of(matches, matches[1].id) == matches[:3]
+    assert session_of(matches, matches[4].id) == matches[3:]
+    assert session_of(matches, uuid.uuid4()) == []
+
+
+def test_exactly_one_hour_still_counts() -> None:
+    first = at(18)  # ends at 18:40
+    matches = played(first, at(19 + 40 / 60))  # starts at 19:40
+    assert session_of(matches, matches[1].id) == matches
+
+
+# ------------------------------------------------------------------------------------------
+# Against PostgreSQL: the fixture stands for every match (same tables, other ids and times).
+
+
+@pytest.fixture
+def db(conn: psycopg.Connection[Any]) -> psycopg.Connection[Any]:
+    conn.execute("TRUNCATE match, player, app_user, metric_definition CASCADE")
+    conn.execute("INSERT INTO app_user (steam_id, display_name) VALUES (%s, 'me')", (ME,))
+    return conn
+
+
+def add_match(
+    db: psycopg.Connection[Any],
+    store: LocalStore,
+    analysis: Analysis,
+    span: tuple[dt.datetime, dt.datetime],
+) -> uuid.UUID:
+    row = db.execute(
+        "INSERT INTO match (mode, status, played_at, ended_at) VALUES ('premier', 'ready', %s, %s) "
+        "RETURNING id",
+        span,
+    ).fetchone()
+    assert row is not None
+    match_id = uuid.UUID(str(row[0]))
+    tables = dict(analysis.tables)
+    tables["match"] = tables["match"].with_columns(pl.lit(match_id.hex * 2).alias("match_id"))
+    load_match(db, match_id, dataclasses.replace(analysis, tables=tables))
+    prefix = f"matches/{match_id}"
+    store.write_tables(prefix, tables)
+    db.execute("UPDATE match SET parquet_prefix = %s WHERE id = %s", (prefix, match_id))
+    return match_id
+
+
+def run(job: SessionJob, db: psycopg.Connection[Any], match_id: uuid.UUID) -> None:
+    job(db, queue.Job(1, "session", {"steam_id": str(ME), "match_id": str(match_id)}, 1, 5))
+
+
+def sessions(db: psycopg.Connection[Any]) -> list[tuple[Any, ...]]:
+    return db.execute(
+        "SELECT s.matches, s.reference_matches, s.enough, count(sm.match_id) "
+        "FROM play_session s JOIN play_session_match sm ON sm.session_id = s.id "
+        "GROUP BY s.id ORDER BY s.started_at"
+    ).fetchall()
+
+
+@pytest.mark.db
+def test_session_report_against_the_days_before(
+    db: psycopg.Connection[Any], tmp_path: Path, analysis: Analysis
+) -> None:
+    store = LocalStore(tmp_path)
+    for days in (-5, -4, -3):  # the reference: three earlier days
+        add_match(db, store, analysis, at(20, days=days))
+    first = add_match(db, store, analysis, at(20))
+    add_match(db, store, analysis, at(21.2))  # 30 min after the first one ended
+    late = add_match(db, store, analysis, at(23.5))  # 1 h 40 later: another session
+    job = SessionJob(store, min_matches=2, min_rounds=5)
+
+    run(job, db, first)
+    run(job, db, late)
+    assert sessions(db) == [(2, 3, True, 2), (1, 3, True, 1)]
+
+    # The same tables everywhere: the session equals its reference, every delta is 0.
+    deltas = db.execute(
+        "SELECT basis, delta FROM play_session_metric m JOIN play_session s ON s.id = m.session_id "
+        "WHERE s.matches = 2"
+    ).fetchall()
+    assert len(deltas) == sum(1 for m in REGISTRY.values() if m.kind == "value")
+    assert {basis for basis, _ in deltas} == {"value", "per_round"}
+    assert all(delta is None or abs(delta) < 1e-9 for _, delta in deltas)
+
+    # A match played in between joins the two sessions into one.
+    bridge = add_match(db, store, analysis, at(22.4))
+    run(job, db, bridge)
+    assert sessions(db) == [(4, 3, True, 4)]
+
+
+@pytest.mark.db
+def test_without_enough_history_the_reference_is_not_shown(
+    db: psycopg.Connection[Any], tmp_path: Path, analysis: Analysis
+) -> None:
+    store = LocalStore(tmp_path)
+    match_id = add_match(db, store, analysis, at(20))
+    run(SessionJob(store), db, match_id)
+    assert sessions(db) == [(1, 0, False, 1)]
+    references = db.execute("SELECT count(reference) FROM play_session_metric").fetchone()
+    assert references == (0,)
+
+
+@pytest.mark.db
+def test_parsed_matches_queue_a_session_per_invited_player(
+    db: psycopg.Connection[Any], tmp_path: Path, analysis: Analysis
+) -> None:
+    match_id = add_match(db, LocalStore(tmp_path), analysis, at(20))
+    assert queue_sessions(db, match_id) == 1  # player 1 is invited, the 9 others are not
+    job = queue.claim(db, ["session"], "test")
+    assert job is not None
+    assert job.payload == {"steam_id": "1", "match_id": str(match_id)}
+
+
+@pytest.mark.db
+def test_the_end_comes_from_the_demo_when_missing(
+    db: psycopg.Connection[Any], analysis: Analysis
+) -> None:
+    row = db.execute(
+        "INSERT INTO match (mode, played_at) VALUES ('premier', %s) RETURNING id", (DAY,)
+    ).fetchone()
+    assert row is not None
+    load_match(db, row[0], analysis)
+    ended = db.execute("SELECT ended_at FROM match WHERE id = %s", (row[0],)).fetchone()
+    match = analysis.tables["match"].row(0, named=True)
+    assert ended == (DAY + dt.timedelta(seconds=match["ticks"] / match["tickrate"]),)
