@@ -16,16 +16,16 @@ export function ComparisonCard({
 }) {
   const { unit, basis } = comparison;
   return (
-    <div className="rounded border border-zinc-800 px-4 py-3">
-      <p className="text-xs text-zinc-400">
+    <div className="rounded border border-border px-4 py-3">
+      <p className="text-xs text-muted-foreground">
         {comparison.name}
-        {basis === "per_round" && <span className="text-zinc-600"> · {perRound}</span>}
+        {basis === "per_round" && <span className="text-muted-foreground"> · {perRound}</span>}
       </p>
       <p className="mt-1 text-2xl font-semibold tabular-nums">
         {metric(comparison.session, unit, basis, locale)}
       </p>
       {comparison.reference !== null && (
-        <p className="text-xs text-zinc-500 tabular-nums">
+        <p className="text-xs text-muted-foreground tabular-nums">
           <span className={trendClass(trend(comparison))}>
             {delta(comparison.delta, unit, basis, locale)}
           </span>{" "}
