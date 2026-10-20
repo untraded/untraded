@@ -7,7 +7,8 @@ a session only for a Steam account that has a user (`open_auth_session`, migrati
 session cookie holds a random token; the database stores its sha256.
 """
 
-from __future__ import annotations
+# No `from __future__ import annotations` here: FastAPI resolves the dependencies from the
+# annotations, and string annotations cannot see the dependencies defined in `create_app`.
 
 import hashlib
 import secrets
