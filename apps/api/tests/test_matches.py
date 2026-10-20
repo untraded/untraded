@@ -12,16 +12,15 @@ import os
 import uuid
 from collections.abc import Iterator
 from pathlib import Path
-from typing import Any
 
 import psycopg
 import pytest
 from fastapi.testclient import TestClient
+from helpers import add_user
 
 from untraded import fixtures
 from untraded.metrics import REGISTRY
 from untraded_api.app import COOKIE, create_app
-from untraded_api.deps import token_hash
 from untraded_api.settings import Settings
 from untraded_worker.analysis import analyze
 from untraded_worker.load import load_match, refresh_access
@@ -37,34 +36,6 @@ FIXTURE = Path(__file__).parents[3] / "packages/untraded-py/tests/fixtures/premi
 ME, STRANGER = 1, 99  # player 1 played the fixture (team A, lost 4-11); 99 did not
 
 
-def _user(conn: psycopg.Connection[Any], steam_id: int) -> str:
-    """A user with a personal workspace, signed in: returns the session token."""
-    user = conn.execute(
-        "INSERT INTO app_user (steam_id, display_name) VALUES (%s, 'u') RETURNING id", (steam_id,)
-    ).fetchone()
-    assert user is not None
-    workspace = conn.execute(
-        "INSERT INTO workspace (kind, name, slug, created_by) "
-        "VALUES ('personal', 'w', %s, %s) RETURNING id",
-        (f"u-{steam_id}", user[0]),
-    ).fetchone()
-    assert workspace is not None
-    role = conn.execute(
-        "INSERT INTO workspace_role (workspace_id, name) VALUES (%s, 'owner') RETURNING id",
-        (workspace[0],),
-    ).fetchone()
-    assert role is not None
-    conn.execute(
-        "INSERT INTO membership (workspace_id, user_id, role_id) VALUES (%s, %s, %s)",
-        (workspace[0], user[0], role[0]),
-    )
-    token = f"token-{steam_id}"
-    conn.execute(
-        "SELECT open_auth_session(%s, %s, interval '1 day')", (steam_id, token_hash(token))
-    )
-    return token
-
-
 @pytest.fixture(scope="module")
 def match_id() -> uuid.UUID:
     analysis = analyze(fixtures.read(FIXTURE))
@@ -78,7 +49,7 @@ def match_id() -> uuid.UUID:
         assert row is not None
         match_id = uuid.UUID(str(row[0]))
         load_match(conn, match_id, analysis)
-        tokens = {steam_id: _user(conn, steam_id) for steam_id in (ME, STRANGER)}
+        tokens = {steam_id: add_user(conn, steam_id) for steam_id in (ME, STRANGER)}
         refresh_access(conn, match_id)
     _TOKENS.update(tokens)
     return match_id

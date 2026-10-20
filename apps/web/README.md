@@ -6,7 +6,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 # web
 
 The web app (Next.js, React Server Components, Tailwind). AGPL-3.0-only. So far: sign-in with
-Steam, the match list and the match page, in English and French.
+Steam, the session reports (the product's central screen), the match list and the match page, in
+English and French.
 
 ```bash
 pnpm --filter @untraded/web dev    # http://localhost:3000, with the API on http://localhost:8000
@@ -16,6 +17,7 @@ pnpm --filter @untraded/web dev    # http://localhost:3000, with the API on http
 |---|---|---|
 | `UNTRADED_API_INTERNAL_URL` | `http://localhost:8000` | how the web server reaches the API |
 | `UNTRADED_API_PUBLIC_URL` | `http://localhost:8000` | how browsers reach it (the sign-in link) |
+| `TZ` | the host's | time zone of the dates and times (pages render on the server) |
 
 - **Server-side only.** Pages call the API from the server and forward the session cookie; the
   browser never talks to the API except to sign in. Sign-out and the language switch are

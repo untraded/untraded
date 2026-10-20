@@ -1,6 +1,13 @@
 {
-  "brand": { "tagline": "Never die untraded." },
-  "nav": { "matches": "Matchs", "signOut": "Se déconnecter", "language": "Langue" },
+  "brand": {
+    "tagline": "Never die untraded."
+  },
+  "nav": {
+    "matches": "Matchs",
+    "signOut": "Se déconnecter",
+    "language": "Langue",
+    "sessions": "Sessions"
+  },
   "home": {
     "title": "Tes matchs CS2, analysés à découvert",
     "lead": "Untraded récupère tes matchs Premier, parse les démos et montre ce qui compte, avec des formules publiques.",
@@ -25,7 +32,11 @@
     "older": "Matchs plus anciens",
     "newer": "Matchs plus récents"
   },
-  "result": { "win": "Victoire", "loss": "Défaite", "tie": "Égalité" },
+  "result": {
+    "win": "Victoire",
+    "loss": "Défaite",
+    "tie": "Égalité"
+  },
   "status": {
     "pending": "En attente",
     "downloading": "Téléchargement",
@@ -47,5 +58,33 @@
     "notReady": "Ce match n'est pas encore analysé.",
     "missing": "Absent de cette démo : {items}",
     "overtime": "Prol."
+  },
+  "sessions": {
+    "title": "Sessions",
+    "empty": "Aucune session pour l'instant. Une session apparaît dès qu'un de tes matchs est analysé.",
+    "count": "{matches, plural, one {# match} other {# matchs}} · {rounds} rounds",
+    "record": "{wins} V – {losses} D{ties, plural, =0 {} other { – # N}}",
+    "reference": "Comparé à tes {matches, plural, one {# match} other {# matchs}} ({rounds} rounds) du {since} au {until}.",
+    "notEnough": "Pas encore assez d'historique pour une référence : il faut {minMatches} matchs et {minRounds} rounds dans les 30 jours avant la session ({matches} et {rounds} pour l'instant).",
+    "matches": "Matchs",
+    "allMetrics": "Toutes les métriques",
+    "metric": "Métrique",
+    "session": "Session",
+    "yours": "Tes 30 jours",
+    "delta": "Écart",
+    "perRound": "par round",
+    "older": "Sessions plus anciennes",
+    "newer": "Sessions plus récentes",
+    "back": "Toutes les sessions"
+  },
+  "families": {
+    "base": "Bases",
+    "clutch": "Clutchs",
+    "duel": "Duels",
+    "eco": "Économie",
+    "pos": "Positionnement",
+    "rating": "Ratings",
+    "trade": "Trades",
+    "util": "Utilitaires"
   }
 }
