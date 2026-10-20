@@ -79,6 +79,30 @@ jobs:
       # The collector's database tests (skipped by the typescript job).
       - run: pnpm --filter @untraded/collector test
 
+  # The images of compose.yaml build, and the stack starts: migrations, then worker and collector.
+  images:
+    runs-on: ubuntu-latest
+    env:
+      UNTRADED_DB_PASSWORD: ci
+      UNTRADED_SECRET_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      STEAM_WEB_API_KEY: unused
+      BOT_ACCOUNT_NAME: unused
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker compose build
+      - run: docker compose up -d worker
+      - name: Migrations applied, worker running
+        run: |
+          timeout 180 sh -c 'until [ "$(docker compose ps -a migrate --format "{{.State}}")" = exited ]; do sleep 2; done'
+          test "$(docker compose ps -a migrate --format '{{.ExitCode}}')" = 0
+          docker compose exec -T db psql -U untraded -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM job"
+          sleep 5
+          test "$(docker compose ps worker --format '{{.State}}')" = running
+      - name: Collector loads (prints its usage)
+        run: docker compose run --rm --no-deps collector ./node_modules/.bin/tsx src/main.ts help 2>&1 | grep usage
+      - run: docker compose logs migrate worker
+        if: always()
+
   licensing:
     runs-on: ubuntu-latest
     steps:
