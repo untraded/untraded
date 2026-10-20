@@ -10,19 +10,20 @@ from collections.abc import Iterator
 import pytest
 from fastapi.testclient import TestClient
 
-from untraded_api import app as module
+from untraded_api.app import create_app
+from untraded_api.db import Database
 from untraded_api.settings import Settings
 
 
 @pytest.fixture
 def client(monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
-    monkeypatch.setattr(module.Database, "open", lambda self: None)
+    monkeypatch.setattr(Database, "open", lambda self: None)
     settings = Settings(
         database_url="postgresql://unused@localhost/unused",
         public_url="https://app.example/api",
         web_url="https://app.example",
     )
-    with TestClient(module.create_app(settings), follow_redirects=False) as client:
+    with TestClient(create_app(settings), follow_redirects=False) as client:
         yield client
 
 
