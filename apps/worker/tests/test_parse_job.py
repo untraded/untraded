@@ -58,6 +58,12 @@ def test_load_is_complete_and_idempotent(db: psycopg.Connection[Any], analysis: 
     assert _count(db, "metric_value", match_id) == analysis.values.height
     tables = sum(1 for f in analysis.table_values.values() for _ in f.group_by("steamid"))
     assert _count(db, "metric_table_value", match_id) == tables
+    wide = db.execute(
+        "SELECT count(*) FROM metric_wide_current WHERE match_id = %s AND scope = 'match' "
+        "AND kills IS NOT NULL",
+        (match_id,),
+    ).fetchone()
+    assert wide == (analysis.tables["player"].height,)  # metric_current is set
     row = db.execute(
         "SELECT map, rounds_played, parser_version FROM match WHERE id = %s", (match_id,)
     ).fetchone()
