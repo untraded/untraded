@@ -98,9 +98,17 @@ jobs:
           docker compose exec -T db psql -U untraded -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM job"
           sleep 5
           test "$(docker compose ps worker --format '{{.State}}')" = running
+      - name: API and web answer, the web relaying /api
+        run: |
+          docker compose up -d web
+          for i in $(seq 60); do curl -fsS http://127.0.0.1:3000/api/health && break; sleep 2; done
+          curl -fsS http://127.0.0.1:3000/api/health | grep '"ok"'
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/api/me)" = 401
+          curl -fsS http://127.0.0.1:3000/ | grep -i 'steam'
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/api/auth/steam)" = 303
       - name: Collector loads (prints its usage)
         run: docker compose run --rm --no-deps collector ./node_modules/.bin/tsx src/main.ts help 2>&1 | grep usage
-      - run: docker compose logs migrate worker
+      - run: docker compose logs migrate worker api web
         if: always()
 
   licensing:
