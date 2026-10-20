@@ -5,9 +5,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Self-hosting
 
-`compose.yaml` runs the ingestion chain: the Valve matches of the players you follow are
-downloaded, parsed and analysed into PostgreSQL. There is no web interface yet (phase 2 is
-under way, see `docs/roadmap.md`): you query the database, or the Parquet tables in the store.
+`compose.yaml` runs Untraded: the Valve matches of the players you follow are downloaded,
+parsed and analysed into PostgreSQL, and the site shows each player their sessions and matches
+after signing in with Steam. Phase 2 is under way (see `docs/roadmap.md`).
 
 ```
 collector ──(match + download job)──▶ PostgreSQL ◀──(parse job, tables, metrics)── worker
@@ -20,6 +20,8 @@ collector ──(match + download job)──▶ PostgreSQL ◀──(parse job, 
 | `migrate` | `apps/worker/Dockerfile` | applies the migrations, then exits (`untraded-db upgrade`) |
 | `worker` | `apps/worker/Dockerfile` | `download` and `parse` jobs, raw demo retention (`apps/worker`) |
 | `collector` | `apps/collector/Dockerfile` | follows players' Valve matches (`apps/collector`) |
+| `api` | `apps/api/Dockerfile` | Steam sign-in, matches and session reports, under row-level security (`apps/api`) |
+| `web` | `apps/web/Dockerfile` | the site; it relays `/api/*` to `api`, so it is the only published service (`apps/web`) |
 
 Every image builds on amd64 and arm64.
 
@@ -47,6 +49,9 @@ stack variables.
 | `BOT_REFRESH_TOKEN` | first start | the bot's refresh token, if you have one (see below) |
 | `UNTRADED_DEMO_RETENTION_DAYS` | no | days to keep raw demos after parsing; unset keeps them, `0` deletes them once parsed |
 | `COLLECTOR_INTERVAL_SECONDS` | no | time between collection rounds (3600) |
+| `UNTRADED_SITE_URL` | for the site | the site's address as browsers see it, e.g. `https://untraded.example.com` (default `http://localhost:3000`). Steam sends users back there after signing in, and `https` makes the session cookie `Secure` |
+| `UNTRADED_BIND`, `UNTRADED_WEB_PORT` | no | where the web is published (`127.0.0.1:3000`); `172.17.0.1` lets a reverse proxy running in Docker reach it |
+| `UNTRADED_TIME_ZONE` | no | time zone of the dates on the site (`UTC`), e.g. `Europe/Paris` |
 
 ## First start
 
@@ -76,7 +81,22 @@ Then, once:
    It asks for the authentication code. The share code is where the chain starts: the
    matches after it are collected.
 
-The next round (or `docker compose restart collector`) picks the player up.
+The next round (or `docker compose restart collector`) picks the player up. `add-source` also
+**invites** the player to the site: signing in is open only to Steam accounts with a user.
+
+## The site
+
+Put a reverse proxy with HTTPS in front of the web, for example Caddy:
+
+```caddyfile
+untraded.example.com {
+	reverse_proxy 127.0.0.1:3000
+}
+```
+
+With Caddy itself in Docker, publish the web on the Docker bridge (`UNTRADED_BIND=172.17.0.1`)
+and use `reverse_proxy 172.17.0.1:3000`. Set `UNTRADED_SITE_URL` to the same address. Only
+the web is published; the API, the worker and the database stay inside Compose.
 
 ## Checking it works
 

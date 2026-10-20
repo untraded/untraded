@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { getMe, publicApiUrl } from "@/lib/api";
+import { getMe, PUBLIC_API_PATH } from "@/lib/api";
 
 export default async function Home({
   searchParams,
@@ -24,7 +24,7 @@ export default async function Home({
         </p>
       )}
       <a
-        href={`${publicApiUrl()}/auth/steam`}
+        href={`${PUBLIC_API_PATH}/auth/steam`}
         className="mt-10 inline-block rounded bg-zinc-100 px-5 py-2.5 font-medium text-zinc-950 hover:bg-white"
       >
         {t("signIn")}
