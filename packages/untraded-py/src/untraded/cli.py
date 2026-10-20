@@ -80,7 +80,7 @@ def _parser() -> argparse.ArgumentParser:
     check.add_argument(
         "--jobs",
         type=_positive_int,
-        help="demos compared in parallel (default: from the CPUs and the available RAM)",
+        help="demos compared at once (default: as many as the free RAM allows, adjusted live)",
     )
     check.set_defaults(run=_compare_csdm)
 
@@ -179,11 +179,16 @@ def _compare_csdm(args: argparse.Namespace) -> int:
     if isinstance(sys.stdout, io.TextIOWrapper):
         sys.stdout.reconfigure(errors="replace")
     demos: list[Path] = args.demos
-    budget = resources.plan(len(demos), jobs=args.jobs)
-    print(f"comparing {len(demos)} demos: {budget.describe()}", flush=True)
+
+    def started(index: int, running: int, threads: int) -> None:
+        detail = f", {running} running, {threads} threads" if threads else ""
+        print(f"{demos[index].name}: started{detail}", flush=True)
+
     tasks = [(demo, args.csda, args.mode) for demo in demos]
     frames: dict[int, pl.DataFrame] = {}
-    for index, frame in resources.run_parallel(_compare_one, tasks, budget):
+    for index, frame in resources.run_adaptive(
+        _compare_one, tasks, jobs=args.jobs, on_start=started
+    ):
         frames[index] = frame
         print(f"[{len(frames)}/{len(demos)}] {demos[index].name}: compared", flush=True)
     # Input order, whatever the completion order, so the output does not depend on the workers.
