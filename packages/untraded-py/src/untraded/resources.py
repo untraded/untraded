@@ -7,7 +7,8 @@
 - RAM: a demo starts only if the RAM available right now covers it on top of a reserve kept for
   the user. Memory frees up, more demos run; it gets tight, no demo starts until it frees up.
   A running demo is never stopped: the batch adapts at demo boundaries.
-- The memory a demo needs is learned from the peaks of the finished demos.
+- The memory a demo needs, and how long it keeps growing, are learned from the finished demos.
+- A failing demo does not stop the batch when the caller handles failures (`on_error`).
 
 Each demo runs in a fresh process, so its memory is returned to the system when it ends and its
 thread pools (Polars, Rayon in demoparser2) are sized for the number of demos running when it
@@ -24,6 +25,7 @@ import sys
 import time
 from collections.abc import Callable, Iterator, Sequence
 from concurrent.futures import FIRST_COMPLETED, Future, ProcessPoolExecutor, wait
+from concurrent.futures.process import BrokenProcessPool
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TypeVar
@@ -37,7 +39,8 @@ DEMO_MEMORY = 2 * GIB
 PEAK_MARGIN = 1.15
 """Margin on the largest measured peak."""
 RAMP_SECONDS = 20.0
-"""A demo started less than this ago may not have allocated its memory yet: it stays reserved."""
+"""A demo started less than this ago may not have allocated its memory yet: it stays reserved.
+Raised to the longest finished demo, since a demo keeps allocating until it ends."""
 POLL_SECONDS = 1.0
 """How often the RAM is checked again while a demo waits for memory."""
 THREAD_VARIABLES = ("POLARS_MAX_THREADS", "RAYON_NUM_THREADS")
@@ -48,7 +51,8 @@ THREAD_VARIABLES = ("POLARS_MAX_THREADS", "RAYON_NUM_THREADS")
 
 
 def cpu_count() -> int:
-    """Logical CPUs this process may run on (CPU affinity and container limits included)."""
+    """Logical CPUs this process may run on (CPU affinity included; container CPU quotas are
+    not)."""
     if sys.version_info >= (3, 13):
         return os.process_cpu_count() or 1
     if hasattr(os, "sched_getaffinity"):
@@ -93,12 +97,15 @@ def _macos_available_memory() -> int | None:
     except (OSError, subprocess.CalledProcessError):
         return None
     lines = output.splitlines()
-    page_size = int(lines[0].split("page size of")[1].split()[0]) if lines else 4096
-    pages = 0
-    for line in lines[1:]:
-        name, _, value = line.partition(":")
-        if name in ("Pages free", "Pages inactive", "Pages speculative", "Pages purgeable"):
-            pages += int(value.strip().rstrip("."))
+    try:
+        page_size = int(lines[0].split("page size of")[1].split()[0]) if lines else 4096
+        pages = 0
+        for line in lines[1:]:
+            name, _, value = line.partition(":")
+            if name in ("Pages free", "Pages inactive", "Pages speculative", "Pages purgeable"):
+                pages += int(value.strip().rstrip("."))
+    except (IndexError, ValueError):
+        return None
     return pages * page_size
 
 
@@ -126,7 +133,9 @@ def _windows_memory() -> tuple[int | None, int | None]:
 
 
 def peak_memory() -> int | None:
-    """Peak resident memory of this process so far, in bytes; `None` if unknown."""
+    """Peak resident memory of this process so far, plus its largest finished child process
+    on Linux and macOS (the CS Demo Manager analyzer), in bytes; `None` if unknown. On Windows,
+    children are not measured: the scheduler never goes below its first guess."""
     if sys.platform == "win32":
 
         class Counters(ctypes.Structure):
@@ -159,7 +168,10 @@ def peak_memory() -> int | None:
         return None
     import resource
 
-    peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    peak = (
+        resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        + resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss
+    )
     return peak if sys.platform == "darwin" else peak * 1024  # bytes on macOS, KiB elsewhere
 
 
@@ -191,8 +203,10 @@ class Scheduler:
     reserve: int = field(default=0)
     ramp_seconds: float = RAMP_SECONDS
     _peaks: list[int] = field(default_factory=list)
+    _floor: int = field(default=0, init=False)
 
     def __post_init__(self) -> None:
+        self._floor = self.task_memory
         if not self.reserve:
             # Kept free for the user: 15 % of the RAM, at least 2 GB.
             share = int(self.total_memory * 0.15) if self.total_memory else 0
@@ -223,18 +237,56 @@ class Scheduler:
             expected += max(0, room // self.task_memory)
         return max(1, self.cpus // min(expected, self.cpus))
 
-    def observe(self, peak: int | None) -> None:
-        """Learns the memory of a demo from the peak of a finished one."""
+    def observe(self, peak: int | None, seconds: float | None = None) -> None:
+        """Learns from a finished demo: its peak memory (never below the first guess, since a
+        child process may not be measured) and its duration (a running demo stays reserved that
+        long, as it keeps allocating until it ends)."""
         if peak:
             self._peaks.append(peak)
-            self.task_memory = int(max(self._peaks) * PEAK_MARGIN)
+            self.task_memory = max(self._floor, int(max(self._peaks) * PEAK_MARGIN))
+        if seconds is not None:
+            self.ramp_seconds = max(self.ramp_seconds, seconds)
 
 
 # --- Running the batch ----------------------------------------------------------------------
 
 
-def _measured(fn: Callable[[T], R], item: T) -> tuple[R, int | None]:
-    return fn(item), peak_memory()
+class TaskError(RuntimeError):
+    """An item of the batch failed: `index` says which one, the cause is chained."""
+
+    def __init__(self, index: int, cause: BaseException) -> None:
+        super().__init__(f"item {index}: {_describe(cause)}")
+        self.index = index
+        self.__cause__ = cause
+
+
+def _describe(error: BaseException) -> str:
+    if isinstance(error, BrokenProcessPool):
+        return "its worker process died (out of memory?)"
+    if isinstance(error, WorkerError):
+        return str(error)
+    return f"{type(error).__name__}: {error}"
+
+
+class WorkerError(RuntimeError):
+    """The error of an item, as text: some exceptions cannot cross processes (a Rust panic in
+    demoparser2 is a `PanicException`, which neither pickles nor derives from `Exception`)."""
+
+
+def _call(fn: Callable[[T], R], item: T) -> R:
+    try:
+        return fn(item)
+    except (KeyboardInterrupt, SystemExit):
+        raise
+    except BaseException as error:
+        first_line = str(error).splitlines()[0] if str(error) else ""
+        raise WorkerError(f"{type(error).__name__}: {first_line}") from None
+
+
+def _measured(fn: Callable[[T], R], item: T) -> tuple[R, int | None, float]:
+    start = time.monotonic()
+    result = _call(fn, item)
+    return result, peak_memory(), time.monotonic() - start
 
 
 def run_adaptive(
@@ -245,24 +297,34 @@ def run_adaptive(
     scheduler: Scheduler | None = None,
     memory: Callable[[], int | None] = available_memory,
     on_start: Callable[[int, int, int], None] | None = None,
+    on_error: Callable[[TaskError], None] | None = None,
 ) -> Iterator[tuple[int, R]]:
     """Yields `(index, fn(item))` as each item finishes, in completion order.
 
     With `jobs`, exactly that many items run at once; otherwise the `scheduler` decides, from
     `memory()`, when the next one starts. `fn` must be a module-level function (it is pickled to
     the worker processes). `on_start(index, running, threads)` is called as each item starts.
-    The first failure is raised once the running items have finished; the others never start.
+    A failure becomes a `TaskError` naming the item. With `on_error`, it is passed there and the
+    batch goes on; without, it is raised once the running items have finished, and the others
+    never start.
     """
     if jobs == 1 or len(items) <= 1:
         for index, item in enumerate(items):
             if on_start:
                 on_start(index, 1, 0)
-            yield index, fn(item)
+            try:
+                result = _call(fn, item)
+            except Exception as error:
+                if on_error is None:
+                    raise TaskError(index, error) from error
+                on_error(TaskError(index, error))
+                continue
+            yield index, result
         return
     scheduler = scheduler or Scheduler(cpus=cpu_count(), total_memory=total_memory())
     context = multiprocessing.get_context("spawn")
     pending = list(enumerate(items))
-    running: dict[Future[tuple[R, int | None]], tuple[int, float, ProcessPoolExecutor]] = {}
+    running: dict[Future[tuple[R, int | None, float]], tuple[int, float, ProcessPoolExecutor]] = {}
     try:
         while pending or running:
             now = time.monotonic()
@@ -287,8 +349,14 @@ def run_adaptive(
             for future in done:
                 index, _, executor = running.pop(future)
                 executor.shutdown(wait=False)
-                result, peak = future.result()
-                scheduler.observe(peak)
+                try:
+                    result, peak, seconds = future.result()
+                except Exception as error:
+                    if on_error is None:
+                        raise TaskError(index, error) from error
+                    on_error(TaskError(index, error))
+                    continue
+                scheduler.observe(peak, seconds)
                 yield index, result
     finally:
         pending.clear()
