@@ -44,9 +44,9 @@ from untraded.parsing import parse_demo
 match = parse_demo(Path("match.dem.zst"), source="upload", mode="premier")
 tables = match.tables()
 ds = Dataset.from_matches([{**tables, **derive(tables).tables()}])
-compute(ds)                                       # every value metric, per player
-compute(ds.split(side="CT"), ["base.kast"])       # one metric, CT rounds only
-compute(ds, params={"trade.window_s": 3.0})       # another trade window
+compute(ds)  # every value metric, per player
+compute(ds.split(side="CT"), ["base.kast"])  # one metric, CT rounds only
+compute(ds, params={"trade.window_s": 3.0})  # another trade window
 ```
 
 Results record each metric's version and the parameters used. The ratings are also available on match totals:
