@@ -25,21 +25,22 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
   const ready = match.status === "ready";
   return (
     <article>
-      <Link href="/matches" className="text-sm text-zinc-400 hover:text-white">
+      <Link href="/matches" className="text-sm text-muted-foreground hover:text-foreground">
         ← {t("back")}
       </Link>
       <header className="mt-4 flex flex-wrap items-baseline gap-x-6 gap-y-2">
         <h1 className="text-2xl font-semibold">{mapName(match.map)}</h1>
         <p className="text-3xl font-semibold tabular-nums">
-          {match.score_a ?? "–"} <span className="text-zinc-600">:</span> {match.score_b ?? "–"}
+          {match.score_a ?? "–"} <span className="text-muted-foreground">:</span>{" "}
+          {match.score_b ?? "–"}
         </p>
         <ResultBadge result={match.my_result} status={match.status} />
-        <p className="text-sm text-zinc-400">{dateTime(match.played_at, locale)}</p>
+        <p className="text-sm text-muted-foreground">{dateTime(match.played_at, locale)}</p>
       </header>
 
-      {!ready && <p className="mt-6 text-zinc-400">{match.error ?? t("notReady")}</p>}
+      {!ready && <p className="mt-6 text-muted-foreground">{match.error ?? t("notReady")}</p>}
       {match.unavailable.length > 0 && (
-        <p className="mt-2 text-xs text-zinc-500">
+        <p className="mt-2 text-xs text-muted-foreground">
           {t("missing", { items: match.unavailable.join(", ") })}
         </p>
       )}
@@ -61,7 +62,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
 function Rounds({ rounds, label, overtime }: { rounds: Round[]; label: string; overtime: string }) {
   return (
     <section className="mt-8">
-      <h2 className="mb-2 text-sm font-medium text-zinc-400">{label}</h2>
+      <h2 className="mb-2 text-sm font-medium text-muted-foreground">{label}</h2>
       <ol className="flex flex-wrap gap-1">
         {rounds.map((round) => (
           <li
@@ -98,18 +99,18 @@ async function TeamTable({
     (team === "A" ? match.team_a_name : match.team_b_name) ?? t(team === "A" ? "teamA" : "teamB");
   const score = team === "A" ? match.score_a : match.score_b;
   return (
-    <section className="overflow-x-auto rounded border border-zinc-800">
-      <h2 className="flex items-baseline justify-between bg-zinc-900 px-3 py-2 text-sm">
+    <section className="overflow-x-auto rounded border border-border">
+      <h2 className="flex items-baseline justify-between bg-card px-3 py-2 text-sm">
         <span className="font-medium">
           {name}{" "}
-          <span className="text-xs text-zinc-500">
+          <span className="text-xs text-muted-foreground">
             {t(team === "A" ? "startedCt" : "startedT")}
           </span>
         </span>
         <span className="text-lg font-semibold tabular-nums">{score ?? "–"}</span>
       </h2>
       <table className="w-full text-sm">
-        <thead className="text-left text-xs uppercase tracking-wide text-zinc-500">
+        <thead className="text-left text-xs uppercase tracking-wide text-muted-foreground">
           <tr>
             <th className="px-3 py-1.5 font-medium">{t("player")}</th>
             <th className="px-2 py-1.5 text-right font-medium">{t("kills")}</th>
@@ -124,7 +125,7 @@ async function TeamTable({
         </thead>
         <tbody>
           {players.map((player) => (
-            <tr key={player.steam_id} className="border-t border-zinc-800/70">
+            <tr key={player.steam_id} className="border-t border-border">
               <td className="max-w-40 truncate px-3 py-1.5">{player.name}</td>
               <td className="px-2 py-1.5 text-right">{number(player.line.kills, locale)}</td>
               <td className="px-2 py-1.5 text-right">{number(player.line.deaths, locale)}</td>

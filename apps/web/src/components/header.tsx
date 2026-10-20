@@ -11,17 +11,17 @@ export async function Header({ me }: { me: Me | null }) {
   const t = await getTranslations("nav");
   const locale = await getLocale();
   return (
-    <header className="border-b border-zinc-800">
+    <header className="border-b border-border">
       <div className="mx-auto flex max-w-6xl items-center gap-6 px-4 py-3">
         <Link href="/" className="font-semibold tracking-tight">
           Untraded
         </Link>
         {me && (
-          <nav className="flex gap-4 text-sm text-zinc-300">
-            <Link href="/sessions" className="hover:text-white">
+          <nav className="flex gap-4 text-sm text-foreground">
+            <Link href="/sessions" className="hover:text-foreground">
               {t("sessions")}
             </Link>
-            <Link href="/matches" className="hover:text-white">
+            <Link href="/matches" className="hover:text-foreground">
               {t("matches")}
             </Link>
           </nav>
@@ -36,7 +36,9 @@ export async function Header({ me }: { me: Me | null }) {
                 value={code}
                 className={cn(
                   "rounded px-1.5 py-0.5 uppercase",
-                  code === locale ? "bg-zinc-800 text-white" : "text-zinc-500 hover:text-zinc-200",
+                  code === locale
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 {code}
@@ -45,9 +47,9 @@ export async function Header({ me }: { me: Me | null }) {
           </form>
           {me && (
             <>
-              <span className="text-zinc-400">{me.display_name}</span>
+              <span className="text-muted-foreground">{me.display_name}</span>
               <form action={signOut}>
-                <button type="submit" className="text-zinc-400 hover:text-white">
+                <button type="submit" className="text-muted-foreground hover:text-foreground">
                   {t("signOut")}
                 </button>
               </form>
