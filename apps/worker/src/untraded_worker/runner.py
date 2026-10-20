@@ -12,11 +12,13 @@ timeout as a fallback.
 
 from __future__ import annotations
 
+import datetime as dt
 import logging
 import signal
 import socket
+import time
 import traceback
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -33,6 +35,20 @@ DeadHandler = Callable[[psycopg.Connection[Any], Job, str], None]
 that records it: e.g. to mark the match `failed`."""
 
 POLL_SECONDS = 30.0
+
+
+@dataclass
+class Periodic:
+    """Housekeeping run when the worker is idle, at most every `interval` (e.g. retention)."""
+
+    interval: dt.timedelta
+    run: Callable[[psycopg.Connection[Any]], object]
+    last: float | None = None
+
+    def due(self, now: float) -> bool:
+        return self.last is None or now - self.last >= self.interval.total_seconds()
+
+
 STOP_SIGNALS = (signal.SIGINT, signal.SIGTERM)
 log = logging.getLogger("untraded.worker")
 
@@ -42,6 +58,7 @@ class Worker:
     conninfo: str
     handlers: Mapping[str, Handler]
     on_dead: Mapping[str, DeadHandler] = field(default_factory=dict)
+    periodic: Sequence[Periodic] = ()
     name: str = field(default_factory=socket.gethostname)
     poll_seconds: float = POLL_SECONDS
     stopping: bool = False
@@ -71,11 +88,24 @@ class Worker:
                 if self.step(conn):
                     processed += 1
                     continue
+                self.idle(conn)
                 if once:
                     break
                 for _ in listener.notifies(timeout=self.poll_seconds, stop_after=1):
                     pass
         return processed
+
+    def idle(self, conn: psycopg.Connection[Any]) -> None:
+        """Runs the periodic tasks that are due; a failing one is logged, not fatal."""
+        for task in self.periodic:
+            now = time.monotonic()
+            if not task.due(now):
+                continue
+            task.last = now
+            try:
+                task.run(conn)
+            except Exception:
+                log.exception("periodic task failed")
 
     def stop(self) -> None:
         self.stopping = True

@@ -2,14 +2,16 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 from __future__ import annotations
 
-from typing import Any
+import datetime as dt
+import time
+from typing import Any, cast
 
 import psycopg
 import pytest
 
 from untraded_worker import queue
 from untraded_worker.queue import Job
-from untraded_worker.runner import Worker
+from untraded_worker.runner import Periodic, Worker
 
 
 class Panic(BaseException):
@@ -71,3 +73,24 @@ def test_run_once_drains_the_queue(conn: psycopg.Connection[Any], worker: Worker
     assert _recorded(conn) == ids
     left = conn.execute("SELECT kind, status::text FROM job WHERE kind = 'download'").fetchall()
     assert left == [("download", "queued")]
+
+
+def test_periodic_tasks_run_when_due() -> None:
+    runs: list[object] = []
+    task = Periodic(dt.timedelta(hours=1), runs.append)
+    worker = Worker("", {}, periodic=[task])
+    conn = cast("psycopg.Connection[Any]", object())
+    worker.idle(conn)
+    worker.idle(conn)  # not due again for an hour
+    assert runs == [conn]
+    task.last = time.monotonic() - 3600
+    worker.idle(conn)
+    assert len(runs) == 2
+
+
+def test_a_failing_periodic_task_does_not_stop_the_worker() -> None:
+    def boom(_: object) -> None:
+        raise RuntimeError("store unreachable")
+
+    worker = Worker("", {}, periodic=[Periodic(dt.timedelta(0), boom)])
+    worker.idle(cast("psycopg.Connection[Any]", object()))
