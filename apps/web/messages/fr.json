@@ -6,7 +6,38 @@
     "matches": "Matchs",
     "signOut": "Se déconnecter",
     "language": "Langue",
-    "sessions": "Sessions"
+    "sessions": "Sessions",
+    "report": "Dernier rapport",
+    "reportShort": "Rapport",
+    "settings": "Réglages",
+    "more": "Plus",
+    "collapse": "Replier la barre",
+    "expand": "Déplier la barre",
+    "workspace": "Espace : {name}, perso",
+    "personal": "Perso",
+    "main": "Navigation principale"
+  },
+  "settings": {
+    "title": "Réglages",
+    "lead": "Enregistrés dans ce navigateur.",
+    "tone": "Ton des conseils",
+    "toneHint": "Coach : direct et prescriptif. Analyste : neutre et chiffré.",
+    "language": "Langue",
+    "languageHint": "Français ou anglais.",
+    "theme": "Thème",
+    "themeHint": "Système suit le réglage de ton appareil.",
+    "themes": {
+      "system": "Système",
+      "light": "Clair",
+      "dark": "Sombre"
+    },
+    "languages": {
+      "en": "English",
+      "fr": "Français"
+    },
+    "account": "Compte Steam",
+    "signedInAs": "Connecté en tant que {name}.",
+    "signOut": "Se déconnecter"
   },
   "home": {
     "title": "Tes matchs CS2, analysés à découvert",
