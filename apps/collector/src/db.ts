@@ -23,6 +23,8 @@ export interface FoundMatch {
   /** Demo URL from the Game Coordinator; missing when Valve has no demo. */
   url: string | undefined;
   playedAt: Date | undefined;
+  /** When the match ended: play sessions are cut on the time between two matches. */
+  endedAt: Date | undefined;
 }
 
 export interface Store {
@@ -90,10 +92,11 @@ export class PgStore implements Store {
       // The share-code chain also holds Competitive and Wingman matches: the mode is only
       // known from the demo, so the worker checks it when parsing.
       const { rows } = await client.query<{ id: string }>(
-        `INSERT INTO match (mode, played_at, status, error)
-         VALUES ('premier', $1, $2, $3) RETURNING id`,
+        `INSERT INTO match (mode, played_at, ended_at, status, error)
+         VALUES ('premier', $1, $2, $3, $4) RETURNING id`,
         [
           match.playedAt ?? null,
+          match.endedAt ?? null,
           match.url ? "downloading" : "unavailable",
           match.url ? null : "Valve has no demo for this match",
         ],

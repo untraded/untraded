@@ -250,7 +250,10 @@ def load_match(conn: psycopg.Connection[Any], match_id: uuid.UUID, analysis: Ana
                first_round = %(first_round)s, score_a = %(score_a)s, score_b = %(score_b)s,
                team_a_name = %(team_a_name)s, team_b_name = %(team_b_name)s,
                schema_version = %(schema_version)s, parser_version = %(parser_version)s,
-               unavailable = %(unavailable)s
+               unavailable = %(unavailable)s,
+               -- The collector knows the end from the Game Coordinator; otherwise, the demo's
+               -- length after the start.
+               ended_at = coalesce(ended_at, played_at + %(duration)s * interval '1 second')
         WHERE id = %(id)s
         """,
         {
@@ -271,6 +274,8 @@ def load_match(conn: psycopg.Connection[Any], match_id: uuid.UUID, analysis: Ana
                 )
             },
             "sha256": info["match_id"],
+            "duration": float(analysis.tables["match"]["ticks"][0])
+            / float(analysis.tables["match"]["tickrate"][0]),
             "parser_version": f"{info['parser']} {info['parser_version']}",
             "id": match_id,
         },

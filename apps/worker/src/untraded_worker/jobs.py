@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 The Untraded Authors
 # SPDX-License-Identifier: AGPL-3.0-only
-"""The job handlers, by kind.
+"""The job handlers, by kind. `session` (play sessions and their report) is in `sessions`.
 
 `download` (payload `{"match_id": "<uuid>", "url": "<demo URL>"}`): fetches the match's demo
 (Valve serves `.dem.bz2`), checks it is a CS2 demo, stores it as received under
@@ -30,7 +30,7 @@ import psycopg
 
 from untraded.demofile import CorruptDemoError, NotADemoError, demo_suffix, digest
 from untraded.parsing import CanonicalMatch, UnsupportedModeError, parse_demo
-from untraded_worker import load, queue
+from untraded_worker import load, queue, sessions
 from untraded_worker.analysis import analyze
 from untraded_worker.download import DemoGone, fetch
 from untraded_worker.queue import Job
@@ -94,6 +94,7 @@ class ParseJob:
             (prefix, match_id),
         )
         load.refresh_access(conn, match_id)
+        sessions.queue_sessions(conn, match_id)
 
     def _out_of_scope(
         self, conn: psycopg.Connection[Any], match_id: uuid.UUID, demo_key: str, reason: str
@@ -126,6 +127,7 @@ class ParseJob:
         )
         conn.execute("DELETE FROM match WHERE id = %s", (duplicate,))
         load.refresh_access(conn, known)
+        sessions.queue_sessions(conn, known)
         if duplicate_demo != known_demo:
             # Last: a file deletion is not transactional, and nothing after it can fail but
             # the commit.
@@ -184,7 +186,11 @@ def match_failed(conn: psycopg.Connection[Any], job: Job, error: str) -> None:
 
 
 def handlers(store: LocalStore) -> dict[str, Handler]:
-    return {"download": DownloadJob(store), "parse": ParseJob(store)}
+    return {
+        "download": DownloadJob(store),
+        "parse": ParseJob(store),
+        "session": sessions.SessionJob(store),
+    }
 
 
 ON_DEAD: dict[str, DeadHandler] = {"download": match_failed, "parse": match_failed}

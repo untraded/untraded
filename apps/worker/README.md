@@ -31,6 +31,10 @@ uv run untraded-worker run         # until SIGINT or SIGTERM; --once stops when 
   resumable HTTP download (Valve drops connections), stored as received under
   `demos/{sha256}{suffix}`, then a `parse` job; a demo gone from the server (404, 410) makes the
   match `unavailable`.
+- `sessions.py`: the `session` job, queued after each parse for every invited player of the
+  match. Matches with at most one hour between the end of one and the start of the next form a
+  session; its report (`play_session_metric`) compares it with the player's 30 days before
+  (`untraded.reference`), recomputed from the Parquet tables.
 - `retention.py`: deletes raw demos `UNTRADED_DEMO_RETENTION_DAYS` after the parse (unset: kept;
   0: at the next sweep), swept when the worker is idle.
 - `analysis.py` and `load.py`: the analysis without a database, and its loading (idempotent:
