@@ -319,3 +319,123 @@ sha256 = "f4a9e6e4b395dcbd6df53441e4b3022a722aa43a63797f31af4ae582caa4132c"
 bytes = 327556735
 stored_as = ".dem.zst"
 game_build = "14176"
+
+[[demo]]
+id = "valve-premier-2026-10-14-inferno-01"
+source = "valve-premier"
+map = "de_inferno"
+played_at = "2026-10-14"
+sha256 = "59582b03b72572fd88cef23b863fa217f85f74eb234060a47f7b606e96f3711f"
+bytes = 385273485
+stored_as = ".dem.bz2"
+game_build = "14190"
+
+[[demo]]
+id = "valve-premier-2026-10-14-nuke-01"
+source = "valve-premier"
+map = "de_nuke"
+played_at = "2026-10-14"
+sha256 = "6992962242f8fa98a53a3acd5c9c53fa9115b2be61575f8ff8bd51806e7d4733"
+bytes = 257357719
+stored_as = ".dem.bz2"
+game_build = "14190"
+
+[[demo]]
+id = "valve-premier-2026-10-14-cache-01"
+source = "valve-premier"
+map = "de_cache"
+played_at = "2026-10-14"
+sha256 = "893ab756493cee9f2951fef145c02f302fe25b21951cf5c688e33076fefd404c"
+bytes = 240209763
+stored_as = ".dem.bz2"
+game_build = "14190"
+
+[[demo]]
+id = "valve-premier-2026-10-15-mirage-01"
+source = "valve-premier"
+map = "de_mirage"
+played_at = "2026-10-15"
+sha256 = "64765f17f197479483c9615949000d03c0a57c63d06eaafc2c20c006168cff52"
+bytes = 323680633
+stored_as = ".dem.bz2"
+game_build = "14191"
+
+[[demo]]
+id = "valve-premier-2026-10-16-ancient-01"
+source = "valve-premier"
+map = "de_ancient"
+played_at = "2026-10-16"
+sha256 = "126ace8b6e0df9a4ea5aa192c3968c2e9b1ab015870fc49d26b3fa6f6eb93fd9"
+bytes = 95825210
+stored_as = ".dem.bz2"
+game_build = "14191"
+
+[[demo]]
+id = "valve-premier-2026-10-17-cache-01"
+source = "valve-premier"
+map = "de_cache"
+played_at = "2026-10-17"
+sha256 = "4c1582a19809a0dae9cc5edb70a8e6997af26d0352bf95cfefb9841b2951d8b7"
+bytes = 148708419
+stored_as = ".dem.bz2"
+game_build = "14191"
+
+[[demo]]
+id = "valve-premier-2026-10-17-dust2-01"
+source = "valve-premier"
+map = "de_dust2"
+played_at = "2026-10-17"
+sha256 = "8284ea78dde46cb357d28f48163b24423a1137fafdc7685beb0d97af636fac44"
+bytes = 197830957
+stored_as = ".dem.bz2"
+game_build = "14191"
+
+[[demo]]
+id = "valve-premier-2026-10-17-mirage-01"
+source = "valve-premier"
+map = "de_mirage"
+played_at = "2026-10-17"
+sha256 = "ca34b35657eed0aa1b49f8324ad6bebc55f5ca316e34e5f3ef4eec14a03e29b3"
+bytes = 349736397
+stored_as = ".dem.bz2"
+game_build = "14191"
+
+[[demo]]
+id = "valve-premier-2026-10-18-ancient-01"
+source = "valve-premier"
+map = "de_ancient"
+played_at = "2026-10-18"
+sha256 = "3a60171d2c3717e97d129481107ced27b7ce49a7323700c68ef0bd1edbca78a2"
+bytes = 214276634
+stored_as = ".dem.bz2"
+game_build = "14191"
+
+[[demo]]
+id = "valve-premier-2026-10-18-ancient-02"
+source = "valve-premier"
+map = "de_ancient"
+played_at = "2026-10-18"
+sha256 = "9851df07b7162f7582cdbf57139ce0adad5fa9c57f4301eb20ea61e6d2361fe2"
+bytes = 198797139
+stored_as = ".dem.bz2"
+game_build = "14191"
+
+[[demo]]
+id = "valve-premier-2026-10-18-anubis-01"
+source = "valve-premier"
+map = "de_anubis"
+played_at = "2026-10-18"
+sha256 = "88bb529d97f01c23747fe1739c353614a287e0b0948270d9d02092f23325dd95"
+bytes = 203752901
+stored_as = ".dem.bz2"
+game_build = "14191"
+
+[[demo]]
+id = "valve-premier-2026-10-19-ancient-01"
+source = "valve-premier"
+map = "de_ancient"
+played_at = "2026-10-19"
+sha256 = "70a63759641cf554c84ccadd7a1186f98431702f9bbb8fd52d2bff212d28aeb9"
+bytes = 225585758
+stored_as = ".dem.bz2"
+game_build = "14191"
