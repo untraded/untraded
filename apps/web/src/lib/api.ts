@@ -158,6 +158,10 @@ export interface SessionList {
 
 export interface SessionReport extends SessionSummary {
   reference: {
+    /** `self`, `level` (players of the same rating band) or `none`. */
+    kind: "self" | "level" | "none";
+    level_low: number | null;
+    level_high: number | null;
     since: string;
     until: string;
     matches: number;

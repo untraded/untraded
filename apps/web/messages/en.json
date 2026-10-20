@@ -75,7 +75,9 @@
     "perRound": "per round",
     "older": "Older sessions",
     "newer": "Newer sessions",
-    "back": "All sessions"
+    "back": "All sessions",
+    "levelReference": "Not enough history of your own yet: compared with Premier players rated {low}–{high} ({matches} player-matches, anonymous).",
+    "yoursLevel": "Your level"
   },
   "families": {
     "base": "Basics",

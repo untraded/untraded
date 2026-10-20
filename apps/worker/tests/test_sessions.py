@@ -131,6 +131,8 @@ def test_without_enough_history_the_reference_is_not_shown(
     match_id = add_match(db, store, analysis, at(20))
     run(SessionJob(store), db, match_id)
     assert sessions(db) == [(1, 0, False, 1)]
+    kind = db.execute("SELECT reference_kind FROM play_session").fetchone()
+    assert kind == ("none",)  # no level reference published either
     references = db.execute("SELECT count(reference) FROM play_session_metric").fetchone()
     assert references == (0,)
 
@@ -158,3 +160,39 @@ def test_the_end_comes_from_the_demo_when_missing(
     ended = db.execute("SELECT ended_at FROM match WHERE id = %s", (row[0],)).fetchone()
     match = analysis.tables["match"].row(0, named=True)
     assert ended == (DAY + dt.timedelta(seconds=match["ticks"] / match["tickrate"]),)
+
+
+@pytest.mark.db
+def test_without_history_the_level_reference_steps_in(
+    db: psycopg.Connection[Any], tmp_path: Path, analysis: Analysis
+) -> None:
+    store = LocalStore(tmp_path)
+    match_id = add_match(db, store, analysis, at(20))
+    db.execute("UPDATE match_player SET rank = 18200 WHERE steam_id = %s", (ME,))
+    kills, kast = REGISTRY["base.kills"], REGISTRY["base.kast"]
+    db.execute(
+        """
+        INSERT INTO level_reference (mode, band_low, band_high, used_low, used_high, metric_id,
+            version, basis, value, player_matches, players, rounds)
+        VALUES ('premier', 17500, 20000, 15000, 22500, %s, %s, 'per_round', 0.5, 812, 140, 17000),
+               ('premier', 17500, 20000, 15000, 22500, %s, %s, 'value', 60.0, 812, 140, 17000)
+        """,
+        (kills.id, kills.version, kast.id, kast.version),
+    )
+    run(SessionJob(store), db, match_id)
+    row = db.execute(
+        "SELECT reference_kind, reference_level_low, reference_level_high, reference_matches, "
+        "enough FROM play_session"
+    ).fetchone()
+    assert row == ("level", 15000, 22500, 812, True)
+    metrics = {
+        r[0]: r[1:]
+        for r in db.execute(
+            "SELECT metric_id, basis, session, reference, delta FROM play_session_metric"
+        ).fetchall()
+    }
+    basis, session, reference, delta = metrics["base.kills"]
+    assert (basis, reference) == ("per_round", 0.5)
+    assert delta == pytest.approx(session - 0.5)
+    assert metrics["base.kast"][2] == 60.0
+    assert metrics["base.adr"][2] is None  # no level value for it: no reference

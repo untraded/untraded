@@ -61,6 +61,12 @@ class SessionList(BaseModel):
 
 
 class Reference(BaseModel):
+    kind: str
+    """`self` (the player's own days before), `level` (players of the same rating band, pooled
+    anonymously) or `none` (too little history, no level published)."""
+    level_low: int | None
+    level_high: int | None
+    """The ratings pooled, for `level`."""
     since: dt.date
     until: dt.date
     """Inclusive: the day before the session."""
@@ -172,7 +178,8 @@ def get_session(session_id: uuid.UUID, conn: ConnDep, user: UserDep) -> SessionR
     if row is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no such session")
     window = conn.execute(
-        "SELECT reference_from, reference_to, reference_matches, reference_rounds, params "
+        "SELECT reference_from, reference_to, reference_matches, reference_rounds, params, "
+        "reference_kind, reference_level_low, reference_level_high "
         "FROM play_session WHERE id = %s",
         (session_id,),
     ).fetchone()
@@ -188,6 +195,9 @@ def get_session(session_id: uuid.UUID, conn: ConnDep, user: UserDep) -> SessionR
     return SessionReport(
         **_summary(row, comparisons),
         reference=Reference(
+            kind=window[5],
+            level_low=window[6],
+            level_high=window[7],
             since=window[0],
             until=window[1],
             matches=window[2],

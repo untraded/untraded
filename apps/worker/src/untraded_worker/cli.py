@@ -11,7 +11,7 @@ import logging
 from collections.abc import Sequence
 from pathlib import Path
 
-from untraded_worker import conninfo, retention, store_dir
+from untraded_worker import conninfo, levels, retention, store_dir
 from untraded_worker.jobs import ON_DEAD, handlers
 from untraded_worker.runner import Periodic, Worker
 from untraded_worker.store import LocalStore
@@ -36,7 +36,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     if unknown:
         parser.error(f"unknown job kinds: {sorted(unknown)} (known: {sorted(known)})")
     keep = retention.configured()
-    periodic = [] if keep is None else [Periodic(RETENTION_EVERY, retention.Sweep(store, keep))]
+    periodic = [Periodic(levels.EVERY, levels.compute_levels)]
+    if keep is not None:
+        periodic.append(Periodic(RETENTION_EVERY, retention.Sweep(store, keep)))
     worker = Worker(conninfo(), {k: known[k] for k in kinds}, on_dead=ON_DEAD, periodic=periodic)
     if args.name:
         worker.name = args.name

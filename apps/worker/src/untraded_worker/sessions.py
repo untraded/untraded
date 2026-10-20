@@ -10,6 +10,9 @@ averaged from per-match values (metrics-v1 § 0).
 The `session` job (payload `{"steam_id": "...", "match_id": "<uuid>"}`) runs after each parse,
 for every invited player of the match: it recomputes the session holding that match. A match
 that joins two sessions merges them; the sessions it replaces are deleted.
+
+Without enough history of their own, the player is compared with players of the same Premier
+rating band (`levels`), and failing that with nothing: the report then shows the session alone.
 """
 
 from __future__ import annotations
@@ -26,12 +29,25 @@ import psycopg
 from psycopg.types.json import Jsonb
 
 from untraded import reference
-from untraded_worker import queue
+from untraded_worker import levels, queue
 from untraded_worker.queue import Job
 from untraded_worker.store import LocalStore
 
 GAP = dt.timedelta(hours=1)
 """More than this between the end of a match and the start of the next: a new session."""
+
+
+@dataclass(frozen=True)
+class ChosenReference:
+    kind: str
+    """`self` (the player's own 30 days), `level` (players of the same rating band) or `none`."""
+    values: pl.DataFrame
+    """`metric`, `version`, `basis`, `session`, `reference`, `delta`."""
+    matches: int
+    """Reference matches (`self`) or (player, match) rows pooled (`level`)."""
+    rounds: int
+    level_low: int | None = None
+    level_high: int | None = None
 
 
 @dataclass(frozen=True)
@@ -95,7 +111,67 @@ class SessionJob:
             min_matches=self.min_matches,
             min_rounds=self.min_rounds,
         )
-        self._save(conn, steam_id, session, comparison)
+        self._save(
+            conn,
+            steam_id,
+            session,
+            comparison,
+            self._reference(conn, steam_id, session, comparison),
+        )
+
+    def _reference(
+        self,
+        conn: psycopg.Connection[Any],
+        steam_id: int,
+        session: Sequence[PlayedMatch],
+        comparison: reference.SelfComparison,
+    ) -> ChosenReference:
+        """The player's own 30 days when they are enough; else players of the same level; else
+        none (the report shows the session alone)."""
+        if comparison.enough:
+            return ChosenReference(
+                "self",
+                comparison.values,
+                comparison.reference_matches,
+                comparison.reference_rounds,
+            )
+        ranked = conn.execute(
+            """
+            SELECT mp.rank FROM match_player mp JOIN match m ON m.id = mp.match_id
+            WHERE mp.steam_id = %s AND mp.match_id = ANY(%s) AND mp.rank > 0
+            ORDER BY m.played_at DESC LIMIT 1
+            """,
+            (steam_id, [m.id for m in session]),
+        ).fetchone()
+        level = levels.level_reference(conn, ranked[0] if ranked else None)
+        values = comparison.values.select("metric", "version", "basis", "session")
+        if level.is_empty():
+            return ChosenReference(
+                "none",
+                values.with_columns(
+                    pl.lit(None, pl.Float64).alias("reference"),
+                    pl.lit(None, pl.Float64).alias("delta"),
+                ),
+                # What the player has so far: the report says how far from enough it is.
+                comparison.reference_matches,
+                comparison.reference_rounds,
+            )
+        first = level.row(0, named=True)
+        joined = values.join(
+            level.select(
+                pl.col("metric_id").alias("metric"), "basis", pl.col("value").alias("reference")
+            ),
+            on=["metric", "basis"],
+            how="left",
+        ).with_columns((pl.col("session") - pl.col("reference")).alias("delta"))
+        return ChosenReference(
+            "level",
+            joined,
+            int(first["player_matches"]),
+            int(first["rounds"]),
+            int(first["used_low"]),
+            int(first["used_high"]),
+        )
 
     def _played(self, conn: psycopg.Connection[Any], steam_id: int) -> list[PlayedMatch]:
         rows = conn.execute(
@@ -125,6 +201,7 @@ class SessionJob:
         steam_id: int,
         session: Sequence[PlayedMatch],
         comparison: reference.SelfComparison,
+        chosen: ChosenReference,
     ) -> None:
         ids = [m.id for m in session]
         # Sessions this one replaces: any holding one of its matches (two sessions joined by a
@@ -142,8 +219,9 @@ class SessionJob:
             """
             INSERT INTO play_session (steam_id, started_at, ended_at, matches, rounds,
                                       reference_from, reference_to, reference_matches,
-                                      reference_rounds, enough, params)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
+                                      reference_rounds, enough, params, reference_kind,
+                                      reference_level_low, reference_level_high)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
             """,
             (
                 steam_id,
@@ -153,9 +231,9 @@ class SessionJob:
                 comparison.session_rounds,
                 comparison.reference_from,
                 comparison.reference_to,
-                comparison.reference_matches,
-                comparison.reference_rounds,
-                comparison.enough,
+                chosen.matches,
+                chosen.rounds,
+                chosen.kind != "none",
                 Jsonb(
                     {
                         "window_days": self.window_days,
@@ -164,6 +242,9 @@ class SessionJob:
                         "gap_minutes": GAP.total_seconds() / 60,
                     }
                 ),
+                chosen.kind,
+                chosen.level_low,
+                chosen.level_high,
             ),
         ).fetchone()
         assert row is not None
@@ -172,9 +253,7 @@ class SessionJob:
             "INSERT INTO play_session_match (session_id, match_id) VALUES (%s, %s)",
             [(session_id, match_id) for match_id in ids],
         )
-        values = comparison.values.select(
-            "metric", "version", "basis", "session", "reference", "delta"
-        )
+        values = chosen.values.select("metric", "version", "basis", "session", "reference", "delta")
         conn.cursor().executemany(
             "INSERT INTO play_session_metric (session_id, metric_id, version, basis, session, "
             "reference, delta) VALUES (%s, %s, %s, %s, %s, %s, %s)",
