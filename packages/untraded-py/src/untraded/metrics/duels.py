@@ -17,7 +17,7 @@ from untraded.metrics.registry import ParamValue, metric
 
 WINDOW = {"trade.window_s": 5.0}
 WINDOW_W3 = {"trade.window_w3_s": 3.0}
-OPPORTUNITY = {"trade.opportunity_distance": 1000.0}
+OPPORTUNITY = {"trade.opportunity_distance": 1300.0}
 ISOLATION = {"isolation.radius": 1000.0}
 RP = ("round_player",)
 
@@ -198,7 +198,7 @@ def _opportunities(ds: Dataset, distance: ParamValue) -> pl.DataFrame:
 
 @metric(
     "trade.kill_opportunities",
-    version="1.0.0",
+    version="1.1.0",
     name="Trade opportunities",
     unit="count",
     params=OPPORTUNITY,
@@ -212,7 +212,7 @@ def kill_opportunities(ds: Dataset, p: Mapping[str, ParamValue]) -> pl.DataFrame
 
 @metric(
     "trade.kill_conversion_pct",
-    version="1.1.0",
+    version="1.2.0",
     name="Opportunity conversion",
     unit="pct",
     params={**WINDOW, **OPPORTUNITY},
@@ -229,7 +229,7 @@ def kill_conversion_pct(ds: Dataset, p: Mapping[str, ParamValue]) -> pl.DataFram
 
 @metric(
     "trade.death_opportunities",
-    version="1.0.0",
+    version="1.1.0",
     name="Tradable deaths",
     unit="count",
     params=OPPORTUNITY,

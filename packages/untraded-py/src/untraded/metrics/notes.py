@@ -156,6 +156,14 @@ _TRADES = (
     "trade nothing."
 )
 _CLUTCHES = "A player who leaves the server mid-round leaves the team's lineup (#44)."
+_OPPORTUNITY = (
+    "`trade.opportunity_distance` 1000 -> 1300 units: 26 % of the real trades of the calibration "
+    "corpus came from beyond 1000 units, 90 % from within 1300 (docs/calibration.md)."
+)
+_RECURRING = (
+    "`pos.recurring_min_rounds` 8 -> 32 rounds: at 8, only 8 % of the spots found in half of a "
+    "player's rounds came back in the other half (docs/calibration.md)."
+)
 
 CHANGES: dict[str, dict[str, str]] = {
     "base.assist_score": {"1.0.0": "First version (#43)."},
@@ -182,6 +190,8 @@ CHANGES: dict[str, dict[str, str]] = {
             "pos.recurring_death_spot",
         )
     },
+    "trade.death_opportunities": {"1.1.0": _OPPORTUNITY},
+    "trade.kill_opportunities": {"1.1.0": _OPPORTUNITY},
     **{
         metric_id: {"1.1.0": _CLUTCHES}
         for metric_id in (
@@ -191,6 +201,8 @@ CHANGES: dict[str, dict[str, str]] = {
     },
 }
 """What changed in each version above 1.0.0, or a first version outside its family's PR."""
+CHANGES["trade.kill_conversion_pct"]["1.2.0"] = _OPPORTUNITY
+CHANGES["pos.recurring_death_spot"]["1.2.0"] = _RECURRING
 
 
 def history(metric_id: str, version: str) -> list[tuple[str, str]]:

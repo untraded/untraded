@@ -53,9 +53,9 @@
 
 | Metric | Name | Version | Unit | vs. CS Demo Manager |
 |---|---|---|---|---|
-| [`trade.death_opportunities`](trade.death_opportunities.md) | Tradable deaths | 1.0.0 | count | — |
-| [`trade.kill_conversion_pct`](trade.kill_conversion_pct.md) | Opportunity conversion | 1.1.0 | pct | — |
-| [`trade.kill_opportunities`](trade.kill_opportunities.md) | Trade opportunities | 1.0.0 | count | — |
+| [`trade.death_opportunities`](trade.death_opportunities.md) | Tradable deaths | 1.1.0 | count | — |
+| [`trade.kill_conversion_pct`](trade.kill_conversion_pct.md) | Opportunity conversion | 1.2.0 | pct | — |
+| [`trade.kill_opportunities`](trade.kill_opportunities.md) | Trade opportunities | 1.1.0 | count | — |
 | [`trade.trade_kills`](trade.trade_kills.md) | Trade kills (5 s) | 1.1.0 | count | compared (equal) |
 | [`trade.trade_kills_w3`](trade.trade_kills_w3.md) | Trade kills (3 s) | 1.1.0 | count | — |
 | [`trade.traded_death_pct`](trade.traded_death_pct.md) | Traded death % (5 s) | 1.1.0 | pct | indirectly |
@@ -88,7 +88,7 @@
 | [`pos.death_zones`](pos.death_zones.md) | Death zones | 1.1.0 | table | — |
 | [`pos.heatmap_points`](pos.heatmap_points.md) | Heatmap points | 1.0.0 | table | — |
 | [`pos.kill_zones`](pos.kill_zones.md) | Kill zones | 1.0.0 | table | — |
-| [`pos.recurring_death_spot`](pos.recurring_death_spot.md) | Recurring death spot | 1.1.0 | table | — |
+| [`pos.recurring_death_spot`](pos.recurring_death_spot.md) | Recurring death spot | 1.2.0 | table | — |
 | [`pos.setup_diversity`](pos.setup_diversity.md) | Predictability | 1.0.0 | table | — |
 | [`pos.setup_zone_t20`](pos.setup_zone_t20.md) | Position at T+20 s | 1.0.0 | table | — |
 
