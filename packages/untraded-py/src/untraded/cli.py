@@ -16,7 +16,7 @@ from tempfile import TemporaryDirectory
 
 import polars as pl
 
-from untraded import corpus, report
+from untraded import corpus, report, resources
 from untraded.corpus.sync import SftpRemote, SyncError, SyncReport, pull, push
 from untraded.demofile import CorruptDemoError, NotADemoError
 from untraded.derive import derive
@@ -77,6 +77,11 @@ def _parser() -> argparse.ArgumentParser:
     check.add_argument("--csda", required=True, type=Path, help="cs-demo-analyzer executable")
     check.add_argument("--mode", required=True, choices=MODES, help="game mode of the matches")
     check.add_argument("--out", type=Path, help="also write the comparison as Parquet")
+    check.add_argument(
+        "--jobs",
+        type=_positive_int,
+        help="demos compared at once (default: as many as the free RAM allows, adjusted live)",
+    )
     check.set_defaults(run=_compare_csdm)
 
     corpus_parser = commands.add_parser("corpus", help="manage the reference demo corpus")
@@ -125,6 +130,13 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _positive_int(value: str) -> int:
+    number = int(value)
+    if number < 1:
+        raise argparse.ArgumentTypeError(f"must be at least 1, got {number}")
+    return number
+
+
 def _parse(args: argparse.Namespace) -> int:
     match = parse_demo(args.demo, source=args.source, mode=args.mode, played_at=args.played_at)
     target = match.write(args.out)
@@ -166,21 +178,21 @@ def _analyze(args: argparse.Namespace) -> int:
 def _compare_csdm(args: argparse.Namespace) -> int:
     if isinstance(sys.stdout, io.TextIOWrapper):
         sys.stdout.reconfigure(errors="replace")
-    frames = []
-    with TemporaryDirectory(prefix="untraded-compare-") as tmp:
-        for demo in args.demos:
-            canonical = parse_demo(demo, source="upload", mode=args.mode)
-            tables = canonical.tables()
-            ds = Dataset.from_matches([{**tables, **derive(tables).tables()}])
-            export = csdm.load_export(csdm.run_csda(args.csda, demo, Path(tmp) / "export.json"))
-            match_id = canonical.match["match_id"][0]
-            frames.append(
-                csdm.compare(csdm.our_values(ds), csdm.csdm_values(export)).with_columns(
-                    pl.lit(match_id).alias("match_id")
-                )
-            )
-            print(f"{demo.name}: compared")
-    comparison = pl.concat(frames)
+    demos: list[Path] = args.demos
+
+    def started(index: int, running: int, threads: int) -> None:
+        detail = f", {running} running, {threads} threads" if threads else ""
+        print(f"{demos[index].name}: started{detail}", flush=True)
+
+    tasks = [(demo, args.csda, args.mode) for demo in demos]
+    frames: dict[int, pl.DataFrame] = {}
+    for index, frame in resources.run_adaptive(
+        _compare_one, tasks, jobs=args.jobs, on_start=started
+    ):
+        frames[index] = frame
+        print(f"[{len(frames)}/{len(demos)}] {demos[index].name}: compared", flush=True)
+    # Input order, whatever the completion order, so the output does not depend on the workers.
+    comparison = pl.concat([frames[i] for i in range(len(demos))])
     if args.out is not None:
         args.out.mkdir(parents=True, exist_ok=True)
         comparison.write_parquet(args.out / "comparison.parquet")
@@ -191,6 +203,20 @@ def _compare_csdm(args: argparse.Namespace) -> int:
             f"{row['max_abs_diff'] if row['max_abs_diff'] is not None else float('nan'):>10.2f}"
         )
     return 0
+
+
+def _compare_one(task: tuple[Path, Path, str]) -> pl.DataFrame:
+    """One demo of `compare-csdm`; module-level so it can run in a worker process."""
+    demo, csda_path, mode = task
+    canonical = parse_demo(demo, source="upload", mode=mode)
+    tables = canonical.tables()
+    ds = Dataset.from_matches([{**tables, **derive(tables).tables()}])
+    with TemporaryDirectory(prefix="untraded-compare-") as tmp:
+        export = csdm.load_export(csdm.run_csda(csda_path, demo, Path(tmp) / "export.json"))
+    match_id = canonical.match["match_id"][0]
+    return csdm.compare(csdm.our_values(ds), csdm.csdm_values(export)).with_columns(
+        pl.lit(match_id).alias("match_id")
+    )
 
 
 def _corpus_dir(args: argparse.Namespace) -> Path:
