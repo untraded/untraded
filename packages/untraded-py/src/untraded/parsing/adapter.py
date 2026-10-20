@@ -23,7 +23,7 @@ from untraded.parsing.core import build_kills, build_players, build_rounds
 from untraded.parsing.economy import build_economy
 from untraded.parsing.grenades import build_grenades, link_grenades
 from untraded.parsing.rounds import cut_rounds, surrender_in_freeze
-from untraded.parsing.schema import MODES, SCHEMA_VERSION, CanonicalError, conform
+from untraded.parsing.schema import MODES, SCHEMA_VERSION, TABLES, CanonicalError, conform
 from untraded.parsing.shots import build_shots
 from untraded.parsing.teams import OTHER, assign_teams
 from untraded.parsing.ticks import build_player_ticks
@@ -74,6 +74,19 @@ class CanonicalMatch:
         for name, table in self.tables().items():
             table.write_parquet(target / f"{name}.parquet", compression="zstd")
         return target
+
+    @classmethod
+    def read(cls, directory: Path) -> CanonicalMatch:
+        """Reads a match directory written by `write` (one Parquet file per table), validated:
+        files from an older schema version raise `CanonicalError`."""
+        tables = {}
+        for name in TABLES:
+            path = directory / f"{name}.parquet"
+            if not path.exists():
+                raise CanonicalError(f"{directory}: {name}.parquet is missing")
+            tables[name] = conform(pl.read_parquet(path), name)
+        validate(tables)
+        return cls(**tables)
 
 
 def parse_demo(
