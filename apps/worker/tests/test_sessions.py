@@ -196,3 +196,50 @@ def test_without_history_the_level_reference_steps_in(
     assert delta == pytest.approx(session - 0.5)
     assert metrics["base.kast"][2] == 60.0
     assert metrics["base.adr"][2] is None  # no level value for it: no reference
+
+
+@pytest.mark.db
+def test_the_session_gets_its_priorities_with_their_evidence(
+    db: psycopg.Connection[Any], tmp_path: Path, analysis: Analysis
+) -> None:
+    store = LocalStore(tmp_path)
+    match_id = add_match(db, store, analysis, at(20))
+    user = db.execute("SELECT id FROM app_user WHERE steam_id = %s", (ME,)).fetchone()
+    assert user is not None
+    db.execute(
+        "INSERT INTO workspace (kind, name, slug, created_by) VALUES ('personal', 'me', 'me', %s)",
+        (user[0],),
+    )
+    db.execute("UPDATE match_player SET rank = 18200 WHERE steam_id = %s", (ME,))
+    untraded = REGISTRY["trade.untraded_deaths"]
+    # Players of this level never die untraded: player 1's 4 untraded deaths stand out.
+    db.execute(
+        """
+        INSERT INTO level_reference (mode, band_low, band_high, used_low, used_high, metric_id,
+            version, basis, value, player_matches, players, rounds)
+        VALUES ('premier', 17500, 20000, 17500, 20000, %s, %s, 'per_round', 0.0, 400, 30, 9000)
+        """,
+        (untraded.id, untraded.version),
+    )
+    run(SessionJob(store), db, match_id)
+    rows = db.execute(
+        "SELECT rule_id, priority, message_key, events, rounds_touched, rounds_lost, "
+        "message_args, evidence FROM advice ORDER BY priority"
+    ).fetchall()
+    assert [r[0] for r in rows] == ["trade.untraded_deaths"]
+    _, priority, key, events, touched, lost, args, evidence = rows[0]
+    assert (priority, key, events) == (1, "advice.trade.untraded_deaths", 4)
+    assert 0 <= lost <= touched <= events
+    assert args["reference_kind"] == "level"
+    assert args["reference"] == 0.0
+    assert args["actions"]
+    assert len(evidence) == 4
+    first = evidence[0]
+    assert first["match_id"] == str(match_id)
+    tickrate = analysis.tables["match"]["tickrate"][0]
+    assert first["goto_tick"] == max(0, first["tick"] - int(5 * tickrate))
+    assert {"round", "map", "side", "killer"} <= set(first)
+
+    # Recomputing the session replaces its priorities.
+    run(SessionJob(store), db, match_id)
+    assert db.execute("SELECT count(*) FROM advice").fetchone() == (1,)

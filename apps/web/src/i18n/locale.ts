@@ -25,3 +25,12 @@ export function pickLocale(cookie: string | undefined, acceptLanguage: string | 
     .sort((a, b) => b.q - a.q);
   return wanted.map((entry) => entry.lang).find(isLocale) ?? DEFAULT_LOCALE;
 }
+
+export const TONES = ["coach", "analyst"] as const;
+export type Tone = (typeof TONES)[number];
+/** Coach (direct, prescriptive) by default; analyst gives neutral findings. */
+export const TONE_COOKIE = "untraded_tone";
+
+export function pickTone(cookie: string | undefined): Tone {
+  return cookie === "analyst" ? "analyst" : "coach";
+}

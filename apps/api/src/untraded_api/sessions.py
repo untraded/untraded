@@ -77,10 +77,31 @@ class Reference(BaseModel):
     min_rounds: int
 
 
+class Advice(BaseModel):
+    """A priority: a rule that fired on the session, proved by its events."""
+
+    id: uuid.UUID
+    rule_id: str
+    rule_version: str
+    priority: int
+    message_key: str
+    """i18n key of the finding; the clients render it in the user's language and tone."""
+    args: dict[str, Any]
+    """The message's values: metric, unit, basis, session, reference, events, rounds touched
+    and lost, actions, indicator, and details such as a zone."""
+    evidence: list[dict[str, Any]]
+    """The events: match, round, tick, `goto_tick` (for `demo_gototick`), map, side, details."""
+    cost: float
+    my_vote: int | None
+    """The user's 👍 (1) or 👎 (-1), if any."""
+
+
 class SessionReport(SessionSummary):
     reference: Reference
     match_list: list[MatchSummary]
     metrics: list[Comparison]
+    advice: list[Advice]
+    """Up to three priorities, most costly first."""
 
 
 SESSION = """
@@ -192,6 +213,17 @@ def get_session(session_id: uuid.UUID, conn: ConnDep, user: UserDep) -> SessionR
         {"user": user, "session": session_id},
     ).fetchall()
     comparisons = _comparisons(conn, [session_id])[session_id]
+    advice = conn.execute(
+        """
+        SELECT a.id, a.rule_id, a.rule_version, a.priority, a.message_key, a.message_args,
+               a.evidence, a.cost, f.vote
+        FROM advice a
+        LEFT JOIN advice_feedback f ON f.advice_id = a.id AND f.user_id = %(user)s
+        WHERE a.session_id = %(session)s
+        ORDER BY a.priority
+        """,
+        {"user": user, "session": session_id},
+    ).fetchall()
     return SessionReport(
         **_summary(row, comparisons),
         reference=Reference(
@@ -208,4 +240,18 @@ def get_session(session_id: uuid.UUID, conn: ConnDep, user: UserDep) -> SessionR
         ),
         match_list=[MatchSummary(**summary_fields(m)) for m in matches],
         metrics=comparisons,
+        advice=[
+            Advice(
+                id=a[0],
+                rule_id=a[1],
+                rule_version=a[2],
+                priority=a[3],
+                message_key=a[4],
+                args=a[5],
+                evidence=a[6],
+                cost=a[7],
+                my_vote=a[8],
+            )
+            for a in advice
+        ],
     )
