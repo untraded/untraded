@@ -4,12 +4,25 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-/* The theme follows the system: light by default, dark when the system asks for it. */
-@custom-variant dark (@media (prefers-color-scheme: dark));
+/*
+ * Light or dark: the system decides, unless the player chose in the settings (`data-theme` on
+ * <html>, from the `untraded_theme` cookie). Every colour token is a `light-dark()` pair, so
+ * `color-scheme` alone switches the whole palette.
+ */
+@custom-variant dark {
+  &:where([data-theme="dark"], [data-theme="dark"] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:not([data-theme="light"], [data-theme="light"] *)) {
+      @slot;
+    }
+  }
+}
 
 /*
- * Design tokens. Light: the "Match point" palette; dark: the "Papier" palette; one accent, dark
- * yellow. shadcn/ui names first, then ours:
+ * Design tokens, as light-dark() pairs. Light: the "Match point" palette; dark: the "Papier"
+ * palette; one accent, dark yellow. shadcn/ui names first, then ours:
  * - highlight: the brand accent, for actions and selection only, never to mark data;
  * - link, line-soft (row separators);
  * - win and loss: results, and gaps that are better or worse (never colour alone: add a sign);
@@ -17,68 +30,43 @@
  * Every text colour passes WCAG AA on the background and on cards.
  */
 :root {
-  color-scheme: light;
-  --background: #f2f4f7;
-  --foreground: #111821;
-  --card: #ffffff;
-  --card-foreground: #111821;
-  --popover: #ffffff;
-  --popover-foreground: #111821;
-  --primary: #d4a72c;
-  --primary-foreground: #111821;
-  --primary-hover: #c39a22;
-  --secondary: #e8ecf1;
-  --secondary-foreground: #111821;
-  --muted: #e8ecf1;
-  --muted-foreground: #536072;
-  --accent: #e8ecf1;
-  --accent-foreground: #111821;
-  --destructive: #c2382c;
-  --border: #d1d8e1;
-  --input: #d1d8e1;
-  --ring: #9a7400;
-  --line-soft: #e4e8ee;
-  --highlight: #9a7400;
-  --highlight-soft: #f6ecc8;
-  --link: #7a5c00;
-  --win: #2f7a1d;
-  --loss: #c2382c;
-  --ct: #2b5bb8;
-  --t: #985d06;
+  color-scheme: light dark;
+  --background: light-dark(#f2f4f7, #1b1d1e);
+  --foreground: light-dark(#111821, #e9eaea);
+  --card: light-dark(#ffffff, #222527);
+  --card-foreground: light-dark(#111821, #e9eaea);
+  --popover: light-dark(#ffffff, #222527);
+  --popover-foreground: light-dark(#111821, #e9eaea);
+  --primary: light-dark(#d4a72c, #d9b44a);
+  --primary-foreground: light-dark(#111821, #1b1d1e);
+  --primary-hover: light-dark(#c39a22, #e5c466);
+  --secondary: light-dark(#e8ecf1, #2b2f31);
+  --secondary-foreground: light-dark(#111821, #e9eaea);
+  --muted: light-dark(#e8ecf1, #2b2f31);
+  --muted-foreground: light-dark(#536072, #a1a6a8);
+  --accent: light-dark(#e8ecf1, #2b2f31);
+  --accent-foreground: light-dark(#111821, #e9eaea);
+  --destructive: light-dark(#c2382c, #ff7b6b);
+  --border: light-dark(#d1d8e1, #3a3f42);
+  --input: light-dark(#d1d8e1, #3a3f42);
+  --ring: light-dark(#9a7400, #e3c46a);
+  --line-soft: light-dark(#e4e8ee, #2c3033);
+  --highlight: light-dark(#9a7400, #d9b44a);
+  --highlight-soft: light-dark(#f6ecc8, #3a3220);
+  --link: light-dark(#7a5c00, #e3c46a);
+  --win: light-dark(#2f7a1d, #62cc8b);
+  --loss: light-dark(#c2382c, #ff7b6b);
+  --ct: light-dark(#2b5bb8, #6ba8ff);
+  --t: light-dark(#985d06, #efa44e);
   --radius: 6px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-    --background: #1b1d1e;
-    --foreground: #e9eaea;
-    --card: #222527;
-    --card-foreground: #e9eaea;
-    --popover: #222527;
-    --popover-foreground: #e9eaea;
-    --primary: #d9b44a;
-    --primary-foreground: #1b1d1e;
-    --primary-hover: #e5c466;
-    --secondary: #2b2f31;
-    --secondary-foreground: #e9eaea;
-    --muted: #2b2f31;
-    --muted-foreground: #a1a6a8;
-    --accent: #2b2f31;
-    --accent-foreground: #e9eaea;
-    --destructive: #ff7b6b;
-    --border: #3a3f42;
-    --input: #3a3f42;
-    --ring: #e3c46a;
-    --line-soft: #2c3033;
-    --highlight: #d9b44a;
-    --highlight-soft: #3a3220;
-    --link: #e3c46a;
-    --win: #62cc8b;
-    --loss: #ff7b6b;
-    --ct: #6ba8ff;
-    --t: #efa44e;
-  }
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
 }
 
 @theme inline {

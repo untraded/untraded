@@ -6,7 +6,38 @@
     "matches": "Matches",
     "signOut": "Sign out",
     "language": "Language",
-    "sessions": "Sessions"
+    "sessions": "Sessions",
+    "report": "Latest report",
+    "reportShort": "Report",
+    "settings": "Settings",
+    "more": "More",
+    "collapse": "Collapse the sidebar",
+    "expand": "Expand the sidebar",
+    "workspace": "Workspace: {name}, personal",
+    "personal": "Personal",
+    "main": "Main navigation"
+  },
+  "settings": {
+    "title": "Settings",
+    "lead": "Saved in this browser.",
+    "tone": "Advice tone",
+    "toneHint": "Coach: direct and prescriptive. Analyst: neutral, with the figures.",
+    "language": "Language",
+    "languageHint": "English or French.",
+    "theme": "Theme",
+    "themeHint": "System follows your device's setting.",
+    "themes": {
+      "system": "System",
+      "light": "Light",
+      "dark": "Dark"
+    },
+    "languages": {
+      "en": "English",
+      "fr": "Français"
+    },
+    "account": "Steam account",
+    "signedInAs": "Signed in as {name}.",
+    "signOut": "Sign out"
   },
   "home": {
     "title": "Your CS2 matches, analysed in the open",

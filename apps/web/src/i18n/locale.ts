@@ -34,3 +34,15 @@ export const TONE_COOKIE = "untraded_tone";
 export function pickTone(cookie: string | undefined): Tone {
   return cookie === "analyst" ? "analyst" : "coach";
 }
+
+export const THEMES = ["system", "light", "dark"] as const;
+export type Theme = (typeof THEMES)[number];
+/** Light or dark: the system's by default, or the player's choice in the settings. */
+export const THEME_COOKIE = "untraded_theme";
+
+export function pickTheme(cookie: string | undefined): Theme {
+  return cookie === "light" || cookie === "dark" ? cookie : "system";
+}
+
+/** The sidebar, folded to its icons or not (remembered per browser). */
+export const SIDEBAR_COOKIE = "untraded_sidebar";

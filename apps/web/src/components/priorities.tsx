@@ -3,10 +3,10 @@
 import { ThumbsDown, ThumbsUp } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { setTone, vote } from "@/app/actions";
+import { Choice } from "@/components/choice";
 import { Button } from "@/components/ui/button";
 import { type Locale, TONES, type Tone } from "@/i18n/locale";
 import type { Advice } from "@/lib/api";
-import { cn } from "@/lib/cn";
 import { mapName, metric } from "@/lib/format";
 
 /** The session's priorities: the finding in the chosen tone, its cost, its rounds to watch. */
@@ -26,24 +26,13 @@ export async function Priorities({
     <section className="mt-6">
       <div className="mb-2 flex items-baseline justify-between">
         <h2 className="text-lg font-semibold">{t("title")}</h2>
-        <form action={setTone} className="flex items-center gap-1 text-xs" aria-label={t("tone")}>
-          {TONES.map((option) => (
-            <button
-              key={option}
-              type="submit"
-              name="tone"
-              value={option}
-              className={cn(
-                "rounded px-2 py-0.5",
-                option === tone
-                  ? "bg-muted text-foreground"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {t(option)}
-            </button>
-          ))}
-        </form>
+        <Choice
+          action={setTone}
+          name="tone"
+          label={t("tone")}
+          value={tone}
+          options={TONES.map((option) => ({ value: option, label: t(option) }))}
+        />
       </div>
       {advice.length === 0 ? (
         <p className="text-sm text-muted-foreground">{t("none")}</p>
