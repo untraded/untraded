@@ -189,12 +189,22 @@ def _copy_frame(
 
 
 def register_metrics(conn: psycopg.Connection[Any]) -> None:
-    """Records the deployed registry: every (metric, version) the worker computes."""
+    """Records the deployed registry: every (metric, version) the worker computes, and makes it
+    the version screens read (`metric_current`).
+
+    Until matches are recomputed after a version change, older matches only hold the previous
+    version and show no value for that metric: the recompute job comes later.
+    """
     for m in REGISTRY.values():
         conn.execute(
             "INSERT INTO metric_definition (metric_id, version, name, unit, kind, params, doc) "
             "VALUES (%s, %s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
             (m.id, m.version, m.name, m.unit, m.kind, Jsonb(dict(m.params)), m.doc),
+        )
+        conn.execute(
+            "INSERT INTO metric_current (metric_id, version) VALUES (%s, %s) "
+            "ON CONFLICT (metric_id) DO UPDATE SET version = EXCLUDED.version",
+            (m.id, m.version),
         )
 
 
