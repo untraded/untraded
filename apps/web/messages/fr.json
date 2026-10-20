@@ -1,0 +1,51 @@
+{
+  "brand": { "tagline": "Never die untraded." },
+  "nav": { "matches": "Matchs", "signOut": "Se déconnecter", "language": "Langue" },
+  "home": {
+    "title": "Tes matchs CS2, analysés à découvert",
+    "lead": "Untraded récupère tes matchs Premier, parse les démos et montre ce qui compte, avec des formules publiques.",
+    "signIn": "Se connecter avec Steam",
+    "beta": "La bêta est sur invitation.",
+    "notInvited": "Ce compte Steam n'est pas encore invité à la bêta.",
+    "failed": "Steam n'a pas pu confirmer la connexion. Réessaie."
+  },
+  "matches": {
+    "title": "Matchs",
+    "empty": "Aucun match pour l'instant. Tes nouveaux matchs Premier apparaissent ici quelques minutes après leur fin.",
+    "date": "Date",
+    "map": "Carte",
+    "score": "Score",
+    "result": "Résultat",
+    "kd": "K–D",
+    "adr": "ADR",
+    "kast": "KAST",
+    "rating": "Rating 1.0",
+    "untraded": "Morts non tradées",
+    "status": "État",
+    "older": "Matchs plus anciens",
+    "newer": "Matchs plus récents"
+  },
+  "result": { "win": "Victoire", "loss": "Défaite", "tie": "Égalité" },
+  "status": {
+    "pending": "En attente",
+    "downloading": "Téléchargement",
+    "parsing": "Analyse",
+    "ready": "Prêt",
+    "failed": "Échec",
+    "unavailable": "Indisponible"
+  },
+  "match": {
+    "back": "Tous les matchs",
+    "teamA": "Équipe A",
+    "teamB": "Équipe B",
+    "startedCt": "a commencé CT",
+    "startedT": "a commencé T",
+    "rounds": "Rounds",
+    "player": "Joueur",
+    "kills": "K",
+    "deaths": "M",
+    "notReady": "Ce match n'est pas encore analysé.",
+    "missing": "Absent de cette démo : {items}",
+    "overtime": "Prol."
+  }
+}
