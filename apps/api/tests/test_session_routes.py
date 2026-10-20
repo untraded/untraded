@@ -109,6 +109,9 @@ def test_my_sessions(client: TestClient, session_id: uuid.UUID) -> None:
 def test_session_report(client: TestClient, session_id: uuid.UUID) -> None:
     report = as_player(client, ME).get(f"/sessions/{session_id}").json()
     assert report["reference"] == {
+        "kind": "self",
+        "level_low": None,
+        "level_high": None,
         "since": "2026-09-19",
         "until": "2026-10-18",
         "matches": 6,
