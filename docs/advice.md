@@ -76,3 +76,11 @@ A `Finding` holds:
 - the i18n message key (`advice.<rule>`), the action ids and the indicator.
 
 The clients render the text in the user's language and tone (coach or analyst).
+
+## Actions
+
+Each rule names 1 to 3 actions. An action is either:
+- a **drill**: Aim Botz, Yprac prefire and lineups, retake servers, counter-strafe, pop flashes…;
+- an **adjustment**: stay in trade range, get information before peeking, play the man advantage, change position or timing…
+
+Their text, in every language, is in the web app's messages (`apps/web/messages/*.json`, `actions`). A test checks that every rule and every action it names has its text, in both tones and in every language.

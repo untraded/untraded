@@ -155,6 +155,97 @@
           "analyst": "{zone}, {map} ({side}): {events} untraded deaths this session, {history} over the period."
         }
       }
+    },
+    "actionsTitle": "What to do"
+  },
+  "actions": {
+    "kinds": {
+      "adjust": "Adjustment",
+      "drill": "Drill"
+    },
+    "adjust": {
+      "trade_distance": {
+        "title": "Stay in trade range",
+        "how": "Play beside or just behind a teammate, close enough to swing onto their killer within two seconds. Never more than one corner away from the nearest one."
+      },
+      "play_with_entry": {
+        "title": "Pair with your entry",
+        "how": "When the team takes space, be the second player in. Your job is the trade on the entry's fight, not a separate angle on your own."
+      },
+      "info_before_peek": {
+        "title": "Get information before you peek",
+        "how": "Utility, sound or a teammate's call first. A dry peek into an angle you know nothing about is a coin flip."
+      },
+      "follow_entry": {
+        "title": "Move toward the contact",
+        "how": "When a teammate fights near you, go toward the fight at once, crosshair where the killer has to be. Waiting for the call is too late."
+      },
+      "use_utility_to_peek": {
+        "title": "Take the first duel with utility",
+        "how": "Flash yourself in or ask for one, or smoke the crossing. Take opening duels with an advantage, or let them come to you."
+      },
+      "play_the_advantage": {
+        "title": "Play the man advantage",
+        "how": "After the opening kill, slow down: regroup, trade, use the numbers. Hunting alone gives the advantage back."
+      },
+      "regroup_after_opening": {
+        "title": "Regroup after the opening",
+        "how": "Call the kill, take the space it opens together with your team, and avoid a second dry duel."
+      },
+      "clutch_time": {
+        "title": "Use the clock in clutches",
+        "how": "Play for information and time. Take the duels one at a time, from positions they have to come through, and make the defuse or the plant their problem."
+      },
+      "use_utility_before_death": {
+        "title": "Throw your utility before the fight",
+        "how": "If you are likely to take a duel, throw your grenades first. Utility left on your body is money and help lost for the team."
+      },
+      "call_your_flashes": {
+        "title": "Call your flashes",
+        "how": "Say \"flashing\" before you throw, and throw past your teammates' line of sight, not across it."
+      },
+      "change_position": {
+        "title": "Change your position",
+        "how": "The opponents have read this spot. Play another position on the same site, or the same one from another angle."
+      },
+      "change_timing": {
+        "title": "Change your timing",
+        "how": "Same spot, another moment: earlier, later, or only after utility. Break the pattern they expect."
+      }
+    },
+    "drill": {
+      "trade_timing": {
+        "title": "Train the trade swing",
+        "how": "On retake or 5v5 servers, swing right after your teammate's contact, within one to two seconds. Rewatch the rounds above and note when you could have swung."
+      },
+      "prefire": {
+        "title": "Prefire the routes you play",
+        "how": "Yprac Prefire (Workshop) on this map: clear every angle of your usual routes until no bot surprises you. 10 minutes before playing."
+      },
+      "retake_servers": {
+        "title": "Play retake servers",
+        "how": "Many short 1vX situations: focus on using the clock and isolating one fight at a time."
+      },
+      "aim_botz": {
+        "title": "Aim Botz, first bullet",
+        "how": "Aim Botz (Workshop), 10 minutes a day: 100 kills standing still with the first bullet at head height, then 100 after a counter-strafe."
+      },
+      "crosshair_placement": {
+        "title": "Crosshair placement",
+        "how": "Walk the map with the crosshair at head height on every angle, then play deathmatch thinking only about where your crosshair is before the enemy appears."
+      },
+      "counter_strafe": {
+        "title": "Counter-strafe",
+        "how": "In a private server or a counter-strafe trainer from the Workshop: strafe, tap the opposite key, shoot one bullet. The shot must land once you are stopped."
+      },
+      "lineups": {
+        "title": "Learn your lineups",
+        "how": "Yprac or a lineup map for the map you play most: two smokes and two flashes per site you play, so your utility goes out before the fight."
+      },
+      "pop_flashes": {
+        "title": "Pop flashes",
+        "how": "In a private server: practise flashes over the walls and corners you play, bursting before an enemy can turn, and away from your teammates."
+      }
     }
   }
 }

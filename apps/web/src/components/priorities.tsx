@@ -108,6 +108,7 @@ async function Priority({
               ))}
             </ul>
           </details>
+          <Actions ids={args.actions} title={t("actionsTitle")} />
         </div>
         <form action={vote} className="flex flex-col gap-1">
           <input type="hidden" name="advice" value={item.id} />
@@ -142,5 +143,29 @@ async function Priority({
         </form>
       </div>
     </li>
+  );
+}
+
+/** The actions of a priority, from the catalog (`messages/*.json`, `actions`): drills and
+ * in-game adjustments. An action missing from the catalog is not shown. */
+async function Actions({ ids, title }: { ids: string[]; title: string }) {
+  const t = await getTranslations("actions");
+  const known = ids.filter((id) => t.has(`${id}.title`));
+  if (known.length === 0) return null;
+  return (
+    <div className="mt-3">
+      <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">{title}</p>
+      <ul className="mt-1 space-y-2 text-sm">
+        {known.map((id) => (
+          <li key={id}>
+            <span className="mr-2 rounded bg-zinc-800 px-1.5 py-0.5 text-xs text-zinc-400">
+              {t(`kinds.${id.split(".")[0]}`)}
+            </span>
+            <span className="font-medium">{t(`${id}.title`)}</span>
+            <p className="mt-0.5 text-zinc-400">{t(`${id}.how`)}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
