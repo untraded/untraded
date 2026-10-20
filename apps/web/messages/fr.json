@@ -106,57 +106,71 @@
       "trade": {
         "untraded_deaths": {
           "coach": "{events} morts sans trade. Joue assez près d'un coéquipier pour qu'il puisse te trader.",
-          "analyst": "{events} morts non tradées : {session} par round, contre {reference}."
+          "analyst": "{events} morts non tradées : {session} par round, contre {reference}.",
+          "label": "Morts non tradées"
         },
         "isolated_deaths": {
           "coach": "{events} morts sans coéquipier à portée de trade. Ne prends pas les duels seul.",
-          "analyst": "{events} morts isolées : {session} de tes morts, contre {reference}."
+          "analyst": "{events} morts isolées : {session} de tes morts, contre {reference}.",
+          "label": "Morts isolées"
         },
         "missed_trades": {
           "coach": "{events} fois, un coéquipier est mort près de toi sans que tu le trades. Sois prêt à sortir juste après le contact.",
-          "analyst": "{events} occasions de trade manquées : conversion {session}, contre {reference}."
+          "analyst": "{events} occasions de trade manquées : conversion {session}, contre {reference}.",
+          "label": "Trades manqués"
         }
       },
       "duel": {
         "opening_deaths": {
           "coach": "Tu as perdu {events} duels d'ouverture. Prends le premier duel avec de l'info ou un utilitaire, ou laisse-le venir à toi.",
-          "analyst": "{events} morts en ouverture : réussite {session}, contre {reference}."
+          "analyst": "{events} morts en ouverture : réussite {session}, contre {reference}.",
+          "label": "Duels d'ouverture"
         },
         "openings_lost": {
           "coach": "{events} rounds perdus après ton kill d'ouverture. Joue l'avantage : regroupe-toi et trade, ne chasse pas.",
-          "analyst": "{events} rounds perdus après une ouverture : conversion {session}, contre {reference}."
+          "analyst": "{events} rounds perdus après une ouverture : conversion {session}, contre {reference}.",
+          "label": "Rounds perdus après ton ouverture"
         }
       },
       "clutch": {
         "clutches_lost": {
           "coach": "{events} clutchs perdus. Utilise le temps et prends les duels un par un.",
-          "analyst": "{events} clutchs perdus : réussite {session}, contre {reference}."
+          "analyst": "{events} clutchs perdus : réussite {session}, contre {reference}.",
+          "label": "Clutchs"
         }
       },
       "combat": {
         "duels_without_damage": {
           "coach": "{events} fois, tu es mort sans toucher ton adversaire. Travaille le placement du viseur et la première balle.",
-          "analyst": "{events} duels perdus sans dégâts ; HS % {session}, contre {reference}."
+          "analyst": "{events} duels perdus sans dégâts ; HS % {session}, contre {reference}.",
+          "label": "Duels perdus sans dégâts"
         }
       },
       "util": {
         "wasted_utility": {
           "coach": "Tu es mort {events} fois avec des grenades sur toi. Lance-les avant de prendre le duel.",
-          "analyst": "{events} morts avec des grenades inutilisées : {session} par mort, contre {reference}."
+          "analyst": "{events} morts avec des grenades inutilisées : {session} par mort, contre {reference}.",
+          "label": "Utilitaires gaspillés"
         },
         "team_flashes": {
           "coach": "Tes flashs ont aveuglé tes coéquipiers {events} fois. Annonce-les et lance-les au-delà de tes coéquipiers.",
-          "analyst": "{events} coéquipiers flashés : {session} par round, contre {reference}."
+          "analyst": "{events} coéquipiers flashés : {session} par round, contre {reference}.",
+          "label": "Flashs sur tes alliés"
         }
       },
       "pos": {
         "recurring_death_spot": {
           "coach": "Tu meurs souvent sans trade à {zone} sur {map} ({side}) : {events} fois cette session. Change de position ou de timing.",
-          "analyst": "{zone}, {map} ({side}) : {events} morts non tradées cette session, {history} sur la période."
+          "analyst": "{zone}, {map} ({side}) : {events} morts non tradées cette session, {history} sur la période.",
+          "label": "Spot de mort récurrent"
         }
       }
     },
-    "actionsTitle": "Quoi faire"
+    "actionsTitle": "Quoi faire",
+    "followTitle": "Tes dernières priorités",
+    "followLine": "{name} : {before} à la dernière session, {now} maintenant",
+    "followReference": "référence {reference}",
+    "followMissing": "pas mesuré sur cette session"
   },
   "actions": {
     "kinds": {

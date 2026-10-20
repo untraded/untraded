@@ -73,7 +73,9 @@ def session_id() -> uuid.UUID:
                 (session[0], match_id),
             )
             for metric in COMPARED:
-                basis = "per_round" if metric == "base.kills" else "value"
+                basis = (
+                    "per_round" if metric in ("base.kills", "trade.untraded_deaths") else "value"
+                )
                 conn.execute(
                     "INSERT INTO play_session_metric (session_id, metric_id, version, basis, "
                     "session, reference, delta) VALUES (%s, %s, %s, %s, 1.5, 1.0, 0.5)",
@@ -105,6 +107,39 @@ def session_id() -> uuid.UUID:
                 found[ME],
             ),
         )
+        # The day before: a session that raised a priority on untraded deaths (2.0 per round).
+        before = conn.execute(
+            """
+            INSERT INTO play_session (steam_id, started_at, ended_at, matches, rounds,
+                reference_from, reference_to, reference_matches, reference_rounds, enough, params)
+            VALUES (%s, %s, %s, 1, 5, '2026-09-18', '2026-10-17', 5, 120, true, '{}')
+            RETURNING id
+            """,
+            (ME, START - dt.timedelta(days=1), START - dt.timedelta(days=1, minutes=-40)),
+        ).fetchone()
+        assert before is not None
+        untraded = REGISTRY["trade.untraded_deaths"]
+        conn.execute(
+            "INSERT INTO play_session_metric (session_id, metric_id, version, basis, session, "
+            "reference, delta) VALUES (%s, %s, %s, 'per_round', 2.0, 1.0, 1.0)",
+            (before[0], untraded.id, untraded.version),
+        )
+        conn.execute(
+            """
+            INSERT INTO advice (steam_id, workspace_id, session_from, session_to, rule_id,
+                rule_version, priority, message_key, message_args, evidence, session_id)
+            VALUES (%s, %s, %s, %s, 'trade.untraded_deaths', '1.0.0', 1,
+                'advice.trade.untraded_deaths', %s, '[]', %s)
+            """,
+            (
+                ME,
+                workspace[0],
+                START,
+                START,
+                Jsonb({"indicator": untraded.id}),
+                before[0],
+            ),
+        )
     return uuid.UUID(str(found[ME]))
 
 
@@ -124,7 +159,7 @@ def as_player(client: TestClient, steam_id: int) -> TestClient:
 
 def test_my_sessions(client: TestClient, session_id: uuid.UUID) -> None:
     body = as_player(client, ME).get("/sessions").json()
-    assert [s["id"] for s in body["items"]] == [str(session_id)]
+    assert body["items"][0]["id"] == str(session_id)  # most recent first
     session = body["items"][0]
     assert (session["matches"], session["wins"], session["losses"], session["ties"]) == (1, 0, 1, 0)
     assert [h["metric_id"] for h in session["headlines"]] == list(HEADLINES)
@@ -191,3 +226,16 @@ def test_the_report_carries_its_priorities(client: TestClient, session_id: uuid.
     assert stranger.post(url, json={"vote": 1}).status_code == 404
     client.cookies.clear()
     assert client.post(url, json={"vote": 1}).status_code == 401
+
+
+def test_the_previous_priorities_are_followed(client: TestClient, session_id: uuid.UUID) -> None:
+    (follow,) = as_player(client, ME).get(f"/sessions/{session_id}").json()["follow_up"]
+    assert follow["rule_id"] == "trade.untraded_deaths"
+    assert (follow["indicator"], follow["better"], follow["basis"]) == (
+        "trade.untraded_deaths",
+        "lower",
+        "per_round",
+    )
+    assert (follow["then"], follow["now"], follow["reference"]) == (2.0, 1.5, 1.0)
+    assert [p["value"] for p in follow["history"]] == [2.0, 1.5]  # oldest first
+    assert follow["history"][-1]["session_id"] == str(session_id)

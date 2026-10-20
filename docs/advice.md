@@ -77,6 +77,15 @@ A `Finding` holds:
 
 The clients render the text in the user's language and tone (coach or analyst).
 
+## Follow-up
+
+The next session report follows the previous session's priorities. For each one, it shows:
+- its indicator then and now, coloured by the metric's direction;
+- the current reference;
+- a line over the last five sessions.
+
+The report reads this from the stored sessions (`play_session_metric`); nothing is recomputed.
+
 ## Actions
 
 Each rule names 1 to 3 actions. An action is either:
