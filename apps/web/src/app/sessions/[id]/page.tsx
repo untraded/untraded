@@ -57,19 +57,25 @@ export default async function SessionPage({ params }: Params) {
           {t("record", { wins: report.wins, losses: report.losses, ties: report.ties })}
         </p>
         <p className="mt-3 text-sm text-zinc-300">
-          {reference.enough
+          {reference.kind === "self"
             ? t("reference", {
                 matches: reference.matches,
                 rounds: reference.rounds,
                 since: day(reference.since, locale),
                 until: day(reference.until, locale),
               })
-            : t("notEnough", {
-                minMatches: reference.min_matches,
-                minRounds: reference.min_rounds,
-                matches: reference.matches,
-                rounds: reference.rounds,
-              })}
+            : reference.kind === "level"
+              ? t("levelReference", {
+                  low: number(reference.level_low, locale),
+                  high: number(reference.level_high, locale),
+                  matches: reference.matches,
+                })
+              : t("notEnough", {
+                  minMatches: reference.min_matches,
+                  minRounds: reference.min_rounds,
+                  matches: reference.matches,
+                  rounds: reference.rounds,
+                })}
         </p>
       </header>
 
@@ -117,7 +123,9 @@ export default async function SessionPage({ params }: Params) {
                 <th className="px-3 py-2 text-right font-medium">{t("session")}</th>
                 {reference.enough && (
                   <>
-                    <th className="px-3 py-2 text-right font-medium">{t("yours")}</th>
+                    <th className="px-3 py-2 text-right font-medium">
+                      {t(reference.kind === "level" ? "yoursLevel" : "yours")}
+                    </th>
                     <th className="px-3 py-2 text-right font-medium">{t("delta")}</th>
                   </>
                 )}

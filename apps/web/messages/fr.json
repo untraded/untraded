@@ -75,7 +75,9 @@
     "perRound": "par round",
     "older": "Sessions plus anciennes",
     "newer": "Sessions plus récentes",
-    "back": "Toutes les sessions"
+    "back": "Toutes les sessions",
+    "levelReference": "Pas encore assez d'historique perso : comparé aux joueurs Premier de {low} à {high} de rating ({matches} matchs-joueurs, anonymes).",
+    "yoursLevel": "Ton niveau"
   },
   "families": {
     "base": "Bases",

@@ -13,6 +13,20 @@ After each session, Untraded gives up to **three priorities**. Each comes with:
 
 The rules are open, like the metrics: `untraded.advice` (MIT).
 
+## References
+
+A session is compared with, in this order:
+
+1. **the player's own 30 days** before it, once they hold at least 5 matches and 100 rounds (`untraded.reference`);
+2. else **players of the same level**: every player of the collected matches in the same Premier rating band of 2,500 points (`level_reference`, recomputed hourly by the worker). These are anonymous aggregates, computed as follows:
+   - players who opted out are left out;
+   - a band needs at least 300 (player, match) rows and **20 distinct players**, and is widened one step on each side until it has them;
+   - totals are compared per round (sum ÷ rounds), the other metrics by their median;
+   - a match the player left in fewer than 10 rounds does not count;
+3. else nothing: the report shows the session alone and says what is missing.
+
+The report always names its reference ("your 14 matches from … to …", or "Premier players rated 15,000–22,500, 812 player-matches").
+
 ## How a rule fires
 
 A rule watches one metric, and the metric's direction (`better`) says what "worse" means. It fires when both hold:
