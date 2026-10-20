@@ -4,7 +4,7 @@
 
 | Version | Kind | Unit | Reads | Code |
 |---|---|---|---|---|
-| 1.0.0 | value | count | `death` | [`isolated_deaths` in `metrics/duels.py`](https://github.com/untraded/untraded/blob/main/packages/untraded-py/src/untraded/metrics/duels.py) |
+| 1.1.0 | value | count | `death` | [`isolated_deaths` in `metrics/duels.py`](https://github.com/untraded/untraded/blob/main/packages/untraded-py/src/untraded/metrics/duels.py) |
 
 ## Definition
 
@@ -14,7 +14,7 @@
 
 | Parameter | Default | Meaning |
 |---|---|---|
-| `trade.window_s` | 5.0 s | Trade window W: a death is traded when a teammate kills the killer within W seconds, the same tick included (HLTV and CS Demo Manager convention). |
+| `trade.window_s` | 5.0 s | Trade window W: a death is traded when a teammate kills the killer within W seconds, both ends included (the same tick, and exactly W). 5 s is the usual convention (HLTV, CS Demo Manager); CS Demo Manager excludes exactly W. |
 | `isolation.radius` | 1000.0 units | An untraded death is isolated when the nearest living teammate is farther than this. 🎯 v0, to calibrate. |
 
 ## Example
@@ -40,3 +40,4 @@ See also the [shared conventions](README.md#shared-conventions) of every metric.
 ## History
 
 - **1.0.0**: First version (#33).
+- **1.1.0**: Trades now count a kill on the same tick (delay 0) (#41) and the victim's own grenade or fire killing the killer later (#42); two players killing each other on the same tick trade nothing.

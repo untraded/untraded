@@ -4,7 +4,7 @@
 
 | Version | Kind | Unit | Reads | Code |
 |---|---|---|---|---|
-| 1.0.0 | value | pct | `clutch` | [`clutch_win_pct` in `metrics/duels.py`](https://github.com/untraded/untraded/blob/main/packages/untraded-py/src/untraded/metrics/duels.py) |
+| 1.1.0 | value | pct | `clutch` | [`clutch_win_pct` in `metrics/duels.py`](https://github.com/untraded/untraded/blob/main/packages/untraded-py/src/untraded/metrics/duels.py) |
 
 ## Definition
 
@@ -35,3 +35,4 @@ See also the [shared conventions](README.md#shared-conventions) of every metric.
 ## History
 
 - **1.0.0**: First version (#33).
+- **1.1.0**: A player who leaves the server mid-round leaves the team's lineup (#44).

@@ -34,7 +34,7 @@ Run `just check` before every commit.
    - every metric has a stable ID, a semantic version, a written definition, explicit parameters with defaults, and tests;
    - changing a formula bumps the metric version; never change behaviour silently;
    - definitions in `docs/metrics-v1.md` are the spec — update the spec and the code in the same PR;
-   - `docs/metrics/` is generated (pages, parameters, examples on the `premier-half` fixture): run `just docs` after a metric change, which also rewrites the fixtures' `expected_metrics.json`, and explain the diff. Limits and version history live in `untraded.metrics.notes`, parameters in `untraded.metrics.params`.
+   - `docs/metrics/` is generated (pages, parameters, examples on the `premier-half` fixture): run `just docs` after a metric change. `just fixtures-expect` rewrites the fixtures' `expected_metrics.json` (the non-regression guard): run it only for an intended change, bump the versions of the metrics that moved, and explain the diff. Limits and version history live in `untraded.metrics.notes`, parameters in `untraded.metrics.params`.
 5. **Parser isolation** (ADR 0002): only `untraded.parsing` may import `demoparser2`. Everything else works on canonical Polars tables. pandas never leaves the adapter.
 6. **Never assume the tickrate.** Compute it from the demo (the header does not carry it); convert ticks to seconds explicitly.
 7. **Rounds come from game state, events are optional** (ADR 0008): cut rounds with the game rules props, check `list_game_events()` per demo, and use the documented fallbacks when an event is missing.

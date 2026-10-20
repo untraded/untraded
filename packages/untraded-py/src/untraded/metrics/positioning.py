@@ -65,7 +65,7 @@ def _traded(window: ParamValue) -> pl.Expr:
 
 @metric(
     "pos.death_zones",
-    version="1.0.0",
+    version="1.1.0",
     name="Death zones",
     unit="table",
     kind="table",
@@ -172,7 +172,7 @@ def setup_diversity(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
 
 @metric(
     "pos.recurring_death_spot",
-    version="1.0.0",
+    version="1.1.0",
     name="Recurring death spot",
     unit="table",
     kind="table",

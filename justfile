@@ -36,10 +36,13 @@ test:
     uv run pytest
     pnpm test
 
-# Regenerate the metric pages (docs/metrics/) and the fixtures' expected values, after an intended metric change
+# Regenerate the metric pages (docs/metrics/). Never changes the fixtures' expected values.
 docs:
-    uv run untraded fixture expect packages/untraded-py/tests/fixtures/faceit-bots packages/untraded-py/tests/fixtures/premier-abandon packages/untraded-py/tests/fixtures/premier-half
     uv run python -m untraded.metrics.docs
+
+# Re-bless the fixtures' expected metric values, after an INTENDED metric change: review the diff and bump the metric versions
+fixtures-expect:
+    uv run untraded fixture expect packages/untraded-py/tests/fixtures/faceit-bots packages/untraded-py/tests/fixtures/premier-abandon packages/untraded-py/tests/fixtures/premier-half
 
 # Verify every file declares its license (REUSE)
 reuse:

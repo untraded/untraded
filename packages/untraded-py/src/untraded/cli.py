@@ -97,7 +97,6 @@ def _parser() -> argparse.ArgumentParser:
     extract.add_argument("--rounds", required=True, type=_round_range, metavar="FIRST-LAST")
     extract.add_argument("--name", required=True, help="fixture name, also its match id")
     extract.add_argument("--out", required=True, type=Path, help="fixture directory to write")
-    extract.add_argument("--demo-id", help="where it comes from, e.g. its corpus id")
     extract.set_defaults(run=_fixture_extract)
     expect = fixture_actions.add_parser(
         "expect", help="recompute expected_metrics.json after an intended metric change"
@@ -255,14 +254,16 @@ def _fixture_extract(args: argparse.Namespace) -> int:
     first, last = args.rounds
     canonical = parse_demo(args.demo, source="upload", mode=args.mode)
     window = fixtures.anonymize(fixtures.extract(canonical.tables(), first, last), args.name)
-    meta = fixtures.metadata(
-        demo=args.demo_id or args.demo.name, first=first, last=last, tables=window
-    )
+    meta = fixtures.metadata(first=first, last=last, tables=window)
     fixtures.write(args.out, window, meta)
-    size = sum(f.stat().st_size for f in args.out.iterdir())
+    size = sum(f.stat().st_size for f in args.out.iterdir() if f.is_file())
     print(
         f"{args.name}: rounds {first}-{last}, {window['player'].height} players, "
         f"{size / 1e6:.2f} MB -> {args.out}"
+    )
+    print(
+        f'Record the source privately: {args.name} = "<corpus demo id>" in the file named by '
+        "UNTRADED_FIXTURE_SOURCES (never in this repository)."
     )
     return 0
 

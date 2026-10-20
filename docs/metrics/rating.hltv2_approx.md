@@ -14,7 +14,7 @@ Community approximation, **always labeled approx.**: 0.0073 * KAST + 0.3591 * KP
 
 | Parameter | Default | Meaning |
 |---|---|---|
-| `trade.window_s` | 5.0 s | Trade window W: a death is traded when a teammate kills the killer within W seconds, the same tick included (HLTV and CS Demo Manager convention). |
+| `trade.window_s` | 5.0 s | Trade window W: a death is traded when a teammate kills the killer within W seconds, both ends included (the same tick, and exactly W). 5 s is the usual convention (HLTV, CS Demo Manager); CS Demo Manager excludes exactly W. |
 | `kast.count_flash_assist` | false | Whether a flash assist alone makes a round count for KAST. |
 
 ## Example
@@ -27,7 +27,7 @@ On the `premier-half` fixture: a Premier match on de_cache, rounds 11 to 15, ano
 
 ## Against CS Demo Manager
 
-Compared player by player on 30 matches (must be within 1 %). Every remaining gap is a documented definition difference: see [validation-csdm.md](../validation-csdm.md).
+Compared player by player on 30 matches, against a 1 % tolerance. The values that differ are counted and explained, each by a documented definition difference, in [validation-csdm.md](../validation-csdm.md).
 
 ## Limits
 
@@ -40,4 +40,4 @@ See also the [shared conventions](README.md#shared-conventions) of every metric.
 ## History
 
 - **1.0.0**: First version (#37).
-- **1.1.0**: Follows `base.kast` 1.1.0 (#43).
+- **1.1.0**: Follows `base.kast` 1.1.0 (#41, #42, #43).

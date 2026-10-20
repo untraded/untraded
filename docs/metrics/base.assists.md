@@ -20,7 +20,7 @@ On the `premier-half` fixture: a Premier match on de_cache, rounds 11 to 15, ano
 
 ## Against CS Demo Manager
 
-Compared exact, assists and flash assists added up: see [validation-csdm.md](../validation-csdm.md).
+No field of its own in CS Demo Manager; compared with assists and flash assists added up: see [validation-csdm.md](../validation-csdm.md).
 
 ## Limits
 
