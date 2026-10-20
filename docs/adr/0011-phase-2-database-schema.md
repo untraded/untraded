@@ -1,6 +1,6 @@
 # 0011. Phase 2 database schema
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-21
 - Builds on: [0004](0004-postgres-as-job-queue.md), [0006](0006-schema-ownership.md), [0009](0009-storage-and-retention.md)
 
