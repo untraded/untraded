@@ -29,4 +29,13 @@ pnpm --filter @untraded/web dev    # http://localhost:3000, with the API on http
   the browser's languages (`next-intl`, `messages/{en,fr}.json`). Every string goes through
   the messages.
 
+## Working without the API
+
+`apps/web/dev/mock_api.py` mocks the API with invented, seeded data covering every screen: the three kinds of reference, priorities with evidence, follow-up, and matches in every status. Signing in goes straight through, with no Steam.
+
+```bash
+uv run python apps/web/dev/mock_api.py                     # http://127.0.0.1:8077
+UNTRADED_API_INTERNAL_URL=http://127.0.0.1:8077 MOCK_WEB_URL=http://localhost:3000   pnpm --filter @untraded/web dev
+```
+
 `pnpm test` covers the formatting and the language choice; `pnpm build` checks every page.

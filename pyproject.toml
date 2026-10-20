@@ -57,6 +57,8 @@ known-first-party = ["untraded", "untraded_api", "untraded_db", "untraded_worker
 
 [tool.ruff.lint.per-file-ignores]
 "spikes/**" = ["TID251"]
+# Mock data for the web app, in tables: long lines read better.
+"apps/web/dev/**" = ["E501"]
 "packages/untraded-py/src/untraded/parsing/**" = ["TID251"]
 
 [tool.mypy]
