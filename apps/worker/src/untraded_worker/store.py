@@ -42,6 +42,12 @@ class LocalStore:
         shutil.copyfile(source, partial)
         partial.replace(target)
 
+    def move_in(self, key: str, source: Path) -> None:
+        """Moves `source` (a file already inside the store's volume) under `key`, atomically."""
+        target = self.path(key)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        source.replace(target)
+
     def delete(self, key: str) -> bool:
         """Deletes `key`; returns False if it was not there."""
         target = self.path(key)
