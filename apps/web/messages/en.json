@@ -106,57 +106,71 @@
       "trade": {
         "untraded_deaths": {
           "coach": "{events} deaths without a trade. Play close enough to a teammate for them to trade you.",
-          "analyst": "{events} untraded deaths: {session} per round, against {reference}."
+          "analyst": "{events} untraded deaths: {session} per round, against {reference}.",
+          "label": "Untraded deaths"
         },
         "isolated_deaths": {
           "coach": "{events} deaths with no teammate in trade range. Don't take fights alone.",
-          "analyst": "{events} isolated deaths: {session} of your deaths, against {reference}."
+          "analyst": "{events} isolated deaths: {session} of your deaths, against {reference}.",
+          "label": "Isolated deaths"
         },
         "missed_trades": {
           "coach": "{events} times a teammate died near you and you didn't trade. Be ready to swing right after the contact.",
-          "analyst": "{events} trade opportunities missed: conversion {session}, against {reference}."
+          "analyst": "{events} trade opportunities missed: conversion {session}, against {reference}.",
+          "label": "Missed trades"
         }
       },
       "duel": {
         "opening_deaths": {
           "coach": "You lost {events} opening duels. Take the first fight with information or utility, or let it come to you.",
-          "analyst": "{events} opening deaths: opening success {session}, against {reference}."
+          "analyst": "{events} opening deaths: opening success {session}, against {reference}.",
+          "label": "Opening duels"
         },
         "openings_lost": {
           "coach": "{events} rounds lost after your opening kill. Play the advantage: regroup and trade, don't hunt.",
-          "analyst": "{events} rounds lost after an opening kill: conversion {session}, against {reference}."
+          "analyst": "{events} rounds lost after an opening kill: conversion {session}, against {reference}.",
+          "label": "Rounds lost after your opening"
         }
       },
       "clutch": {
         "clutches_lost": {
           "coach": "{events} clutches lost. Use the clock and take the duels one at a time.",
-          "analyst": "{events} clutches lost: success {session}, against {reference}."
+          "analyst": "{events} clutches lost: success {session}, against {reference}.",
+          "label": "Clutches"
         }
       },
       "combat": {
         "duels_without_damage": {
           "coach": "{events} times you died without touching your killer. Work on crosshair placement and the first bullet.",
-          "analyst": "{events} duels lost without damage; HS % {session}, against {reference}."
+          "analyst": "{events} duels lost without damage; HS % {session}, against {reference}.",
+          "label": "Duels lost without damage"
         }
       },
       "util": {
         "wasted_utility": {
           "coach": "You died {events} times with grenades still on you. Throw them before taking the fight.",
-          "analyst": "{events} deaths with unused grenades: {session} per death, against {reference}."
+          "analyst": "{events} deaths with unused grenades: {session} per death, against {reference}.",
+          "label": "Wasted utility"
         },
         "team_flashes": {
           "coach": "Your flashes blinded teammates {events} times. Call them, and throw them past your teammates.",
-          "analyst": "{events} teammates flashed: {session} per round, against {reference}."
+          "analyst": "{events} teammates flashed: {session} per round, against {reference}.",
+          "label": "Team flashes"
         }
       },
       "pos": {
         "recurring_death_spot": {
           "coach": "You keep dying untraded at {zone} on {map} ({side}): {events} times this session. Change the position or the timing.",
-          "analyst": "{zone}, {map} ({side}): {events} untraded deaths this session, {history} over the period."
+          "analyst": "{zone}, {map} ({side}): {events} untraded deaths this session, {history} over the period.",
+          "label": "Recurring death spot"
         }
       }
     },
-    "actionsTitle": "What to do"
+    "actionsTitle": "What to do",
+    "followTitle": "Your last priorities",
+    "followLine": "{name}: {before} last session, {now} now",
+    "followReference": "reference {reference}",
+    "followMissing": "not measured this session"
   },
   "actions": {
     "kinds": {

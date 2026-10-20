@@ -6,6 +6,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { ComparisonCard } from "@/components/comparison";
+import { FollowUps } from "@/components/follow-up";
 import { Priorities } from "@/components/priorities";
 import { ResultBadge } from "@/components/result-badge";
 import { type Locale, pickTone, TONE_COOKIE } from "@/i18n/locale";
@@ -83,6 +84,7 @@ export default async function SessionPage({ params }: Params) {
       </header>
 
       <Priorities advice={report.advice} sessionId={report.id} locale={locale} tone={tone} />
+      <FollowUps items={report.follow_up} locale={locale} />
 
       <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4">
         {report.headlines.map((c) => (

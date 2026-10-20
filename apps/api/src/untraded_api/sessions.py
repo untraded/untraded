@@ -96,12 +96,39 @@ class Advice(BaseModel):
     """The user's 👍 (1) or 👎 (-1), if any."""
 
 
+class Point(BaseModel):
+    session_id: uuid.UUID
+    started_at: dt.datetime
+    value: float | None
+
+
+class FollowUp(BaseModel):
+    """A priority of the previous session, and how its indicator moved since."""
+
+    rule_id: str
+    indicator: str
+    name: str
+    unit: str
+    basis: str
+    better: str
+    then: float | None
+    """The indicator in the session that raised the priority."""
+    now: float | None
+    """The indicator in this session."""
+    reference: float | None
+    """This session's reference for it."""
+    history: list[Point]
+    """The indicator over the player's last sessions, oldest first, this one last."""
+
+
 class SessionReport(SessionSummary):
     reference: Reference
     match_list: list[MatchSummary]
     metrics: list[Comparison]
     advice: list[Advice]
     """Up to three priorities, most costly first."""
+    follow_up: list[FollowUp]
+    """The previous session's priorities and their indicators since (vision § 5)."""
 
 
 SESSION = """
@@ -200,7 +227,7 @@ def get_session(session_id: uuid.UUID, conn: ConnDep, user: UserDep) -> SessionR
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no such session")
     window = conn.execute(
         "SELECT reference_from, reference_to, reference_matches, reference_rounds, params, "
-        "reference_kind, reference_level_low, reference_level_high "
+        "reference_kind, reference_level_low, reference_level_high, steam_id, started_at "
         "FROM play_session WHERE id = %s",
         (session_id,),
     ).fetchone()
@@ -254,4 +281,66 @@ def get_session(session_id: uuid.UUID, conn: ConnDep, user: UserDep) -> SessionR
             )
             for a in advice
         ],
+        follow_up=_follow_up(conn, session_id, window[8], window[9]),
     )
+
+
+HISTORY = 5
+"""Sessions shown in an indicator's history."""
+
+
+def _follow_up(
+    conn: ConnDep, session_id: uuid.UUID, steam_id: int, started_at: dt.datetime
+) -> list[FollowUp]:
+    previous = conn.execute(
+        "SELECT id FROM play_session WHERE steam_id = %s AND started_at < %s "
+        "ORDER BY started_at DESC LIMIT 1",
+        (steam_id, started_at),
+    ).fetchone()
+    if previous is None:
+        return []
+    raised = conn.execute(
+        "SELECT rule_id, message_args->>'indicator' FROM advice "
+        "WHERE session_id = %s ORDER BY priority",
+        (previous[0],),
+    ).fetchall()
+    found = []
+    for rule_id, indicator in raised:
+        definition = conn.execute(
+            "SELECT d.name, d.unit, d.better FROM metric_current c "
+            "JOIN metric_definition d USING (metric_id, version) WHERE c.metric_id = %s",
+            (indicator,),
+        ).fetchone()
+        if definition is None:
+            continue
+        rows = conn.execute(
+            """
+            SELECT ps.id, ps.started_at, m.session, m.reference, m.basis
+            FROM play_session ps
+            JOIN play_session_metric m ON m.session_id = ps.id AND m.metric_id = %(metric)s
+            JOIN metric_current c ON c.metric_id = m.metric_id AND c.version = m.version
+            WHERE ps.steam_id = %(steam)s AND ps.started_at <= %(start)s
+            ORDER BY ps.started_at DESC
+            LIMIT %(limit)s
+            """,
+            {"metric": indicator, "steam": steam_id, "start": started_at, "limit": HISTORY},
+        ).fetchall()
+        by_session = {r[0]: r for r in rows}
+        current, then = by_session.get(session_id), by_session.get(previous[0])
+        found.append(
+            FollowUp(
+                rule_id=rule_id,
+                indicator=indicator,
+                name=definition[0],
+                unit=definition[1],
+                basis=(current or then or (None, None, None, None, "value"))[4],
+                better=definition[2],
+                then=then[2] if then else None,
+                now=current[2] if current else None,
+                reference=current[3] if current else None,
+                history=[
+                    Point(session_id=r[0], started_at=r[1], value=r[2]) for r in reversed(rows)
+                ],
+            )
+        )
+    return found

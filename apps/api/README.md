@@ -31,7 +31,7 @@ UNTRADED_PUBLIC_URL=http://localhost:8000 UNTRADED_WEB_URL=http://localhost:3000
 | `GET /matches?limit=&offset=` | the matches the user may see, most recent first, with the user's team, result and headline numbers |
 | `GET /matches/{id}` | a match: score, rounds, players and their headline numbers (404 when not visible) |
 | `GET /sessions?limit=&offset=` | the user's play sessions, most recent first, with their record and headline comparisons |
-| `GET /sessions/{id}` | a session's report: its reference (own days, level or none), matches, up to three priorities with their evidence, and every metric against the reference |
+| `GET /sessions/{id}` | a session's report: its reference (own days, level or none), matches, up to three priorities with their evidence, the previous priorities' indicators since (follow-up), and every metric against the reference |
 | `POST /advice/{id}/feedback` | 👍 (`{"vote": 1}`), 👎 (`-1`) or take the vote back (`0`) on one of the user's priorities |
 | `GET /matches/{id}/players/{steam_id}` | every value metric of a player in that match, on the scopes `match`, `ct` and `t` |
 | `GET /health` | liveness |

@@ -42,6 +42,7 @@ def test_every_rule_speaks_in_both_tones(lang: str) -> None:
         for tone in ("coach", "analyst"):
             text = at(messages, f"advice.rules.{rule.id}.{tone}")
             assert "{events}" in text or "{zone}" in text, (rule.id, tone)
+        assert at(messages, f"advice.rules.{rule.id}.label"), rule.id
 
 
 @pytest.mark.parametrize("lang", LANGUAGES)
