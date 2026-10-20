@@ -104,6 +104,15 @@ def csdm_values(export: Mapping[str, Any]) -> pl.DataFrame:
         row.update(dict.fromkeys((f.ours for f in CLUTCH_FIELDS), 0.0))
         rows.append(row)
     by_player = {row["steamid"]: row for row in rows}
+    # Assists from the kill list: the per-player counter does not always match it (24 of 250
+    # players on the corpus). Enemy kills only, flash assists included (our assists + flash
+    # assists).
+    for row in rows:
+        row["assists"] = 0.0
+    for kill in export.get("kills") or []:
+        assister = by_player.get(kill.get("assisterSteamId"))
+        if assister is not None and kill["killerSide"] != kill["victimSide"]:
+            assister["assists"] += 1
     for clutch in export.get("clutches") or []:
         clutcher = by_player.get(clutch["clutcherSteamId"])
         if clutcher is None:

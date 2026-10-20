@@ -25,6 +25,11 @@ EXPORT = {
         {"clutcherSteamId": 1, "opponentCount": 2, "hasWon": True},
         {"clutcherSteamId": 1, "opponentCount": 2, "hasWon": False},
     ],
+    "kills": [
+        {"assisterSteamId": 2, "killerSide": 3, "victimSide": 2},
+        {"assisterSteamId": 2, "killerSide": 3, "victimSide": 3},  # a team kill
+        {"assisterSteamId": 0, "killerSide": 2, "victimSide": 3},
+    ],
 }
 
 
@@ -47,6 +52,11 @@ def test_clutches_come_from_the_clutch_list_not_the_player_counters() -> None:
     assert values["clutch_attempts_1v2"] == 2.0
     assert values["clutch_wins_1v2"] == 1.0
     assert values["clutch_attempts_1v1"] == 0.0
+
+
+def test_assists_come_from_the_enemy_kills_of_the_kill_list() -> None:
+    values = dict(csdm.csdm_values(EXPORT).select("steamid", "assists").iter_rows())
+    assert values == {1: 0.0, 2: 1.0}
 
 
 def test_identical_stats_have_no_gap() -> None:
