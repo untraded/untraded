@@ -16,12 +16,18 @@ from tempfile import TemporaryDirectory
 
 import polars as pl
 
-from untraded import corpus, fixtures, report, resources
+from untraded import corpus, fixtures, reference, report, resources
 from untraded.corpus.sync import SftpRemote, SyncError, SyncReport, pull, push
 from untraded.demofile import CorruptDemoError, NotADemoError
 from untraded.derive import derive
 from untraded.metrics import REGISTRY, Dataset, compute, compute_table
-from untraded.parsing import MODES, CanonicalError, UnsupportedModeError, parse_demo
+from untraded.parsing import (
+    MODES,
+    CanonicalError,
+    CanonicalMatch,
+    UnsupportedModeError,
+    parse_demo,
+)
 from untraded.validation import csdm
 
 DEFAULT_MANIFEST = Path("corpus") / "manifest.toml"
@@ -39,6 +45,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         CanonicalError,
         UnsupportedModeError,
         fixtures.FixtureError,
+        reference.ReferenceError,
     ) as error:
         print(f"error: {error}", file=sys.stderr)
         return 2
@@ -70,6 +77,27 @@ def _parser() -> argparse.ArgumentParser:
         "--out", type=Path, help="also write tables and metrics as Parquet: OUT/matches/<id>/"
     )
     analyze.set_defaults(run=_analyze)
+
+    ref = commands.add_parser(
+        "reference",
+        help="compare a session with the player's own reference (the 30 days before it)",
+    )
+    ref.add_argument(
+        "matches",
+        nargs="+",
+        type=Path,
+        help="match directories written by `untraded parse --out` (session and history)",
+    )
+    ref.add_argument("--player", required=True, type=int, help="SteamID64 of the player")
+    ref.add_argument(
+        "--session",
+        required=True,
+        action="append",
+        metavar="MATCH_ID",
+        help="a match of the session (its directory name); repeat for each match",
+    )
+    ref.add_argument("--format", choices=["table", "json"], default="table")
+    ref.set_defaults(run=_reference)
 
     check = commands.add_parser(
         "compare-csdm", help="compare our stats with CS Demo Manager's analyzer, demo by demo"
@@ -192,6 +220,62 @@ def _analyze(args: argparse.Namespace) -> int:
         print(json.dumps(report.to_json(match_report), ensure_ascii=False, indent=2))
     else:
         print(report.render_table(match_report))
+    return 0
+
+
+REFERENCE_TABLE = (
+    "base.kast",
+    "base.adr",
+    "base.kpr",
+    "base.dpr",
+    "duel.opening_success_pct",
+    "trade.traded_death_pct",
+    "trade.untraded_deaths",
+    "duel.isolated_death_pct",
+    "util.blind_per_flash",
+    "rating.hltv1",
+)
+"""Metrics of the terminal table of `untraded reference` (JSON has them all)."""
+
+
+def _reference(args: argparse.Namespace) -> int:
+    matches = []
+    for directory in args.matches:
+        canonical = CanonicalMatch.read(directory)
+        tables = canonical.tables()
+        matches.append({**tables, **derive(tables).tables()})
+    result = reference.compare_to_self(matches, args.player, set(args.session))
+    if args.format == "json":
+        payload = {
+            "player": str(result.player),
+            "session": {"matches": result.session_matches, "rounds": result.session_rounds},
+            "reference": {
+                "from": result.reference_from.isoformat(),
+                "to": result.reference_to.isoformat(),
+                "matches": result.reference_matches,
+                "rounds": result.reference_rounds,
+                "enough": result.enough,
+            },
+            "values": result.values.to_dicts(),
+        }
+        print(json.dumps(payload, indent=2))
+        return 0
+    print(
+        f"Session: {result.session_matches} match(es), {result.session_rounds} rounds. "
+        f"Reference {result.reference_from} to {result.reference_to}: "
+        f"{result.reference_matches} match(es), {result.reference_rounds} rounds."
+    )
+    if not result.enough:
+        print(
+            f"Not enough matches yet for a reference (at least {reference.MIN_MATCHES} matches "
+            f"and {reference.MIN_ROUNDS} rounds)."
+        )
+    print(f"{'metric':<28}{'basis':>10}{'session':>10}{'reference':>11}{'delta':>9}")
+    rows = result.values.filter(pl.col("metric").is_in(REFERENCE_TABLE))
+    for row in rows.iter_rows(named=True):
+        cells = [row[k] for k in ("session", "reference", "delta")]
+        text = [f"{v:.2f}" if v is not None else "-" for v in cells]
+        print(f"{row['metric']:<28}{row['basis']:>10}{text[0]:>10}{text[1]:>11}{text[2]:>9}")
     return 0
 
 

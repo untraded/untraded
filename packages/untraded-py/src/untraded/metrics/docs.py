@@ -119,14 +119,17 @@ def _parameters() -> str:
     lines += [
         "Metric parameters are applied when a metric is computed: "
         '`compute(dataset, params={"trade.window_s": 3.0})`. Derivation parameters are applied '
-        "when the round model is built, so changing one means deriving again. 🎯 marks a v0 "
+        "when the round model is built, so changing one means deriving again. Reference "
+        "parameters choose the matches of the player's own reference (`untraded.reference`). "
+        "🎯 marks a v0 "
         "threshold still to calibrate on demos from consenting high-level players (ADR 0010).",
         "",
         "| Parameter | Default | Unit | Stage | 🎯 | Meaning | Used by |",
         "|---|---|---|---|---|---|---|",
     ]
     for p in sorted(PARAMETERS.values(), key=lambda p: p.id):
-        metrics = ", ".join(f"[`{i}`]({i}.md)" for i in used.get(p.id, [])) or "the round model"
+        fallback = "the self reference" if p.stage == "reference" else "the round model"
+        metrics = ", ".join(f"[`{i}`]({i}.md)" for i in used.get(p.id, [])) or fallback
         lines.append(
             f"| `{p.id}` | {json.dumps(p.default)} | {p.unit} | {p.stage} | "
             f"{'🎯' if p.calibrate else ''} | {p.doc} | {metrics} |"

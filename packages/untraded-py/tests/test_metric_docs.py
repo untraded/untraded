@@ -9,6 +9,7 @@ import itertools
 import re
 from pathlib import Path
 
+from untraded import reference
 from untraded.derive.buys import BuyThresholds
 from untraded.derive.players import SETUP_OFFSET_S
 from untraded.metrics import REGISTRY
@@ -52,9 +53,13 @@ def test_derivation_parameters_follow_the_code() -> None:
     assert PARAMETERS["buy.eco_max"].default == buy.eco_max
     assert PARAMETERS["buy.full_min_ct"].default == buy.full_min_ct
     assert PARAMETERS["buy.full_min_t"].default == buy.full_min_t
+    assert PARAMETERS["reference.window_days"].default == reference.WINDOW_DAYS
+    assert PARAMETERS["reference.min_matches"].default == reference.MIN_MATCHES
+    assert PARAMETERS["reference.min_rounds"].default == reference.MIN_ROUNDS
     used = {key for m in REGISTRY.values() for key in m.params}
     for p in PARAMETERS.values():
         assert (p.stage == "metric") == (p.id in used), f"{p.id}: stage {p.stage}"
+        assert p.stage != "reference" or p.id.startswith("reference."), p.id
 
 
 def test_notes_name_registered_metrics_and_families() -> None:
