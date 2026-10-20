@@ -1,0 +1,21 @@
+[build-system]
+requires = ["hatchling==1.32.4"]
+build-backend = "hatchling.build"
+
+[project]
+name = "untraded-worker"
+version = "0.0.0"
+description = "The Untraded worker: consumes the job queue and runs the untraded library."
+license = "AGPL-3.0-only"
+requires-python = ">=3.14"
+dependencies = [
+    "untraded",
+    "untraded-db",
+    "psycopg[binary]==3.3.6",
+]
+
+[project.scripts]
+untraded-worker = "untraded_worker.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/untraded_worker"]
