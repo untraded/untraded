@@ -1,6 +1,13 @@
 {
-  "brand": { "tagline": "Never die untraded." },
-  "nav": { "matches": "Matches", "signOut": "Sign out", "language": "Language" },
+  "brand": {
+    "tagline": "Never die untraded."
+  },
+  "nav": {
+    "matches": "Matches",
+    "signOut": "Sign out",
+    "language": "Language",
+    "sessions": "Sessions"
+  },
   "home": {
     "title": "Your CS2 matches, analysed in the open",
     "lead": "Untraded collects your Premier matches, parses the demos and shows what matters, with every formula public.",
@@ -25,7 +32,11 @@
     "older": "Older matches",
     "newer": "Newer matches"
   },
-  "result": { "win": "Win", "loss": "Loss", "tie": "Tie" },
+  "result": {
+    "win": "Win",
+    "loss": "Loss",
+    "tie": "Tie"
+  },
   "status": {
     "pending": "Waiting",
     "downloading": "Downloading",
@@ -47,5 +58,33 @@
     "notReady": "This match is not analysed yet.",
     "missing": "Missing from this demo: {items}",
     "overtime": "OT"
+  },
+  "sessions": {
+    "title": "Sessions",
+    "empty": "No session yet. A session appears once one of your matches is analysed.",
+    "count": "{matches, plural, one {# match} other {# matches}} · {rounds} rounds",
+    "record": "{wins} W – {losses} L{ties, plural, =0 {} other { – # T}}",
+    "reference": "Compared with your {matches, plural, one {# match} other {# matches}} ({rounds} rounds) from {since} to {until}.",
+    "notEnough": "Not enough history for a reference yet: it needs {minMatches} matches and {minRounds} rounds in the 30 days before the session ({matches} and {rounds} so far).",
+    "matches": "Matches",
+    "allMetrics": "Every metric",
+    "metric": "Metric",
+    "session": "Session",
+    "yours": "Your 30 days",
+    "delta": "Difference",
+    "perRound": "per round",
+    "older": "Older sessions",
+    "newer": "Newer sessions",
+    "back": "All sessions"
+  },
+  "families": {
+    "base": "Basics",
+    "clutch": "Clutches",
+    "duel": "Duels",
+    "eco": "Economy",
+    "pos": "Positioning",
+    "rating": "Ratings",
+    "trade": "Trades",
+    "util": "Utility"
   }
 }

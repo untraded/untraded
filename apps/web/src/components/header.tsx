@@ -17,9 +17,14 @@ export async function Header({ me }: { me: Me | null }) {
           Untraded
         </Link>
         {me && (
-          <Link href="/matches" className="text-sm text-zinc-300 hover:text-white">
-            {t("matches")}
-          </Link>
+          <nav className="flex gap-4 text-sm text-zinc-300">
+            <Link href="/sessions" className="hover:text-white">
+              {t("sessions")}
+            </Link>
+            <Link href="/matches" className="hover:text-white">
+              {t("matches")}
+            </Link>
+          </nav>
         )}
         <div className="ml-auto flex items-center gap-4 text-sm">
           <form action={setLocale} className="flex gap-1" aria-label={t("language")}>

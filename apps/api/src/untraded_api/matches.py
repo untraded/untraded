@@ -135,7 +135,7 @@ def _result(team: str | None, score_a: int | None, score_b: int | None) -> str |
     return "win" if mine > theirs else "loss" if mine < theirs else "tie"
 
 
-def _summary(row: tuple[Any, ...]) -> dict[str, Any]:
+def summary_fields(row: tuple[Any, ...]) -> dict[str, Any]:
     (id_, played_at, ended_at, mode, status_, map_, score_a, score_b, rounds, team, has_line) = row[
         :11
     ]
@@ -169,7 +169,7 @@ def list_matches(
         {"user": user, "limit": limit, "offset": offset},
     ).fetchall()
     return MatchList(
-        items=[MatchSummary(**_summary(row)) for row in rows], limit=limit, offset=offset
+        items=[MatchSummary(**summary_fields(row)) for row in rows], limit=limit, offset=offset
     )
 
 
@@ -204,7 +204,7 @@ def get_match(match_id: uuid.UUID, conn: ConnDep, user: UserDep) -> MatchDetail:
         (match_id,),
     ).fetchall()
     return MatchDetail(
-        **_summary(summary),
+        **summary_fields(summary),
         team_a_name=extra[0],
         team_b_name=extra[1],
         tickrate=extra[2],

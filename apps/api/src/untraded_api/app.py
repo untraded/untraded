@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: 2026 The Untraded Authors
 # SPDX-License-Identifier: AGPL-3.0-only
-"""The HTTP API: Steam sign-in (`auth`) and the matches the user may see (`matches`).
+"""The HTTP API: Steam sign-in (`auth`), the matches the user may see (`matches`) and their
+play sessions with their report (`sessions`).
 
 Every route that reads data runs in one transaction as `untraded_api`, seen as the signed-in
 user (`deps.as_user`): row-level security (ADR 0011) decides what it returns.
@@ -14,7 +15,7 @@ from contextlib import asynccontextmanager
 import httpx
 from fastapi import FastAPI
 
-from untraded_api import auth, matches
+from untraded_api import auth, matches, sessions
 from untraded_api.db import Database
 from untraded_api.deps import COOKIE
 from untraded_api.settings import Settings
@@ -46,4 +47,5 @@ def create_app(settings: Settings, *, steam_client: httpx.Client | None = None) 
 
     app.include_router(auth.router)
     app.include_router(matches.router)
+    app.include_router(sessions.router)
     return app
