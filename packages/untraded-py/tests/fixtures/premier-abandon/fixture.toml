@@ -1,4 +1,3 @@
-demo = "valve-premier-2026-10-16-ancient-01"
 rounds = [8, 10]
 mode = "premier"
 map = "de_ancient"

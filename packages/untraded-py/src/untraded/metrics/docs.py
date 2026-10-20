@@ -46,9 +46,12 @@ GENERATED = (
     "hand. The specification is [metrics-v1.md](../metrics-v1.md).*"
 )
 COMPARED_TOO = {
-    "base.assists": "exact, assists and flash assists added up",
-    "base.flash_assists": "exact, assists and flash assists added up",
+    "base.assists": "with assists and flash assists added up",
+    "base.flash_assists": "with assists and flash assists added up",
+    "trade.untraded_deaths": "through deaths and traded deaths, both compared",
+    "trade.traded_death_pct": "through deaths and traded deaths, both compared",
 }
+"""Metrics CS Demo Manager has no field for, checked through the fields it has."""
 TABLE_ROWS = 8
 
 
@@ -199,21 +202,25 @@ def _fmt(value: object) -> str:
 
 
 def _csdm(metric_id: str) -> str:
+    """The rule a comparison is held to, not its outcome: gaps remain, each one explained."""
     if metric_id in COMPARED:
-        return "exact" if COMPARED[metric_id] == "exact" else "within 1 %"
-    return "exact (summed)" if metric_id in COMPARED_TOO else "—"
+        return "compared (equal)" if COMPARED[metric_id] == "exact" else "compared (1 %)"
+    return "indirectly" if metric_id in COMPARED_TOO else "—"
 
 
 def _csdm_detail(metric_id: str) -> str:
     report = "[validation-csdm.md](../validation-csdm.md)"
     if metric_id in COMPARED:
-        rule = "must be equal" if COMPARED[metric_id] == "exact" else "must be within 1 %"
+        rule = "equal values" if COMPARED[metric_id] == "exact" else "a 1 % tolerance"
         return (
-            f"Compared player by player on 30 matches ({rule}). Every remaining gap is a "
-            f"documented definition difference: see {report}."
+            f"Compared player by player on 30 matches, against {rule}. The values that differ "
+            f"are counted and explained, each by a documented definition difference, in {report}."
         )
     if metric_id in COMPARED_TOO:
-        return f"Compared {COMPARED_TOO[metric_id]}: see {report}."
+        return (
+            f"No field of its own in CS Demo Manager; compared {COMPARED_TOO[metric_id]}: "
+            f"see {report}."
+        )
     return "No equivalent in CS Demo Manager."
 
 

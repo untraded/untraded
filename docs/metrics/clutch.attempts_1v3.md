@@ -4,7 +4,7 @@
 
 | Version | Kind | Unit | Reads | Code |
 |---|---|---|---|---|
-| 1.0.0 | value | count | `clutch` | [`attempts` in `metrics/duels.py`](https://github.com/untraded/untraded/blob/main/packages/untraded-py/src/untraded/metrics/duels.py) |
+| 1.1.0 | value | count | `clutch` | [`attempts` in `metrics/duels.py`](https://github.com/untraded/untraded/blob/main/packages/untraded-py/src/untraded/metrics/duels.py) |
 
 ## Definition
 
@@ -20,7 +20,7 @@ On the `premier-half` fixture: a Premier match on de_cache, rounds 11 to 15, ano
 
 ## Against CS Demo Manager
 
-Compared player by player on 30 matches (must be equal). Every remaining gap is a documented definition difference: see [validation-csdm.md](../validation-csdm.md).
+Compared player by player on 30 matches, against equal values. The values that differ are counted and explained, each by a documented definition difference, in [validation-csdm.md](../validation-csdm.md).
 
 ## Limits
 
@@ -34,3 +34,4 @@ See also the [shared conventions](README.md#shared-conventions) of every metric.
 ## History
 
 - **1.0.0**: First version (#33).
+- **1.1.0**: A player who leaves the server mid-round leaves the team's lineup (#44).
