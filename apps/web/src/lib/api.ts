@@ -198,8 +198,24 @@ export interface Advice {
   my_vote: 1 | -1 | null;
 }
 
+export interface FollowUp {
+  rule_id: string;
+  indicator: string;
+  name: string;
+  unit: string;
+  basis: Comparison["basis"];
+  better: Comparison["better"];
+  /** The indicator in the session that raised the priority. */
+  then: number | null;
+  now: number | null;
+  reference: number | null;
+  /** Oldest first, this session last. */
+  history: { session_id: string; started_at: string; value: number | null }[];
+}
+
 export interface SessionReport extends SessionSummary {
   advice: Advice[];
+  follow_up: FollowUp[];
   reference: {
     /** `self`, `level` (players of the same rating band) or `none`. */
     kind: "self" | "level" | "none";
