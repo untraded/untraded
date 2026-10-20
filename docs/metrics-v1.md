@@ -48,9 +48,10 @@
 
 **Core definitions**
 - **Opening**: the first enemy kill of the round after freeze-time end.
-- **Trade**: A is killed by enemy B at tick *t*. If a teammate C of A kills B within ]*t*, *t* + W], then:
+- **Trade**: A is killed by enemy B at tick *t*. If a teammate C of A kills B within [*t*, *t* + W], the same tick included, then:
   - **A's death is traded**;
   - **C gets a trade kill**.
+  - When A and B kill each other on the same tick, nobody is traded. A's own grenade or fire killing B after A's death does trade it.
 - **W**, the trade window: ⚙ `trade.window_s = 5.0` (HLTV and CSDM convention). A 3-second variant is computed alongside with the `_w3` suffix (⚙ `trade.window_w3_s = 3.0`).
 - **Trade opportunity**: A is killed by B. Every teammate C of A who is **alive** at that tick and **within D units of B's position** has a trade opportunity.
   - ⚙🎯 `trade.opportunity_distance = 1000` u.
@@ -79,7 +80,7 @@
 
 ## 3. Positioning (priority)
 
-These metrics are distributions per map and side, not one number per player: the registry exposes them as `table` metrics (`untraded.metrics.compute_table`), with the columns listed in [metrics-reference.md](metrics-reference.md).
+These metrics are distributions per map and side, not one number per player: the registry exposes them as `table` metrics (`untraded.metrics.compute_table`), with the columns listed on each metric's page in [metrics/](metrics/README.md).
 
 | ID | Name | Definition | CSDM |
 |---|---|---|---|
@@ -139,8 +140,8 @@ These metrics are distributions per map and side, not one number per player: the
 | `rating.hltv2_approx` | HLTV 2.0 (approx.) | 0.0073 × KAST + 0.3591 × KPR − 0.5329 × DPR + 0.2372 × Impact + 0.0032 × ADR + 0.1587, with Impact = 2.13 × KPR + 0.42 × APR − 0.41 and KAST in % (`base.kast`, same parameters). **Always labeled "approx."** | ≈ |
 
 **Validation.**
-- HLTV 1.0: the demos of the 1.0 era are CS:GO demos, which the CS2 parser does not read, so it is checked against independent calculations. The reference average player rates exactly 1.00. Over 18 Premier matches, the mean of each lobby is 0.99, ranging from 0.91 to 1.04. The comparison with CS Demo Manager comes with E8.
-- HLTV 2.0 (approx.): HLTV does not publish the formula, and no published error margin was found for this community approximation. It is measured against CS Demo Manager in E8. Over the same matches, its lobby mean is 1.10 and it correlates at 0.95 with the 1.0.
+- HLTV 1.0: the demos of the 1.0 era are CS:GO demos, which the CS2 parser does not read, so it is checked against independent calculations. The reference average player rates exactly 1.00. Over 18 Premier matches, the mean of each lobby is 0.99, ranging from 0.91 to 1.04. Against CS Demo Manager on 30 matches (E8), every gap comes from the rounds counted or from bots ([validation-csdm.md](validation-csdm.md)).
+- HLTV 2.0 (approx.): HLTV does not publish the formula, and no published error margin was found for this community approximation. Over the same matches, its lobby mean is 1.10 and it correlates at 0.95 with the 1.0. Against CS Demo Manager, the formula is the same and every gap comes from its inputs (KAST, ADR, assists) or its floor at 0.
 
 The **open Untraded rating**, based on round win probability, is outside this catalog. It arrives in phase 2 and is trained on demos from consenting high-level players ([ADR 0010](adr/0010-reference-data-and-corpus.md)).
 

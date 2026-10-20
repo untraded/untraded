@@ -77,6 +77,11 @@ _METRICS = {
     **{f"multikills_{n}": f"base.multikills_{n}" for n in range(1, 6)},
     **{f"clutch_{k}_1v{n}": f"clutch.{k}_1v{n}" for n in range(1, 6) for k in ("attempts", "wins")},
 }
+COMPARED: dict[str, Rule] = {
+    metric_id: next(f.rule for f in (*FIELDS, *CLUTCH_FIELDS) if f.ours == ours)
+    for ours, metric_id in _METRICS.items()
+}
+"""Our metrics compared one to one with CS Demo Manager's, and the rule applied."""
 GRENADES = ("hegrenade", "inferno", "molotov", "incgrenade", "smokegrenade", "flashbang", "decoy")
 
 

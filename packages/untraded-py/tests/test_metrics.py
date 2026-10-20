@@ -4,14 +4,12 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 import polars as pl
 import pytest
 
 from untraded.metrics import REGISTRY, Dataset, compute
-from untraded.metrics.docs import render
 
 
 def round_player(rows: list[dict[str, Any]]) -> pl.DataFrame:
@@ -125,10 +123,3 @@ def test_several_matches_are_recomputed_over_all_rounds() -> None:
 
 def test_undefined_ratios_are_null() -> None:
     assert values(Dataset.from_matches([ONE]), "base.hs_pct") == {1: None}
-
-
-def test_reference_documentation_is_up_to_date() -> None:
-    reference = Path(__file__).parents[3] / "docs" / "metrics-reference.md"
-    assert reference.read_text(encoding="utf-8") == render(), (
-        "run `python -m untraded.metrics.docs` from the repository root"
-    )
