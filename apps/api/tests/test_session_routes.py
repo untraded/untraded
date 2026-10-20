@@ -80,6 +80,31 @@ def session_id() -> uuid.UUID:
                     (session[0], metric, REGISTRY[metric].version, basis),
                 )
             found[steam_id] = session[0]
+        workspace = conn.execute(
+            "SELECT w.id FROM workspace w JOIN app_user u ON u.id = w.created_by "
+            "WHERE u.steam_id = %s",
+            (ME,),
+        ).fetchone()
+        assert workspace is not None
+        evidence = [{"match_id": str(match_id), "round": 12, "tick": 64000, "goto_tick": 63680}]
+        conn.execute(
+            """
+            INSERT INTO advice (steam_id, workspace_id, session_from, session_to, rule_id,
+                rule_version, priority, message_key, message_args, evidence, session_id, cost,
+                events, rounds_touched, rounds_lost)
+            VALUES (%s, %s, %s, %s, 'trade.untraded_deaths', '1.0.0', 1,
+                'advice.trade.untraded_deaths', %s, %s, %s, 3.5, 4, 4, 3)
+            """,
+            (
+                ME,
+                workspace[0],
+                START,
+                START,
+                Jsonb({"events": 4, "actions": ["adjust.trade_distance"]}),
+                Jsonb(evidence),
+                found[ME],
+            ),
+        )
     return uuid.UUID(str(found[ME]))
 
 
@@ -140,3 +165,29 @@ def test_anonymous_and_unknown(client: TestClient) -> None:
     me = as_player(client, ME)
     assert me.get(f"/sessions/{uuid.uuid4()}").status_code == 404
     assert me.get("/sessions", params={"limit": 101}).status_code == 422
+
+
+def test_the_report_carries_its_priorities(client: TestClient, session_id: uuid.UUID) -> None:
+    me = as_player(client, ME)
+    (advice,) = me.get(f"/sessions/{session_id}").json()["advice"]
+    assert (advice["rule_id"], advice["priority"], advice["my_vote"]) == (
+        "trade.untraded_deaths",
+        1,
+        None,
+    )
+    assert advice["evidence"][0]["goto_tick"] == 63680
+    assert advice["args"]["actions"] == ["adjust.trade_distance"]
+
+    url = f"/advice/{advice['id']}/feedback"
+    assert me.post(url, json={"vote": 1}).status_code == 204
+    assert me.get(f"/sessions/{session_id}").json()["advice"][0]["my_vote"] == 1
+    assert me.post(url, json={"vote": -1}).status_code == 204
+    assert me.get(f"/sessions/{session_id}").json()["advice"][0]["my_vote"] == -1
+    assert me.post(url, json={"vote": 0}).status_code == 204
+    assert me.get(f"/sessions/{session_id}").json()["advice"][0]["my_vote"] is None
+    assert me.post(url, json={"vote": 2}).status_code == 422
+
+    stranger = as_player(client, STRANGER)
+    assert stranger.post(url, json={"vote": 1}).status_code == 404
+    client.cookies.clear()
+    assert client.post(url, json={"vote": 1}).status_code == 401

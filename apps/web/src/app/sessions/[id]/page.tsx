@@ -1,12 +1,14 @@
 // SPDX-FileCopyrightText: 2026 The Untraded Authors
 // SPDX-License-Identifier: AGPL-3.0-only
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { ComparisonCard } from "@/components/comparison";
+import { Priorities } from "@/components/priorities";
 import { ResultBadge } from "@/components/result-badge";
-import type { Locale } from "@/i18n/locale";
+import { type Locale, pickTone, TONE_COOKIE } from "@/i18n/locale";
 import { type Comparison, getSession } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import {
@@ -37,6 +39,7 @@ export default async function SessionPage({ params }: Params) {
   const t = await getTranslations("sessions");
   const families = await getTranslations("families");
   const locale = (await getLocale()) as Locale;
+  const tone = pickTone((await cookies()).get(TONE_COOKIE)?.value);
   const { reference } = report;
   const groups = FAMILIES.map((name) => ({
     name,
@@ -78,6 +81,8 @@ export default async function SessionPage({ params }: Params) {
                 })}
         </p>
       </header>
+
+      <Priorities advice={report.advice} sessionId={report.id} locale={locale} tone={tone} />
 
       <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4">
         {report.headlines.map((c) => (

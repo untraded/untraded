@@ -30,7 +30,7 @@ def test_the_migrations_form_one_line_from_0001() -> None:
     revisions = list(scripts.walk_revisions())
     assert revisions[-1].revision == "0001"
     assert revisions[-1].down_revision is None
-    assert [r.revision for r in reversed(revisions)] == ["0001", "0002", "0003", "0004"]
+    assert [r.revision for r in reversed(revisions)] == ["0001", "0002", "0003", "0004", "0005"]
 
 
 @pytest.mark.db
@@ -40,4 +40,4 @@ def test_the_migrations_go_down_and_up_again() -> None:
     command.downgrade(cfg, "0001")
     command.upgrade(cfg, "head")
     with psycopg.connect(TEST_URL.replace("postgresql+psycopg://", "postgresql://", 1)) as conn:
-        assert conn.execute("SELECT version_num FROM alembic_version").fetchall() == [("0004",)]
+        assert conn.execute("SELECT version_num FROM alembic_version").fetchall() == [("0005",)]

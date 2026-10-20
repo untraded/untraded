@@ -114,11 +114,14 @@ export async function apiGet<T>(path: string): Promise<T | null> {
   return (await response.json()) as T;
 }
 
-/** POST to the API with the session cookie (sign-out). */
-export async function apiPost(path: string): Promise<void> {
+/** POST to the API with the session cookie, and a JSON body if given. */
+export async function apiPost(path: string, body?: unknown): Promise<void> {
+  const headers: Record<string, string> = await sessionHeader();
+  if (body !== undefined) headers["content-type"] = "application/json";
   await fetch(`${internalApiUrl()}${path}`, {
     method: "POST",
-    headers: await sessionHeader(),
+    headers,
+    body: body === undefined ? null : JSON.stringify(body),
     cache: "no-store",
   });
 }
@@ -156,7 +159,47 @@ export interface SessionList {
   offset: number;
 }
 
+export interface AdviceEvent {
+  match_id: string;
+  round: number;
+  tick: number;
+  /** A few seconds before the event: `demo_gototick` lands just before it. */
+  goto_tick: number;
+  map?: string;
+  side?: string;
+  zone?: string;
+  [detail: string]: unknown;
+}
+
+export interface Advice {
+  id: string;
+  rule_id: string;
+  rule_version: string;
+  priority: number;
+  message_key: string;
+  args: {
+    metric: string;
+    unit: string;
+    basis: Comparison["basis"] | "pattern";
+    session: number | null;
+    reference: number | null;
+    events: number;
+    rounds_touched: number;
+    rounds_lost: number;
+    actions: string[];
+    indicator: string;
+    map?: string;
+    side?: string;
+    zone?: string;
+    history_events?: number;
+  };
+  evidence: AdviceEvent[];
+  cost: number;
+  my_vote: 1 | -1 | null;
+}
+
 export interface SessionReport extends SessionSummary {
+  advice: Advice[];
   reference: {
     /** `self`, `level` (players of the same rating band) or `none`. */
     kind: "self" | "level" | "none";

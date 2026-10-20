@@ -13,6 +13,7 @@ that joins two sessions merges them; the sessions it replaces are deleted.
 
 Without enough history of their own, the player is compared with players of the same Premier
 rating band (`levels`), and failing that with nothing: the report then shows the session alone.
+Its priorities (`advice`) follow, against the same reference.
 """
 
 from __future__ import annotations
@@ -29,7 +30,7 @@ import psycopg
 from psycopg.types.json import Jsonb
 
 from untraded import reference
-from untraded_worker import levels, queue
+from untraded_worker import advice, levels, queue
 from untraded_worker.queue import Job
 from untraded_worker.store import LocalStore
 
@@ -111,12 +112,18 @@ class SessionJob:
             min_matches=self.min_matches,
             min_rounds=self.min_rounds,
         )
-        self._save(
+        chosen = self._reference(conn, steam_id, session, comparison)
+        session_id = self._save(conn, steam_id, session, comparison, chosen)
+        advice.advise(
             conn,
             steam_id,
-            session,
-            comparison,
-            self._reference(conn, steam_id, session, comparison),
+            session_id,
+            (session[0].started_at, max(m.ended_at for m in session)),
+            tables[: len(session)],
+            tables,
+            {m.sha256: m.id for m in session},
+            chosen.values,
+            chosen.kind,
         )
 
     def _reference(
@@ -202,7 +209,8 @@ class SessionJob:
         session: Sequence[PlayedMatch],
         comparison: reference.SelfComparison,
         chosen: ChosenReference,
-    ) -> None:
+    ) -> uuid.UUID:
+        """Writes the report; returns the session's id."""
         ids = [m.id for m in session]
         # Sessions this one replaces: any holding one of its matches (two sessions joined by a
         # match played between them, or the same session recomputed).
@@ -259,6 +267,7 @@ class SessionJob:
             "reference, delta) VALUES (%s, %s, %s, %s, %s, %s, %s)",
             [(session_id, *(_finite(v) for v in row)) for row in values.iter_rows()],
         )
+        return uuid.UUID(str(session_id))
 
 
 def _finite(value: Any) -> Any:
