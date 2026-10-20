@@ -66,7 +66,10 @@ function setup(options: {
             matchtime: 1_760_000_000,
             roundstatsall: [
               {},
-              { map: n === options.noDemo ? "" : `http://replay/730/${n}.dem.bz2` },
+              {
+                map: n === options.noDemo ? "" : `http://replay/730/${n}.dem.bz2`,
+                match_duration: 2_400,
+              },
             ],
           };
         },
@@ -86,6 +89,7 @@ describe("collect", () => {
     expect(store.recorded.map((m) => m.matchId)).toEqual([1, 2, 3].map(matchId));
     expect(store.recorded[0]?.url).toBe("http://replay/730/1.dem.bz2");
     expect(store.recorded[0]?.playedAt).toEqual(new Date(1_760_000_000_000));
+    expect(store.recorded[0]?.endedAt).toEqual(new Date(1_760_002_400_000));
     expect(source.knownShareCode).toBe(code(3));
     expect(store.done).toEqual([undefined]);
   });
@@ -145,6 +149,7 @@ describe("foundMatch", () => {
       matchId: matchId(7),
       url: "u",
       playedAt: undefined,
+      endedAt: undefined,
     });
   });
 });

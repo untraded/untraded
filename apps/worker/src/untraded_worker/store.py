@@ -65,6 +65,16 @@ class LocalStore:
             table.write_parquet(partial, compression="zstd")
             partial.replace(target)
 
+    def read_tables(self, prefix: str) -> dict[str, pl.DataFrame]:
+        """Every table under `prefix` (a match's canonical and derived tables)."""
+        directory = self.path(prefix)
+        tables = {
+            f.name.removesuffix(".parquet"): pl.read_parquet(f) for f in directory.glob("*.parquet")
+        }
+        if not tables:
+            raise StoreError(f"no tables under {prefix}")
+        return tables
+
     def read_table(self, prefix: str, name: str) -> pl.DataFrame:
         source = self.path(f"{prefix}/{name}.parquet")
         if not source.exists():

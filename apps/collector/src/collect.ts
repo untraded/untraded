@@ -39,11 +39,15 @@ export interface SourceReport {
 /** What the Game Coordinator tells about a match. */
 export function foundMatch(shareCode: string, info: MatchInfo): FoundMatch {
   const lastRound = info.roundstatsall?.at(-1);
+  const playedAt = info.matchtime ? new Date(info.matchtime * 1000) : undefined;
+  const duration = lastRound?.match_duration;
   return {
     shareCode,
     matchId: decodeMatchShareCode(shareCode).matchId.toString(),
     url: lastRound?.map || undefined,
-    playedAt: info.matchtime ? new Date(info.matchtime * 1000) : undefined,
+    playedAt,
+    // The last round's match_duration (seconds) runs from the match start to its end.
+    endedAt: playedAt && duration ? new Date(playedAt.getTime() + duration * 1000) : undefined,
   };
 }
 
