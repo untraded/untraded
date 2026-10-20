@@ -1,0 +1,409 @@
+# SPDX-FileCopyrightText: 2026 The Untraded Authors
+# SPDX-License-Identifier: AGPL-3.0-only
+"""A mock of the Untraded API, to work on the web app without a database or demos.
+
+    uv run python apps/web/dev/mock_api.py           # http://127.0.0.1:8077
+    UNTRADED_API_INTERNAL_URL=http://127.0.0.1:8077 pnpm --filter @untraded/web dev
+
+Everything is invented (players, scores, metrics) and seeded, so screens look the same from one
+run to the next. It answers like `apps/api` (same JSON shapes, see `apps/web/src/lib/api.ts`):
+- signing in: `/api/auth/steam` sets the session cookie and goes back to the web (no Steam);
+- sessions cover the three references (own days, level, none), priorities with evidence,
+  👍/👎 (kept in memory), and the follow-up of the previous priorities;
+- matches cover every status (ready, analysing, unavailable...).
+
+Metric names, units and directions come from the `untraded` registry when it is installed
+(`uv run`), so the mock stays in step with the real metrics.
+"""
+
+from __future__ import annotations
+
+import datetime as dt
+import json
+import os
+import random
+import re
+import uuid
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import Any
+
+PORT = int(os.environ.get("MOCK_PORT", "8077"))
+WEB = os.environ.get("MOCK_WEB_URL", "http://localhost:3000").rstrip("/")
+COOKIE = "untraded_session"
+ME = "76561190000000001"
+NAMES = ["you", "Kestrel", "Brindle", "Oxide", "Tamsin", "Vireo", "Quill", "Marlow", "Juno", "Pike"]
+MAPS = ["de_mirage", "de_ancient", "de_inferno", "de_nuke", "de_dust2", "de_anubis", "de_train"]
+NOW = dt.datetime(2026, 10, 20, 22, 0, tzinfo=dt.UTC)
+rand = random.Random(7)
+
+
+def iso(moment: dt.datetime) -> str:
+    return moment.isoformat().replace("+00:00", "Z")
+
+
+def mock_id(prefix: int, n: int) -> str:
+    return str(uuid.UUID(int=(prefix << 64) + n))
+
+
+def metrics() -> list[dict[str, str]]:
+    try:
+        from untraded.metrics import REGISTRY
+
+        return [
+            {"id": m.id, "version": m.version, "name": m.name, "unit": m.unit, "better": m.better}
+            for m in REGISTRY.values()
+            if m.kind == "value"
+        ]
+    except ImportError:  # outside the uv workspace: a few metrics are enough
+        return [
+            {"id": "rating.hltv1", "version": "1.0.0", "name": "HLTV Rating 1.0", "unit": "ratio", "better": "higher"},
+            {"id": "base.adr", "version": "1.0.0", "name": "ADR", "unit": "damage_per_round", "better": "higher"},
+            {"id": "base.kast", "version": "1.1.0", "name": "KAST", "unit": "pct", "better": "higher"},
+            {"id": "trade.untraded_deaths", "version": "1.1.0", "name": "Untraded deaths (5 s)", "unit": "count", "better": "lower"},
+            {"id": "base.kills", "version": "1.0.0", "name": "Kills", "unit": "count", "better": "higher"},
+        ]  # fmt: skip
+
+
+METRICS = metrics()
+TOTALS = {"count", "hp"}
+
+
+def line() -> dict[str, float]:
+    kills, deaths = rand.randint(9, 28), rand.randint(10, 22)
+    return {
+        "kills": kills,
+        "deaths": deaths,
+        "adr": round(rand.uniform(55, 112), 1),
+        "kast": round(rand.uniform(55, 86), 1),
+        "hltv1": round(rand.uniform(0.7, 1.45), 2),
+        "untraded_deaths": rand.randint(1, 9),
+    }
+
+
+def build_matches() -> list[dict[str, Any]]:
+    statuses = ["parsing"] + ["ready"] * 11 + ["unavailable", "failed", "ready", "ready"]
+    found = []
+    for n, status in enumerate(statuses):
+        start = NOW - dt.timedelta(hours=1 + n * 9)
+        ready = status == "ready"
+        a, b = (13, rand.randint(4, 11)) if n % 3 else (rand.randint(5, 12), 13)
+        team = "A" if n % 2 else "B"
+        mine, theirs = (a, b) if team == "A" else (b, a)
+        found.append(
+            {
+                "id": mock_id(1, n),
+                "played_at": iso(start),
+                "ended_at": iso(start + dt.timedelta(minutes=38)),
+                "mode": "premier",
+                "status": status,
+                "map": MAPS[n % len(MAPS)],
+                "score_a": a if ready else None,
+                "score_b": b if ready else None,
+                "rounds_played": a + b if ready else None,
+                "my_team": team,
+                "my_result": ("win" if mine > theirs else "loss") if ready else None,
+                "my_line": line() if ready else None,
+            }
+        )
+    return found
+
+
+MATCHES = build_matches()
+
+
+def match_detail(match: dict[str, Any]) -> dict[str, Any]:
+    ready = match["status"] == "ready"
+    rounds, a, b = [], 0, 0
+    for r in range(1, (match["rounds_played"] or 0) + 1):
+        left_a, left_b = match["score_a"] - a, match["score_b"] - b
+        winner = "A" if rand.random() < left_a / (left_a + left_b) else "B"
+        a, b = a + (winner == "A"), b + (winner == "B")
+        ct = "A" if r <= 12 else "B"
+        rounds.append(
+            {
+                "round": r,
+                "winner_side": "CT" if winner == ct else "T",
+                "winner_team": winner,
+                "reason": rand.choice(["elimination", "bomb_exploded", "bomb_defused", "time_ran_out"]),
+                "ct_team": ct,
+                "score_a": a,
+                "score_b": b,
+                "is_overtime": False,
+                "bomb_site": rand.choice(["A", "B", None]),
+                "bomb_planted": rand.random() < 0.4,
+            }
+        )  # fmt: skip
+    players = [
+        {
+            "steam_id": ME if i == 0 else str(76561190000000100 + i),
+            "name": NAMES[i],
+            "team": match["my_team"] if i < 5 else ("B" if match["my_team"] == "A" else "A"),
+            "rank": rand.randint(15000, 21000),
+            "rounds_on_team": match["rounds_played"],
+            "line": match["my_line"] if i == 0 else line(),
+        }
+        for i in range(10)
+    ]
+    errors = {
+        "unavailable": "not a Premier match: rank type 12 (Competitive)",
+        "failed": "demo is truncated",
+    }
+    return match | {
+        "team_a_name": None,
+        "team_b_name": None,
+        "tickrate": 64.0,
+        "unavailable": [],
+        "error": errors.get(match["status"]),
+        "rounds": rounds if ready else [],
+        "players": players if ready else [],
+    }
+
+
+def comparison(m: dict[str, str], enough: bool) -> dict[str, Any]:
+    basis = "per_round" if m["unit"] in TOTALS else "value"
+    reference = rand.uniform(0.1, 1.4) if basis == "per_round" else rand.uniform(5, 90)
+    session = reference * rand.uniform(0.75, 1.25)
+    return {
+        "metric_id": m["id"],
+        "version": m["version"],
+        "name": m["name"],
+        "unit": m["unit"],
+        "better": m["better"],
+        "basis": basis,
+        "session": round(session, 4),
+        "reference": round(reference, 4) if enough else None,
+        "delta": round(session - reference, 4) if enough else None,
+    }
+
+
+HEADLINES = ["rating.hltv1", "base.adr", "base.kast", "trade.untraded_deaths"]
+
+
+def evidence(match: dict[str, Any], count: int, zone: str | None = None) -> list[dict[str, Any]]:
+    return [
+        {
+            "match_id": match["id"],
+            "round": 3 + 2 * i,
+            "tick": 40_000 + 9_000 * i,
+            "goto_tick": 39_680 + 9_000 * i,
+            "map": match["map"],
+            "side": "T" if i % 2 else "CT",
+            "killer": str(76561190000000106),
+            **({"zone": zone} if zone else {}),
+        }
+        for i in range(count)
+    ]
+
+
+def advice(session_n: int, match: dict[str, Any]) -> list[dict[str, Any]]:
+    base = [
+        ("trade.untraded_deaths", "trade.untraded_deaths", "count", "per_round", 0.41, 0.29, 9, 7,
+         ["adjust.trade_distance", "adjust.play_with_entry", "drill.trade_timing"], {}),
+        ("pos.recurring_death_spot", "pos.recurring_death_spot", "table", "pattern", None, None, 4, 4,
+         ["adjust.change_position", "adjust.change_timing", "drill.prefire"],
+         {"map": match["map"], "side": "T", "zone": "Mid", "history_events": 11}),
+        ("util.wasted_utility", "util.unused_value_at_death", "dollars", "value", 310.0, 180.0, 6, 4,
+         ["adjust.use_utility_before_death", "drill.lineups"], {}),
+    ]  # fmt: skip
+    found = []
+    for priority, (
+        rule,
+        metric,
+        unit,
+        basis,
+        session,
+        reference,
+        events,
+        lost,
+        actions,
+        details,
+    ) in enumerate(base, 1):
+        indicator = "trade.untraded_deaths" if rule.startswith("pos.") else metric
+        found.append(
+            {
+                "id": mock_id(3, session_n * 10 + priority),
+                "rule_id": rule,
+                "rule_version": "1.0.0",
+                "priority": priority,
+                "message_key": f"advice.{rule}",
+                "args": {
+                    "metric": metric, "unit": unit, "basis": basis, "session": session,
+                    "reference": reference, "events": events, "rounds_touched": events,
+                    "rounds_lost": lost, "actions": actions, "indicator": indicator, **details,
+                },
+                "evidence": evidence(match, events, details.get("zone")),
+                "cost": lost + 0.25 * (events - lost),
+                "my_vote": VOTES.get(mock_id(3, session_n * 10 + priority)),
+            }
+        )  # fmt: skip
+    return found
+
+
+VOTES: dict[str, int] = {}
+KINDS = ["level", "self", "self", "none", "self", "self"]
+
+
+def build_sessions() -> list[dict[str, Any]]:
+    ready = [m for m in MATCHES if m["status"] == "ready"]
+    found = []
+    for n in range(len(KINDS)):
+        group = ready[n * 2 : n * 2 + 2]
+        if not group:
+            break
+        enough = KINDS[n] != "none"
+        values = [comparison(m, enough) for m in METRICS]
+        wins = sum(m["my_result"] == "win" for m in group)
+        found.append(
+            {
+                "id": mock_id(2, n),
+                "started_at": group[-1]["played_at"],
+                "ended_at": group[0]["ended_at"],
+                "matches": len(group),
+                "rounds": sum(m["rounds_played"] for m in group),
+                "wins": wins,
+                "losses": len(group) - wins,
+                "ties": 0,
+                "enough": enough,
+                "headlines": [v for h in HEADLINES for v in values if v["metric_id"] == h],
+                "_values": values,
+                "_matches": group,
+                "_kind": KINDS[n],
+            }
+        )
+    return found
+
+
+SESSIONS = build_sessions()
+PUBLIC = {"_values", "_matches", "_kind"}
+
+
+def summary(session: dict[str, Any]) -> dict[str, Any]:
+    return {k: v for k, v in session.items() if k not in PUBLIC}
+
+
+def report(n: int) -> dict[str, Any]:
+    session = SESSIONS[n]
+    kind = session["_kind"]
+    previous = SESSIONS[n + 1] if n + 1 < len(SESSIONS) else None
+    history = list(reversed(SESSIONS[n : n + 5]))
+    follow = []
+    if previous is not None:
+        for indicator, name, unit, basis, better in [
+            ("trade.untraded_deaths", "Untraded deaths (5 s)", "count", "per_round", "lower"),
+            ("util.unused_value_at_death", "Wasted utility", "dollars", "value", "lower"),
+        ]:
+            values = [
+                round(rand.uniform(0.25, 0.45), 2)
+                if basis == "per_round"
+                else float(rand.randint(150, 330))
+                for _ in history
+            ]
+            follow.append(
+                {
+                    "rule_id": "trade.untraded_deaths" if indicator.startswith("trade") else "util.wasted_utility",
+                    "indicator": indicator, "name": name, "unit": unit, "basis": basis, "better": better,
+                    "then": values[-2] if len(values) > 1 else None, "now": values[-1],
+                    "reference": 0.29 if basis == "per_round" else 180.0,
+                    "history": [{"session_id": s["id"], "started_at": s["started_at"], "value": v} for s, v in zip(history, values, strict=True)],
+                }
+            )  # fmt: skip
+    return summary(session) | {
+        "reference": {
+            "kind": kind,
+            "level_low": 15000 if kind == "level" else None,
+            "level_high": 22500 if kind == "level" else None,
+            "since": "2026-09-20",
+            "until": "2026-10-19",
+            "matches": {"self": 14, "level": 812, "none": 2}[kind],
+            "rounds": {"self": 310, "level": 17000, "none": 41}[kind],
+            "enough": kind != "none",
+            "min_matches": 5,
+            "min_rounds": 100,
+        },
+        "match_list": session["_matches"],
+        "metrics": session["_values"],
+        "advice": advice(n, session["_matches"][0]) if kind != "none" else [],
+        "follow_up": follow,
+    }
+
+
+def player_metrics(match_id: str, steam_id: str) -> dict[str, Any]:
+    values = []
+    for m in METRICS:
+        for scope in ("match", "ct", "t"):
+            value = rand.uniform(0.1, 1.4) if m["unit"] in TOTALS else rand.uniform(5, 90)
+            values.append({"metric_id": m["id"], "version": m["version"], "name": m["name"], "unit": m["unit"], "better": m["better"], "scope": scope, "value": round(value, 3)})  # fmt: skip
+    return {"match_id": match_id, "steam_id": steam_id, "metrics": values}
+
+
+class Handler(BaseHTTPRequestHandler):
+    def signed_in(self) -> bool:
+        return f"{COOKIE}=" in (self.headers.get("cookie") or "")
+
+    def reply(self, status: int, body: Any = None, headers: dict[str, str] | None = None) -> None:
+        data = b"" if body is None else json.dumps(body).encode()
+        self.send_response(status)
+        if body is not None:
+            self.send_header("content-type", "application/json")
+        for name, value in (headers or {}).items():
+            self.send_header(name, value)
+        self.send_header("content-length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
+    def do_GET(self) -> None:
+        path, _, query = self.path.partition("?")
+        if path == "/health":
+            return self.reply(200, {"status": "ok"})
+        if path == "/auth/steam":
+            cookie = f"{COOKIE}=mock; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000"
+            return self.reply(303, headers={"location": f"{WEB}/", "set-cookie": cookie})
+        if not self.signed_in():
+            return self.reply(401, {"detail": "not signed in"})
+        if path == "/me":
+            return self.reply(200, {"id": mock_id(9, 1), "steam_id": ME, "display_name": "you"})
+        offset = int((re.search(r"offset=(\d+)", query) or [0, 0])[1])
+        if path == "/matches":
+            return self.reply(
+                200, {"items": MATCHES[offset : offset + 30], "limit": 30, "offset": offset}
+            )
+        if path == "/sessions":
+            items = [summary(s) for s in SESSIONS[offset : offset + 20]]
+            return self.reply(200, {"items": items, "limit": 20, "offset": offset})
+        if found := re.fullmatch(r"/sessions/([0-9a-f-]+)", path):
+            for n, session in enumerate(SESSIONS):
+                if session["id"] == found[1]:
+                    return self.reply(200, report(n))
+        if found := re.fullmatch(r"/matches/([0-9a-f-]+)/players/(\d+)", path):
+            return self.reply(200, player_metrics(found[1], found[2]))
+        if found := re.fullmatch(r"/matches/([0-9a-f-]+)", path):
+            for match in MATCHES:
+                if match["id"] == found[1]:
+                    return self.reply(200, match_detail(match))
+        return self.reply(404, {"detail": "not found"})
+
+    def do_POST(self) -> None:
+        size = int(self.headers.get("content-length") or 0)
+        body = json.loads(self.rfile.read(size) or b"{}")
+        if self.path == "/auth/logout":
+            return self.reply(204, headers={"set-cookie": f"{COOKIE}=; Path=/; Max-Age=0"})
+        if not self.signed_in():
+            return self.reply(401, {"detail": "not signed in"})
+        if found := re.fullmatch(r"/advice/([0-9a-f-]+)/feedback", self.path):
+            vote = body.get("vote")
+            if vote not in (-1, 0, 1):
+                return self.reply(422, {"detail": "vote must be -1, 0 or 1"})
+            if vote:
+                VOTES[found[1]] = vote
+            else:
+                VOTES.pop(found[1], None)
+            return self.reply(204)
+        return self.reply(404, {"detail": "not found"})
+
+    def log_message(self, *_: object) -> None:
+        pass
+
+
+if __name__ == "__main__":
+    print(f"mock Untraded API on http://127.0.0.1:{PORT} (web: {WEB})", flush=True)
+    ThreadingHTTPServer(("127.0.0.1", PORT), Handler).serve_forever()
