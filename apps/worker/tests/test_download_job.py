@@ -16,7 +16,7 @@ from typing import Any
 import psycopg
 import pytest
 
-from untraded.demofile import DEMO_MAGIC, NotADemoError
+from untraded.demofile import DEMO_MAGIC, CorruptDemoError, NotADemoError
 from untraded_worker import queue, retention
 from untraded_worker.download import DemoGone
 from untraded_worker.jobs import DownloadJob
@@ -115,9 +115,10 @@ def test_a_gone_demo_makes_the_match_unavailable(
 
 def test_a_file_that_is_not_a_demo_is_dropped(db: psycopg.Connection[Any], tmp_path: Path) -> None:
     match_id = _match(db)
-    with pytest.raises(NotADemoError):
-        DownloadJob(LocalStore(tmp_path), FakeFetch(content=b"<html>"))(db, _job(match_id))
-    assert not list((tmp_path / "incoming").iterdir())
+    for content in (b"<html>", bz2.compress(b"<html>")):  # not bz2 at all; bz2, not a demo
+        with pytest.raises((CorruptDemoError, NotADemoError)):
+            DownloadJob(LocalStore(tmp_path), FakeFetch(content=content))(db, _job(match_id))
+        assert not list((tmp_path / "incoming").iterdir())
 
 
 def _parsed(db: psycopg.Connection[Any], store: LocalStore, key: str, days_ago: float) -> uuid.UUID:
