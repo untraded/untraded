@@ -90,6 +90,8 @@ describe("trend", () => {
     basis: "value" as const,
     session: 80,
     reference: 75,
+    cases: null,
+    signed: false,
   };
   it("reads the metric's direction", () => {
     expect(trend({ ...base, better: "higher", delta: 5 })).toBe("better");
@@ -111,6 +113,8 @@ describe("gap", () => {
     unit: "damage_per_round",
     basis: "value" as const,
     delta: null,
+    cases: null,
+    signed: false,
   };
 
   it("is a share of the reference, positive when better", () => {
@@ -154,25 +158,43 @@ describe("compare", () => {
     basis: "per_round" as const,
     better: "higher" as const,
     delta: null,
+    cases: null,
+    signed: false,
   };
 
-  it("leaves out a count the reference expects fewer than 3 times this session", () => {
-    // 0.05 per round over 39 rounds: about 2 expected, a coin flip.
-    expect(compare({ ...count, session: 0.1, reference: 0.05 }, 39)).toEqual({
+  it("leaves out a count the reference expects fewer than 5 times this session", () => {
+    // 0.1 per round over 39 rounds: about 4 expected.
+    expect(compare({ ...count, session: 0.2, reference: 0.1 }, 39)).toEqual({
       kind: "rare",
       gap: null,
     });
   });
 
-  it("ranks the same count once enough events are expected", () => {
-    // 0.08 per round over 39 rounds: about 3 expected.
-    const result = compare({ ...count, session: 0.1, reference: 0.08 }, 39);
+  it("ranks the same count once 5 events are expected", () => {
+    // 0.13 per round over 39 rounds: about 5 expected.
+    const result = compare({ ...count, session: 0.26, reference: 0.13 }, 39);
     expect(result.kind).toBe("ranked");
-    expect(result.gap).toBeCloseTo(25);
+    expect(result.gap).toBeCloseTo(100);
   });
 
-  it("compares the K-D in units, never as a share", () => {
-    const kd = { ...count, metric_id: "base.kd_diff", name: "K-D", session: 0.2, reference: 0.01 };
+  it("leaves out a rate over fewer than 5 cases, and ranks it from 5", () => {
+    const rate = {
+      ...count,
+      metric_id: "clutch.win_pct",
+      unit: "pct",
+      basis: "value" as const,
+      session: 50,
+      reference: 40,
+    };
+    expect(compare({ ...rate, cases: 2 }, 39)).toEqual({ kind: "few", gap: null });
+    expect(compare({ ...rate, cases: 4 }, 39).kind).toBe("few");
+    expect(compare({ ...rate, cases: 5 }, 39).kind).toBe("ranked");
+    // A total has no cases: the count rule applies instead.
+    expect(compare({ ...rate, cases: null }, 39).kind).toBe("ranked");
+  });
+
+  it("compares a signed metric (the K-D) in units, never as a share", () => {
+    const kd = { ...count, metric_id: "base.kd_diff", signed: true, session: 0.2, reference: 0.01 };
     expect(compare(kd, 39)).toEqual({ kind: "units", gap: null });
   });
 
