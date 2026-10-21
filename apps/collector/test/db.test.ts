@@ -155,4 +155,57 @@ describe.skipIf(!pool)("PgStore", () => {
     await expect(s.removeSource(id)).rejects.toThrow(/no such source/);
     await expect(s.findSource({ id })).rejects.toThrow(/no such source/);
   });
+
+  it("records consent with the source, then each change as a new row", async () => {
+    await s.addSource({
+      ...player,
+      shareCode: "CSGO-a",
+      consent: { textVersion: "1", analysis: true, researchCorpus: false },
+    });
+    expect((await s.listSources())[0]?.consent).toEqual({
+      textVersion: "1",
+      analysis: true,
+      researchCorpus: false,
+    });
+
+    await s.recordConsent(player.steamId, {
+      textVersion: "2",
+      analysis: true,
+      researchCorpus: true,
+    });
+    expect((await s.listSources())[0]?.consent?.researchCorpus).toBe(true);
+
+    // Withdrawing keeps the version, and never leaves box 2 ticked.
+    await s.recordConsent(player.steamId, {
+      textVersion: undefined,
+      analysis: false,
+      researchCorpus: true,
+    });
+    expect((await s.listSources())[0]?.consent).toEqual({
+      textVersion: "2",
+      analysis: false,
+      researchCorpus: false,
+    });
+    const history = await db.query("SELECT text_version FROM consent ORDER BY id");
+    expect(history.rows.map((r) => r.text_version)).toEqual(["1", "2", "2"]);
+
+    await expect(
+      s.recordConsent("76561198000000099", {
+        textVersion: "1",
+        analysis: true,
+        researchCorpus: false,
+      }),
+    ).rejects.toThrow(/no such player/);
+  });
+
+  it("refuses a withdrawal with no version to keep", async () => {
+    await s.addSource({ ...player, shareCode: "CSGO-a" });
+    await expect(
+      s.recordConsent(player.steamId, {
+        textVersion: undefined,
+        analysis: false,
+        researchCorpus: false,
+      }),
+    ).rejects.toThrow(/--text-version/);
+  });
 });

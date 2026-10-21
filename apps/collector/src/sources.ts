@@ -9,7 +9,10 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const STEAM_ID = /^7656119\d{10}$/;
 
 /** `--source <id>` or `--steam-id <SteamID64>`, checked before it reaches the database. */
-export function sourceRef(values: { source?: string; "steam-id"?: string }): SourceRef {
+export function sourceRef(values: {
+  source?: string | undefined;
+  "steam-id"?: string | undefined;
+}): SourceRef {
   const id = values.source;
   const steamId = values["steam-id"];
   if (!id && !steamId) throw new Error("name the source: --source <id> or --steam-id <SteamID64>");
@@ -24,6 +27,11 @@ export function formatSources(sources: SourceInfo[]): string[] {
     const state = s.enabled ? "active" : "paused";
     const last = s.lastSuccessAt ? s.lastSuccessAt.toISOString().slice(0, 16) : "never";
     const error = s.lastError ? `  error: ${s.lastError}` : "";
-    return `${s.id}  ${s.steamId}  ${s.name}  ${state}  code ${s.knownShareCode ?? "-"}  last ${last}${error}`;
+    const consent = !s.consent
+      ? "no consent"
+      : !s.consent.analysis
+        ? `consent withdrawn (v${s.consent.textVersion})`
+        : `consent v${s.consent.textVersion}${s.consent.researchCorpus ? " + corpus" : ""}`;
+    return `${s.id}  ${s.steamId}  ${s.name}  ${state}  code ${s.knownShareCode ?? "-"}  last ${last}  ${consent}${error}`;
   });
 }

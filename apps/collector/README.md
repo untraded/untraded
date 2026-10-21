@@ -34,6 +34,23 @@ pnpm start run          # a round every COLLECTOR_INTERVAL_SECONDS; --once for a
 `add-source` creates the player's user and personal workspace if needed, and asks for the
 match history authentication code on the terminal (or reads `PLAYER_AUTH_CODE`).
 
+### Consent
+
+When you follow other players, record what they agreed to. The text is yours to write; a record
+names its version. Box 1 (analysis) is required to follow a player, box 2 (research corpus) is
+optional: only the demos of players who ticked it may be kept beyond the retention period.
+
+```bash
+pnpm start add-source --steam-id 7656119... --name p1 --share-code CSGO-... --text-version 1 --corpus
+pnpm start consent --steam-id 7656119... --text-version 2            # box 1 only
+pnpm start consent --steam-id 7656119... --withdraw                  # then remove-source
+```
+
+Each record is a new row of `consent`, never changed, so the history stays; a player's consent
+is their latest one (`consent_current`). `sources` shows it.
+
+### Managing the followed players
+
 To manage the followed players (`--source <id>`, or `--steam-id` when the player has one source):
 
 ```bash
