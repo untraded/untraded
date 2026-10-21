@@ -15,6 +15,7 @@ import {
   TONES,
 } from "@/i18n/locale";
 import { apiPost, apiSend, refusedField, SESSION_COOKIE } from "@/lib/api";
+import { type CodeField, type CodeIssue, codeIssue, placeCodes } from "@/lib/codes";
 
 /** Ends the session in the database, then drops the cookie. */
 export async function signOut(): Promise<void> {
@@ -114,30 +115,43 @@ export async function withdrawConsent(formData: FormData): Promise<void> {
 }
 
 export type CodesState = {
-  error: "auth_code" | "share_code" | "consent" | "unavailable" | "failed" | null;
+  /**
+   * What is wrong with each field: the other code, no code at all (both seen here, before Steam
+   * is asked), or a code Steam refused.
+   */
+  fields: Partial<Record<CodeField, CodeIssue | "refused">>;
+  error: "consent" | "unavailable" | "failed" | null;
   auth_code: string;
   share_code: string;
 };
 
-/** Gives the two codes the collector needs. Steam checks them first: a refused field comes back
- * to its input, with what the player typed. */
+/**
+ * Gives the two codes the collector needs. Their format is checked here as the API checks it,
+ * so a 422 from the API is Steam refusing a code. Codes pasted the other way round are put back
+ * in place. A wrong field comes back to its input, with what the player typed.
+ */
 export async function giveCodes(_: CodesState, formData: FormData): Promise<CodesState> {
-  const codes = {
+  const typed = {
     auth_code: String(formData.get("auth_code") ?? "").trim(),
     share_code: String(formData.get("share_code") ?? "").trim(),
   };
-  const result = await apiSend("/me/source", "PUT", codes);
+  const placed = placeCodes(typed.auth_code, typed.share_code);
+  if (placed.auth_code === null || placed.share_code === null) {
+    const fields: CodesState["fields"] = {};
+    for (const field of ["auth_code", "share_code"] as const) {
+      if (placed[field] === null) fields[field] = codeIssue(field, typed[field]) ?? "format";
+    }
+    return { fields, error: null, ...typed };
+  }
+  const result = await apiSend("/me/source", "PUT", placed);
   if (!result.ok) {
     const field = refusedField(result);
+    if (field === "auth_code" || field === "share_code") {
+      return { fields: { [field]: "refused" }, error: null, ...typed };
+    }
     const error =
-      field === "auth_code" || field === "share_code"
-        ? field
-        : result.status === 409
-          ? "consent"
-          : result.status === 503
-            ? "unavailable"
-            : "failed";
-    return { error, ...codes };
+      result.status === 409 ? "consent" : result.status === 503 ? "unavailable" : "failed";
+    return { fields: {}, error, ...typed };
   }
   revalidatePath("/", "layout");
   redirect(next(formData, "/"));

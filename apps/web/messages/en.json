@@ -482,18 +482,35 @@
     "emailUnset": "contact address not set"
   },
   "codes": {
-    "authLabel": "Match history authentication code",
-    "authHelp": "On Steam's Counter-Strike 2 help page “Access your match history”, create this code (format AAAA-AAAAA-AAAA).",
-    "shareLabel": "Share code of your last match",
-    "shareHelp": "On the same page, under “your most recent match”: it starts with CSGO-. If the page shows none yet, play a Premier match in CS2, then come back.",
     "helpLink": "Open Steam's help page",
     "submit": "Follow my matches",
     "pending": "Checking with Steam…",
-    "errorAuth": "Steam refuses this authentication code. Check it, or create a new one on the help page.",
-    "errorShare": "Steam does not recognise this share code. It starts with CSGO- and reads CSGO-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX.",
     "errorConsent": "Give your consent first, then your codes.",
     "errorUnavailable": "Steam does not answer, or this server cannot keep the codes right now. Try again in a few minutes.",
-    "errorFailed": "Your codes could not be saved. Try again in a moment."
+    "errorFailed": "Your codes could not be saved. Try again in a moment.",
+    "auth": {
+      "label": "Authentication code",
+      "formatHint": "Format: 4, 5 and 4 letters or digits, separated by dashes.",
+      "help": "On Counter-Strike 2's Steam help page \"Access to your match history\": copy this code, or create it if there is none yet.",
+      "other": "This code goes in the other field: it is a share code (it starts with CSGO-).",
+      "format": "Wrong format: an authentication code is written AAAA-AAAAA-AAAA.",
+      "refused": "The format is right, but Steam refuses this code. Copy it again from the help page: if you created a new one since, the old one no longer works, so give the newest."
+    },
+    "share": {
+      "label": "Share code",
+      "formatHint": "Format: CSGO- then 5 blocks of 5 letters or digits.",
+      "help": "On the same page, under \"Your most recent match\". If the page shows none yet, play a Premier match in CS2, then come back.",
+      "other": "This code goes in the other field: it is an authentication code.",
+      "format": "Wrong format: a share code is written CSGO-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX.",
+      "refused": "The format is right, but Steam does not know this share code, or it is more than a month old. Take your most recent match's code from the help page."
+    },
+    "map": {
+      "caption": "On Steam's help page, your authentication code (1) is at the top, with the button that creates it; your most recent match's share code (2) is just below.",
+      "note": "Simplified drawing: the Steam page's wording may differ.",
+      "auth": "Authentication code",
+      "create": "Create a code",
+      "share": "Your most recent match"
+    }
   },
   "admin": {
     "title": "Admin",
