@@ -9,6 +9,8 @@ description = "The Untraded API: Steam sign-in, matches and session reports."
 license = "AGPL-3.0-only"
 requires-python = ">=3.14"
 dependencies = [
+    # Encrypts the match history codes players give on the site (AES-256-GCM).
+    "cryptography==50.0.2",
     "fastapi==0.142.2",
     # Calls Steam's OpenID endpoint; also FastAPI's TestClient.
     "httpx==0.28.1",

@@ -60,3 +60,44 @@ def verify(params: Mapping[str, str], return_to: str, client: httpx.Client) -> i
     if fields.get("is_valid") != "true":
         raise SteamSignInError("Steam says the answer is not valid")
     return int(claimed.group(1))
+
+
+SHARE_CODES = "https://api.steampowered.com/ICSGOPlayers_730/GetNextMatchSharingCode/v1"
+
+
+class CodeRejectedError(ValueError):
+    """Steam refuses a player's codes: `field` is `auth_code` (403) or `share_code` (412)."""
+
+    def __init__(self, field: str) -> None:
+        super().__init__(field)
+        self.field = field
+
+
+def check_codes(
+    client: httpx.Client, api_key: str, steam_id: int, auth_code: str, share_code: str
+) -> None:
+    """Asks Steam for the match after `share_code`, as the collector will: raises CodeRejectedError
+    when Steam refuses the codes, SteamUnavailableError when it does not answer."""
+    try:
+        response = client.get(
+            SHARE_CODES,
+            params={
+                "key": api_key,
+                "steamid": str(steam_id),
+                "steamidkey": auth_code,
+                "knowncode": share_code,
+            },
+            timeout=15,
+        )
+    except httpx.HTTPError as error:
+        raise SteamUnavailableError(str(error)) from error
+    if response.status_code == 403:
+        raise CodeRejectedError("auth_code")
+    if response.status_code == 412:
+        raise CodeRejectedError("share_code")
+    if response.status_code not in (200, 202):
+        raise SteamUnavailableError(f"HTTP {response.status_code}")
+
+
+class SteamUnavailableError(Exception):
+    """Steam did not answer the check: try again later."""

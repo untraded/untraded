@@ -152,6 +152,17 @@ services:
       # The site's address as browsers see it; the web relays /api to this service.
       UNTRADED_PUBLIC_URL: ${UNTRADED_SITE_URL:-http://localhost:3000}/api
       UNTRADED_WEB_URL: ${UNTRADED_SITE_URL:-http://localhost:3000}
+      # SteamID64s of the admins, comma-separated: they invite players at /admin.
+      UNTRADED_ADMIN_STEAM_IDS: ${UNTRADED_ADMIN_STEAM_IDS:-}
+      # The consent text players agree to on the site (its version).
+      UNTRADED_CONSENT_VERSION: ${UNTRADED_CONSENT_VERSION:-1}
+      # Encrypts the codes players give on the site, and checks them with Steam.
+      UNTRADED_SECRET_KEY: ${UNTRADED_SECRET_KEY:?set UNTRADED_SECRET_KEY}
+      STEAM_WEB_API_KEY: ${STEAM_WEB_API_KEY:?set STEAM_WEB_API_KEY}
+      UNTRADED_BACKUPS_DIR: /backups
+    volumes:
+      # Read-only: the admin's health page shows the last dump.
+      - backups:/backups:ro
     depends_on:
       migrate:
         condition: service_completed_successfully
