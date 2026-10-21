@@ -11,12 +11,13 @@ version of each metric (`metric_current`), with the default parameters.
 
 import datetime as dt
 import uuid
+from pathlib import Path as FilePath
 from typing import Annotated, Any
 
-from fastapi import APIRouter, HTTPException, Path, Query, status
+from fastapi import APIRouter, HTTPException, Path, Query, Response, status
 from pydantic import BaseModel
 
-from untraded_api.deps import ConnDep, UserDep
+from untraded_api.deps import ConnDep, SettingsDep, UserDep
 
 router = APIRouter(prefix="/matches", tags=["matches"])
 
@@ -238,6 +239,33 @@ def get_match(match_id: uuid.UUID, conn: ConnDep, user: UserDep) -> MatchDetail:
             )
             for p in players
         ],
+    )
+
+
+@router.get(
+    "/{match_id}/rounds/{round_number}/replay",
+    response_class=Response,
+    responses={200: {"content": {"application/json": {}}}},
+)
+def get_replay(
+    match_id: uuid.UUID,
+    round_number: Annotated[int, Path(ge=0, le=200)],
+    conn: ConnDep,
+    settings: SettingsDep,
+) -> Response:
+    """A round as the 2D viewer replays it (`untraded.replay`, format `version`), gzipped.
+    404 when the match is not one the user may see, or has no replay for that round."""
+    row = conn.execute("SELECT parquet_prefix FROM match WHERE id = %s", (match_id,)).fetchone()
+    if row is None or row[0] is None or settings.store_dir is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "no such replay")
+    path = FilePath(settings.store_dir, *row[0].split("/"), "replay", f"{round_number}.json.gz")
+    if not path.is_file():
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "no such replay")
+    return Response(
+        content=path.read_bytes(),
+        media_type="application/json",
+        # A replay never changes once written (a new format is a new version, rewritten).
+        headers={"Content-Encoding": "gzip", "Cache-Control": "private, max-age=86400"},
     )
 
 

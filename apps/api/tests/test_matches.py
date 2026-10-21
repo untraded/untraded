@@ -20,6 +20,7 @@ from helpers import add_user
 
 from untraded import fixtures
 from untraded.metrics import REGISTRY
+from untraded.replay import build_replays, to_json_gz
 from untraded_api.app import COOKIE, create_app
 from untraded_api.settings import Settings
 from untraded_worker.analysis import analyze
@@ -117,3 +118,31 @@ def test_bad_parameters(client: TestClient) -> None:
     assert me.get("/matches", params={"limit": 0}).status_code == 422
     assert me.get("/matches/not-a-uuid").status_code == 422
     assert me.get(f"/matches/{uuid.uuid4()}").status_code == 404
+
+
+def test_a_round_replay_is_served_to_who_may_see_the_match(
+    match_id: uuid.UUID, tmp_path: Path
+) -> None:
+    replays = build_replays(fixtures.read(FIXTURE))
+    prefix = f"matches/{match_id}"
+    (tmp_path / prefix / "replay").mkdir(parents=True)
+    (tmp_path / prefix / "replay" / "11.json.gz").write_bytes(to_json_gz(replays[11]))
+    with psycopg.connect(URL, autocommit=True) as conn:
+        conn.execute("UPDATE match SET parquet_prefix = %s WHERE id = %s", (prefix, match_id))
+    settings = Settings(
+        database_url=URL,
+        public_url="http://testserver",
+        web_url="http://web",
+        cookie_secure=False,
+        store_dir=str(tmp_path),
+    )
+    with TestClient(create_app(settings)) as client:
+        me = as_player(client, ME)
+        answer = me.get(f"/matches/{match_id}/rounds/11/replay")
+        assert answer.status_code == 200
+        assert answer.headers["content-encoding"] == "gzip"
+        body = answer.json()  # the client unzips it
+        assert (body["round"], len(body["players"])) == (11, 10)
+        assert me.get(f"/matches/{match_id}/rounds/12/replay").status_code == 404
+        stranger = as_player(client, STRANGER)
+        assert stranger.get(f"/matches/{match_id}/rounds/11/replay").status_code == 404

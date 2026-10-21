@@ -48,6 +48,14 @@ class LocalStore:
         target.parent.mkdir(parents=True, exist_ok=True)
         source.replace(target)
 
+    def write_bytes(self, key: str, data: bytes) -> None:
+        """Writes `data` under `key`, atomically."""
+        target = self.path(key)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        partial = target.with_name(target.name + ".part")
+        partial.write_bytes(data)
+        partial.replace(target)
+
     def delete(self, key: str) -> bool:
         """Deletes `key`; returns False if it was not there."""
         target = self.path(key)
