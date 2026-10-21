@@ -241,3 +241,51 @@ export function bytes(value: number | null | undefined, locale: Locale): string 
     maximumFractionDigits: size < 100 && unit > 0 ? 1 : 0,
   }).format(size);
 }
+
+/** The calendar day of an instant in a time zone: `2026-10-20`. */
+export function localDate(iso: string, timeZone: string): string {
+  // `en-CA` writes dates as YYYY-MM-DD.
+  return new Intl.DateTimeFormat("en-CA", { dateStyle: "short", timeZone }).format(new Date(iso));
+}
+
+/** The Monday of the week a calendar day belongs to (weeks run Monday to Sunday). */
+export function monday(isoDate: string): string {
+  const [year = 0, month = 1, date = 1] = isoDate.split("-").map(Number);
+  const day = new Date(Date.UTC(year, month - 1, date));
+  day.setUTCDate(day.getUTCDate() - ((day.getUTCDay() + 6) % 7));
+  return day.toISOString().slice(0, 10);
+}
+
+/** Items grouped by the week they start in, in the user's time zone, keeping their order. */
+export function byWeek<T extends { started_at: string }>(
+  items: T[],
+  timeZone: string,
+): { monday: string; items: T[] }[] {
+  const weeks: { monday: string; items: T[] }[] = [];
+  for (const item of items) {
+    const week = monday(localDate(item.started_at, timeZone));
+    const last = weeks.at(-1);
+    if (last?.monday === week) last.items.push(item);
+    else weeks.push({ monday: week, items: [item] });
+  }
+  return weeks;
+}
+
+/** A day with its weekday, without the year: `mar. 20 oct.`, `Tue, Oct 20`. */
+export function weekdayDay(iso: string, locale: Locale, timeZone: string): string {
+  return new Intl.DateTimeFormat(locale, {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    timeZone,
+  }).format(new Date(iso));
+}
+
+/** From one time to another, with the end's day when it falls on another one. */
+export function hours(startIso: string, endIso: string, locale: Locale, timeZone: string): string {
+  const end =
+    localDate(startIso, timeZone) === localDate(endIso, timeZone)
+      ? time(endIso, locale, timeZone)
+      : `${shortDay(endIso, locale, timeZone)} ${time(endIso, locale, timeZone)}`;
+  return `${time(startIso, locale, timeZone)} – ${end}`;
+}

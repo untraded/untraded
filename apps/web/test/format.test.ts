@@ -5,6 +5,7 @@ import { pickLocale } from "../src/i18n/locale";
 import { isTimeZone, pickTimeZone } from "../src/i18n/time-zone";
 import {
   bytes,
+  byWeek,
   compare,
   dateRange,
   day,
@@ -13,15 +14,19 @@ import {
   gap,
   gapPercent,
   gapTrend,
+  hours,
   killDiff,
+  localDate,
   mapName,
   metric,
+  monday,
   number,
   percent,
   score,
   shortDay,
   time,
   trend,
+  weekdayDay,
 } from "../src/lib/format";
 
 const line = { kills: 20, deaths: 14, adr: 81.4, kast: 72.2, hltv1: 1.18, untraded_deaths: 3 };
@@ -240,5 +245,42 @@ describe("bytes", () => {
     expect(bytes(21_500_000_000, "en")).toBe("21.5 GB");
     expect(bytes(512, "en")).toBe("512 byte");
     expect(bytes(null, "fr")).toBe("–");
+  });
+});
+
+describe("weeks", () => {
+  it("finds the Monday of a day, across months and years", () => {
+    expect(monday("2026-10-21")).toBe("2026-10-19");
+    expect(monday("2026-10-19")).toBe("2026-10-19");
+    expect(monday("2026-10-25")).toBe("2026-10-19");
+    expect(monday("2026-11-01")).toBe("2026-10-26");
+    expect(monday("2027-01-02")).toBe("2026-12-28");
+  });
+
+  it("groups sessions by the week they start in, in the player's time zone", () => {
+    // 22:30 UTC on Sunday 18 October is already Monday 19 in Paris.
+    const sessions = [
+      { id: "c", started_at: "2026-10-20T18:00:00Z" },
+      { id: "b", started_at: "2026-10-18T22:30:00Z" },
+      { id: "a", started_at: "2026-10-15T18:00:00Z" },
+    ];
+    expect(localDate(sessions[1]?.started_at ?? "", "Europe/Paris")).toBe("2026-10-19");
+    const paris = byWeek(sessions, "Europe/Paris").map((w) => [w.monday, w.items.map((s) => s.id)]);
+    expect(paris).toEqual([
+      ["2026-10-19", ["c", "b"]],
+      ["2026-10-12", ["a"]],
+    ]);
+    expect(byWeek(sessions, "UTC").map((w) => w.items.length)).toEqual([1, 2]);
+  });
+
+  it("writes the weekday and the hours, with the end's day when it changes", () => {
+    expect(weekdayDay("2026-10-20T18:00:00Z", "fr", "Europe/Paris")).toBe("mar. 20 oct.");
+    expect(weekdayDay("2026-10-20T18:00:00Z", "en", "Europe/Paris")).toBe("Tue, Oct 20");
+    expect(hours("2026-10-20T15:00:00Z", "2026-10-20T19:38:00Z", "fr", "Europe/Paris")).toBe(
+      "17:00 – 21:38",
+    );
+    expect(hours("2026-10-20T20:00:00Z", "2026-10-20T23:10:00Z", "fr", "Europe/Paris")).toBe(
+      "22:00 – 21 oct. 01:10",
+    );
   });
 });

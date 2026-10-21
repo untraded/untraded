@@ -173,7 +173,21 @@
     "standoutEmpty": "Aucun écart de plus de 5 % : cette session est dans ta référence.",
     "rare": "trop rare",
     "metricsRule": "Ce qui repose sur moins de {min} cas ou {min} événements attendus n'est pas classé, et le K–D se compare en unités.",
-    "casesOf": "sur {count, plural, one {# cas} other {# cas}}"
+    "casesOf": "sur {count, plural, one {# cas} other {# cas}}",
+    "lead": "Une session regroupe les matchs joués à moins d'une heure d'intervalle.",
+    "thisWeek": "Cette semaine",
+    "lastWeek": "La semaine dernière",
+    "weekOf": "Semaine du {date}",
+    "weekSummary": "{sessions, plural, one {# session} other {# sessions}}, {record}",
+    "mapsPlayed": "Cartes jouées",
+    "resultShort": {
+      "win": "V",
+      "loss": "D",
+      "tie": "N"
+    },
+    "topPriority": "Priorité n° 1 :",
+    "nothingStandsOut": "Rien ne ressort",
+    "pageOf": "Sessions {from} à {to}"
   },
   "families": {
     "base": "Bases",
