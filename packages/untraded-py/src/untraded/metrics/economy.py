@@ -86,6 +86,7 @@ def win_pct_by_matchup(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame
     name="Equipment lost",
     unit="dollars",
     better="lower",
+    cases=("base.deaths",),
     uses=("death", "kill"),
     doc="The player's equipment value at the tick of death, averaged over their deaths.",
 )

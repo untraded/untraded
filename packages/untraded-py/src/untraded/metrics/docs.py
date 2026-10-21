@@ -25,7 +25,7 @@ from untraded.derive import derive
 from untraded.metrics import REGISTRY, Dataset, compute, compute_table
 from untraded.metrics.notes import ALL_LIMITS, FAMILY_LIMITS, LIMITS, history
 from untraded.metrics.params import PARAMETERS
-from untraded.metrics.registry import Metric
+from untraded.metrics.registry import ROUNDS, Metric
 from untraded.validation.csdm import COMPARED
 
 SECTIONS = {
@@ -159,6 +159,15 @@ def _page(m: Metric, example: str, where: str) -> str:
         m.doc,
         "",
     ]
+    if m.cases:
+        over = (
+            "the rounds played"
+            if m.cases == (ROUNDS,)
+            else " + ".join(f"[`{c}`]({c}.md)" for c in m.cases)
+        )
+        lines += [f"Stands on {over}: a value over few cases says little.", ""]
+    if m.signed:
+        lines += ["Can be negative: compare it in units, never in % of a reference.", ""]
     if m.params:
         lines += ["## Parameters", "", "| Parameter | Default | Meaning |", "|---|---|---|"]
         for key, default in m.params.items():

@@ -10,6 +10,8 @@
 
 kills - deaths.
 
+Can be negative: compare it in units, never in % of a reference.
+
 ## Example
 
 On the `premier-half` fixture: a Premier match on de_cache, rounds 11 to 15, anonymized players.

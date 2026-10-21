@@ -10,7 +10,7 @@ import polars as pl
 
 from untraded.metrics._helpers import per_player, rate, round_share, rounds, total
 from untraded.metrics.dataset import Dataset
-from untraded.metrics.registry import ParamValue, metric
+from untraded.metrics.registry import ROUNDS, ParamValue, metric
 
 RP = ("round_player",)
 
@@ -128,6 +128,7 @@ def suicides(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
     name="K-D",
     unit="count",
     better="higher",
+    signed=True,
     uses=RP,
     doc="kills - deaths.",
 )
@@ -145,6 +146,7 @@ def kd_diff(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
     name="Kills per round",
     unit="per_round",
     better="higher",
+    cases=(ROUNDS,),
     uses=RP,
     doc="Kills ÷ rounds played.",
 )
@@ -158,6 +160,7 @@ def kpr(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
     name="Deaths per round",
     unit="per_round",
     better="lower",
+    cases=(ROUNDS,),
     uses=RP,
     doc="Deaths ÷ rounds played.",
 )
@@ -171,6 +174,7 @@ def dpr(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
     name="Assists per round",
     unit="per_round",
     better="higher",
+    cases=(ROUNDS,),
     uses=RP,
     doc="Assists ÷ rounds played.",
 )
@@ -184,6 +188,7 @@ def apr(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
     name="ADR",
     unit="damage_per_round",
     better="higher",
+    cases=(ROUNDS,),
     uses=RP,
     doc="Sum of capped damage to enemies ÷ rounds played.",
 )
@@ -197,6 +202,7 @@ def adr(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
     name="HS %",
     unit="pct",
     better="higher",
+    cases=("base.kills",),
     uses=("death", "kill"),
     doc="Headshot kills ÷ kills * 100.",
 )
@@ -222,6 +228,7 @@ def hs_pct(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
     name="KAST",
     unit="pct",
     better="higher",
+    cases=(ROUNDS,),
     uses=RP,
     params={"trade.window_s": 5.0, "kast.count_flash_assist": False},
     doc="% of rounds played where the player got a Kill, an Assist (flash assists excluded "
@@ -271,6 +278,7 @@ for _count in range(1, 6):
     name="Rounds with a kill",
     unit="pct",
     better="higher",
+    cases=(ROUNDS,),
     uses=RP,
     doc="% of rounds with at least one kill.",
 )
@@ -284,6 +292,7 @@ def rounds_with_kill_pct(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFra
     name="Survival",
     unit="pct",
     better="higher",
+    cases=(ROUNDS,),
     uses=RP,
     doc="% of rounds where the player is alive at round end and does not die after it (a death "
     "after the round end drops the weapons).",

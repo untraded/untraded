@@ -10,6 +10,8 @@
 
 Clutch wins ÷ clutch attempts * 100, over all N.
 
+Stands on [`clutch.attempts_1v1`](clutch.attempts_1v1.md) + [`clutch.attempts_1v2`](clutch.attempts_1v2.md) + [`clutch.attempts_1v3`](clutch.attempts_1v3.md) + [`clutch.attempts_1v4`](clutch.attempts_1v4.md) + [`clutch.attempts_1v5`](clutch.attempts_1v5.md): a value over few cases says little.
+
 ## Example
 
 On the `premier-half` fixture: a Premier match on de_cache, rounds 11 to 15, anonymized players.
