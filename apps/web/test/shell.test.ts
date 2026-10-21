@@ -11,6 +11,8 @@ describe("shell", () => {
     expect(sectionOf("/sessions/0000")).toBe("sessions");
     expect(sectionOf("/matches/0000")).toBe("matches");
     expect(sectionOf("/settings")).toBe("settings");
+    expect(sectionOf("/admin")).toBe("admin");
+    expect(sectionOf("/admin/health")).toBe("admin");
     expect(sectionOf("/report")).toBeNull();
     expect(sectionOf("/sessionsx")).toBeNull();
   });

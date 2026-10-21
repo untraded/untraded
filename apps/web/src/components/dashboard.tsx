@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 The Untraded Authors
 // SPDX-License-Identifier: AGPL-3.0-only
-import { ChevronRight, Compass, Dumbbell, LoaderCircle } from "lucide-react";
+import { ChevronRight, Compass, Dumbbell, LoaderCircle, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { getLocale, getTimeZone, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
@@ -14,6 +14,7 @@ import {
   getSession,
   getSessions,
   type MatchStatus,
+  type Me,
   type SessionSummary,
 } from "@/lib/api";
 import { cn } from "@/lib/cn";
@@ -36,7 +37,7 @@ const ARROW: Record<Trend, string> = { better: "▲", worse: "▼", same: "=" };
  * again, the progress of the previous priorities, and the matches still being analysed. On a
  * phone it fits about one screen: shorter priorities, no instructions, no recent sessions.
  */
-export async function Dashboard({ tone }: { tone: Tone }) {
+export async function Dashboard({ me, tone }: { me: Me; tone: Tone }) {
   const t = await getTranslations("dashboard");
   const locale = (await getLocale()) as Locale;
   const timeZone = await getTimeZone();
@@ -63,9 +64,22 @@ export async function Dashboard({ tone }: { tone: Tone }) {
           })}
         </p>
       )}
+      {me.source?.last_error && (
+        <p
+          role="status"
+          className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-destructive/40 bg-card px-3 py-2.5 text-sm"
+        >
+          <TriangleAlert aria-hidden="true" className="size-4 shrink-0 text-destructive" />
+          {t("codesBroken")}
+          <Link href="/settings" className={buttonVariants({ variant: "link" })}>
+            {t("codesBrokenLink")}
+          </Link>
+        </p>
+      )}
       {!report ? (
         <Card>
-          <p className="text-muted-foreground">{(await getTranslations("sessions"))("empty")}</p>
+          <h2 className="font-semibold">{t("waiting")}</h2>
+          <p className="mt-1 max-w-prose text-muted-foreground">{t("waitingLead")}</p>
         </Card>
       ) : (
         <div className="grid items-start gap-3 md:gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
