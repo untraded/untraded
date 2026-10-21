@@ -24,8 +24,10 @@ from untraded_api.secrets_box import encrypt
 
 router = APIRouter(prefix="/me", tags=["onboarding"])
 
-AUTH_CODE = re.compile(r"[A-Z0-9]{4}-[A-Z0-9]{5}-[A-Z0-9]{4}")
-SHARE_CODE = re.compile(r"CSGO(?:-[A-Za-z0-9]{5}){5}")
+# A whole code, never a piece of a longer one: `CSGO-ABCDE-FGHIJ-…` upper-cased holds
+# `CSGO-ABCDE-FGHI`, which has the form of an authentication code.
+AUTH_CODE = re.compile(r"(?<![A-Z0-9-])[A-Z0-9]{4}-[A-Z0-9]{5}-[A-Z0-9]{4}(?![A-Z0-9-])")
+SHARE_CODE = re.compile(r"CSGO(?:-[A-Za-z0-9]{5}){5}(?![A-Za-z0-9-])")
 log = logging.getLogger("untraded.api")
 
 
@@ -34,6 +36,19 @@ def find_code(pattern: re.Pattern[str], text: str) -> str | None:
     (CS2's share link `steam://rungame/730/…/+csgo_download_match%20CSGO-…`)."""
     found = pattern.search(re.sub(r"\s+", "", text))
     return found.group(0) if found else None
+
+
+def place_codes(auth_text: str, share_text: str) -> tuple[str | None, str | None]:
+    """The authentication code and the share code, from the two fields. Pasted the other way
+    round, they are put back in place: their forms cannot be mistaken for each other."""
+    auth = find_code(AUTH_CODE, auth_text.upper())
+    share = find_code(SHARE_CODE, share_text)
+    if auth is None and share is None:
+        swapped_auth = find_code(AUTH_CODE, share_text.upper())
+        swapped_share = find_code(SHARE_CODE, auth_text)
+        if swapped_auth and swapped_share:
+            return swapped_auth, swapped_share
+    return auth, share
 
 
 class ConsentIn(BaseModel):
@@ -78,8 +93,7 @@ def set_source(
     ).fetchone()
     if consent is None or not consent[0]:
         raise HTTPException(status.HTTP_409_CONFLICT, "consent first")
-    auth_code = find_code(AUTH_CODE, body.auth_code.upper())
-    share_code = find_code(SHARE_CODE, body.share_code)
+    auth_code, share_code = place_codes(body.auth_code, body.share_code)
     # Why codes are refused, never the codes themselves: enough to help a player.
     if auth_code is None:
         log.warning("codes of user %s refused: authentication code format", user)
