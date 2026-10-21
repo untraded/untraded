@@ -9,6 +9,7 @@ session cookie holds a random token; the database stores its sha256.
 
 # No `from __future__ import annotations`: FastAPI reads the dependencies from the annotations.
 
+import datetime as dt
 import secrets
 import urllib.parse
 import uuid
@@ -25,11 +26,33 @@ from untraded_api.settings import Settings
 router = APIRouter()
 
 
+class Consent(BaseModel):
+    text_version: str
+    analysis: bool
+    research_corpus: bool
+    recorded_at: dt.datetime
+
+
+class Source(BaseModel):
+    enabled: bool
+    last_success_at: dt.datetime | None
+    last_error: str | None
+
+
 class Me(BaseModel):
     id: uuid.UUID
     steam_id: str
     """A string: Steam ids do not fit in a JavaScript number."""
     display_name: str
+    admin: bool
+    consent: Consent | None
+    """The player's current consent; null before they give it."""
+    consent_version: str
+    """The current consent text: a player whose consent names another version agrees again."""
+    source: Source | None
+    """How the collector follows their Valve matches; null before they give their codes."""
+    can_add_source: bool
+    """Whether this server can keep the codes (it has UNTRADED_SECRET_KEY)."""
 
 
 def callback_url(settings: Settings) -> str:
@@ -87,10 +110,38 @@ def sign_out(request: Request, response: Response, db: DatabaseDep, settings: Se
 
 
 @router.get("/me")
-def me(conn: ConnDep, user: UserDep) -> Me:
+def me(conn: ConnDep, user: UserDep, settings: SettingsDep) -> Me:
     row = conn.execute(
-        "SELECT id, steam_id::text, display_name FROM app_user WHERE id = %s", (user,)
+        "SELECT id, steam_id, display_name FROM app_user WHERE id = %s", (user,)
     ).fetchone()
     if row is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "not signed in")
-    return Me(id=row[0], steam_id=row[1], display_name=row[2])
+    consent = conn.execute(
+        "SELECT text_version, analysis, research_corpus, recorded_at FROM consent_current "
+        "WHERE user_id = %s",
+        (user,),
+    ).fetchone()
+    source = conn.execute(
+        "SELECT enabled, last_success_at, last_error FROM ingest_source "
+        "WHERE user_id = %s AND kind = 'valve_bot' ORDER BY created_at LIMIT 1",
+        (user,),
+    ).fetchone()
+    return Me(
+        id=row[0],
+        steam_id=str(row[1]),
+        display_name=row[2],
+        admin=row[1] in settings.admins,
+        consent=Consent(
+            text_version=consent[0],
+            analysis=consent[1],
+            research_corpus=consent[2],
+            recorded_at=consent[3],
+        )
+        if consent
+        else None,
+        consent_version=settings.consent_version,
+        source=Source(enabled=source[0], last_success_at=source[1], last_error=source[2])
+        if source
+        else None,
+        can_add_source=settings.secret_key is not None,
+    )
