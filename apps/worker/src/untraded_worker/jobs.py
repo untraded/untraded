@@ -30,7 +30,7 @@ import psycopg
 
 from untraded.demofile import CorruptDemoError, NotADemoError, demo_suffix, digest
 from untraded.parsing import CanonicalMatch, UnsupportedModeError, parse_demo
-from untraded_worker import load, queue, sessions
+from untraded_worker import erase, load, queue, sessions
 from untraded_worker.analysis import analyze
 from untraded_worker.download import BlockedAddressError, DemoGone, fetch
 from untraded_worker.queue import Job
@@ -192,6 +192,7 @@ def handlers(store: LocalStore) -> dict[str, Handler]:
         "download": DownloadJob(store),
         "parse": ParseJob(store),
         "session": sessions.SessionJob(store),
+        "erase_player": erase.ErasePlayerJob(store),
     }
 
 

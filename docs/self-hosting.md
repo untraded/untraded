@@ -146,6 +146,22 @@ A match goes `downloading`, then `parsing`, then `ready`. Other outcomes:
 | `store` | raw demos (`demos/`) and Parquet per match (`matches/`) | the Parquet, at least: metrics are recomputed from it (ADR 0009) |
 | `collector-data` | the bot's refresh token (`.state.json`, mode 600) | no: log in again instead |
 
+## Erasing a player
+
+A player erases their account from their settings (`POST /me/erase`), or an admin erases them
+(`DELETE /admin/players/{steam_id}`). Their account closes at once: signed out, and no longer
+followed by the collector. The worker's `erase_player` job then deletes:
+
+- their account, with their sources and encrypted codes, consents, votes, invitation and
+  personal workspace;
+- their play sessions, advice and aggregates;
+- the matches no other user played in: rows, Parquet and raw demo.
+
+The matches other users played in stay, as those users' matches. The erased player is then one
+of the players there like anyone not registered, and is left out of the level references.
+Copies outside the database follow their own rhythm: the daily dumps expire (4 weeks at most),
+and an off-site copy you run keeps what you tell it to.
+
 ## Backups
 
 The `backup` service dumps the database every day at 03:00 UTC (`pg_dump`, custom format) into

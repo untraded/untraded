@@ -14,11 +14,11 @@ import re
 import uuid
 
 import httpx
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, HTTPException, Request, Response, status
 from pydantic import BaseModel
 
 from untraded_api import steam
-from untraded_api.deps import ConnDep, SettingsDep, UserDep
+from untraded_api.deps import COOKIE, ConnDep, SettingsDep, UserDep
 from untraded_api.secrets_box import encrypt
 
 router = APIRouter(prefix="/me", tags=["onboarding"])
@@ -95,3 +95,18 @@ def set_source(
     source = found[0] if found else uuid.uuid4()
     secret = encrypt(settings.secret_key, auth_code, str(source))
     conn.execute("SELECT set_my_source(%s, %s, %s)", (source, secret, share_code))
+
+
+class EraseIn(BaseModel):
+    confirm: bool
+    """Must be true: the site asks the player to confirm first."""
+
+
+@router.post("/erase", status_code=status.HTTP_202_ACCEPTED)
+def erase_me(body: EraseIn, response: Response, conn: ConnDep, settings: SettingsDep) -> None:
+    """The player's right to erasure: their account closes at once (signed out, no longer
+    followed), and the worker deletes their data (`erase_player`)."""
+    if not body.confirm:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, {"field": "confirm"})
+    conn.execute("SELECT request_my_erasure()")
+    response.delete_cookie(COOKIE, path="/", secure=settings.cookie_secure, httponly=True)

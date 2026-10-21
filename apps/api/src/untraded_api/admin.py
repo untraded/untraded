@@ -172,6 +172,25 @@ def revoke(steam_id: str, conn: AdminDep) -> None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no such invitation")
 
 
+@router.delete("/players/{steam_id}", status_code=status.HTTP_202_ACCEPTED)
+def erase(steam_id: str, conn: AdminDep, user: UserDep) -> None:
+    """Erases a player: their account closes at once, and the worker deletes their data, with
+    the matches no other user played in (`erase_player`). Not undone."""
+    if not STEAM_ID.match(steam_id):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "no such player")
+    me = conn.execute("SELECT steam_id FROM app_user WHERE id = %s", (user,)).fetchone()
+    if me is not None and str(me[0]) == steam_id:
+        raise HTTPException(status.HTTP_409_CONFLICT, "erase your own account from your settings")
+    known = conn.execute(
+        "SELECT 1 FROM app_user WHERE steam_id = %(s)s AND deleted_at IS NULL "
+        "UNION ALL SELECT 1 FROM invitation WHERE steam_id = %(s)s AND accepted_at IS NULL",
+        {"s": int(steam_id)},
+    ).fetchone()
+    if known is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "no such player")
+    conn.execute("SELECT request_erasure(%s)", (int(steam_id),))
+
+
 def _source(conn: AdminDep, source_id: uuid.UUID, sql: str) -> None:
     done = conn.execute(sql, (source_id,))
     if done.rowcount == 0:
