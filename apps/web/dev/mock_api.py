@@ -50,17 +50,25 @@ def metrics() -> list[dict[str, str]]:
         from untraded.metrics import REGISTRY
 
         return [
-            {"id": m.id, "version": m.version, "name": m.name, "unit": m.unit, "better": m.better}
+            {
+                "id": m.id,
+                "version": m.version,
+                "name": m.name,
+                "unit": m.unit,
+                "better": m.better,
+                "cases": list(m.cases),
+                "signed": m.signed,
+            }
             for m in REGISTRY.values()
             if m.kind == "value"
         ]
     except ImportError:  # outside the uv workspace: a few metrics are enough
         return [
-            {"id": "rating.hltv1", "version": "1.0.0", "name": "HLTV Rating 1.0", "unit": "ratio", "better": "higher"},
-            {"id": "base.adr", "version": "1.0.0", "name": "ADR", "unit": "damage_per_round", "better": "higher"},
-            {"id": "base.kast", "version": "1.1.0", "name": "KAST", "unit": "pct", "better": "higher"},
-            {"id": "trade.untraded_deaths", "version": "1.1.0", "name": "Untraded deaths (5 s)", "unit": "count", "better": "lower"},
-            {"id": "base.kills", "version": "1.0.0", "name": "Kills", "unit": "count", "better": "higher"},
+            {"id": "rating.hltv1", "version": "1.0.0", "name": "HLTV Rating 1.0", "unit": "ratio", "better": "higher", "cases": ["rounds"], "signed": False},
+            {"id": "base.adr", "version": "1.0.0", "name": "ADR", "unit": "damage_per_round", "better": "higher", "cases": ["rounds"], "signed": False},
+            {"id": "base.kast", "version": "1.1.0", "name": "KAST", "unit": "pct", "better": "higher", "cases": ["rounds"], "signed": False},
+            {"id": "trade.untraded_deaths", "version": "1.1.0", "name": "Untraded deaths (5 s)", "unit": "count", "better": "lower", "cases": [], "signed": False},
+            {"id": "base.kills", "version": "1.0.0", "name": "Kills", "unit": "count", "better": "higher", "cases": [], "signed": False},
         ]  # fmt: skip
 
 
@@ -173,7 +181,36 @@ def comparison(m: dict[str, str], enough: bool) -> dict[str, Any]:
         "session": round(session, 4),
         "reference": round(reference, 4) if enough else None,
         "delta": round(session - reference, 4) if enough else None,
+        "signed": m["signed"],
     }
+
+
+# Rates that rest on few cases in every session: under 5 (a clutch rate over 2 clutches, an opening
+# conversion over 1 opening kill) they are left out of what stands out; from 5 to 9 (trade
+# conversion over 7 chances) they are ranked but say what they stand on.
+FEW_CASES = {
+    "clutch.win_pct": 2,
+    "duel.opening_win_conversion_pct": 1,
+    "duel.opening_success_pct": 3,
+    "trade.kill_conversion_pct": 7,
+}
+
+
+def with_cases(values: list[dict[str, Any]], rounds: int) -> list[dict[str, Any]]:
+    """What each rate or average stands on, as the API computes it: the rounds played, or the sum
+    of its count metrics (per round in a session) times the rounds. Null for totals."""
+    per_round = {v["metric_id"]: v["session"] for v in values}
+    of = {m["id"]: m["cases"] for m in METRICS}
+    for value in values:
+        metric = of[value["metric_id"]]
+        if not metric:
+            cases = None
+        elif metric == ["rounds"]:
+            cases = rounds
+        else:
+            cases = round(sum(per_round.get(c) or 0 for c in metric) * rounds)
+        value["cases"] = FEW_CASES.get(value["metric_id"], cases)
+    return values
 
 
 HEADLINES = ["rating.hltv1", "base.adr", "base.kast", "trade.untraded_deaths"]
@@ -279,7 +316,8 @@ def build_sessions() -> list[dict[str, Any]]:
         if not group:
             break
         enough = KINDS[n] != "none"
-        values = [comparison(m, enough) for m in METRICS]
+        rounds = sum(m["rounds_played"] for m in group)
+        values = with_cases([comparison(m, enough) for m in METRICS], rounds)
         wins = sum(m["my_result"] == "win" for m in group)
         found.append(
             {
@@ -287,7 +325,7 @@ def build_sessions() -> list[dict[str, Any]]:
                 "started_at": group[-1]["played_at"],
                 "ended_at": group[0]["ended_at"],
                 "matches": len(group),
-                "rounds": sum(m["rounds_played"] for m in group),
+                "rounds": rounds,
                 "wins": wins,
                 "losses": len(group) - wins,
                 "ties": 0,

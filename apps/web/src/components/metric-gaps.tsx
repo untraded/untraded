@@ -18,6 +18,8 @@ export interface GapRow {
   gap: number | null;
   /** How it compares: only `ranked` rows have a % gap and a bar (see `compare()`). */
   kind: GapKind;
+  /** What a rate stands on, when it is little ("over 7 cases"); `null` otherwise. */
+  cases: string | null;
   gapText: string;
   trend: Trend;
 }
@@ -149,7 +151,13 @@ function Group({
       <ul>
         {rows.map((row) => {
           const width = row.gap === null ? 0 : (Math.min(Math.abs(row.gap), 50) / 50) * 50;
-          const note = [withFamily ? row.family : null, row.perRound].filter(Boolean).join(", ");
+          const note = [
+            withFamily ? row.family : null,
+            row.perRound,
+            row.kind === "ranked" ? row.cases : null,
+          ]
+            .filter(Boolean)
+            .join(", ");
           return (
             <li
               key={row.id}
@@ -194,6 +202,8 @@ function Group({
                   >
                     {row.kind === "neutral" ? (
                       labels.neutral
+                    ) : row.kind === "few" ? (
+                      row.cases
                     ) : row.kind === "rare" ? (
                       labels.rare
                     ) : row.kind === "none" ? (

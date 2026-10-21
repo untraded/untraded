@@ -188,35 +188,36 @@ export function time(iso: string | null, locale: Locale, timeZone: string): stri
   return new Intl.DateTimeFormat(locale, { timeStyle: "short", timeZone }).format(new Date(iso));
 }
 
-/** Metrics that can be negative (K-D): a share of the reference means nothing, they compare in
- * units. A `signed` field from the API would replace this list. */
-export const SIGNED_METRICS: ReadonlySet<string> = new Set(["base.kd_diff"]);
+/**
+ * The one threshold of the metric list: a rate or an average over fewer cases (`cases`, from the
+ * API), or a count the reference expects fewer times over the session's rounds, is not ranked.
+ * This is a display rule; the advice engine has its own (`advice.min_events`).
+ */
+export const MIN_CASES = 5;
 
-/** Below this many events expected over the session's rounds, a count is too rare for a %. */
-export const MIN_EXPECTED_EVENTS = 3;
+/** Below this many cases, a ranked rate still says what it stands on ("over 7 cases"). */
+export const FEW_CASES = 10;
 
 /**
  * How a metric compares to its reference in the list of every metric:
  * - `ranked`: as an oriented % gap, eligible for "what stands out";
  * - `units`: a signed metric, compared by its difference in units, never ranked;
- * - `rare`: a count the reference expects fewer than `MIN_EXPECTED_EVENTS` times this session;
+ * - `few`: a rate or an average over fewer than `MIN_CASES` cases this session;
+ * - `rare`: a count the reference expects fewer than `MIN_CASES` times this session;
  * - `neutral`: no better way; `none`: nothing to compare (no value or reference, or a zero one).
  */
-export type GapKind = "ranked" | "units" | "rare" | "neutral" | "none";
+export type GapKind = "ranked" | "units" | "few" | "rare" | "neutral" | "none";
 
 export function compare(
   comparison: Comparison,
   rounds: number,
 ): { kind: GapKind; gap: number | null } {
-  const { session, reference, better, unit, basis } = comparison;
+  const { session, reference, better, unit, basis, cases } = comparison;
   if (better === "neutral") return { kind: "neutral", gap: null };
   if (session === null || reference === null) return { kind: "none", gap: null };
-  if (SIGNED_METRICS.has(comparison.metric_id)) return { kind: "units", gap: null };
-  if (
-    unit === "count" &&
-    basis === "per_round" &&
-    Math.abs(reference) * rounds < MIN_EXPECTED_EVENTS
-  ) {
+  if (comparison.signed) return { kind: "units", gap: null };
+  if (cases !== null && cases < MIN_CASES) return { kind: "few", gap: null };
+  if (unit === "count" && basis === "per_round" && Math.abs(reference) * rounds < MIN_CASES) {
     return { kind: "rare", gap: null };
   }
   const value = gap(comparison);
