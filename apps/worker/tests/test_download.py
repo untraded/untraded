@@ -13,7 +13,6 @@ from pathlib import Path
 
 import pytest
 
-from untraded_worker import download
 from untraded_worker.download import (
     BlockedAddressError,
     DemoGone,
@@ -175,7 +174,7 @@ def test_a_name_is_checked_when_the_connection_opens(
     def resolve(host: str, port: int, **_: object) -> list[tuple[object, ...]]:
         return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("169.254.169.254", port))]
 
-    monkeypatch.setattr(download.socket, "getaddrinfo", resolve)
+    monkeypatch.setattr(socket, "getaddrinfo", resolve)
     with pytest.raises(BlockedAddressError, match=r"replay.example"):
         fetch("http://replay.example/730/1.dem.bz2", tmp_path / "demo.dem.bz2", retry_delay_s=0)
 

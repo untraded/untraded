@@ -187,7 +187,8 @@ class _GuardedHTTP(urllib.request.HTTPHandler):
 
 class _GuardedHTTPS(urllib.request.HTTPSHandler):
     def https_open(self, req: urllib.request.Request) -> http.client.HTTPResponse:
-        return self.do_open(_GuardedHTTPSConnection, req, context=self._context)
+        # The connection builds the default verified context, as urllib does without one.
+        return self.do_open(_GuardedHTTPSConnection, req)
 
 
 class _Redirects(urllib.request.HTTPRedirectHandler):
