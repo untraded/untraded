@@ -142,7 +142,8 @@
     "titleOf": "Session of {date}",
     "standoutEmpty": "No gap above 5%: this session is in line with your reference.",
     "rare": "too rare",
-    "metricsRule": "Counts expected fewer than {min} times this session, and the K–D (compared in units), are not ranked."
+    "metricsRule": "Anything resting on fewer than {min} cases or {min} expected events is not ranked, and the K–D compares in units.",
+    "casesOf": "over {count, plural, one {# case} other {# cases}}"
   },
   "families": {
     "base": "Basics",

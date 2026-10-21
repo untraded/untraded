@@ -16,12 +16,13 @@ import {
   compare,
   dateRange,
   delta,
+  FEW_CASES,
   family,
   gap,
   gapPercent,
   gapTrend,
   killDiff,
-  MIN_EXPECTED_EVENTS,
+  MIN_CASES,
   mapName,
   metric,
   number,
@@ -72,6 +73,12 @@ export async function Report({ report, back }: { report: SessionReport; back: bo
       reference: t("vsReference", { value: metric(c.reference, c.unit, c.basis, locale) }),
       gap: value,
       kind,
+      // What a rate stands on, said when it is little: under the name if ranked, in place of the
+      // gap if too few to rank.
+      cases:
+        c.cases !== null && c.cases < FEW_CASES && (kind === "ranked" || kind === "few")
+          ? t("casesOf", { count: c.cases })
+          : null,
       // A signed metric reads as its difference in units; every other one as a share.
       gapText:
         kind === "units"
@@ -222,7 +229,7 @@ export async function Report({ report, back }: { report: SessionReport; back: bo
           <h2 className="text-lg font-semibold">{t("allMetrics")}</h2>
           <p className="mt-0.5 text-sm text-muted-foreground">
             {named.short && reference.enough
-              ? `${t("metricsLead", { count: rows.length, reference: named.short })} ${t("metricsRule", { min: MIN_EXPECTED_EVENTS })}`
+              ? `${t("metricsLead", { count: rows.length, reference: named.short })} ${t("metricsRule", { min: MIN_CASES })}`
               : t("metricsLeadNone", { count: rows.length })}
           </p>
         </div>

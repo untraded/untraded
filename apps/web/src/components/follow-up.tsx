@@ -20,6 +20,8 @@ export function followTrend(item: FollowUp): Trend {
     session: item.now,
     reference: item.then,
     delta: item.now === null || item.then === null ? null : item.now - item.then,
+    cases: null,
+    signed: false,
   });
 }
 

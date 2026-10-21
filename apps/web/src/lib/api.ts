@@ -154,6 +154,12 @@ export interface Comparison {
   session: number | null;
   reference: number | null;
   delta: number | null;
+  /** What a rate or an average stands on in this session: the rounds played, or its cases (the
+   * opening duels for the opening success). `null` for totals, or when a count it rests on is
+   * missing. */
+  cases: number | null;
+  /** The value can be negative (K-D): a gap in % of the reference means nothing for it. */
+  signed: boolean;
 }
 
 export interface SessionSummary {

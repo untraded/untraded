@@ -142,7 +142,8 @@
     "titleOf": "Session du {date}",
     "standoutEmpty": "Aucun écart de plus de 5 % : cette session est dans ta référence.",
     "rare": "trop rare",
-    "metricsRule": "Les comptes attendus moins de {min} fois sur la session, et le K–D (comparé en unités), ne sont pas classés."
+    "metricsRule": "Ce qui repose sur moins de {min} cas ou {min} événements attendus n'est pas classé, et le K–D se compare en unités.",
+    "casesOf": "sur {count, plural, one {# cas} other {# cas}}"
   },
   "families": {
     "base": "Bases",
