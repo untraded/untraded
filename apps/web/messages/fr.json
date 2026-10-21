@@ -482,18 +482,35 @@
     "emailUnset": "adresse de contact non renseignée"
   },
   "codes": {
-    "authLabel": "Code d'authentification de l'historique des matchs",
-    "authHelp": "Sur la page d'aide Steam « Accéder à ton historique de matchs » de Counter-Strike 2, crée ce code (format AAAA-AAAAA-AAAA).",
-    "shareLabel": "Code de partage de ton dernier match",
-    "shareHelp": "Sur la même page, sous « Ton dernier match » : il commence par CSGO-. Si la page n'en affiche pas encore, joue un match Premier dans CS2, puis reviens.",
     "helpLink": "Ouvrir la page d'aide Steam",
     "submit": "Suivre mes matchs",
     "pending": "Vérification auprès de Steam…",
-    "errorAuth": "Steam refuse ce code d'authentification. Vérifie-le, ou crée-en un nouveau sur la page d'aide.",
-    "errorShare": "Steam ne reconnaît pas ce code de partage. Il commence par CSGO- et suit le format CSGO-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX.",
     "errorConsent": "Donne d'abord ton accord, puis tes codes.",
     "errorUnavailable": "Steam ne répond pas, ou ce serveur ne peut pas garder les codes pour l'instant. Réessaie dans quelques minutes.",
-    "errorFailed": "Tes codes n'ont pas pu être enregistrés. Réessaie dans un instant."
+    "errorFailed": "Tes codes n'ont pas pu être enregistrés. Réessaie dans un instant.",
+    "auth": {
+      "label": "Code d'authentification",
+      "formatHint": "Format : 4, 5 et 4 lettres ou chiffres, séparés par des tirets.",
+      "help": "Sur la page d'aide Steam « Accéder à ton historique de matchs » de Counter-Strike 2 : reprends ce code, ou crée-le s'il n'existe pas encore.",
+      "other": "Ce code va dans l'autre champ : c'est un code de partage (il commence par CSGO-).",
+      "format": "Mauvais format : un code d'authentification s'écrit AAAA-AAAAA-AAAA.",
+      "refused": "Le format est bon, mais Steam refuse ce code. Recopie-le depuis la page d'aide : si tu en as créé un nouveau entre-temps, l'ancien ne marche plus, donne le plus récent."
+    },
+    "share": {
+      "label": "Code de partage",
+      "formatHint": "Format : CSGO- suivi de 5 blocs de 5 lettres ou chiffres.",
+      "help": "Sur la même page, sous « Ton dernier match ». Si la page n'en affiche pas encore, joue un match Premier dans CS2, puis reviens.",
+      "other": "Ce code va dans l'autre champ : c'est un code d'authentification.",
+      "format": "Mauvais format : un code de partage s'écrit CSGO-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX.",
+      "refused": "Le format est bon, mais Steam ne reconnaît pas ce code de partage, ou il date de plus d'un mois. Reprends celui de ton dernier match sur la page d'aide."
+    },
+    "map": {
+      "caption": "Sur la page d'aide Steam, ton code d'authentification (1) est en haut, avec le bouton qui le crée ; le code de partage de ton dernier match (2) est juste en dessous.",
+      "note": "Schéma simplifié : les textes de la page Steam peuvent différer.",
+      "auth": "Code d'authentification",
+      "create": "Créer un code",
+      "share": "Ton dernier match"
+    }
   },
   "admin": {
     "title": "Admin",
