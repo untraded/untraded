@@ -7,6 +7,9 @@
 //   login          logs the bot in once, asking for Steam Guard, and keeps its refresh token
 //   add-source     follows a player: --steam-id, --name, --share-code; the authentication
 //                  code is asked on the terminal (or PLAYER_AUTH_CODE)
+//                  --text-version V [--corpus] records their consent at the same time
+//   consent        records a player's consent: --steam-id, --text-version, --corpus (box 2);
+//                  --withdraw withdraws it (then remove-source stops following them)
 //   sources        lists the followed players (never their authentication code)
 //   update-source  --share-code to restart the chain there, --auth-code to type a new code
 //   pause-source, resume-source
@@ -91,6 +94,9 @@ async function main(): Promise<void> {
       source: { type: "string" },
       "auth-code": { type: "boolean", default: false },
       yes: { type: "boolean", default: false },
+      "text-version": { type: "string" },
+      corpus: { type: "boolean", default: false },
+      withdraw: { type: "boolean", default: false },
     },
   });
   const command = positionals[0];
@@ -117,8 +123,22 @@ async function main(): Promise<void> {
         name: values.name ?? steamId,
         authCode,
         shareCode,
+        consent: values["text-version"]
+          ? { textVersion: values["text-version"], analysis: true, researchCorpus: values.corpus }
+          : undefined,
       });
       console.log(`source ${id} added`);
+    } else if (command === "consent") {
+      const steamId = sourceRef({ "steam-id": values["steam-id"] }).steamId as string;
+      if (!values.withdraw && !values["text-version"]) {
+        throw new Error("consent needs --text-version (or --withdraw)");
+      }
+      await store.recordConsent(steamId, {
+        textVersion: values["text-version"],
+        analysis: !values.withdraw,
+        researchCorpus: !values.withdraw && values.corpus,
+      });
+      console.log(values.withdraw ? "consent withdrawn" : "consent recorded");
     } else if (command === "sources") {
       for (const line of formatSources(await store.listSources())) console.log(line);
     } else if (command === "update-source") {
@@ -154,7 +174,8 @@ async function main(): Promise<void> {
       }
     } else {
       throw new Error(
-        "usage: untraded-collector run [--once] | login | add-source | sources | update-source" +
+        "usage: untraded-collector run [--once] | login | add-source | consent | sources" +
+          " | update-source" +
           " | pause-source | resume-source | remove-source",
       );
     }
