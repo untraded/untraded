@@ -56,6 +56,15 @@ class LocalStore:
         target.unlink()
         return True
 
+    def delete_prefix(self, prefix: str) -> bool:
+        """Deletes everything under `prefix` (a match's tables); returns False if it was not
+        there."""
+        target = self.path(prefix)
+        if not target.is_dir():
+            return False
+        shutil.rmtree(target)
+        return True
+
     def write_tables(self, prefix: str, tables: Mapping[str, pl.DataFrame]) -> None:
         """Writes each table as `{prefix}/{name}.parquet` (zstd), atomically."""
         for name, table in tables.items():

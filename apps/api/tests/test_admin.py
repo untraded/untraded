@@ -196,3 +196,27 @@ def test_the_admin_lists_and_manages_players(db: psycopg.Connection[Any], tmp_pa
         assert health["backups"]["offsite"]["ok"] is True
         assert health["sources"]["total"] == 0
         assert health["disk"]["total"] > 0
+
+
+def test_a_player_erases_themselves(db: psycopg.Connection[Any], tmp_path: Path) -> None:
+    with app(tmp_path) as client:
+        client.cookies.set(COOKIE, add_user(db, PLAYER))
+        assert client.post("/me/erase", json={"confirm": False}).status_code == 422
+        assert client.post("/me/erase", json={"confirm": True}).status_code == 202
+        assert client.get("/me").status_code == 401  # signed out, for good
+    assert sign_in(db, client, PLAYER) is None
+    assert db.execute("SELECT kind, payload->>'steam_id' FROM job").fetchall() == [
+        ("erase_player", str(PLAYER))
+    ]
+
+
+def test_the_admin_erases_a_player(db: psycopg.Connection[Any], tmp_path: Path) -> None:
+    with app(tmp_path) as client:
+        add_user(db, PLAYER)
+        client.cookies.set(COOKIE, add_user(db, ADMIN))
+        assert client.delete(f"/admin/players/{ADMIN}").status_code == 409  # not oneself
+        assert client.delete(f"/admin/players/{GUEST}").status_code == 404
+        assert client.delete(f"/admin/players/{PLAYER}").status_code == 202
+        listed = [p["steam_id"] for p in client.get("/admin/players").json()["items"]]
+        assert str(PLAYER) not in listed
+        assert client.delete(f"/admin/players/{PLAYER}").status_code == 404
