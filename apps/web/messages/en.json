@@ -173,7 +173,21 @@
     "standoutEmpty": "No gap above 5%: this session is in line with your reference.",
     "rare": "too rare",
     "metricsRule": "Anything resting on fewer than {min} cases or {min} expected events is not ranked, and the K–D compares in units.",
-    "casesOf": "over {count, plural, one {# case} other {# cases}}"
+    "casesOf": "over {count, plural, one {# case} other {# cases}}",
+    "lead": "A session groups the matches played less than an hour apart.",
+    "thisWeek": "This week",
+    "lastWeek": "Last week",
+    "weekOf": "Week of {date}",
+    "weekSummary": "{sessions, plural, one {# session} other {# sessions}}, {record}",
+    "mapsPlayed": "Maps played",
+    "resultShort": {
+      "win": "W",
+      "loss": "L",
+      "tie": "T"
+    },
+    "topPriority": "Priority 1:",
+    "nothingStandsOut": "Nothing stands out",
+    "pageOf": "Sessions {from} to {to}"
   },
   "families": {
     "base": "Basics",
