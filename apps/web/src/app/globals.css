@@ -120,4 +120,10 @@
   html {
     @apply font-sans;
   }
+  /* Keyboard focus, always visible: shadcn/ui components draw their own ring, everything else
+   * (links, choices, chips, rounds) gets this outline. */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
 }

@@ -122,8 +122,9 @@ services:
     restart: unless-stopped
     environment:
       UNTRADED_API_INTERNAL_URL: http://api:8000
-      # Dates and times render on the server, in this time zone.
-      TZ: ${UNTRADED_TIME_ZONE:-UTC}
+      # Dates and times render on the server: in each player's time zone (sent by their browser),
+      # else in this one (an IANA name; an unknown one falls back to Europe/Paris).
+      UNTRADED_TIME_ZONE: ${UNTRADED_TIME_ZONE:-Europe/Paris}
     ports:
       # Only the web is published, on the loopback by default: put a reverse proxy with HTTPS in
       # front (UNTRADED_BIND=172.17.0.1 lets a proxy running in Docker reach it).

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { ChevronRight, Compass, Dumbbell, LoaderCircle } from "lucide-react";
 import Link from "next/link";
-import { getLocale, getTranslations } from "next-intl/server";
+import { getLocale, getTimeZone, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { FollowUpList } from "@/components/follow-up";
 import { describeReference } from "@/components/reference";
@@ -17,7 +17,16 @@ import {
   type SessionSummary,
 } from "@/lib/api";
 import { cn } from "@/lib/cn";
-import { dateRange, mapName, metric, shortDay, type Trend, time, trend } from "@/lib/format";
+import {
+  dateRange,
+  gap,
+  gapTrend,
+  mapName,
+  metric,
+  shortDay,
+  type Trend,
+  time,
+} from "@/lib/format";
 
 const IN_PROGRESS: MatchStatus[] = ["pending", "downloading", "parsing"];
 const ARROW: Record<Trend, string> = { better: "▲", worse: "▼", same: "=" };
@@ -30,6 +39,7 @@ const ARROW: Record<Trend, string> = { better: "▲", worse: "▼", same: "=" };
 export async function Dashboard({ tone }: { tone: Tone }) {
   const t = await getTranslations("dashboard");
   const locale = (await getLocale()) as Locale;
+  const timeZone = await getTimeZone();
   const [sessions, matches] = await Promise.all([getSessions(0), getMatches(0)]);
   const pending = (matches?.items ?? []).filter((m) => IN_PROGRESS.includes(m.status));
   const latest = sessions?.items[0];
@@ -47,7 +57,10 @@ export async function Dashboard({ tone }: { tone: Tone }) {
             aria-hidden="true"
             className="size-4 animate-spin motion-reduce:animate-none"
           />
-          {t("pendingShort", { map: mapName(first.map), time: time(first.played_at, locale) })}
+          {t("pendingShort", {
+            map: mapName(first.map),
+            time: time(first.played_at, locale, timeZone),
+          })}
         </p>
       )}
       {!report ? (
@@ -91,7 +104,7 @@ export async function Dashboard({ tone }: { tone: Tone }) {
                     <p className="text-[0.8125rem] text-muted-foreground">
                       {t("pendingBody", {
                         map: mapName(first.map),
-                        time: time(first.played_at, locale),
+                        time: time(first.played_at, locale, timeZone),
                       })}
                     </p>
                   </div>
@@ -118,15 +131,16 @@ async function Latest({
   const sessions = await getTranslations("sessions");
   const advice = await getTranslations("advice");
   const named = await describeReference(report.reference, locale);
+  const timeZone = await getTimeZone();
   return (
     <Card>
       <p className="text-[0.8125rem] text-muted-foreground">{t("latest")}</p>
       <h2 className="text-lg font-semibold md:text-[1.3125rem]">
-        {sessions("titleOf", { date: shortDay(report.started_at, locale) })}
+        {sessions("titleOf", { date: shortDay(report.started_at, locale, timeZone) })}
       </h2>
       <p className="mt-0.5 flex flex-wrap gap-x-3.5 gap-y-0.5 text-sm text-muted-foreground">
         <span className="hidden md:inline">
-          {dateRange(report.started_at, report.ended_at, locale)}
+          {dateRange(report.started_at, report.ended_at, locale, timeZone)}
         </span>
         <span>{sessions("count", { matches: report.matches, rounds: report.rounds })}</span>
         <span className="font-semibold text-foreground">
@@ -239,6 +253,7 @@ async function WorkOn({ item }: { item: Advice }) {
 
 async function Recent({ items, locale }: { items: SessionSummary[]; locale: Locale }) {
   const t = await getTranslations("dashboard");
+  const timeZone = await getTimeZone();
   const sessions = await getTranslations("sessions");
   return (
     <Card className="hidden md:block">
@@ -256,7 +271,9 @@ async function Recent({ items, locale }: { items: SessionSummary[]; locale: Loca
               className="-mx-2 grid grid-cols-[7.5rem_minmax(0,1fr)_auto_1rem] items-center gap-3.5 rounded-md px-2 py-2.5 text-sm hover:bg-muted"
             >
               <span>
-                <span className="block font-semibold">{shortDay(session.started_at, locale)}</span>
+                <span className="block font-semibold">
+                  {shortDay(session.started_at, locale, timeZone)}
+                </span>
                 <span className="text-xs text-muted-foreground">
                   {sessions("count", { matches: session.matches, rounds: session.rounds })}
                 </span>
@@ -281,7 +298,7 @@ async function Recent({ items, locale }: { items: SessionSummary[]; locale: Loca
                 {session.headlines
                   .filter((c) => c.metric_id === "base.adr" || c.metric_id === "base.kast")
                   .map((c) => {
-                    const moved = trend(c);
+                    const moved = gapTrend(gap(c));
                     return (
                       <span key={c.metric_id} className="whitespace-nowrap">
                         {c.name}{" "}

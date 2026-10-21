@@ -20,8 +20,8 @@ export async function ResultBadge({
     <span
       className={cn(
         "rounded px-2 py-0.5 text-xs font-medium",
-        result === "win" && "bg-win/15 text-win",
-        result === "loss" && "bg-loss/15 text-loss",
+        result === "win" && "bg-win/15 text-foreground",
+        result === "loss" && "bg-loss/15 text-foreground",
         result === "tie" && "bg-muted text-foreground",
       )}
     >

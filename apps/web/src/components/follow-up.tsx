@@ -43,12 +43,13 @@ export async function FollowUpList({
       {items.map((item) => {
         const format = (value: number | null) => metric(value, item.unit, item.basis, locale);
         const moved = followTrend(item);
-        const direction = (
-          <span className={`${trendClass(moved)} text-[0.8125rem] whitespace-nowrap`}>
-            <span aria-hidden="true">{ARROW[moved]}</span>{" "}
-            {words(moved === "same" ? "stable" : moved)}
-          </span>
-        );
+        const direction =
+          item.now === null ? null : (
+            <span className={`${trendClass(moved)} text-[0.8125rem] whitespace-nowrap`}>
+              <span aria-hidden="true">{ARROW[moved]}</span>{" "}
+              {words(moved === "same" ? "stable" : moved)}
+            </span>
+          );
         const values = (
           <>
             {format(item.then)} →{" "}

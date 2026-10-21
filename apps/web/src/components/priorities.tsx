@@ -173,15 +173,28 @@ async function Evidence({
   match: MatchDetail | undefined;
 }) {
   const t = await getTranslations("advice");
-  const byRound = new Map(events.map((event) => [event.round, event]));
-  const mark = (event: AdviceEvent, side: string, won: boolean | null) => ({
-    tick: event.goto_tick,
-    label: t("roundLabel", {
-      round: event.round,
-      side,
-      result: won === null ? "" : t(won ? "won" : "lost"),
+  // A rule can flag several moments in one round (two teammates untraded, two team flashes):
+  // every one of them stays reachable from its round.
+  const byRound = new Map<number, AdviceEvent[]>();
+  for (const event of events)
+    byRound.set(event.round, [...(byRound.get(event.round) ?? []), event]);
+  const mark = (moments: AdviceEvent[], round: number, side: string, won: boolean | null) => ({
+    label:
+      won === null
+        ? t("roundLabelSide", { round, side })
+        : t("roundLabel", { round, side, result: t(won ? "won" : "lost") }),
+    command:
+      moments.length > 1
+        ? t("roundCommandMany", { round, side, count: moments.length })
+        : t("roundCommand", { round, side }),
+    moments: moments.map((event, i) => {
+      const command = `demo_gototick ${event.goto_tick}`;
+      return {
+        tick: event.goto_tick,
+        label: t("moment", { index: i + 1, count: moments.length }),
+        copy: t("copyCommand", { command }),
+      };
     }),
-    command: t("roundCommand", { round: event.round, side }),
   });
   let cells: StripCell[];
   let title: string;
@@ -190,14 +203,14 @@ async function Evidence({
     cells = match.rounds.map((round, i) => {
       const side = round.ct_team === me ? "CT" : "T";
       const won = round.winner_team === null ? null : round.winner_team === me;
-      const event = byRound.get(round.round);
+      const moments = byRound.get(round.round);
       const previous = match.rounds[i - 1];
       return {
         round: round.round,
         won,
         side,
         half: previous !== undefined && previous.ct_team !== round.ct_team,
-        mark: event ? mark(event, side, won) : undefined,
+        mark: moments ? mark(moments, round.round, side, won) : undefined,
       };
     });
     title = t("stripTitle", {
@@ -206,22 +219,28 @@ async function Evidence({
       rounds: match.rounds.length,
     });
   } else {
-    // The match is not available: the rounds alone, still with their commands.
-    cells = events.map((event) => ({
-      round: event.round,
-      won: null,
-      side: event.side === "CT" || event.side === "T" ? event.side : null,
-      half: false,
-      mark: mark(event, event.side ?? "", null),
-    }));
-    title = mapName(events[0]?.map ?? null);
+    // The match could not be loaded: its rounds to review alone, one cell each, still with their
+    // commands.
+    cells = [...byRound].map(([round, moments]) => {
+      const side = moments[0]?.side;
+      const known = side === "CT" || side === "T" ? side : null;
+      return {
+        round,
+        won: null,
+        side: known,
+        half: false,
+        mark: mark(moments, round, side ?? "", null),
+      };
+    });
+    title = t("stripUnavailable", { map: mapName(events[0]?.map ?? null) });
   }
   return (
     <RoundStrip
       title={title}
+      match={Boolean(match && match.rounds.length > 0 && match.my_team)}
       legend={t("stripLegend")}
       cells={cells}
-      labels={{ copy: t("copyCommand"), copied: t("copied") }}
+      labels={{ copied: t("copied") }}
     />
   );
 }
