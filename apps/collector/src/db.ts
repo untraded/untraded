@@ -26,6 +26,18 @@ export interface SourceInfo {
   lastSuccessAt: Date | undefined;
   lastError: string | undefined;
   createdAt: Date;
+  /** The player's current consent, if one was recorded. */
+  consent: Consent | undefined;
+}
+
+/** What a player agreed to (`consent`): the text's version and its two boxes. */
+export interface Consent {
+  /** Withdrawing without naming a version keeps the version of the current consent. */
+  textVersion: string;
+  /** Box 1: collect and analyse their matches. Required to follow them. */
+  analysis: boolean;
+  /** Box 2: keep their raw demos in the research corpus. */
+  researchCorpus: boolean;
 }
 
 /** What `update-source` can change. A new code clears the last error: the next round tries it. */
@@ -167,10 +179,15 @@ export class PgStore implements Store {
       last_success_at: Date | null;
       last_error: string | null;
       created_at: Date;
+      text_version: string | null;
+      analysis: boolean | null;
+      research_corpus: boolean | null;
     }>(
       `SELECT s.id, u.steam_id::text AS steam_id, u.display_name, s.enabled, s.config,
-              s.last_success_at, s.last_error, s.created_at
+              s.last_success_at, s.last_error, s.created_at,
+              c.text_version, c.analysis, c.research_corpus
        FROM ingest_source s JOIN app_user u ON u.id = s.user_id
+       LEFT JOIN consent_current c ON c.user_id = u.id
        WHERE s.kind = 'valve_bot'
        ORDER BY s.created_at`,
     );
@@ -183,6 +200,14 @@ export class PgStore implements Store {
       lastSuccessAt: row.last_success_at ?? undefined,
       lastError: row.last_error ?? undefined,
       createdAt: row.created_at,
+      consent:
+        row.text_version === null
+          ? undefined
+          : {
+              textVersion: row.text_version,
+              analysis: row.analysis === true,
+              researchCorpus: row.research_corpus === true,
+            },
     }));
   }
 
@@ -255,6 +280,8 @@ export class PgStore implements Store {
     name: string;
     authCode: string;
     shareCode: string;
+    /** Recorded with the source, in the same transaction. */
+    consent?: Consent | undefined;
   }): Promise<string> {
     return this.transaction(async (client) => {
       const user = await client.query<{ id: string }>(
@@ -296,8 +323,26 @@ export class PgStore implements Store {
           encrypt(this.key, params.authCode, id),
         ],
       );
+      if (params.consent) await insertConsent(client, userId as string, params.consent);
       return id;
     });
+  }
+
+  /**
+   * Records a player's consent, as a new row: the previous ones stay, as history. Withdrawing
+   * box 1 also withdraws box 2.
+   */
+  async recordConsent(
+    steamId: string,
+    consent: Omit<Consent, "textVersion"> & { textVersion: string | undefined },
+  ): Promise<void> {
+    const { rows } = await this.pool.query<{ id: string }>(
+      "SELECT id FROM app_user WHERE steam_id = $1::bigint AND deleted_at IS NULL",
+      [steamId],
+    );
+    const userId = rows[0]?.id;
+    if (!userId) throw new Error("no such player: add them first with add-source");
+    await insertConsent(this.pool, userId, consent);
   }
 
   private async setKnownCode(
@@ -327,4 +372,25 @@ export class PgStore implements Store {
       client.release();
     }
   }
+}
+
+async function insertConsent(
+  client: pg.Pool | pg.PoolClient,
+  userId: string,
+  consent: Omit<Consent, "textVersion"> & { textVersion: string | undefined },
+): Promise<void> {
+  const { rowCount } = await client.query(
+    `INSERT INTO consent (user_id, text_version, analysis, research_corpus, recorded_by)
+     SELECT $1, v, $3, $4, 'collector cli'
+     FROM (SELECT coalesce($2::text, (SELECT text_version FROM consent_current
+                                      WHERE user_id = $1)) AS v) version
+     WHERE v IS NOT NULL`,
+    [
+      userId,
+      consent.textVersion ?? null,
+      consent.analysis,
+      consent.analysis && consent.researchCorpus,
+    ],
+  );
+  if (rowCount === 0) throw new Error("name the text's version: --text-version");
 }

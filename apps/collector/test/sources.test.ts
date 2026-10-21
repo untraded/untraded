@@ -33,11 +33,12 @@ describe("formatSources", () => {
         lastSuccessAt: new Date("2026-10-21T08:00:00Z"),
         lastError: "403",
         createdAt: new Date("2026-10-20T08:00:00Z"),
+        consent: { textVersion: "1", analysis: true, researchCorpus: true },
       },
     ]);
     expect(lines).toEqual([
       "0f8fad5b-d9cb-469f-a165-70867728950e  76561198000000001  p1  paused  code CSGO-a" +
-        "  last 2026-10-21T08:00  error: 403",
+        "  last 2026-10-21T08:00  consent v1 + corpus  error: 403",
     ]);
     expect(formatSources([])).toEqual(["no source"]);
   });

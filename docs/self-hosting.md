@@ -85,6 +85,9 @@ Then, once:
 The next round (or `docker compose restart collector`) picks the player up. `add-source` also
 **invites** the player to the site: signing in is open only to Steam accounts with a user.
 
+If you follow other players, record their consent with `--text-version` (and `--corpus` for the
+research corpus) on `add-source`, or later with the `consent` command.
+
 The collector also lists, fixes, pauses and removes the followed players (`sources`,
 `update-source`, `pause-source`, `resume-source`, `remove-source`): see
 [`apps/collector/README.md`](../apps/collector/README.md#commands). For example, after a
