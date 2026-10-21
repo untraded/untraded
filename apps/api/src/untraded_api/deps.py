@@ -63,3 +63,18 @@ def as_user(db: DatabaseDep, user: UserDep) -> Iterator[psycopg.Connection[Any]]
 
 
 ConnDep = Annotated[psycopg.Connection[Any], Depends(as_user)]
+
+
+def admin(
+    db: DatabaseDep, user: UserDep, settings: SettingsDep
+) -> Iterator[psycopg.Connection[Any]]:
+    """A transaction over every player, for an admin only (403 otherwise)."""
+    with db.transaction(user) as conn:
+        row = conn.execute("SELECT steam_id FROM app_user WHERE id = %s", (user,)).fetchone()
+    if row is None or row[0] not in settings.admins:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "admins only")
+    with db.admin() as conn:
+        yield conn
+
+
+AdminDep = Annotated[psycopg.Connection[Any], Depends(admin)]
