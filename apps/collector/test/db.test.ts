@@ -109,4 +109,50 @@ describe.skipIf(!pool)("PgStore", () => {
     expect(row.last_error).toBeNull();
     expect(row.last_success_at).not.toBeNull();
   });
+
+  it("lists, finds, changes, pauses and removes a source", async () => {
+    const id = await s.addSource({ ...player, shareCode: "CSGO-a" });
+    await db.query("UPDATE ingest_source SET last_error = '403' WHERE id = $1", [id]);
+    const [listed] = await s.listSources();
+    expect(listed).toMatchObject({ id, steamId: player.steamId, name: "p1", enabled: true });
+    expect(JSON.stringify(listed)).not.toContain(player.authCode);
+    expect(await s.findSource({ steamId: player.steamId })).toBe(id);
+    expect(await s.findSource({ id })).toBe(id);
+
+    // A new code clears the error, and the collector reads the new values.
+    await s.updateSource(id, { shareCode: "CSGO-z", authCode: "CCCC-22222-DDDD" });
+    expect(await s.sources()).toEqual([
+      { id, steamId: player.steamId, authCode: "CCCC-22222-DDDD", knownShareCode: "CSGO-z" },
+    ]);
+    expect((await s.listSources())[0]?.lastError).toBeUndefined();
+
+    await s.updateSource(id, { enabled: false });
+    expect(await s.sources()).toEqual([]);
+    await s.updateSource(id, { enabled: true });
+    expect(await s.sources()).toHaveLength(1);
+
+    // A second source makes the SteamID ambiguous.
+    const other = await s.addSource({ ...player, shareCode: "CSGO-b" });
+    await expect(s.findSource({ steamId: player.steamId })).rejects.toThrow(/several sources/);
+
+    // Removing keeps the player's matches, without their source.
+    const [source] = await s.sources();
+    if (!source) throw new Error("no source");
+    await s.recordMatch(source, {
+      shareCode: "CSGO-y",
+      matchId: "3000000000000000009",
+      url: "http://replay/730/9.dem.bz2",
+      playedAt: undefined,
+      endedAt: undefined,
+    });
+    await s.removeSource(id);
+    await s.removeSource(other);
+    expect(await s.listSources()).toEqual([]);
+    const kept = await db.query(
+      "SELECT source_id FROM match_source WHERE external_id = '3000000000000000009'",
+    );
+    expect(kept.rows).toEqual([{ source_id: null }]);
+    await expect(s.removeSource(id)).rejects.toThrow(/no such source/);
+    await expect(s.findSource({ id })).rejects.toThrow(/no such source/);
+  });
 });

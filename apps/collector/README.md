@@ -34,6 +34,22 @@ pnpm start run          # a round every COLLECTOR_INTERVAL_SECONDS; --once for a
 `add-source` creates the player's user and personal workspace if needed, and asks for the
 match history authentication code on the terminal (or reads `PLAYER_AUTH_CODE`).
 
+To manage the followed players (`--source <id>`, or `--steam-id` when the player has one source):
+
+```bash
+pnpm start sources                                       # id, player, state, known code, last round, error
+pnpm start update-source --steam-id 7656119... --share-code CSGO-...  # restart the chain there
+pnpm start update-source --steam-id 7656119... --auth-code            # asks for a new authentication code
+pnpm start pause-source --steam-id 7656119...            # resume-source to follow them again
+pnpm start remove-source --steam-id 7656119... --yes
+```
+
+`sources` never prints authentication codes. A new share code or authentication code clears the
+source's last error, so the next round tries it: that is the fix for a broken chain (412: the
+known code is more than a month old; 403: the player changed their authentication code).
+`remove-source` deletes the source and its encrypted code; the player's matches, user and access
+to the site stay.
+
 | Variable | Role |
 |---|---|
 | `UNTRADED_DATABASE_URL` | PostgreSQL (default: the `compose.dev.yaml` database) |
