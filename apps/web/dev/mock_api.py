@@ -314,6 +314,30 @@ def advice(session_n: int, match: dict[str, Any]) -> list[dict[str, Any]]:
 
 VOTES: dict[str, int] = {}
 KINDS = ["level", "self", "self", "none", "self", "self"]
+# A session with a reference where no rule fires: the list says nothing stands out.
+QUIET = {2}
+
+
+def session_advice(n: int, session: dict[str, Any]) -> list[dict[str, Any]]:
+    if session["_kind"] == "none" or n in QUIET:
+        return []
+    return advice(n, session["_matches"][0])
+
+
+def played(match: dict[str, Any]) -> dict[str, Any]:
+    """A match of a session, as `GET /sessions` lists it."""
+    mine, theirs = (
+        (match["score_a"], match["score_b"])
+        if match["my_team"] == "A"
+        else (match["score_b"], match["score_a"])
+    )
+    return {
+        "match_id": match["id"],
+        "map": match["map"],
+        "result": match["my_result"],
+        "my_score": mine,
+        "their_score": theirs,
+    }
 
 
 def build_sessions() -> list[dict[str, Any]]:
@@ -352,7 +376,26 @@ PUBLIC = {"_values", "_matches", "_kind"}
 
 
 def summary(session: dict[str, Any]) -> dict[str, Any]:
-    return {k: v for k, v in session.items() if k not in PUBLIC}
+    """A session as `GET /sessions` lists it: its matches in the order played, and its first
+    priority (null when no rule fired)."""
+    n = SESSIONS.index(session)
+    first = next(iter(session_advice(n, session)), None)
+    top = (
+        {
+            "rule_id": first["rule_id"],
+            "message_key": first["message_key"],
+            "args": first["args"],
+            "cost": first["cost"],
+            "rounds_touched": first["args"]["rounds_touched"],
+            "rounds_lost": first["args"]["rounds_lost"],
+        }
+        if first
+        else None
+    )
+    return {k: v for k, v in session.items() if k not in PUBLIC} | {
+        "maps": [played(m) for m in reversed(session["_matches"])],
+        "top_priority": top,
+    }
 
 
 def report(n: int) -> dict[str, Any]:
@@ -396,7 +439,7 @@ def report(n: int) -> dict[str, Any]:
         },
         "match_list": session["_matches"],
         "metrics": session["_values"],
-        "advice": advice(n, session["_matches"][0]) if kind != "none" else [],
+        "advice": session_advice(n, session),
         "follow_up": follow,
     }
 

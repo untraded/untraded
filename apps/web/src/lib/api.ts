@@ -275,6 +275,30 @@ export interface SessionSummary {
   ties: number;
   enough: boolean;
   headlines: Comparison[];
+  /** Its matches, in the order played. */
+  maps: PlayedMap[];
+  /** Its first priority; `null` when no rule fired. */
+  top_priority: TopPriority | null;
+}
+
+/** A match of a session, as the list of sessions shows it. */
+export interface PlayedMap {
+  match_id: string;
+  map: string | null;
+  /** For the player; `null` when the score is unknown. */
+  result: Result | null;
+  my_score: number | null;
+  their_score: number | null;
+}
+
+/** A session's first priority, as the list of sessions shows it (the report has them all). */
+export interface TopPriority {
+  rule_id: string;
+  message_key: string;
+  args: Record<string, unknown>;
+  cost: number;
+  rounds_touched: number;
+  rounds_lost: number;
 }
 
 export interface SessionList {
