@@ -10,6 +10,8 @@
 
 Enemy blind time dealt ÷ flashes thrown.
 
+Stands on [`util.thrown_flash`](util.thrown_flash.md): a value over few cases says little.
+
 ## Example
 
 On the `premier-half` fixture: a Premier match on de_cache, rounds 11 to 15, anonymized players.

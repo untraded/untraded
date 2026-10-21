@@ -10,6 +10,8 @@
 
 Opening kills ÷ opening duels * 100.
 
+Stands on [`duel.opening_attempts`](duel.opening_attempts.md): a value over few cases says little.
+
 ## Example
 
 On the `premier-half` fixture: a Premier match on de_cache, rounds 11 to 15, anonymized players.
