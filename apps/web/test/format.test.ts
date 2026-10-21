@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { pickLocale } from "../src/i18n/locale";
 import { isTimeZone, pickTimeZone } from "../src/i18n/time-zone";
 import {
+  bytes,
   compare,
   dateRange,
   day,
@@ -230,5 +231,14 @@ describe("time zone", () => {
     expect(pickTimeZone(undefined, undefined)).toBe("Europe/Paris");
     expect(isTimeZone("Europe/Paris")).toBe(true);
     expect(isTimeZone("")).toBe(false);
+  });
+});
+
+describe("bytes", () => {
+  it("picks the largest unit above 1, in the player's language", () => {
+    expect(bytes(412_000_000, "en")).toBe("412 MB");
+    expect(bytes(21_500_000_000, "en")).toBe("21.5 GB");
+    expect(bytes(512, "en")).toBe("512 byte");
+    expect(bytes(null, "fr")).toBe("–");
   });
 });

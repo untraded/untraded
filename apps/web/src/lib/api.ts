@@ -17,10 +17,70 @@ export function internalApiUrl(): string {
 /** How browsers reach the API: through the web itself (`app/api/[...path]`). */
 export const PUBLIC_API_PATH = "/api";
 
+export interface Consent {
+  text_version: string;
+  /** Box 1, required: false means the player withdrew their consent. */
+  analysis: boolean;
+  /** Box 2, optional: their raw demos join the research corpus. */
+  research_corpus: boolean;
+  recorded_at: string;
+}
+
+/** How the collector follows the player's Valve matches. */
+export interface MySource {
+  enabled: boolean;
+  last_success_at: string | null;
+  /** `403`: their authentication code changed; `412`: the known share code is too old. */
+  last_error: string | null;
+}
+
 export interface Me {
   id: string;
   steam_id: string;
   display_name: string;
+  admin: boolean;
+  /** The player's current consent; null before they give it. */
+  consent: Consent | null;
+  /** The current consent text: a consent naming another version must be given again. */
+  consent_version: string;
+  /** Null before they give their codes. */
+  source: MySource | null;
+  /** Whether this server can keep the codes. */
+  can_add_source: boolean;
+}
+
+export type PlayerState = "invited" | "joined" | "consented" | "followed" | "paused" | "withdrawn";
+
+export interface AdminPlayer {
+  steam_id: string;
+  display_name: string;
+  state: PlayerState;
+  invited_at: string | null;
+  joined_at: string | null;
+  last_seen_at: string | null;
+  consent: Consent | null;
+  source: (MySource & { id: string }) | null;
+  /** Their analysed matches. */
+  matches: number;
+  last_match_at: string | null;
+}
+
+export interface Health {
+  database_bytes: number;
+  /** Jobs by status (`queued`, `running`, `failed`...). */
+  jobs: Record<string, number>;
+  failed_jobs: { kind: string; attempts: number; error: string | null; at: string }[];
+  /** Matches collected in the last 7 days, by status. */
+  matches_7_days: Record<string, number>;
+  sources: { total: number; paused: number; erroring: number };
+  backups: {
+    last: { name: string; at: string; bytes: number } | null;
+    daily: number;
+    weekly: number;
+    /** What the off-site copy wrote, as is; null when there is none. */
+    offsite: Record<string, unknown> | null;
+  };
+  disk: { total: number; free: number } | null;
 }
 
 export interface PlayerLine {
@@ -128,6 +188,48 @@ export async function apiGetOptional<T>(path: string): Promise<T | null> {
   } catch {
     return null;
   }
+}
+
+/** What a write answered: its status, and the `detail` of an error (e.g. `{ field }` on 422). */
+export interface ApiResult {
+  ok: boolean;
+  status: number;
+  detail: unknown;
+}
+
+/** Sends a write to the API with the session cookie, and says how it went. A server that does
+ * not answer reads as a 503. */
+export async function apiSend(
+  path: string,
+  method: "POST" | "PUT" | "DELETE",
+  body?: unknown,
+): Promise<ApiResult> {
+  const headers: Record<string, string> = await sessionHeader();
+  if (body !== undefined) headers["content-type"] = "application/json";
+  try {
+    const response = await fetch(`${internalApiUrl()}${path}`, {
+      method,
+      headers,
+      body: body === undefined ? null : JSON.stringify(body),
+      cache: "no-store",
+    });
+    const text = response.ok ? "" : await response.text();
+    let detail: unknown = null;
+    try {
+      detail = text ? (JSON.parse(text) as { detail?: unknown }).detail : null;
+    } catch {
+      detail = null;
+    }
+    return { ok: response.ok, status: response.status, detail };
+  } catch {
+    return { ok: false, status: 503, detail: null };
+  }
+}
+
+/** The field a 422 names (`{ detail: { field } }`), if any. */
+export function refusedField(result: ApiResult): string | null {
+  const detail = result.detail as { field?: unknown } | null;
+  return result.status === 422 && typeof detail?.field === "string" ? detail.field : null;
 }
 
 /** POST to the API with the session cookie, and a JSON body if given. */
@@ -262,6 +364,8 @@ export const getSessions = (offset = 0) =>
 export const getSession = (id: string) =>
   apiGet<SessionReport>(`/sessions/${encodeURIComponent(id)}`);
 export const getMatch = (id: string) => apiGet<MatchDetail>(`/matches/${encodeURIComponent(id)}`);
+export const getAdminPlayers = () => apiGet<{ items: AdminPlayer[] }>("/admin/players");
+export const getAdminHealth = () => apiGet<Health>("/admin/health");
 /** A match the page can do without: `null` when it is missing or the API fails. */
 export const findMatch = (id: string) =>
   apiGetOptional<MatchDetail>(`/matches/${encodeURIComponent(id)}`);

@@ -181,6 +181,13 @@ services:
       # Dates and times render on the server: in each player's time zone (sent by their browser),
       # else in this one (an IANA name; an unknown one falls back to Europe/Paris).
       UNTRADED_TIME_ZONE: ${UNTRADED_TIME_ZONE:-Europe/Paris}
+      # Named in the consent text players agree to: who runs this instance (the data controller),
+      # where they write to use their rights, where the data is hosted. Never in the code.
+      UNTRADED_OPERATOR_NAME: ${UNTRADED_OPERATOR_NAME:-}
+      UNTRADED_OPERATOR_EMAIL: ${UNTRADED_OPERATOR_EMAIL:-}
+      UNTRADED_HOSTING: ${UNTRADED_HOSTING:-}
+      # The worker's retention, which the consent text states.
+      UNTRADED_DEMO_RETENTION_DAYS: ${UNTRADED_DEMO_RETENTION_DAYS:-}
     ports:
       # Only the web is published, on the loopback by default: put a reverse proxy with HTTPS in
       # front (UNTRADED_BIND=172.17.0.1 lets a proxy running in Docker reach it).
