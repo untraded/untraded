@@ -52,7 +52,7 @@ stack variables.
 | `COLLECTOR_INTERVAL_SECONDS` | no | time between collection rounds (3600) |
 | `UNTRADED_SITE_URL` | for the site | the site's address as browsers see it, e.g. `https://untraded.example.com` (default `http://localhost:3000`). Steam sends users back there after signing in, and `https` makes the session cookie `Secure` |
 | `UNTRADED_BIND`, `UNTRADED_WEB_PORT` | no | where the web is published (`127.0.0.1:3000`); `172.17.0.1` lets a reverse proxy running in Docker reach it |
-| `UNTRADED_TIME_ZONE` | no | time zone of the dates on the site (`UTC`), e.g. `Europe/Paris` |
+| `UNTRADED_TIME_ZONE` | no | time zone of the dates on the site until each player's browser sends its own (`Europe/Paris`), as an IANA name such as `America/New_York`; an unknown name falls back to `Europe/Paris` |
 
 ## First start
 

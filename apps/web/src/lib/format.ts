@@ -29,11 +29,13 @@ export function killDiff(line: PlayerLine | null): string {
   return diff > 0 ? `+${diff}` : `${diff}`;
 }
 
-export function dateTime(iso: string | null, locale: Locale): string {
+export function dateTime(iso: string | null, locale: Locale, timeZone: string): string {
   if (!iso) return DASH;
-  return new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(
-    new Date(iso),
-  );
+  return new Intl.DateTimeFormat(locale, {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone,
+  }).format(new Date(iso));
 }
 
 /** `de_mirage` → `Mirage`. */
@@ -103,14 +105,19 @@ export function family(metricId: string): string {
   return metricId.split(".")[0] ?? metricId;
 }
 
-export function dateRange(startIso: string, endIso: string, locale: Locale): string {
+export function dateRange(
+  startIso: string,
+  endIso: string,
+  locale: Locale,
+  timeZone: string,
+): string {
   const start = new Date(startIso);
   const end = new Date(endIso);
-  const day = new Intl.DateTimeFormat(locale, { dateStyle: "medium" });
-  const time = new Intl.DateTimeFormat(locale, { timeStyle: "short" });
+  const day = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone });
+  const time = new Intl.DateTimeFormat(locale, { timeStyle: "short", timeZone });
   return day.format(start) === day.format(end)
     ? `${day.format(start)}, ${time.format(start)} – ${time.format(end)}`
-    : `${dateTime(startIso, locale)} – ${dateTime(endIso, locale)}`;
+    : `${dateTime(startIso, locale, timeZone)} – ${dateTime(endIso, locale, timeZone)}`;
 }
 
 /** A calendar day (`2026-10-18`), as written in the user's language. */
@@ -169,12 +176,49 @@ export function gapPercent(value: number | null, locale: Locale): string {
 }
 
 /** A day without the year, for titles: `20 oct.`, `Oct 20`. */
-export function shortDay(iso: string, locale: Locale): string {
-  return new Intl.DateTimeFormat(locale, { day: "numeric", month: "short" }).format(new Date(iso));
+export function shortDay(iso: string, locale: Locale, timeZone: string): string {
+  return new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", timeZone }).format(
+    new Date(iso),
+  );
 }
 
 /** A time of day: `23:00`, `11:00 PM`. */
-export function time(iso: string | null, locale: Locale): string {
+export function time(iso: string | null, locale: Locale, timeZone: string): string {
   if (!iso) return DASH;
-  return new Intl.DateTimeFormat(locale, { timeStyle: "short" }).format(new Date(iso));
+  return new Intl.DateTimeFormat(locale, { timeStyle: "short", timeZone }).format(new Date(iso));
+}
+
+/** Metrics that can be negative (K-D): a share of the reference means nothing, they compare in
+ * units. A `signed` field from the API would replace this list. */
+export const SIGNED_METRICS: ReadonlySet<string> = new Set(["base.kd_diff"]);
+
+/** Below this many events expected over the session's rounds, a count is too rare for a %. */
+export const MIN_EXPECTED_EVENTS = 3;
+
+/**
+ * How a metric compares to its reference in the list of every metric:
+ * - `ranked`: as an oriented % gap, eligible for "what stands out";
+ * - `units`: a signed metric, compared by its difference in units, never ranked;
+ * - `rare`: a count the reference expects fewer than `MIN_EXPECTED_EVENTS` times this session;
+ * - `neutral`: no better way; `none`: nothing to compare (no value or reference, or a zero one).
+ */
+export type GapKind = "ranked" | "units" | "rare" | "neutral" | "none";
+
+export function compare(
+  comparison: Comparison,
+  rounds: number,
+): { kind: GapKind; gap: number | null } {
+  const { session, reference, better, unit, basis } = comparison;
+  if (better === "neutral") return { kind: "neutral", gap: null };
+  if (session === null || reference === null) return { kind: "none", gap: null };
+  if (SIGNED_METRICS.has(comparison.metric_id)) return { kind: "units", gap: null };
+  if (
+    unit === "count" &&
+    basis === "per_round" &&
+    Math.abs(reference) * rounds < MIN_EXPECTED_EVENTS
+  ) {
+    return { kind: "rare", gap: null };
+  }
+  const value = gap(comparison);
+  return value === null ? { kind: "none", gap: null } : { kind: "ranked", gap: value };
 }

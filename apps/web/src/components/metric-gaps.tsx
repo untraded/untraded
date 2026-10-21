@@ -4,7 +4,7 @@
 
 import { useState } from "react";
 import { cn } from "@/lib/cn";
-import type { Trend } from "@/lib/format";
+import type { GapKind, Trend } from "@/lib/format";
 
 /** One metric, already formatted on the server. `gap` is oriented: positive = better. */
 export interface GapRow {
@@ -16,6 +16,8 @@ export interface GapRow {
   /** The reference, as displayed under the value ("ref. 75.6"). */
   reference: string;
   gap: number | null;
+  /** How it compares: only `ranked` rows have a % gap and a bar (see `compare()`). */
+  kind: GapKind;
   gapText: string;
   trend: Trend;
 }
@@ -51,6 +53,9 @@ export function MetricGaps({
     worse: string;
     better: string;
     neutral: string;
+    noReference: string;
+    rare: string;
+    standoutEmpty: string;
   };
 }) {
   const [shown, setShown] = useState(standout ? "standout" : (families[0]?.key ?? ""));
@@ -85,10 +90,20 @@ export function MetricGaps({
         ))}
       </fieldset>
       {shown === "standout" && standout ? (
-        <>
-          <Group title={labels.worseThan} rows={standout.worse} labels={labels} withFamily />
-          <Group title={labels.betterThan} rows={standout.better} labels={labels} withFamily />
-        </>
+        standout.worse.length + standout.better.length === 0 ? (
+          <p className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
+            {labels.standoutEmpty}
+          </p>
+        ) : (
+          <>
+            {standout.worse.length > 0 && (
+              <Group title={labels.worseThan} rows={standout.worse} labels={labels} withFamily />
+            )}
+            {standout.better.length > 0 && (
+              <Group title={labels.betterThan} rows={standout.better} labels={labels} withFamily />
+            )}
+          </>
+        )
       ) : (
         family && <Group rows={family.rows} labels={labels} compare={standout !== null} />
       )}
@@ -177,8 +192,12 @@ function Group({
                       TONE[row.trend],
                     )}
                   >
-                    {row.gap === null ? (
+                    {row.kind === "neutral" ? (
                       labels.neutral
+                    ) : row.kind === "rare" ? (
+                      labels.rare
+                    ) : row.kind === "none" ? (
+                      labels.noReference
                     ) : (
                       <>
                         <span aria-hidden="true">{ARROW[row.trend]}</span> {row.gapText}

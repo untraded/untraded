@@ -114,6 +114,22 @@ export async function apiGet<T>(path: string): Promise<T | null> {
   return (await response.json()) as T;
 }
 
+/**
+ * GET from the API, tolerant: `null` on any failure (not signed in, missing, server error, no
+ * answer), for data a page can do without, such as the matches behind a priority's evidence.
+ */
+export async function apiGetOptional<T>(path: string): Promise<T | null> {
+  try {
+    const response = await fetch(`${internalApiUrl()}${path}`, {
+      headers: await sessionHeader(),
+      cache: "no-store",
+    });
+    return response.ok ? ((await response.json()) as T) : null;
+  } catch {
+    return null;
+  }
+}
+
 /** POST to the API with the session cookie, and a JSON body if given. */
 export async function apiPost(path: string, body?: unknown): Promise<void> {
   const headers: Record<string, string> = await sessionHeader();
@@ -240,3 +256,6 @@ export const getSessions = (offset = 0) =>
 export const getSession = (id: string) =>
   apiGet<SessionReport>(`/sessions/${encodeURIComponent(id)}`);
 export const getMatch = (id: string) => apiGet<MatchDetail>(`/matches/${encodeURIComponent(id)}`);
+/** A match the page can do without: `null` when it is missing or the API fails. */
+export const findMatch = (id: string) =>
+  apiGetOptional<MatchDetail>(`/matches/${encodeURIComponent(id)}`);

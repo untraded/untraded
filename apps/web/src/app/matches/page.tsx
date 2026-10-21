@@ -3,7 +3,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getLocale, getTranslations } from "next-intl/server";
+import { getLocale, getTimeZone, getTranslations } from "next-intl/server";
 import { ResultBadge } from "@/components/result-badge";
 import type { Locale } from "@/i18n/locale";
 import { getMatches } from "@/lib/api";
@@ -24,6 +24,7 @@ export default async function Matches({
   if (!list) redirect("/");
   const t = await getTranslations("matches");
   const locale = (await getLocale()) as Locale;
+  const timeZone = await getTimeZone();
   return (
     <section>
       <h1 className="mb-6 text-2xl font-semibold">{t("title")}</h1>
@@ -49,7 +50,7 @@ export default async function Matches({
                 <tr key={match.id} className="border-t border-border hover:bg-card">
                   <td className="px-3 py-2 whitespace-nowrap">
                     <Link href={`/matches/${match.id}`} className="hover:underline">
-                      {dateTime(match.played_at, locale)}
+                      {dateTime(match.played_at, locale, timeZone)}
                     </Link>
                   </td>
                   <td className="px-3 py-2">{mapName(match.map)}</td>

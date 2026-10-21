@@ -1,7 +1,8 @@
+// SPDX-FileCopyrightText: 2023 shadcn
 // SPDX-FileCopyrightText: 2026 The Untraded Authors
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-License-Identifier: MIT
 //
-// shadcn/ui's Button (base-nova style), adapted to the design rules: 36 px high by default and
+// shadcn/ui's Button (https://ui.shadcn.com, MIT), base-nova style, adapted to the design rules: 36 px high by default and
 // 28 px small, 4 px corners (3 px when small), the dark-yellow action with dark text, and links
 // that are always underlined.
 

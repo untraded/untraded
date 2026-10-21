@@ -195,6 +195,32 @@ def evidence(match: dict[str, Any], count: int, zone: str | None = None) -> list
     ]
 
 
+# Two evidence matches the API cannot serve, to see the report fall back to a plain list of rounds:
+# one is missing (404), the other breaks (500). The session of 19 October points to them.
+MISSING_MATCH = mock_id(1, 404)
+BROKEN_MATCH = mock_id(1, 500)
+
+
+def unavailable(
+    session_n: int, priority: int, events: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    target = {2: MISSING_MATCH, 3: BROKEN_MATCH}.get(priority) if session_n == 1 else None
+    return [{**event, "match_id": target} for event in events] if target else events
+
+
+def moments(rule: str, events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Team flashes can blind two teammates in one round: a second moment in the first round, as
+    the real rule produces (several events per round)."""
+    if rule != "util.team_flashes" or not events:
+        return events
+    second = {
+        **events[0],
+        "tick": events[0]["tick"] + 640,
+        "goto_tick": events[0]["goto_tick"] + 640,
+    }
+    return [events[0], second, *events[1:]]
+
+
 def advice(session_n: int, match: dict[str, Any]) -> list[dict[str, Any]]:
     base = [
         ("trade.untraded_deaths", "trade.untraded_deaths", "count", "per_round", 0.41, 0.29, 9, 7,
@@ -202,8 +228,8 @@ def advice(session_n: int, match: dict[str, Any]) -> list[dict[str, Any]]:
         ("pos.recurring_death_spot", "pos.recurring_death_spot", "table", "pattern", None, None, 4, 4,
          ["adjust.change_position", "adjust.change_timing", "drill.prefire"],
          {"map": match["map"], "side": "T", "zone": "Mid", "history_events": 11}),
-        ("util.wasted_utility", "util.unused_value_at_death", "dollars", "value", 310.0, 180.0, 6, 4,
-         ["adjust.use_utility_before_death", "drill.lineups"], {}),
+        ("util.team_flashes", "util.teammates_flashed", "count", "per_round", 0.18, 0.09, 6, 4,
+         ["adjust.call_your_flashes", "drill.pop_flashes"], {}),
     ]  # fmt: skip
     found = []
     for priority, (
@@ -231,7 +257,9 @@ def advice(session_n: int, match: dict[str, Any]) -> list[dict[str, Any]]:
                     "reference": reference, "events": events, "rounds_touched": events,
                     "rounds_lost": lost, "actions": actions, "indicator": indicator, **details,
                 },
-                "evidence": evidence(match, events, details.get("zone")),
+                "evidence": unavailable(
+                    session_n, priority, moments(rule, evidence(match, events, details.get("zone")))
+                ),
                 "cost": lost + 0.25 * (events - lost),
                 "my_vote": VOTES.get(mock_id(3, session_n * 10 + priority)),
             }
@@ -377,6 +405,8 @@ class Handler(BaseHTTPRequestHandler):
         if found := re.fullmatch(r"/matches/([0-9a-f-]+)/players/(\d+)", path):
             return self.reply(200, player_metrics(found[1], found[2]))
         if found := re.fullmatch(r"/matches/([0-9a-f-]+)", path):
+            if found[1] == BROKEN_MATCH:
+                return self.reply(500, {"detail": "internal error"})
             for match in MATCHES:
                 if match["id"] == found[1]:
                     return self.reply(200, match_detail(match))

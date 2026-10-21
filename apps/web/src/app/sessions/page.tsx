@@ -3,7 +3,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getLocale, getTranslations } from "next-intl/server";
+import { getLocale, getTimeZone, getTranslations } from "next-intl/server";
 import { ComparisonCard } from "@/components/comparison";
 import type { Locale } from "@/i18n/locale";
 import { getSessions } from "@/lib/api";
@@ -25,6 +25,7 @@ export default async function Sessions({
   if (!list) redirect("/");
   const t = await getTranslations("sessions");
   const locale = (await getLocale()) as Locale;
+  const timeZone = await getTimeZone();
   return (
     <section>
       <h1 className="mb-6 text-2xl font-semibold">{t("title")}</h1>
@@ -34,11 +35,11 @@ export default async function Sessions({
           <li key={session.id}>
             <Link
               href={`/sessions/${session.id}`}
-              className="block rounded border border-border p-4 hover:border-border"
+              className="block rounded border border-border p-4 hover:border-muted-foreground"
             >
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <span className="font-medium">
-                  {dateRange(session.started_at, session.ended_at, locale)}
+                  {dateRange(session.started_at, session.ended_at, locale, timeZone)}
                 </span>
                 <span className="text-sm text-muted-foreground">
                   {t("count", { matches: session.matches, rounds: session.rounds })} ·{" "}

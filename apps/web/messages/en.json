@@ -1,7 +1,4 @@
 {
-  "brand": {
-    "tagline": "Never die untraded."
-  },
   "nav": {
     "matches": "Matches",
     "signOut": "Sign out",
@@ -115,14 +112,12 @@
     "allMetrics": "Every metric",
     "metric": "Metric",
     "session": "Session",
-    "yours": "Your 30 days",
     "delta": "Difference",
     "perRound": "per round",
     "older": "Older sessions",
     "newer": "Newer sessions",
     "back": "All sessions",
     "levelReference": "Not enough history of your own yet: compared with Premier players rated {low}–{high} ({matches} player-matches, anonymous).",
-    "yoursLevel": "Your level",
     "recordLong": "{wins, plural, one {# win} other {# wins}}, {losses, plural, one {# loss} other {# losses}}{ties, plural, =0 {} one {, # tie} other {, # ties}}",
     "referenceLabel": "Reference: {reference}.",
     "refLevel": "Premier players {low} to {high}",
@@ -144,7 +139,10 @@
     "worse": "worse",
     "stable": "stable",
     "neutral": "neutral",
-    "titleOf": "Session of {date}"
+    "titleOf": "Session of {date}",
+    "standoutEmpty": "No gap above 5%: this session is in line with your reference.",
+    "rare": "too rare",
+    "metricsRule": "Counts expected fewer than {min} times this session, and the K–D (compared in units), are not ranked."
   },
   "families": {
     "base": "Basics",
@@ -163,12 +161,8 @@
     "coach": "Coach",
     "analyst": "Analyst",
     "evidence": "{count, plural, one {# round to watch} other {# rounds to watch}}",
-    "round": "Round {round}",
-    "copy": "In CS2, open the demo, then",
     "useful": "Useful",
     "notUseful": "Not useful",
-    "cost": "{touched, plural, one {# round} other {# rounds}}, {lost} lost",
-    "follow": "To follow: {metric}",
     "rules": {
       "trade": {
         "untraded_deaths": {
@@ -235,20 +229,23 @@
     },
     "actionsTitle": "What to do",
     "followTitle": "Your last priorities",
-    "followLine": "{name}: {before} last session, {now} now",
     "followReference": "reference {reference}",
     "followMissing": "not measured this session",
     "costLong": "{touched, plural, one {# round} other {# rounds}} affected, {lost} lost",
     "stripTitle": "{map}, {score}, rounds 1 to {rounds}",
-    "stripLegend": "filled = won, framed = to review",
+    "stripLegend": "filled = won, framed = to review, bottom line = side",
     "roundLabel": "Round {round}, {side}, {result}",
     "won": "won",
     "lost": "lost",
     "roundCommand": "Round {round}, {side}: in CS2, open the demo, then",
-    "copyCommand": "Copy the command",
+    "copyCommand": "Copy {command}",
     "copied": "Copied",
     "helpful": "Is this advice useful?",
-    "noReference": "Priorities arrive once you have a reference."
+    "noReference": "Priorities arrive once you have a reference.",
+    "roundLabelSide": "Round {round}, {side}",
+    "roundCommandMany": "Round {round}, {side}: {count} moments to review. In CS2, open the demo, then",
+    "moment": "Moment {index} of {count}",
+    "stripUnavailable": "{map}, match unavailable: the rounds alone"
   },
   "actions": {
     "kinds": {
@@ -339,5 +336,8 @@
         "how": "In a private server: practise flashes over the walls and corners you play, bursting before an enemy can turn, and away from your teammates."
       }
     }
+  },
+  "common": {
+    "close": "Close"
   }
 }

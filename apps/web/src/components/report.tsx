@@ -3,7 +3,7 @@
 import { Info, Scale } from "lucide-react";
 import { cookies } from "next/headers";
 import Link from "next/link";
-import { getLocale, getTranslations } from "next-intl/server";
+import { getLocale, getTimeZone, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { FollowUpList } from "@/components/follow-up";
 import { type GapRow, MetricGaps } from "@/components/metric-gaps";
@@ -11,8 +11,9 @@ import { Priorities } from "@/components/priorities";
 import { describeReference } from "@/components/reference";
 import { ResultBadge } from "@/components/result-badge";
 import { type Locale, pickTone, TONE_COOKIE } from "@/i18n/locale";
-import { getMatch, type MatchDetail, type SessionReport } from "@/lib/api";
+import { findMatch, type MatchDetail, type SessionReport } from "@/lib/api";
 import {
+  compare,
   dateRange,
   delta,
   family,
@@ -20,6 +21,7 @@ import {
   gapPercent,
   gapTrend,
   killDiff,
+  MIN_EXPECTED_EVENTS,
   mapName,
   metric,
   number,
@@ -45,29 +47,37 @@ export async function Report({ report, back }: { report: SessionReport; back: bo
   const advice = await getTranslations("advice");
   const columns = await getTranslations("matches");
   const locale = (await getLocale()) as Locale;
+  const timeZone = await getTimeZone();
   const tone = pickTone((await cookies()).get(TONE_COOKIE)?.value);
   const { reference } = report;
   const named = await describeReference(reference, locale);
 
-  // The matches the evidence comes from, to draw their rounds (all of them are in the session).
+  // The matches the evidence comes from, to draw their rounds. One that fails to load leaves its
+  // evidence as a plain list of rounds rather than breaking the report.
   const ids = [...new Set(report.advice.flatMap((a) => a.evidence.map((e) => e.match_id)))];
   const matches = new Map<string, MatchDetail>();
-  for (const match of await Promise.all(ids.map((id) => getMatch(id)))) {
+  for (const match of await Promise.all(ids.map((id) => findMatch(id)))) {
     if (match) matches.set(match.id, match);
   }
 
   const rows: GapRow[] = report.metrics.map((c) => {
-    const value = gap(c);
+    const { kind, gap: value } = compare(c, report.rounds);
+    const perRound = c.basis === "per_round" ? t("perRound") : null;
     return {
       id: c.metric_id,
       name: c.name,
       family: families(family(c.metric_id)),
-      perRound: c.basis === "per_round" ? t("perRound") : null,
+      perRound,
       value: metric(c.session, c.unit, c.basis, locale),
       reference: t("vsReference", { value: metric(c.reference, c.unit, c.basis, locale) }),
       gap: value,
-      gapText: gapPercent(value, locale),
-      trend: gapTrend(value),
+      kind,
+      // A signed metric reads as its difference in units; every other one as a share.
+      gapText:
+        kind === "units"
+          ? [delta(c.delta, c.unit, c.basis, locale), perRound].filter(Boolean).join(" ")
+          : gapPercent(value, locale),
+      trend: kind === "units" ? trend(c) : gapTrend(value),
     };
   });
   const byGap = (a: GapRow, b: GapRow) =>
@@ -77,7 +87,7 @@ export async function Report({ report, back }: { report: SessionReport; back: bo
     label: families(key),
     rows: rows.filter((row) => family(row.id) === key).sort(byGap),
   })).filter((group) => group.rows.length > 0);
-  const ranked = rows.filter((row) => row.gap !== null).sort(byGap);
+  const ranked = rows.filter((row) => row.kind === "ranked").sort(byGap);
   const standout = reference.enough
     ? {
         worse: ranked.filter((row) => row.trend === "worse").slice(0, STANDOUT),
@@ -97,10 +107,10 @@ export async function Report({ report, back }: { report: SessionReport; back: bo
           </Link>
         )}
         <h1 className="text-2xl leading-tight font-semibold text-balance sm:text-[1.75rem]">
-          {t("titleOf", { date: shortDay(report.started_at, locale) })}
+          {t("titleOf", { date: shortDay(report.started_at, locale, timeZone) })}
         </h1>
         <p className="flex flex-wrap gap-x-4 gap-y-1 text-[0.9375rem] text-muted-foreground">
-          <span>{dateRange(report.started_at, report.ended_at, locale)}</span>
+          <span>{dateRange(report.started_at, report.ended_at, locale, timeZone)}</span>
           <span>{t("count", { matches: report.matches, rounds: report.rounds })}</span>
           <span className="font-semibold text-foreground">
             {t("recordLong", { wins: report.wins, losses: report.losses, ties: report.ties })}
@@ -140,7 +150,7 @@ export async function Report({ report, back }: { report: SessionReport; back: bo
           <Box title={t("keyFigures")}>
             <ul className="grid gap-x-4 sm:grid-cols-2 lg:grid-cols-1">
               {report.headlines.map((c) => {
-                const moved = trend(c);
+                const moved = gapTrend(gap(c));
                 return (
                   <li
                     key={c.metric_id}
@@ -212,7 +222,7 @@ export async function Report({ report, back }: { report: SessionReport; back: bo
           <h2 className="text-lg font-semibold">{t("allMetrics")}</h2>
           <p className="mt-0.5 text-sm text-muted-foreground">
             {named.short && reference.enough
-              ? t("metricsLead", { count: rows.length, reference: named.short })
+              ? `${t("metricsLead", { count: rows.length, reference: named.short })} ${t("metricsRule", { min: MIN_EXPECTED_EVENTS })}`
               : t("metricsLeadNone", { count: rows.length })}
           </p>
         </div>
@@ -230,6 +240,9 @@ export async function Report({ report, back }: { report: SessionReport; back: bo
             worse: t("gapWorse"),
             better: t("gapBetter"),
             neutral: t("neutral"),
+            noReference: t("noReference"),
+            rare: t("rare"),
+            standoutEmpty: t("standoutEmpty"),
           }}
         />
       </section>

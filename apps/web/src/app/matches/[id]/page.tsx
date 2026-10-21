@@ -3,7 +3,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getLocale, getTranslations } from "next-intl/server";
+import { getLocale, getTimeZone, getTranslations } from "next-intl/server";
 import { ResultBadge } from "@/components/result-badge";
 import type { Locale } from "@/i18n/locale";
 import { getMatch, type MatchDetail, type Player, type Round } from "@/lib/api";
@@ -22,6 +22,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
   if (!match) redirect("/");
   const t = await getTranslations("match");
   const locale = (await getLocale()) as Locale;
+  const timeZone = await getTimeZone();
   const ready = match.status === "ready";
   return (
     <article>
@@ -35,7 +36,9 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
           {match.score_b ?? "–"}
         </p>
         <ResultBadge result={match.my_result} status={match.status} />
-        <p className="text-sm text-muted-foreground">{dateTime(match.played_at, locale)}</p>
+        <p className="text-sm text-muted-foreground">
+          {dateTime(match.played_at, locale, timeZone)}
+        </p>
       </header>
 
       {!ready && <p className="mt-6 text-muted-foreground">{match.error ?? t("notReady")}</p>}
@@ -71,7 +74,7 @@ function Rounds({ rounds, label, overtime }: { rounds: Round[]; label: string; o
             className={cn(
               "flex h-8 w-7 flex-col items-center justify-center rounded text-[10px] tabular-nums",
               round.winner_team === "A" ? "bg-side-ct/20" : "bg-side-t/20",
-              round.winner_side === "CT" ? "text-side-ct" : "text-side-t",
+              "text-foreground",
             )}
           >
             <span className="font-semibold">{round.round}</span>

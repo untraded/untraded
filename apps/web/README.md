@@ -16,7 +16,7 @@ pnpm --filter @untraded/web dev    # http://localhost:3000, with the API on http
 | Variable | Default | Role |
 |---|---|---|
 | `UNTRADED_API_INTERNAL_URL` | `http://localhost:8000` | how the web server reaches the API |
-| `TZ` | the host's | time zone of the dates and times (pages render on the server) |
+| `UNTRADED_TIME_ZONE` | `Europe/Paris` | time zone of dates and times until the player's browser sends its own (cookie `untraded_tz`, set on the first visit); an unknown IANA name falls back to the default |
 
 - **Server-side only.** Pages call the API from the server and forward the session cookie; the
   browser never talks to the API except to sign in. Sign-out and the language switch are
