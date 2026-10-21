@@ -16,6 +16,31 @@ export interface Source {
   knownShareCode: string | undefined;
 }
 
+/** A source as `sources` lists it: everything but its authentication code. */
+export interface SourceInfo {
+  id: string;
+  steamId: string;
+  name: string;
+  enabled: boolean;
+  knownShareCode: string | undefined;
+  lastSuccessAt: Date | undefined;
+  lastError: string | undefined;
+  createdAt: Date;
+}
+
+/** What `update-source` can change. A new code clears the last error: the next round tries it. */
+export interface SourceChange {
+  shareCode?: string | undefined;
+  authCode?: string | undefined;
+  enabled?: boolean | undefined;
+}
+
+/** A source named by its id, or by its player's SteamID64. */
+export interface SourceRef {
+  id?: string | undefined;
+  steamId?: string | undefined;
+}
+
 export interface FoundMatch {
   shareCode: string;
   /** Valve match id, the `external_id` of the match source. */
@@ -129,6 +154,96 @@ export class PgStore implements Store {
         : "UPDATE ingest_source SET last_error = NULL, last_success_at = now() WHERE id = $1",
       error ? [source.id, error] : [source.id],
     );
+  }
+
+  /** Every bot source, oldest first, with its player's name. */
+  async listSources(): Promise<SourceInfo[]> {
+    const { rows } = await this.pool.query<{
+      id: string;
+      steam_id: string;
+      display_name: string;
+      enabled: boolean;
+      config: { known_share_code?: string };
+      last_success_at: Date | null;
+      last_error: string | null;
+      created_at: Date;
+    }>(
+      `SELECT s.id, u.steam_id::text AS steam_id, u.display_name, s.enabled, s.config,
+              s.last_success_at, s.last_error, s.created_at
+       FROM ingest_source s JOIN app_user u ON u.id = s.user_id
+       WHERE s.kind = 'valve_bot'
+       ORDER BY s.created_at`,
+    );
+    return rows.map((row) => ({
+      id: row.id,
+      steamId: row.steam_id,
+      name: row.display_name,
+      enabled: row.enabled,
+      knownShareCode: row.config.known_share_code,
+      lastSuccessAt: row.last_success_at ?? undefined,
+      lastError: row.last_error ?? undefined,
+      createdAt: row.created_at,
+    }));
+  }
+
+  /**
+   * The source a command acts on: by its id, or by its player's SteamID64 when that player has
+   * a single bot source.
+   */
+  async findSource(ref: SourceRef): Promise<string> {
+    const { rows } = await this.pool.query<{ id: string }>(
+      `SELECT s.id FROM ingest_source s JOIN app_user u ON u.id = s.user_id
+       WHERE s.kind = 'valve_bot' AND ($1::uuid IS NULL OR s.id = $1::uuid)
+         AND ($2::bigint IS NULL OR u.steam_id = $2::bigint)`,
+      [ref.id ?? null, ref.steamId ?? null],
+    );
+    if (rows.length === 0) throw new Error("no such source");
+    if (rows.length > 1) {
+      throw new Error(
+        `several sources for this player, pick one with --source: ${rows.map((r) => r.id).join(", ")}`,
+      );
+    }
+    return (rows[0] as { id: string }).id;
+  }
+
+  async updateSource(id: string, change: SourceChange): Promise<void> {
+    const sets: string[] = [];
+    const values: unknown[] = [id];
+    if (change.shareCode !== undefined) {
+      values.push(change.shareCode);
+      sets.push(
+        `config = jsonb_set(config, '{known_share_code}', to_jsonb($${values.length}::text))`,
+      );
+    }
+    if (change.authCode !== undefined) {
+      values.push(encrypt(this.key, change.authCode, id));
+      sets.push(`secret = $${values.length}`);
+    }
+    if (change.shareCode !== undefined || change.authCode !== undefined) {
+      sets.push("last_error = NULL");
+    }
+    if (change.enabled !== undefined) {
+      values.push(change.enabled);
+      sets.push(`enabled = $${values.length}`);
+    }
+    if (sets.length === 0) throw new Error("nothing to change");
+    const { rowCount } = await this.pool.query(
+      `UPDATE ingest_source SET ${sets.join(", ")} WHERE id = $1 AND kind = 'valve_bot'`,
+      values,
+    );
+    if (rowCount === 0) throw new Error("no such source");
+  }
+
+  /**
+   * Stops following a player for good: the source and its encrypted authentication code are
+   * deleted. Their matches, their user and their access to the site stay.
+   */
+  async removeSource(id: string): Promise<void> {
+    const { rowCount } = await this.pool.query(
+      "DELETE FROM ingest_source WHERE id = $1 AND kind = 'valve_bot'",
+      [id],
+    );
+    if (rowCount === 0) throw new Error("no such source");
   }
 
   /**

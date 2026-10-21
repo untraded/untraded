@@ -7,6 +7,13 @@
 //   login          logs the bot in once, asking for Steam Guard, and keeps its refresh token
 //   add-source     follows a player: --steam-id, --name, --share-code; the authentication
 //                  code is asked on the terminal (or PLAYER_AUTH_CODE)
+//   sources        lists the followed players (never their authentication code)
+//   update-source  --share-code to restart the chain there, --auth-code to type a new code
+//   pause-source, resume-source
+//   remove-source  --yes: stops following the player and deletes their authentication code
+//                  (their matches and their access to the site stay)
+//
+// The source commands take --source <id>, or --steam-id when the player has a single source.
 //
 // Environment: UNTRADED_DATABASE_URL, UNTRADED_SECRET_KEY, STEAM_WEB_API_KEY, BOT_ACCOUNT_NAME,
 // BOT_PASSWORD (login only), BOT_REFRESH_TOKEN (seeds the state), COLLECTOR_DATA_DIR.
@@ -20,6 +27,7 @@ import { connectionString, PgStore } from "./db.js";
 import { type BotSession, openBotSession } from "./gc.js";
 import { secretKey } from "./secrets.js";
 import { nextShareCode } from "./share-codes.js";
+import { formatSources, sourceRef } from "./sources.js";
 import { loadState, saveState } from "./state.js";
 
 const sleep = (ms: number) => new Promise<void>((done) => setTimeout(done, ms));
@@ -80,6 +88,9 @@ async function main(): Promise<void> {
       "steam-id": { type: "string" },
       name: { type: "string" },
       "share-code": { type: "string" },
+      source: { type: "string" },
+      "auth-code": { type: "boolean", default: false },
+      yes: { type: "boolean", default: false },
     },
   });
   const command = positionals[0];
@@ -108,6 +119,25 @@ async function main(): Promise<void> {
         shareCode,
       });
       console.log(`source ${id} added`);
+    } else if (command === "sources") {
+      for (const line of formatSources(await store.listSources())) console.log(line);
+    } else if (command === "update-source") {
+      const id = await store.findSource(sourceRef(values));
+      const authCode = values["auth-code"]
+        ? (process.env.PLAYER_AUTH_CODE ?? (await ask("New authentication code: ")))
+        : undefined;
+      await store.updateSource(id, { shareCode: values["share-code"], authCode });
+      console.log(`source ${id} updated`);
+    } else if (command === "pause-source" || command === "resume-source") {
+      const id = await store.findSource(sourceRef(values));
+      await store.updateSource(id, { enabled: command === "resume-source" });
+      console.log(`source ${id} ${command === "resume-source" ? "resumed" : "paused"}`);
+    } else if (command === "remove-source") {
+      const id = await store.findSource(sourceRef(values));
+      if (!values.yes)
+        throw new Error(`remove-source deletes source ${id}: run it again with --yes`);
+      await store.removeSource(id);
+      console.log(`source ${id} removed`);
     } else if (command === "run") {
       const maxMatches = Number(process.env.MAX_MATCHES_PER_RUN ?? "20");
       const intervalMs = Number(process.env.COLLECTOR_INTERVAL_SECONDS ?? "3600") * 1000;
@@ -123,7 +153,10 @@ async function main(): Promise<void> {
         await sleep(intervalMs);
       }
     } else {
-      throw new Error("usage: untraded-collector run [--once] | login | add-source");
+      throw new Error(
+        "usage: untraded-collector run [--once] | login | add-source | sources | update-source" +
+          " | pause-source | resume-source | remove-source",
+      );
     }
   } finally {
     await pool.end();

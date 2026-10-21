@@ -85,6 +85,15 @@ Then, once:
 The next round (or `docker compose restart collector`) picks the player up. `add-source` also
 **invites** the player to the site: signing in is open only to Steam accounts with a user.
 
+The collector also lists, fixes, pauses and removes the followed players (`sources`,
+`update-source`, `pause-source`, `resume-source`, `remove-source`): see
+[`apps/collector/README.md`](../apps/collector/README.md#commands). For example, after a
+player changes their authentication code:
+
+```bash
+docker compose exec -it collector ./node_modules/.bin/tsx src/main.ts update-source   --steam-id 7656119XXXXXXXXXX --auth-code
+```
+
 ## The site
 
 Put a reverse proxy with HTTPS in front of the web, for example Caddy:
