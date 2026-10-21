@@ -63,7 +63,7 @@
     "corpus": "Verser mes démos au corpus de recherche (case 2)",
     "corpusHint": "Facultatif. Tu peux changer d'avis à tout moment.",
     "withdraw": "Retirer mon accord",
-    "withdrawHint": "Nous arrêtons de suivre tes matchs. Pour supprimer tes données, écris à l'opérateur.",
+    "withdrawHint": "Nous arrêtons de suivre tes matchs, et tes données restent. Pour les supprimer, va en bas de la page.",
     "withdrawConfirm": "Retirer ton accord et arrêter le suivi de tes matchs ?",
     "confirm": "Oui, retirer",
     "cancel": "Annuler",
@@ -78,7 +78,20 @@
     "errorOther": "La collecte échoue ({error}). Redonner tes codes règle le plus souvent le problème.",
     "codesAgain": "Redonner mes codes",
     "yes": "Oui",
-    "no": "Non"
+    "no": "Non",
+    "eraseTitle": "Supprimer mon compte et mes données",
+    "eraseLead": "Ton compte est fermé tout de suite : tu es déconnecté et nous ne suivons plus tes matchs. Le serveur supprime ensuite :",
+    "eraseItems": {
+      "i1": "ton compte, tes codes, tes accords et tes votes ;",
+      "i2": "tes sessions, tes priorités et tes statistiques ;",
+      "i3": "les matchs où aucun autre inscrit n'a joué, avec leurs démos et leurs fichiers."
+    },
+    "eraseShared": "Les matchs joués avec d'autres inscrits restent les leurs : tu n'y figures plus que comme un joueur non inscrit, et tu sors des références par niveau. Les sauvegardes du serveur s'effacent d'elles-mêmes, en 4 semaines au plus.",
+    "eraseFinal": "C'est définitif : on ne peut ni l'annuler, ni récupérer tes données.",
+    "erase": "Supprimer mon compte et mes données",
+    "eraseConfirm": "Supprimer définitivement ton compte et tes données ?",
+    "eraseYes": "Oui, tout supprimer",
+    "eraseFailed": "La suppression n'a pas pu être lancée. Réessaie dans un moment, ou écris à l'opérateur du site."
   },
   "home": {
     "title": "Tes matchs CS2, analysés à découvert",
@@ -86,7 +99,8 @@
     "signIn": "Se connecter avec Steam",
     "beta": "La bêta est sur invitation.",
     "notInvited": "Ce compte Steam n'est pas encore invité à la bêta.",
-    "failed": "Steam n'a pas pu confirmer la connexion. Réessaie."
+    "failed": "Steam n'a pas pu confirmer la connexion. Réessaie.",
+    "erased": "Ton compte est fermé et tes données sont en cours de suppression. Merci d'avoir testé Untraded."
   },
   "matches": {
     "title": "Matchs",
@@ -542,6 +556,15 @@
     "disk": "Disque",
     "diskLine": "{free} libres sur {total}",
     "noDisk": "Pas de dossier de sauvegardes : taille du disque inconnue.",
-    "forbidden": "Cette page est réservée aux admins."
+    "forbidden": "Cette page est réservée aux admins.",
+    "erase": "Effacer",
+    "eraseConfirm": "Effacer {name} et toutes ses données ? C'est définitif.",
+    "eraseYes": "Oui, effacer",
+    "erased": "Joueur effacé : son compte est fermé et ses données sont en cours de suppression.",
+    "eraseMissing": "Ce joueur n'existe plus : la liste est à jour.",
+    "eraseSelf": "C'est ton compte : supprime-le depuis tes Réglages.",
+    "eraseFailed": "L'effacement n'a pas pu être lancé. Réessaie dans un moment.",
+    "you": "C'est toi",
+    "yourSettings": "Effacer depuis tes Réglages"
   }
 }

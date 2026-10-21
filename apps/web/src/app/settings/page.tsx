@@ -7,7 +7,15 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getLocale, getTimeZone, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
-import { giveConsent, setLocale, setTheme, setTone, signOut, withdrawConsent } from "@/app/actions";
+import {
+  eraseMe,
+  giveConsent,
+  setLocale,
+  setTheme,
+  setTone,
+  signOut,
+  withdrawConsent,
+} from "@/app/actions";
 import { Choice } from "@/components/choice";
 import { CodesForm } from "@/components/codes-form";
 import { codesLabels } from "@/components/codes-labels";
@@ -31,7 +39,11 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getTranslations("settings"))("title") };
 }
 
-export default async function Settings() {
+export default async function Settings({
+  searchParams,
+}: {
+  searchParams: Promise<{ erase?: string }>;
+}) {
   const me = await getMe();
   if (!me) redirect("/");
   const t = await getTranslations("settings");
@@ -82,6 +94,46 @@ export default async function Settings() {
           </form>
         </Row>
       </div>
+      <EraseSection failed={(await searchParams).erase === "failed"} />
+    </section>
+  );
+}
+
+/** The player's right to erasure: what goes, what stays, and that it is final. */
+async function EraseSection({ failed }: { failed: boolean }) {
+  const t = await getTranslations("settings");
+  const items = Object.keys(t.raw("eraseItems") as Record<string, string>);
+  return (
+    <section
+      aria-labelledby="erase"
+      className="mt-8 flex flex-col gap-3 rounded-lg border border-destructive/40 p-4"
+    >
+      <h2 id="erase" className="text-lg font-semibold">
+        {t("eraseTitle")}
+      </h2>
+      <div className="flex max-w-prose flex-col gap-2 text-sm">
+        <p>{t("eraseLead")}</p>
+        <ul className="flex list-disc flex-col gap-1 pl-5 marker:text-muted-foreground">
+          {items.map((item) => (
+            <li key={item}>{t(`eraseItems.${item}`)}</li>
+          ))}
+        </ul>
+        <p className="text-muted-foreground">{t("eraseShared")}</p>
+        <p className="font-semibold">{t("eraseFinal")}</p>
+      </div>
+      {failed && (
+        <p role="alert" className="text-sm text-destructive">
+          {t("eraseFailed")}
+        </p>
+      )}
+      <form action={eraseMe} className="flex flex-col items-start gap-2">
+        <ConfirmSubmit
+          label={t("erase")}
+          question={t("eraseConfirm")}
+          confirm={t("eraseYes")}
+          cancel={t("cancel")}
+        />
+      </form>
     </section>
   );
 }

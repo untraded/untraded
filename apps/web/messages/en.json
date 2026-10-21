@@ -63,7 +63,7 @@
     "corpus": "Give my demos to the research corpus (box 2)",
     "corpusHint": "Optional. You can change your mind at any time.",
     "withdraw": "Withdraw my consent",
-    "withdrawHint": "We stop following your matches. To delete your data, write to the operator.",
+    "withdrawHint": "We stop following your matches, and your data stays. To delete it, go to the bottom of the page.",
     "withdrawConfirm": "Withdraw your consent and stop following your matches?",
     "confirm": "Yes, withdraw",
     "cancel": "Cancel",
@@ -78,7 +78,20 @@
     "errorOther": "Collecting fails ({error}). Giving your codes again usually fixes it.",
     "codesAgain": "Give my codes again",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "eraseTitle": "Delete my account and my data",
+    "eraseLead": "Your account closes at once: you are signed out and we stop following your matches. The server then deletes:",
+    "eraseItems": {
+      "i1": "your account, your codes, your consents and your votes;",
+      "i2": "your sessions, your priorities and your statistics;",
+      "i3": "the matches no other registered player played in, with their demos and files."
+    },
+    "eraseShared": "Matches played with other registered players stay theirs: you appear there only as an unregistered player, and you leave the level references. The server's backups expire on their own, within 4 weeks.",
+    "eraseFinal": "This is final: it cannot be undone, and your data cannot be recovered.",
+    "erase": "Delete my account and my data",
+    "eraseConfirm": "Delete your account and your data for good?",
+    "eraseYes": "Yes, delete everything",
+    "eraseFailed": "The deletion could not start. Try again in a moment, or write to the site's operator."
   },
   "home": {
     "title": "Your CS2 matches, analysed in the open",
@@ -86,7 +99,8 @@
     "signIn": "Sign in with Steam",
     "beta": "The beta is by invitation.",
     "notInvited": "This Steam account is not invited to the beta yet.",
-    "failed": "Steam could not confirm the sign-in. Please try again."
+    "failed": "Steam could not confirm the sign-in. Please try again.",
+    "erased": "Your account is closed and your data is being deleted. Thank you for testing Untraded."
   },
   "matches": {
     "title": "Matches",
@@ -542,6 +556,15 @@
     "disk": "Disk",
     "diskLine": "{free} free of {total}",
     "noDisk": "No backups directory: disk size unknown.",
-    "forbidden": "This page is for admins only."
+    "forbidden": "This page is for admins only.",
+    "erase": "Erase",
+    "eraseConfirm": "Erase {name} and all their data? This is final.",
+    "eraseYes": "Yes, erase",
+    "erased": "Player erased: their account is closed and their data is being deleted.",
+    "eraseMissing": "This player no longer exists: the list is up to date.",
+    "eraseSelf": "This is your account: delete it from your Settings.",
+    "eraseFailed": "The erasure could not start. Try again in a moment.",
+    "you": "You",
+    "yourSettings": "Erase from your Settings"
   }
 }

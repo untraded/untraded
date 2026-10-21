@@ -3,6 +3,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { apiSend, refusedField } from "@/lib/api";
 
 export type InviteState = {
@@ -56,4 +57,22 @@ export async function changeSource(formData: FormData): Promise<void> {
     await apiSend(`/admin/sources/${id}`, "DELETE");
   }
   revalidatePath("/admin");
+}
+
+const STEAM_ID = /^\d{17}$/;
+
+/**
+ * Erases a player and their data (not undone). Says how it went in the page's address: `erased`,
+ * or `erase=missing` (404), `self` (409: one's own account goes through the settings), `failed`.
+ */
+export async function erasePlayer(formData: FormData): Promise<void> {
+  const steamId = String(formData.get("steam_id"));
+  if (!STEAM_ID.test(steamId)) return;
+  const result = await apiSend(`/admin/players/${steamId}`, "DELETE");
+  revalidatePath("/admin");
+  redirect(
+    result.ok
+      ? "/admin?erased=1"
+      : `/admin?erase=${result.status === 404 ? "missing" : result.status === 409 ? "self" : "failed"}`,
+  );
 }
