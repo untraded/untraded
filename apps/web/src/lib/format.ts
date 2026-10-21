@@ -223,3 +223,21 @@ export function compare(
   const value = gap(comparison);
   return value === null ? { kind: "none", gap: null } : { kind: "ranked", gap: value };
 }
+
+/** A size in bytes, in the largest unit that keeps it above 1: `412 Mo`, `48 GB`. */
+export function bytes(value: number | null | undefined, locale: Locale): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) return DASH;
+  const units = ["byte", "kilobyte", "megabyte", "gigabyte", "terabyte"] as const;
+  let size = value;
+  let unit = 0;
+  while (size >= 1000 && unit < units.length - 1) {
+    size /= 1000;
+    unit += 1;
+  }
+  return new Intl.NumberFormat(locale, {
+    style: "unit",
+    unit: units[unit],
+    unitDisplay: "short",
+    maximumFractionDigits: size < 100 && unit > 0 ? 1 : 0,
+  }).format(size);
+}

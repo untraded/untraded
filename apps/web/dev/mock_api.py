@@ -10,7 +10,15 @@ run to the next. It answers like `apps/api` (same JSON shapes, see `apps/web/src
 - signing in: `/api/auth/steam` sets the session cookie and goes back to the web (no Steam);
 - sessions cover the three references (own days, level, none), priorities with evidence,
   👍/👎 (kept in memory), and the follow-up of the previous priorities;
-- matches cover every status (ready, analysing, unavailable...).
+- matches cover every status (ready, analysing, unavailable...);
+- onboarding (consent, then the two codes) and the admin, with players in every state.
+
+The signed-in player starts followed and admin. `/api/mock/state/<state>` switches them, to see
+each screen: `joined`, `consented`, `followed`, `error` (Valve refuses their code), `withdrawn`,
+`outdated` (a newer consent text), `nokey` (the server cannot keep codes), `player` (not admin).
+Codes that answer like Steam would: the auth code `XXXX-XXXXX-XXXX` is refused (422), the share
+code `CSGO-00000-00000-00000-00000-00000` too, and `STEA-MDOWN-0503` stands for Steam not
+answering (503).
 
 Metric names, units and directions come from the `untraded` registry when it is installed
 (`uv run`), so the mock stays in step with the real metrics.
@@ -402,6 +410,149 @@ def player_metrics(match_id: str, steam_id: str) -> dict[str, Any]:
     return {"match_id": match_id, "steam_id": steam_id, "metrics": values}
 
 
+# Onboarding and admin, as in `apps/api` (`onboarding.py`, `admin.py`).
+CONSENT_VERSION = "1"
+AUTH_CODE = re.compile(r"^[A-Z0-9]{4}-[A-Z0-9]{5}-[A-Z0-9]{4}$")
+SHARE_CODE = re.compile(r"^CSGO(-[A-Za-z0-9]{5}){5}$")
+
+
+def consent(
+    analysis: bool = True, corpus: bool = False, version: str = CONSENT_VERSION
+) -> dict[str, Any]:
+    return {
+        "text_version": version,
+        "analysis": analysis,
+        "research_corpus": analysis and corpus,
+        "recorded_at": iso(NOW - dt.timedelta(days=6)),
+    }
+
+
+def source(enabled: bool = True, error: str | None = None) -> dict[str, Any]:
+    last = iso(NOW - dt.timedelta(minutes=40))
+    return {"enabled": enabled, "last_success_at": last, "last_error": error}
+
+
+STATES: dict[str, dict[str, Any]] = {
+    "joined": {"consent": None, "source": None},
+    "consented": {"consent": consent(), "source": None},
+    "followed": {"consent": consent(corpus=True), "source": source()},
+    "error": {"consent": consent(), "source": source(error="403")},
+    "withdrawn": {"consent": consent(analysis=False), "source": source(enabled=False)},
+    "outdated": {"consent": consent(version="0"), "source": source()},
+    "nokey": {"consent": consent(), "source": None, "can_add_source": False},
+    "player": {"consent": consent(corpus=True), "source": source(), "admin": False},
+}
+ME_STATE: dict[str, Any] = {}
+
+
+def set_state(name: str) -> bool:
+    if name not in STATES:
+        return False
+    ME_STATE.clear()
+    ME_STATE.update({"admin": True, "can_add_source": True} | STATES[name])
+    return True
+
+
+set_state("followed")
+
+
+def me() -> dict[str, Any]:
+    return {
+        "id": mock_id(9, 1),
+        "steam_id": ME,
+        "display_name": "you",
+        "consent_version": CONSENT_VERSION,
+        **ME_STATE,
+    }
+
+
+def player(
+    n: int,
+    name: str,
+    state: str,
+    *,
+    error: str | None = None,
+    matches: int = 0,
+    corpus: bool = False,
+) -> dict[str, Any]:
+    joined = state != "invited"
+    consented = state in ("consented", "followed", "paused", "withdrawn")
+    sourced = state in ("followed", "paused", "withdrawn")
+    return {
+        "steam_id": str(76561190000000100 + n),
+        "display_name": name,
+        "state": state,
+        "invited_at": iso(NOW - dt.timedelta(days=12 - n)),
+        "joined_at": iso(NOW - dt.timedelta(days=10 - n)) if joined else None,
+        "last_seen_at": iso(NOW - dt.timedelta(hours=3 * n + 1)) if joined else None,
+        "consent": consent(analysis=state != "withdrawn", corpus=corpus) if consented else None,
+        "source": {
+            "id": mock_id(8, n),
+            "enabled": state == "followed",
+            "last_success_at": iso(NOW - dt.timedelta(hours=n)) if state != "withdrawn" else None,
+            "last_error": error,
+        }
+        if sourced
+        else None,
+        "matches": matches,
+        "last_match_at": iso(NOW - dt.timedelta(days=n % 4)) if matches else None,
+    }
+
+
+PLAYERS: list[dict[str, Any]] = [
+    player(1, "Kestrel", "followed", matches=41, corpus=True),
+    player(2, "Brindle", "followed", error="403", matches=17),
+    player(3, "Oxide", "followed", error="412", matches=9),
+    player(4, "Tamsin", "paused", matches=23),
+    player(5, "Vireo", "consented"),
+    player(6, "Quill", "joined"),
+    player(7, "Marlow", "withdrawn", matches=5),
+    player(8, "Juno", "invited"),
+]
+
+HEALTH: dict[str, Any] = {
+    "database_bytes": 412_000_000,
+    "jobs": {"done": 1284, "queued": 3, "running": 1, "failed": 2},
+    "failed_jobs": [
+        {
+            "kind": "download",
+            "attempts": 3,
+            "error": "demo URL expired (HTTP 404)",
+            "at": iso(NOW - dt.timedelta(hours=5)),
+        },
+        {
+            "kind": "parse",
+            "attempts": 1,
+            "error": "truncated demo: unexpected end of file",
+            "at": iso(NOW - dt.timedelta(days=2)),
+        },
+    ],
+    "matches_7_days": {"ready": 58, "parsing": 1, "unavailable": 3, "failed": 1},
+    "sources": {"total": 5, "paused": 1, "erroring": 2},
+    "backups": {
+        "last": {
+            "name": "untraded-2026-10-20.dump",
+            "at": iso(NOW - dt.timedelta(hours=19)),
+            "bytes": 96_000_000,
+        },
+        "daily": 7,
+        "weekly": 4,
+        "offsite": {"ok": True, "at": iso(NOW - dt.timedelta(hours=18)), "target": "storage box"},
+    },
+    "disk": {"total": 48_000_000_000, "free": 21_500_000_000},
+}
+
+
+def find_source(source_id: str) -> dict[str, Any] | None:
+    return next((p for p in PLAYERS if p["source"] and p["source"]["id"] == source_id), None)
+
+
+def read_body(handler: BaseHTTPRequestHandler) -> dict[str, Any]:
+    size = int(handler.headers.get("content-length") or 0)
+    data: dict[str, Any] = json.loads(handler.rfile.read(size) or b"{}")
+    return data
+
+
 class Handler(BaseHTTPRequestHandler):
     def signed_in(self) -> bool:
         return f"{COOKIE}=" in (self.headers.get("cookie") or "")
@@ -426,8 +577,18 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(303, headers={"location": f"{WEB}/", "set-cookie": cookie})
         if not self.signed_in():
             return self.reply(401, {"detail": "not signed in"})
+        if found := re.fullmatch(r"/mock/state/(\w+)", path):
+            if not set_state(found[1]):
+                return self.reply(404, {"detail": f"states: {', '.join(STATES)}"})
+            return self.reply(303, headers={"location": f"{WEB}/"})
         if path == "/me":
-            return self.reply(200, {"id": mock_id(9, 1), "steam_id": ME, "display_name": "you"})
+            return self.reply(200, me())
+        if path.startswith("/admin/") and not ME_STATE["admin"]:
+            return self.reply(403, {"detail": "admins only"})
+        if path == "/admin/players":
+            return self.reply(200, {"items": PLAYERS})
+        if path == "/admin/health":
+            return self.reply(200, HEALTH)
         offset = int((re.search(r"offset=(\d+)", query) or [0, 0])[1])
         if path == "/matches":
             return self.reply(
@@ -457,6 +618,39 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(204, headers={"set-cookie": f"{COOKIE}=; Path=/; Max-Age=0"})
         if not self.signed_in():
             return self.reply(401, {"detail": "not signed in"})
+        if self.path == "/me/consent":
+            if body.get("analysis") and body.get("text_version") != CONSENT_VERSION:
+                return self.reply(409, {"detail": "this is not the current consent text"})
+            ME_STATE["consent"] = consent(
+                analysis=bool(body.get("analysis")),
+                corpus=bool(body.get("research_corpus")),
+                version=body.get("text_version") or CONSENT_VERSION,
+            )
+            if not body.get("analysis") and ME_STATE["source"]:
+                ME_STATE["source"]["enabled"] = False
+            return self.reply(204)
+        if self.path.startswith("/admin/") and not ME_STATE["admin"]:
+            return self.reply(403, {"detail": "admins only"})
+        if self.path == "/admin/invitations":
+            steam_id = str(body.get("steam_id", "")).strip()
+            name = str(body.get("display_name", "")).strip()
+            if not re.fullmatch(r"7656119\d{10}", steam_id):
+                return self.reply(422, {"detail": {"field": "steam_id"}})
+            if not name or len(name) > 64:
+                return self.reply(422, {"detail": {"field": "display_name"}})
+            if steam_id == ME or any(p["steam_id"] == steam_id for p in PLAYERS):
+                return self.reply(409, {"detail": "already invited or a user"})
+            invited = player(0, name, "invited") | {"steam_id": steam_id, "invited_at": iso(NOW)}
+            PLAYERS.insert(0, invited)
+            return self.reply(201, invited)
+        if found := re.fullmatch(r"/admin/sources/([0-9a-f-]+)/(pause|resume)", self.path):
+            owner = find_source(found[1])
+            if owner is None:
+                return self.reply(404, {"detail": "no such source"})
+            owner["source"]["enabled"] = found[2] == "resume"
+            if owner["state"] in ("followed", "paused"):
+                owner["state"] = "followed" if found[2] == "resume" else "paused"
+            return self.reply(204)
         if found := re.fullmatch(r"/advice/([0-9a-f-]+)/feedback", self.path):
             vote = body.get("vote")
             if vote not in (-1, 0, 1):
@@ -465,6 +659,52 @@ class Handler(BaseHTTPRequestHandler):
                 VOTES[found[1]] = vote
             else:
                 VOTES.pop(found[1], None)
+            return self.reply(204)
+        return self.reply(404, {"detail": "not found"})
+
+    def do_PUT(self) -> None:
+        body = read_body(self)
+        if not self.signed_in():
+            return self.reply(401, {"detail": "not signed in"})
+        if self.path != "/me/source":
+            return self.reply(404, {"detail": "not found"})
+        if not ME_STATE["can_add_source"]:
+            return self.reply(503, {"detail": "codes cannot be stored here"})
+        if not (ME_STATE["consent"] and ME_STATE["consent"]["analysis"]):
+            return self.reply(409, {"detail": "consent first"})
+        auth_code = str(body.get("auth_code", "")).strip().upper()
+        share_code = str(body.get("share_code", "")).strip()
+        if not AUTH_CODE.match(auth_code):
+            return self.reply(422, {"detail": {"field": "auth_code"}})
+        if not SHARE_CODE.match(share_code):
+            return self.reply(422, {"detail": {"field": "share_code"}})
+        if auth_code == "STEA-MDOWN-0503":
+            return self.reply(503, {"detail": "Steam did not answer"})
+        if auth_code == "XXXX-XXXXX-XXXX":
+            return self.reply(422, {"detail": {"field": "auth_code"}})
+        if share_code == "CSGO-00000-00000-00000-00000-00000":
+            return self.reply(422, {"detail": {"field": "share_code"}})
+        ME_STATE["source"] = source()
+        return self.reply(204)
+
+    def do_DELETE(self) -> None:
+        if not self.signed_in():
+            return self.reply(401, {"detail": "not signed in"})
+        if not ME_STATE["admin"]:
+            return self.reply(403, {"detail": "admins only"})
+        if found := re.fullmatch(r"/admin/invitations/(\d+)", self.path):
+            for p in PLAYERS:
+                if p["steam_id"] == found[1] and p["state"] == "invited":
+                    PLAYERS.remove(p)
+                    return self.reply(204)
+            return self.reply(404, {"detail": "no such invitation"})
+        if found := re.fullmatch(r"/admin/sources/([0-9a-f-]+)", self.path):
+            owner = find_source(found[1])
+            if owner is None:
+                return self.reply(404, {"detail": "no such source"})
+            owner["source"] = None
+            if owner["state"] in ("followed", "paused"):
+                owner["state"] = "consented"
             return self.reply(204)
         return self.reply(404, {"detail": "not found"})
 

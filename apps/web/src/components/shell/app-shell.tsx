@@ -63,7 +63,8 @@ export async function AppShell({
           <NavLink section="home" label={t("home")} place="sidebar" />
           <NavLink section="sessions" label={t("sessions")} place="sidebar" />
           <NavLink section="matches" label={t("matches")} place="sidebar" />
-          <div className="mt-auto">
+          <div className="mt-auto flex flex-col gap-0.5">
+            {me.admin && <NavLink section="admin" label={t("admin")} place="sidebar" />}
             <NavLink section="settings" label={t("settings")} place="sidebar" />
           </div>
         </nav>
@@ -87,7 +88,14 @@ export async function AppShell({
         <NavLink section="home" label={t("home")} place="tab" />
         <NavLink section="sessions" label={t("sessions")} place="tab" />
         <NavLink section="matches" label={t("matches")} place="tab" />
-        <MoreSheet labels={{ more: t("more"), settings: t("settings"), signOut: t("signOut") }} />
+        <MoreSheet
+          labels={{
+            more: t("more"),
+            settings: t("settings"),
+            admin: me.admin ? t("admin") : null,
+            signOut: t("signOut"),
+          }}
+        />
       </nav>
     </div>
   );

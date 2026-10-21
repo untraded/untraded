@@ -3,6 +3,7 @@
 
 import { LogIn } from "lucide-react";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { setLocale } from "@/app/actions";
 import { Choice } from "@/components/choice";
@@ -11,14 +12,18 @@ import { buttonVariants } from "@/components/ui/button";
 import { LOCALES, pickTone, TONE_COOKIE } from "@/i18n/locale";
 import { getMe, PUBLIC_API_PATH } from "@/lib/api";
 import { cn } from "@/lib/cn";
+import { onboardingStep } from "@/lib/onboarding";
 
 export default async function Home({
   searchParams,
 }: {
   searchParams: Promise<{ signin?: string }>;
 }) {
-  if (await getMe()) {
-    return <Dashboard tone={pickTone((await cookies()).get(TONE_COOKIE)?.value)} />;
+  const me = await getMe();
+  if (me) {
+    // An invited player gives their consent and their codes first.
+    if (onboardingStep(me) !== null) redirect("/welcome");
+    return <Dashboard me={me} tone={pickTone((await cookies()).get(TONE_COOKIE)?.value)} />;
   }
   const t = await getTranslations("home");
   const settings = await getTranslations("settings");
