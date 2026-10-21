@@ -15,7 +15,6 @@ import uuid
 
 import httpx
 from fastapi import APIRouter, HTTPException, Request, status
-from psycopg.types.json import Jsonb
 from pydantic import BaseModel
 
 from untraded_api import steam
@@ -54,7 +53,7 @@ def give_consent(body: ConsentIn, conn: ConnDep, user: UserDep, settings: Settin
         (user, body.text_version, body.analysis, body.analysis and body.research_corpus),
     )
     if not body.analysis:
-        conn.execute("UPDATE ingest_source SET enabled = false WHERE user_id = %s", (user,))
+        conn.execute("SELECT pause_my_sources()")
 
 
 @router.put("/source", status_code=status.HTTP_204_NO_CONTENT)
@@ -91,22 +90,8 @@ def set_source(
             raise HTTPException(
                 status.HTTP_503_SERVICE_UNAVAILABLE, "Steam did not answer"
             ) from error
-    found = conn.execute(
-        "SELECT id FROM ingest_source WHERE user_id = %s AND kind = 'valve_bot' "
-        "ORDER BY created_at LIMIT 1",
-        (user,),
-    ).fetchone()
+    # ingest_source is out of the API role's reach: its own functions read and write it.
+    found = conn.execute("SELECT id FROM my_source()").fetchone()
     source = found[0] if found else uuid.uuid4()
     secret = encrypt(settings.secret_key, auth_code, str(source))
-    if found:
-        conn.execute(
-            "UPDATE ingest_source SET secret = %s, enabled = true, last_error = NULL, "
-            "config = jsonb_set(config, '{known_share_code}', to_jsonb(%s::text)) WHERE id = %s",
-            (secret, share_code, source),
-        )
-    else:
-        conn.execute(
-            "INSERT INTO ingest_source (id, user_id, kind, config, secret) "
-            "VALUES (%s, %s, 'valve_bot', %s, %s)",
-            (source, user, Jsonb({"known_share_code": share_code}), secret),
-        )
+    conn.execute("SELECT set_my_source(%s, %s, %s)", (source, secret, share_code))

@@ -121,11 +121,7 @@ def me(conn: ConnDep, user: UserDep, settings: SettingsDep) -> Me:
         "WHERE user_id = %s",
         (user,),
     ).fetchone()
-    source = conn.execute(
-        "SELECT enabled, last_success_at, last_error FROM ingest_source "
-        "WHERE user_id = %s AND kind = 'valve_bot' ORDER BY created_at LIMIT 1",
-        (user,),
-    ).fetchone()
+    source = conn.execute("SELECT enabled, last_success_at, last_error FROM my_source()").fetchone()
     return Me(
         id=row[0],
         steam_id=str(row[1]),

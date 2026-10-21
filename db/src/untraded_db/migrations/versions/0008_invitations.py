@@ -22,7 +22,7 @@ SQL = Path(__file__).with_name("0008_invitations.sql")
 
 DOWNGRADE = """
 REVOKE INSERT ON consent FROM untraded_api;
-REVOKE INSERT, UPDATE ON ingest_source FROM untraded_api;
+DROP FUNCTION my_source(), set_my_source(uuid, bytea, text), pause_my_sources();
 CREATE OR REPLACE FUNCTION open_auth_session(steam bigint, token bytea, ttl interval)
 RETURNS uuid
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = pg_catalog, public AS $$
