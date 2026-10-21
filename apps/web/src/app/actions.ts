@@ -90,6 +90,18 @@ export async function giveConsent(formData: FormData): Promise<void> {
   redirect(next(formData, "/welcome"));
 }
 
+/**
+ * Erases the player, on their explicit confirmation: the API closes the account at once and the
+ * worker deletes their data. Its cookie reset reaches this server, not the browser: drop ours.
+ */
+export async function eraseMe(): Promise<void> {
+  const result = await apiSend("/me/erase", "POST", { confirm: true });
+  if (!result.ok) redirect("/settings?erase=failed");
+  (await cookies()).delete(SESSION_COOKIE);
+  revalidatePath("/", "layout");
+  redirect("/?erased=1");
+}
+
 /** Withdraws the player's consent: the collector stops following their matches. */
 export async function withdrawConsent(formData: FormData): Promise<void> {
   await apiSend("/me/consent", "POST", {

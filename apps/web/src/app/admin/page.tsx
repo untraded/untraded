@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: 2026 The Untraded Authors
 // SPDX-License-Identifier: AGPL-3.0-only
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getLocale, getTimeZone, getTranslations } from "next-intl/server";
-import { changeSource, revokeInvitation } from "@/app/admin/actions";
+import { changeSource, erasePlayer, revokeInvitation } from "@/app/admin/actions";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { InviteForm } from "@/components/admin/invite-form";
 import { ConfirmSubmit } from "@/components/confirm-submit";
@@ -18,7 +19,17 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /** Every player, from invited to followed, and what the admin can do about each. */
-export default async function AdminPlayers() {
+const ERASE_NOTES = {
+  missing: "eraseMissing",
+  self: "eraseSelf",
+  failed: "eraseFailed",
+} as const;
+
+export default async function AdminPlayers({
+  searchParams,
+}: {
+  searchParams: Promise<{ erased?: string; erase?: string }>;
+}) {
   const me = await getMe();
   if (!me) redirect("/");
   const t = await getTranslations("admin");
@@ -26,6 +37,9 @@ export default async function AdminPlayers() {
     return <p className="text-muted-foreground">{t("forbidden")}</p>;
   }
   const players = (await getAdminPlayers())?.items ?? [];
+  const { erased, erase } = await searchParams;
+  const refused =
+    erase && erase in ERASE_NOTES ? ERASE_NOTES[erase as keyof typeof ERASE_NOTES] : null;
   return (
     <section className="flex flex-col gap-5">
       <AdminHeader current="players" />
@@ -45,6 +59,17 @@ export default async function AdminPlayers() {
           },
         }}
       />
+      {(erased || refused) && (
+        <p
+          role={refused ? "alert" : "status"}
+          className={cn(
+            "rounded-md border px-4 py-2.5 text-sm",
+            refused ? "border-destructive/40 text-destructive" : "border-border bg-card",
+          )}
+        >
+          {refused ? t(refused) : t("erased")}
+        </p>
+      )}
       {players.length === 0 ? (
         <p className="text-muted-foreground">{t("empty")}</p>
       ) : (
@@ -62,7 +87,11 @@ export default async function AdminPlayers() {
           </div>
           <ul>
             {players.map((player) => (
-              <PlayerRow key={player.steam_id} player={player} />
+              <PlayerRow
+                key={player.steam_id}
+                player={player}
+                self={player.steam_id === me.steam_id}
+              />
             ))}
           </ul>
         </div>
@@ -71,7 +100,7 @@ export default async function AdminPlayers() {
   );
 }
 
-async function PlayerRow({ player }: { player: AdminPlayer }) {
+async function PlayerRow({ player, self }: { player: AdminPlayer; self: boolean }) {
   const t = await getTranslations("admin");
   const locale = (await getLocale()) as Locale;
   const timeZone = await getTimeZone();
@@ -136,7 +165,28 @@ async function PlayerRow({ player }: { player: AdminPlayer }) {
           </span>
         )}
       </div>
-      <Actions player={player} />
+      <div className="flex flex-col items-start gap-2">
+        <Actions player={player} />
+        {self ? (
+          <p className="text-xs text-muted-foreground">
+            {t("you")} ·{" "}
+            <Link href="/settings" className="underline underline-offset-2 hover:text-foreground">
+              {t("yourSettings")}
+            </Link>
+          </p>
+        ) : (
+          <form action={erasePlayer}>
+            <input type="hidden" name="steam_id" value={player.steam_id} />
+            <ConfirmSubmit
+              size="sm"
+              label={t("erase")}
+              question={t("eraseConfirm", { name: player.display_name })}
+              confirm={t("eraseYes")}
+              cancel={t("cancel")}
+            />
+          </form>
+        )}
+      </div>
     </li>
   );
 }
@@ -154,7 +204,7 @@ async function Actions({ player }: { player: AdminPlayer }) {
       </form>
     );
   }
-  if (!source) return <span aria-hidden="true" className="hidden lg:block" />;
+  if (!source) return null;
   return (
     <form action={changeSource} className="flex flex-wrap items-center gap-2">
       <input type="hidden" name="source" value={source.id} />
