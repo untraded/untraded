@@ -106,6 +106,8 @@ services:
       <<: *database-url
       # Raw demos are kept unless set: 0 deletes them once parsed (ADR 0009).
       UNTRADED_DEMO_RETENTION_DAYS: ${UNTRADED_DEMO_RETENTION_DAYS:-}
+      # 1: demos may come from private addresses (a server on your network). Off by default.
+      UNTRADED_ALLOW_PRIVATE_DEMO_URLS: ${UNTRADED_ALLOW_PRIVATE_DEMO_URLS:-}
     volumes:
       - store:/data/store
     depends_on:

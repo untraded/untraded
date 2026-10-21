@@ -48,6 +48,7 @@ stack variables.
 | `BOT_ACCOUNT_NAME` | yes | the bot's account name |
 | `BOT_REFRESH_TOKEN` | first start | the bot's refresh token, if you have one (see below) |
 | `UNTRADED_DEMO_RETENTION_DAYS` | no | days to keep raw demos after parsing; unset keeps them, `0` deletes them once parsed |
+| `UNTRADED_ALLOW_PRIVATE_DEMO_URLS` | no | `1` lets the worker download demos from private addresses (a server on your own network). Off by default: a demo URL never reaches a private, loopback or cloud metadata address |
 | `UNTRADED_BACKUP_HOUR`, `UNTRADED_BACKUP_KEEP_DAYS`, `UNTRADED_BACKUP_KEEP_WEEKS` | no | when the daily database dump runs (3, UTC) and how many are kept: 7 daily, plus 4 weekly (Sunday's) |
 | `COLLECTOR_INTERVAL_SECONDS` | no | time between collection rounds (3600) |
 | `UNTRADED_SITE_URL` | for the site | the site's address as browsers see it, e.g. `https://untraded.example.com` (default `http://localhost:3000`). Steam sends users back there after signing in, and `https` makes the session cookie `Secure` |
