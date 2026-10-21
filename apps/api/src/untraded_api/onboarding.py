@@ -10,6 +10,7 @@ Steam before they are kept, and the authentication code is stored encrypted, as 
 
 # No `from __future__ import annotations`: FastAPI reads the dependencies from the annotations.
 
+import logging
 import re
 import uuid
 
@@ -23,8 +24,16 @@ from untraded_api.secrets_box import encrypt
 
 router = APIRouter(prefix="/me", tags=["onboarding"])
 
-AUTH_CODE = re.compile(r"^[A-Z0-9]{4}-[A-Z0-9]{5}-[A-Z0-9]{4}$")
-SHARE_CODE = re.compile(r"^CSGO(-[A-Za-z0-9]{5}){5}$")
+AUTH_CODE = re.compile(r"[A-Z0-9]{4}-[A-Z0-9]{5}-[A-Z0-9]{4}")
+SHARE_CODE = re.compile(r"CSGO(?:-[A-Za-z0-9]{5}){5}")
+log = logging.getLogger("untraded.api")
+
+
+def find_code(pattern: re.Pattern[str], text: str) -> str | None:
+    """The code in what the player pasted: spaces anywhere, or the code inside a longer text
+    (CS2's share link `steam://rungame/730/…/+csgo_download_match%20CSGO-…`)."""
+    found = pattern.search(re.sub(r"\s+", "", text))
+    return found.group(0) if found else None
 
 
 class ConsentIn(BaseModel):
@@ -69,11 +78,14 @@ def set_source(
     ).fetchone()
     if consent is None or not consent[0]:
         raise HTTPException(status.HTTP_409_CONFLICT, "consent first")
-    auth_code = body.auth_code.strip().upper()
-    share_code = body.share_code.strip()
-    if not AUTH_CODE.match(auth_code):
+    auth_code = find_code(AUTH_CODE, body.auth_code.upper())
+    share_code = find_code(SHARE_CODE, body.share_code)
+    # Why codes are refused, never the codes themselves: enough to help a player.
+    if auth_code is None:
+        log.warning("codes of user %s refused: authentication code format", user)
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, {"field": "auth_code"})
-    if not SHARE_CODE.match(share_code):
+    if share_code is None:
+        log.warning("codes of user %s refused: share code format", user)
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, {"field": "share_code"})
     row = conn.execute("SELECT steam_id FROM app_user WHERE id = %s", (user,)).fetchone()
     if row is None:
@@ -83,10 +95,12 @@ def set_source(
         try:
             steam.check_codes(client, settings.steam_api_key, row[0], auth_code, share_code)
         except steam.CodeRejectedError as rejected:
+            log.warning("codes of user %s refused by Steam: %s", user, rejected.field)
             raise HTTPException(
                 status.HTTP_422_UNPROCESSABLE_CONTENT, {"field": rejected.field}
             ) from rejected
         except steam.SteamUnavailableError as error:
+            log.warning("codes of user %s not checked, Steam did not answer: %s", user, error)
             raise HTTPException(
                 status.HTTP_503_SERVICE_UNAVAILABLE, "Steam did not answer"
             ) from error
