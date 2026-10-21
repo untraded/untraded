@@ -18,8 +18,8 @@ import pytest
 
 from untraded.demofile import DEMO_MAGIC, CorruptDemoError, NotADemoError
 from untraded_worker import queue, retention
-from untraded_worker.download import DemoGone
-from untraded_worker.jobs import DownloadJob
+from untraded_worker.download import BlockedAddressError, DemoGone
+from untraded_worker.jobs import DownloadJob, JobError
 from untraded_worker.store import LocalStore
 
 pytestmark = pytest.mark.db
@@ -111,6 +111,18 @@ def test_a_gone_demo_makes_the_match_unavailable(
     status, key, error = _row(db, match_id)
     assert (status, key) == ("unavailable", None)
     assert "404" in error
+
+
+def test_a_url_to_a_private_address_fails_the_job(
+    db: psycopg.Connection[Any], tmp_path: Path
+) -> None:
+    def blocked(url: str, target: Path) -> object:
+        raise BlockedAddressError("10.0.0.5 is not a public address")
+
+    match_id = _match(db)
+    with pytest.raises(JobError, match="not a public address"):
+        DownloadJob(LocalStore(tmp_path), blocked)(db, _job(match_id))
+    assert _row(db, match_id)[1] is None
 
 
 def test_a_file_that_is_not_a_demo_is_dropped(db: psycopg.Connection[Any], tmp_path: Path) -> None:

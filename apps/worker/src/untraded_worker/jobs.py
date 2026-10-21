@@ -32,7 +32,7 @@ from untraded.demofile import CorruptDemoError, NotADemoError, demo_suffix, dige
 from untraded.parsing import CanonicalMatch, UnsupportedModeError, parse_demo
 from untraded_worker import load, queue, sessions
 from untraded_worker.analysis import analyze
-from untraded_worker.download import DemoGone, fetch
+from untraded_worker.download import BlockedAddressError, DemoGone, fetch
 from untraded_worker.queue import Job
 from untraded_worker.runner import DeadHandler, Handler
 from untraded_worker.store import LocalStore
@@ -155,6 +155,8 @@ class DownloadJob:
         incoming = self.store.path(f"incoming/{match_id}{suffix}")
         try:
             self.fetch(url, incoming)
+        except BlockedAddressError as blocked:
+            raise JobError(f"{url}: {blocked}") from blocked
         except DemoGone as gone:
             conn.execute(
                 "UPDATE match SET status = 'unavailable', error = %s WHERE id = %s",
