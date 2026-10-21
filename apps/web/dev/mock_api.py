@@ -16,9 +16,10 @@ run to the next. It answers like `apps/api` (same JSON shapes, see `apps/web/src
 The signed-in player starts followed and admin. `/api/mock/state/<state>` switches them, to see
 each screen: `joined`, `consented`, `followed`, `error` (Valve refuses their code), `withdrawn`,
 `outdated` (a newer consent text), `nokey` (the server cannot keep codes), `player` (not admin).
-Codes that answer like Steam would: the auth code `XXXX-XXXXX-XXXX` is refused (422), the share
-code `CSGO-00000-00000-00000-00000-00000` too, and `STEA-MDOWN-0503` stands for Steam not
-answering (503).
+Codes that answer like Steam would: the auth code `XXXX-XXXXX-XXXX` is refused (Steam's 403,
+a 422 on `auth_code`), the share code `CSGO-00000-00000-00000-00000-00000` too (Steam's 412),
+and `STEA-MDOWN-0503` stands for Steam not answering (503). As in the API, codes are found in
+what is pasted, and two codes pasted the other way round are put back in place.
 Erasure: `POST /me/erase` signs the player out (signing in again starts afresh), and erasing a
 player from the admin removes them from the list (409 for the admin themself).
 
@@ -457,8 +458,26 @@ def player_metrics(match_id: str, steam_id: str) -> dict[str, Any]:
 
 # Onboarding and admin, as in `apps/api` (`onboarding.py`, `admin.py`).
 CONSENT_VERSION = "1"
-AUTH_CODE = re.compile(r"^[A-Z0-9]{4}-[A-Z0-9]{5}-[A-Z0-9]{4}$")
-SHARE_CODE = re.compile(r"^CSGO(-[A-Za-z0-9]{5}){5}$")
+AUTH_CODE = re.compile(r"(?<![A-Z0-9-])[A-Z0-9]{4}-[A-Z0-9]{5}-[A-Z0-9]{4}(?![A-Z0-9-])")
+SHARE_CODE = re.compile(r"CSGO(?:-[A-Za-z0-9]{5}){5}(?![A-Za-z0-9-])")
+
+
+def find_code(pattern: re.Pattern[str], text: str) -> str | None:
+    found = pattern.search(re.sub(r"\s+", "", text))
+    return found.group(0) if found else None
+
+
+def place_codes(auth_text: str, share_text: str) -> tuple[str | None, str | None]:
+    """As the API does (`onboarding.place_codes`): two codes pasted the other way round are put
+    back in place."""
+    auth = find_code(AUTH_CODE, auth_text.upper())
+    share = find_code(SHARE_CODE, share_text)
+    if auth is None and share is None:
+        swapped_auth = find_code(AUTH_CODE, share_text.upper())
+        swapped_share = find_code(SHARE_CODE, auth_text)
+        if swapped_auth and swapped_share:
+            return swapped_auth, swapped_share
+    return auth, share
 
 
 def consent(
@@ -725,11 +744,12 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(503, {"detail": "codes cannot be stored here"})
         if not (ME_STATE["consent"] and ME_STATE["consent"]["analysis"]):
             return self.reply(409, {"detail": "consent first"})
-        auth_code = str(body.get("auth_code", "")).strip().upper()
-        share_code = str(body.get("share_code", "")).strip()
-        if not AUTH_CODE.match(auth_code):
+        auth_code, share_code = place_codes(
+            str(body.get("auth_code", "")), str(body.get("share_code", ""))
+        )
+        if auth_code is None:
             return self.reply(422, {"detail": {"field": "auth_code"}})
-        if not SHARE_CODE.match(share_code):
+        if share_code is None:
             return self.reply(422, {"detail": {"field": "share_code"}})
         if auth_code == "STEA-MDOWN-0503":
             return self.reply(503, {"detail": "Steam did not answer"})
