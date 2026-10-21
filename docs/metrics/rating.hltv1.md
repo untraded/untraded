@@ -10,6 +10,8 @@
 
 (KillRating + 0.7 * SurvivalRating + MultiKillRating) / 2.7, each component being the player's per-round value over HLTV's reference average (KPR 0.679, survival 0.317, multi-kill points 1.277, with N² points for a round of N kills). Public formula.
 
+Stands on the rounds played: a value over few cases says little.
+
 ## Example
 
 On the `premier-half` fixture: a Premier match on de_cache, rounds 11 to 15, anonymized players.

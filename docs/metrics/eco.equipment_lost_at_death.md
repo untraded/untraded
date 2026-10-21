@@ -10,6 +10,8 @@
 
 The player's equipment value at the tick of death, averaged over their deaths.
 
+Stands on [`base.deaths`](base.deaths.md): a value over few cases says little.
+
 ## Example
 
 On the `premier-half` fixture: a Premier match on de_cache, rounds 11 to 15, anonymized players.

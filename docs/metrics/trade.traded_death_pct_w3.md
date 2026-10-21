@@ -10,6 +10,8 @@
 
 Traded deaths ÷ deaths * 100.
 
+Stands on [`base.deaths`](base.deaths.md): a value over few cases says little.
+
 ## Parameters
 
 | Parameter | Default | Meaning |

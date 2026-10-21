@@ -19,6 +19,9 @@ from pydantic import BaseModel
 from untraded_api.deps import ConnDep, UserDep
 from untraded_api.matches import SUMMARY, MatchSummary, summary_fields
 
+ROUNDS = "rounds"
+"""In `metric_definition.cases`: the metric stands on the rounds played."""
+
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 
 HEADLINES = ("rating.hltv1", "base.adr", "base.kast", "trade.untraded_deaths")
@@ -38,6 +41,12 @@ class Comparison(BaseModel):
     reference: float | None
     """Null when the reference is not shown (too little history)."""
     delta: float | None
+    cases: int | None
+    """What a rate or an average stands on in this session: the rounds played, or its cases
+    (the opening duels for the opening success). A rate over 2 cases says little. Null for
+    totals, and when a count it rests on is missing."""
+    signed: bool
+    """The value can be negative (K-D): a gap in % of the reference means nothing for it."""
 
 
 class SessionSummary(BaseModel):
@@ -153,14 +162,15 @@ WHERE s.steam_id = (SELECT steam_id FROM app_user WHERE id = %(user)s)
 
 COMPARISONS = """
 SELECT m.session_id, m.metric_id, m.version, d.name, d.unit, d.better, m.basis, m.session,
-       m.reference, m.delta
+       m.reference, m.delta, d.signed, d.cases, s.rounds
 FROM play_session_metric m
 JOIN metric_definition d USING (metric_id, version)
+JOIN play_session s ON s.id = m.session_id
 WHERE m.session_id = ANY(%(sessions)s)
 """
 
 
-def _comparison(row: tuple[Any, ...]) -> Comparison:
+def _comparison(row: tuple[Any, ...], cases: int | None) -> Comparison:
     return Comparison(
         metric_id=row[1],
         version=row[2],
@@ -171,7 +181,22 @@ def _comparison(row: tuple[Any, ...]) -> Comparison:
         session=row[7],
         reference=row[8],
         delta=row[9],
+        cases=cases,
+        signed=row[10],
     )
+
+
+def _cases(of: list[str], rounds: int, per_round: dict[str, float | None]) -> int | None:
+    """The number of cases a rate stands on: the rounds, or the sum of its count metrics (stored
+    per round in a session)."""
+    if not of:
+        return None
+    if of == [ROUNDS]:
+        return rounds
+    counts = [per_round.get(metric) for metric in of]
+    if any(c is None for c in counts):
+        return None
+    return round(sum(c for c in counts if c is not None) * rounds)
 
 
 def _summary(row: tuple[Any, ...], comparisons: list[Comparison]) -> dict[str, Any]:
@@ -192,8 +217,12 @@ def _summary(row: tuple[Any, ...], comparisons: list[Comparison]) -> dict[str, A
 
 def _comparisons(conn: ConnDep, sessions: list[uuid.UUID]) -> dict[uuid.UUID, list[Comparison]]:
     found: dict[uuid.UUID, list[Comparison]] = {s: [] for s in sessions}
-    for row in conn.execute(f"{COMPARISONS} ORDER BY m.metric_id", {"sessions": sessions}):
-        found[row[0]].append(_comparison(row))
+    rows = conn.execute(f"{COMPARISONS} ORDER BY m.metric_id", {"sessions": sessions}).fetchall()
+    per_round: dict[uuid.UUID, dict[str, float | None]] = {s: {} for s in sessions}
+    for row in rows:
+        per_round[row[0]][row[1]] = row[7]
+    for row in rows:
+        found[row[0]].append(_comparison(row, _cases(row[11], row[12], per_round[row[0]])))
     return found
 
 

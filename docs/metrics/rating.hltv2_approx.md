@@ -10,6 +10,8 @@
 
 Community approximation, **always labeled approx.**: 0.0073 * KAST + 0.3591 * KPR - 0.5329 * DPR + 0.2372 * Impact + 0.0032 * ADR + 0.1587, with Impact = 2.13 * KPR + 0.42 * APR - 0.41 and KAST in % (`base.kast`, same parameters). Its error against HLTV's published values is not known.
 
+Stands on the rounds played: a value over few cases says little.
+
 ## Parameters
 
 | Parameter | Default | Meaning |

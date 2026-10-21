@@ -14,7 +14,7 @@ import polars as pl
 
 from untraded.metrics._helpers import per_player, rate, rounds
 from untraded.metrics.dataset import Dataset
-from untraded.metrics.registry import ParamValue, metric
+from untraded.metrics.registry import ROUNDS, ParamValue, metric
 
 MIN_BLIND = {"flash.min_blind_s": 1.0}
 THROWN = {
@@ -76,6 +76,7 @@ for _name, _types in THROWN.items():
     name="Utility per round",
     unit="per_round",
     better="higher",
+    cases=(ROUNDS,),
     uses=("grenade", "round_player"),
     doc="Grenades thrown (all types) ÷ rounds played.",
 )
@@ -143,6 +144,7 @@ def enemy_blind_time(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
     name="Flash efficiency",
     unit="seconds",
     better="higher",
+    cases=("util.thrown_flash",),
     uses=("blind", "death", "grenade"),
     doc="Enemy blind time dealt ÷ flashes thrown.",
 )
@@ -297,6 +299,7 @@ def fire_damage(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
     name="Wasted utility",
     unit="dollars",
     better="lower",
+    cases=("base.deaths",),
     uses=("death", "kill"),
     doc="Buy value of the grenades in the player's inventory at death, averaged over their "
     "deaths (flash 200, HE 300, smoke 300, molotov 400, incendiary 500, decoy 50).",

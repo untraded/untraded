@@ -10,6 +10,8 @@ import polars as pl
 import pytest
 
 from untraded.metrics import REGISTRY, Dataset, compute
+from untraded.metrics.registry import ROUNDS
+from untraded.reference import is_total
 
 
 def round_player(rows: list[dict[str, Any]]) -> pl.DataFrame:
@@ -140,3 +142,21 @@ def test_every_metric_says_which_way_is_better() -> None:
         assert REGISTRY[a].better == REGISTRY[b].better, (a, b)
     assert REGISTRY["base.deaths"].better == "lower"
     assert REGISTRY["rating.hltv1"].better == "higher"
+
+
+def test_every_rate_says_what_it_is_computed_over() -> None:
+    for m in REGISTRY.values():
+        if m.kind == "table" or is_total(m.id):
+            assert m.cases == (), m.id
+            continue
+        assert m.cases, f"{m.id}: a rate or an average needs its cases"
+        if m.cases != (ROUNDS,):
+            # Count metrics only: their sum is the number of cases.
+            assert all(c in REGISTRY and REGISTRY[c].unit == "count" for c in m.cases), m.id
+    assert REGISTRY["duel.opening_success_pct"].cases == ("duel.opening_attempts",)
+    assert len(REGISTRY["clutch.win_pct"].cases) == 5
+    assert REGISTRY["trade.traded_death_pct_w3"].cases == ("base.deaths",)
+
+
+def test_only_differences_are_signed() -> None:
+    assert [m.id for m in REGISTRY.values() if m.signed] == ["base.kd_diff"]

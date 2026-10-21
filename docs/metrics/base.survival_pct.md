@@ -10,6 +10,8 @@
 
 % of rounds where the player is alive at round end and does not die after it (a death after the round end drops the weapons).
 
+Stands on the rounds played: a value over few cases says little.
+
 ## Example
 
 On the `premier-half` fixture: a Premier match on de_cache, rounds 11 to 15, anonymized players.

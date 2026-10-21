@@ -30,6 +30,8 @@ Better = Literal["higher", "lower", "neutral"]
 """Which way is an improvement, for the player: more kills is better (`higher`), more deaths is
 worse (`lower`), and some numbers are a style, not a level (`neutral`: opening attempts, utility
 thrown of one type). Advice rules and the colours of the session report read it."""
+ROUNDS = "rounds"
+"""In `Metric.cases`: the value is computed over the rounds played."""
 """`value`: one number per player (`compute`). `table`: rows per player with dimensions such as
 map, side and zone (`compute_table`), e.g. distributions and raw exports."""
 ParamValue = float | int | bool
@@ -57,6 +59,14 @@ class Metric:
     """Tables read (canonical and derived)."""
     scope: Scope = "player"
     kind: Kind = "value"
+    cases: tuple[str, ...] = ()
+    """What a rate or an average is computed over, so a reader can tell 1 case from 200:
+    `(ROUNDS,)` for the rounds played, else the count metrics whose sum is its number of cases
+    (`duel.opening_attempts` for the opening success). Empty for totals, which are their own
+    number of cases, and for table metrics."""
+    signed: bool = False
+    """The value can be negative (a difference, such as K-D): a gap in % of the reference means
+    nothing for it."""
 
 
 REGISTRY: dict[str, Metric] = {}
@@ -73,6 +83,8 @@ def metric(
     params: Mapping[str, ParamValue] | None = None,
     uses: tuple[str, ...] = (),
     kind: Kind = "value",
+    cases: tuple[str, ...] = (),
+    signed: bool = False,
 ) -> Callable[[Compute], Compute]:
     """Registers a metric. The decorated function computes it on a dataset."""
 
@@ -90,6 +102,8 @@ def metric(
             params=dict(params or {}),
             uses=uses,
             kind=kind,
+            cases=cases,
+            signed=signed,
         )
         return compute
 

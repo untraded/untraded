@@ -36,7 +36,8 @@ pytestmark = [
 FIXTURE = Path(__file__).parents[3] / "packages/untraded-py/tests/fixtures/premier-half"
 ME, STRANGER = 1, 99
 START = dt.datetime(2026, 10, 19, 20, tzinfo=dt.UTC)
-COMPARED = (*HEADLINES, "base.kills")
+COMPARED = (*HEADLINES, "base.kills", "base.deaths", "base.kd_diff", "trade.traded_death_pct")
+TOTALS = ("base.kills", "base.deaths", "base.kd_diff", "trade.untraded_deaths")
 TOKENS: dict[int, str] = {}
 
 
@@ -73,9 +74,7 @@ def session_id() -> uuid.UUID:
                 (session[0], match_id),
             )
             for metric in COMPARED:
-                basis = (
-                    "per_round" if metric in ("base.kills", "trade.untraded_deaths") else "value"
-                )
+                basis = "per_round" if metric in TOTALS else "value"
                 conn.execute(
                     "INSERT INTO play_session_metric (session_id, metric_id, version, basis, "
                     "session, reference, delta) VALUES (%s, %s, %s, %s, 1.5, 1.0, 0.5)",
@@ -187,6 +186,11 @@ def test_session_report(client: TestClient, session_id: uuid.UUID) -> None:
     assert metrics["base.kills"]["basis"] == "per_round"
     assert metrics["base.adr"]["name"] == REGISTRY["base.adr"].name
     assert metrics["trade.untraded_deaths"]["better"] == "lower"
+    # What each rate stands on: the 5 rounds, or the deaths (1.5 per round, so 8).
+    assert metrics["base.kast"]["cases"] == 5
+    assert metrics["trade.traded_death_pct"]["cases"] == 8
+    assert metrics["base.kills"]["cases"] is None
+    assert [m for m, c in metrics.items() if c["signed"]] == ["base.kd_diff"]
 
 
 def test_a_stranger_sees_no_session(client: TestClient, session_id: uuid.UUID) -> None:

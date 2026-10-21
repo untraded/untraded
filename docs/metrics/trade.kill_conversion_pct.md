@@ -10,6 +10,8 @@
 
 Trade kills ÷ trade opportunities * 100.
 
+Stands on [`trade.kill_opportunities`](trade.kill_opportunities.md): a value over few cases says little.
+
 ## Parameters
 
 | Parameter | Default | Meaning |

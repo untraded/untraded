@@ -15,7 +15,7 @@ import polars as pl
 from untraded.metrics._helpers import per_player
 from untraded.metrics.base import kast_round
 from untraded.metrics.dataset import Dataset
-from untraded.metrics.registry import ParamValue, metric
+from untraded.metrics.registry import ROUNDS, ParamValue, metric
 from untraded.ratings import rating_hltv_1, rating_hltv_2_approx
 
 KAST = {"trade.window_s": 5.0, "kast.count_flash_assist": False}
@@ -44,6 +44,7 @@ def _totals(ds: Dataset, params: Mapping[str, ParamValue] | None = None) -> pl.D
     name="HLTV Rating 1.0",
     unit="ratio",
     better="higher",
+    cases=(ROUNDS,),
     uses=("round_player",),
     doc="(KillRating + 0.7 * SurvivalRating + MultiKillRating) / 2.7, each component being the "
     "player's per-round value over HLTV's reference average (KPR 0.679, survival 0.317, "
@@ -69,6 +70,7 @@ def hltv1(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
     name="HLTV 2.0 (approx.)",
     unit="ratio",
     better="higher",
+    cases=(ROUNDS,),
     params=KAST,
     uses=("round_player",),
     doc="Community approximation, **always labeled approx.**: 0.0073 * KAST + 0.3591 * KPR - "

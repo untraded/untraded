@@ -10,6 +10,8 @@
 
 % of rounds played where the player got a Kill, an Assist (flash assists excluded by default), Survived (alive at round end, no death after it), or was Traded (death traded within `trade.window_s`).
 
+Stands on the rounds played: a value over few cases says little.
+
 ## Parameters
 
 | Parameter | Default | Meaning |

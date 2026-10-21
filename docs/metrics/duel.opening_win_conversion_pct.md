@@ -10,6 +10,8 @@
 
 % of rounds with an opening kill by the player that the team wins.
 
+Stands on [`duel.opening_kills`](duel.opening_kills.md): a value over few cases says little.
+
 ## Example
 
 On the `premier-half` fixture: a Premier match on de_cache, rounds 11 to 15, anonymized players.
