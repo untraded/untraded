@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { describe, expect, it } from "vitest";
 import { pickLocale } from "../src/i18n/locale";
+import { isTimeZone, pickTimeZone } from "../src/i18n/time-zone";
 import {
+  compare,
   dateRange,
   day,
   delta,
@@ -16,6 +18,8 @@ import {
   number,
   percent,
   score,
+  shortDay,
+  time,
   trend,
 } from "../src/lib/format";
 
@@ -73,7 +77,7 @@ describe("metric values", () => {
   it("groups metrics by family and writes days and ranges", () => {
     expect(family("trade.untraded_deaths")).toBe("trade");
     expect(day("2026-10-18", "en")).toBe("Oct 18, 2026");
-    expect(dateRange("2026-10-19T18:00:00Z", "2026-10-19T19:30:00Z", "en")).toMatch(/–/);
+    expect(dateRange("2026-10-19T18:00:00Z", "2026-10-19T19:30:00Z", "en", "UTC")).toMatch(/–/);
   });
 });
 
@@ -114,6 +118,16 @@ describe("gap", () => {
     expect(gap({ ...base, better: "lower", session: 0.3, reference: 0.25 })).toBeCloseTo(-20);
   });
 
+  it("measures a negative reference by its size, so a better K-D stays positive", () => {
+    // K-D of -2 against -4: two kills better, a 50 % improvement.
+    expect(gap({ ...base, better: "higher", session: -2, reference: -4 })).toBeCloseTo(50);
+    expect(gap({ ...base, better: "higher", session: -6, reference: -4 })).toBeCloseTo(-50);
+  });
+
+  it("is undefined without a session value", () => {
+    expect(gap({ ...base, better: "higher", session: null, reference: 75 })).toBeNull();
+  });
+
   it("is undefined without a reference, for a zero reference or a neutral metric", () => {
     expect(gap({ ...base, better: "higher", session: 90, reference: null })).toBeNull();
     expect(gap({ ...base, better: "higher", session: 90, reference: 0 })).toBeNull();
@@ -128,5 +142,71 @@ describe("gap", () => {
     expect(gapPercent(-24.4, "fr")).toBe("−24 %");
     expect(gapPercent(12.6, "en")).toBe("+13 %");
     expect(gapPercent(0.2, "en")).toBe("0 %");
+  });
+});
+
+describe("compare", () => {
+  const count = {
+    metric_id: "base.multikills_4",
+    version: "1.0.0",
+    name: "4K",
+    unit: "count",
+    basis: "per_round" as const,
+    better: "higher" as const,
+    delta: null,
+  };
+
+  it("leaves out a count the reference expects fewer than 3 times this session", () => {
+    // 0.05 per round over 39 rounds: about 2 expected, a coin flip.
+    expect(compare({ ...count, session: 0.1, reference: 0.05 }, 39)).toEqual({
+      kind: "rare",
+      gap: null,
+    });
+  });
+
+  it("ranks the same count once enough events are expected", () => {
+    // 0.08 per round over 39 rounds: about 3 expected.
+    const result = compare({ ...count, session: 0.1, reference: 0.08 }, 39);
+    expect(result.kind).toBe("ranked");
+    expect(result.gap).toBeCloseTo(25);
+  });
+
+  it("compares the K-D in units, never as a share", () => {
+    const kd = { ...count, metric_id: "base.kd_diff", name: "K-D", session: 0.2, reference: 0.01 };
+    expect(compare(kd, 39)).toEqual({ kind: "units", gap: null });
+  });
+
+  it("tells neutral metrics apart from missing comparisons", () => {
+    expect(compare({ ...count, better: "neutral", session: 1, reference: 1 }, 39).kind).toBe(
+      "neutral",
+    );
+    expect(compare({ ...count, session: null, reference: 1 }, 39).kind).toBe("none");
+    expect(
+      compare({ ...count, unit: "pct", basis: "value", session: 50, reference: 0 }, 39).kind,
+    ).toBe("none");
+  });
+});
+
+describe("time zone", () => {
+  // 22:30 UTC on 19 October is 00:30 on 20 October in Paris (summer time).
+  const late = "2026-10-19T22:30:00Z";
+
+  it("writes days and times in the given time zone, not the server's", () => {
+    expect(shortDay(late, "fr", "Europe/Paris")).toBe("20 oct.");
+    expect(shortDay(late, "fr", "UTC")).toBe("19 oct.");
+    expect(time(late, "fr", "Europe/Paris")).toBe("00:30");
+    expect(time(null, "fr", "Europe/Paris")).toBe("–");
+    expect(dateRange(late, "2026-10-19T23:10:00Z", "fr", "Europe/Paris")).toMatch(
+      /^20 oct\. 2026, 00:30/,
+    );
+  });
+
+  it("keeps a valid cookie, else the instance's zone, else Paris", () => {
+    expect(pickTimeZone("America/New_York", "UTC")).toBe("America/New_York");
+    expect(pickTimeZone("Mars/Olympus", "Asia/Tokyo")).toBe("Asia/Tokyo");
+    expect(pickTimeZone("Mars/Olympus", "nope")).toBe("Europe/Paris");
+    expect(pickTimeZone(undefined, undefined)).toBe("Europe/Paris");
+    expect(isTimeZone("Europe/Paris")).toBe(true);
+    expect(isTimeZone("")).toBe(false);
   });
 });
