@@ -34,6 +34,49 @@ services:
       retries: 20
     logging: *logging
 
+  # A pg_dump every day at UNTRADED_BACKUP_HOUR (UTC) into the `backups` volume: the last
+  # UNTRADED_BACKUP_KEEP_DAYS daily dumps, plus Sunday's for UNTRADED_BACKUP_KEEP_WEEKS weeks.
+  # Copy that volume off the machine: see docs/self-hosting.md, "Backups".
+  backup:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      PGHOST: db
+      PGUSER: untraded
+      PGDATABASE: untraded
+      PGPASSWORD: ${UNTRADED_DB_PASSWORD:?set UNTRADED_DB_PASSWORD}
+      BACKUP_HOUR: ${UNTRADED_BACKUP_HOUR:-3}
+      KEEP_DAYS: ${UNTRADED_BACKUP_KEEP_DAYS:-7}
+      KEEP_WEEKS: ${UNTRADED_BACKUP_KEEP_WEEKS:-4}
+    volumes:
+      - backups:/backups
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        set -u
+        mkdir -p /backups/daily /backups/weekly
+        while true; do
+          now=$$(date -u +%s)
+          next=$$(date -u -d "today $$BACKUP_HOUR:00" +%s)
+          [ "$$next" -gt "$$now" ] || next=$$((next + 86400))
+          sleep $$((next - now))
+          name="untraded-$$(date -u +%F).dump"
+          if pg_dump --format=custom --file="/backups/daily/$$name.part" \
+              && mv "/backups/daily/$$name.part" "/backups/daily/$$name"; then
+            [ "$$(date -u +%u)" != 7 ] || cp "/backups/daily/$$name" "/backups/weekly/$$name"
+            find /backups/daily -name '*.dump' -mtime +$$((KEEP_DAYS - 1)) -delete
+            find /backups/weekly -name '*.dump' -mtime +$$((KEEP_WEEKS * 7 - 1)) -delete
+            echo "backup: $$name"
+          else
+            rm -f "/backups/daily/$$name.part"
+            echo "backup: pg_dump failed" >&2
+          fi
+        done
+    depends_on:
+      db:
+        condition: service_healthy
+    logging: *logging
+
   # Applies the migrations, then exits; the services wait for it.
   migrate:
     build:
@@ -136,3 +179,4 @@ volumes:
   db-data:
   store:
   collector-data:
+  backups:

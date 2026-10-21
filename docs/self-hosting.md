@@ -48,6 +48,7 @@ stack variables.
 | `BOT_ACCOUNT_NAME` | yes | the bot's account name |
 | `BOT_REFRESH_TOKEN` | first start | the bot's refresh token, if you have one (see below) |
 | `UNTRADED_DEMO_RETENTION_DAYS` | no | days to keep raw demos after parsing; unset keeps them, `0` deletes them once parsed |
+| `UNTRADED_BACKUP_HOUR`, `UNTRADED_BACKUP_KEEP_DAYS`, `UNTRADED_BACKUP_KEEP_WEEKS` | no | when the daily database dump runs (3, UTC) and how many are kept: 7 daily, plus 4 weekly (Sunday's) |
 | `COLLECTOR_INTERVAL_SECONDS` | no | time between collection rounds (3600) |
 | `UNTRADED_SITE_URL` | for the site | the site's address as browsers see it, e.g. `https://untraded.example.com` (default `http://localhost:3000`). Steam sends users back there after signing in, and `https` makes the session cookie `Secure` |
 | `UNTRADED_BIND`, `UNTRADED_WEB_PORT` | no | where the web is published (`127.0.0.1:3000`); `172.17.0.1` lets a reverse proxy running in Docker reach it |
@@ -118,9 +119,37 @@ A match goes `downloading`, then `parsing`, then `ready`. Other outcomes:
 
 | Volume | Holds | Back it up |
 |---|---|---|
-| `db-data` | PostgreSQL | yes (`pg_dump`) |
+| `db-data` | PostgreSQL | through `backups` |
+| `backups` | the daily dumps of the database (`daily/`, `weekly/`) | yes, off the machine (below) |
 | `store` | raw demos (`demos/`) and Parquet per match (`matches/`) | the Parquet, at least: metrics are recomputed from it (ADR 0009) |
 | `collector-data` | the bot's refresh token (`.state.json`, mode 600) | no: log in again instead |
+
+## Backups
+
+The `backup` service dumps the database every day at 03:00 UTC (`pg_dump`, custom format) into
+the `backups` volume, and keeps the last 7 daily dumps and 4 weekly ones. A dump on the same
+machine does not survive the loss of that machine: copy the volume elsewhere (rsync over SSH, a
+backup tool), together with the Parquet in `store` (`matches/`). Without the Parquet, the matches
+cannot be recomputed.
+
+```bash
+docker compose logs backup                     # one "backup: untraded-YYYY-MM-DD.dump" per day
+docker compose exec backup ls -l /backups/daily
+```
+
+To restore, into an empty database (a fresh `db-data` volume), before starting the services. The
+API's role is not in the dump (roles belong to the server, not to the database): create it first.
+
+```bash
+docker compose up -d db
+docker compose cp untraded-2026-10-21.dump db:/tmp/restore.dump
+docker compose exec db psql -U untraded -c "CREATE ROLE untraded_api NOLOGIN"
+docker compose exec db pg_restore -U untraded -d untraded --no-owner --exit-on-error /tmp/restore.dump
+docker compose up -d
+```
+
+Keep `UNTRADED_SECRET_KEY` with your backups: without it, the authentication codes in the dump
+cannot be decrypted, and every source has to be added again.
 
 ## Updating
 
