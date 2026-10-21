@@ -20,8 +20,12 @@ NONCE_BYTES = 12
 def secret_key(encoded: str | None) -> bytes:
     if not encoded:
         raise ValueError("missing UNTRADED_SECRET_KEY (32 bytes, base64)")
+    # As lenient as the collector's Node decoder, which reads the same variable: the padding
+    # may be missing (`openssl rand -base64 32 | tr -d =`), and URL-safe letters are accepted.
+    text = encoded.strip().replace("-", "+").replace("_", "/")
+    text += "=" * (-len(text) % 4)
     try:
-        key = base64.b64decode(encoded, validate=True)
+        key = base64.b64decode(text, validate=True)
     except binascii.Error as error:
         raise ValueError("UNTRADED_SECRET_KEY is not base64") from error
     if len(key) != 32:

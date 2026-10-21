@@ -26,6 +26,10 @@ def test_a_secret_round_trips_and_stays_bound_to_its_row() -> None:
 
 def test_the_key_is_32_bytes_of_base64() -> None:
     assert secret_key(base64.b64encode(KEY).decode()) == KEY
+    # Read like the collector does: without its padding, with spaces around, URL-safe.
+    assert secret_key(base64.b64encode(KEY).decode().rstrip("=")) == KEY
+    assert secret_key(" " + base64.b64encode(KEY).decode() + "\n") == KEY
+    assert secret_key(base64.urlsafe_b64encode(KEY).decode()) == KEY
     for bad in ("", "not base64!", base64.b64encode(b"short").decode()):
         with pytest.raises(ValueError, match="UNTRADED_SECRET_KEY"):
             secret_key(bad)
