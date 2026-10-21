@@ -17,7 +17,7 @@ import { onboardingStep } from "@/lib/onboarding";
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ signin?: string }>;
+  searchParams: Promise<{ signin?: string; erased?: string }>;
 }) {
   const me = await getMe();
   if (me) {
@@ -27,7 +27,7 @@ export default async function Home({
   }
   const t = await getTranslations("home");
   const settings = await getTranslations("settings");
-  const { signin } = await searchParams;
+  const { signin, erased } = await searchParams;
   const problem =
     signin === "not_invited" ? t("notInvited") : signin === "failed" ? t("failed") : null;
   return (
@@ -45,6 +45,11 @@ export default async function Home({
       <section className="mx-auto max-w-2xl py-16 text-center">
         <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">{t("title")}</h1>
         <p className="mt-4 text-muted-foreground">{t("lead")}</p>
+        {erased && !problem && (
+          <p role="status" className="mt-8 rounded border border-border bg-card px-4 py-3 text-sm">
+            {t("erased")}
+          </p>
+        )}
         {problem && (
           <p
             role="alert"

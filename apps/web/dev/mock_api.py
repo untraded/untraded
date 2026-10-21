@@ -19,6 +19,8 @@ each screen: `joined`, `consented`, `followed`, `error` (Valve refuses their cod
 Codes that answer like Steam would: the auth code `XXXX-XXXXX-XXXX` is refused (422), the share
 code `CSGO-00000-00000-00000-00000-00000` too, and `STEA-MDOWN-0503` stands for Steam not
 answering (503).
+Erasure: `POST /me/erase` signs the player out (signing in again starts afresh), and erasing a
+player from the admin removes them from the list (409 for the admin themself).
 
 Metric names, units and directions come from the `untraded` registry when it is installed
 (`uv run`), so the mock stays in step with the real metrics.
@@ -543,6 +545,8 @@ def player(
 
 
 PLAYERS: list[dict[str, Any]] = [
+    # The admin is a player too: erasing them from the admin answers 409 (settings only).
+    player(0, "you", "followed", matches=12) | {"steam_id": ME},
     player(1, "Kestrel", "followed", matches=41, corpus=True),
     player(2, "Brindle", "followed", error="403", matches=17),
     player(3, "Oxide", "followed", error="412", matches=9),
@@ -661,6 +665,12 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(204, headers={"set-cookie": f"{COOKIE}=; Path=/; Max-Age=0"})
         if not self.signed_in():
             return self.reply(401, {"detail": "not signed in"})
+        if self.path == "/me/erase":
+            if body.get("confirm") is not True:
+                return self.reply(422, {"detail": {"field": "confirm"}})
+            # Signed out at once; signing in again starts from a followed player.
+            set_state("followed")
+            return self.reply(202, headers={"set-cookie": f"{COOKIE}=; Path=/; Max-Age=0"})
         if self.path == "/me/consent":
             if body.get("analysis") and body.get("text_version") != CONSENT_VERSION:
                 return self.reply(409, {"detail": "this is not the current consent text"})
@@ -735,6 +745,14 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(401, {"detail": "not signed in"})
         if not ME_STATE["admin"]:
             return self.reply(403, {"detail": "admins only"})
+        if found := re.fullmatch(r"/admin/players/(\d+)", self.path):
+            if found[1] == ME:
+                return self.reply(409, {"detail": "erase your own account from your settings"})
+            for p in PLAYERS:
+                if p["steam_id"] == found[1]:
+                    PLAYERS.remove(p)
+                    return self.reply(202)
+            return self.reply(404, {"detail": "no such player"})
         if found := re.fullmatch(r"/admin/invitations/(\d+)", self.path):
             for p in PLAYERS:
                 if p["steam_id"] == found[1] and p["state"] == "invited":
