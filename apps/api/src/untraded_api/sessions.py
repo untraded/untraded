@@ -49,6 +49,28 @@ class Comparison(BaseModel):
     """The value can be negative (K-D): a gap in % of the reference means nothing for it."""
 
 
+class PlayedMap(BaseModel):
+    """A match of the session, as a list of sessions shows it."""
+
+    match_id: uuid.UUID
+    map: str | None
+    result: str | None
+    """`win`, `loss` or `tie`, for the player; null when the score is unknown."""
+    my_score: int | None
+    their_score: int | None
+
+
+class TopPriority(BaseModel):
+    """The session's first priority, as a list of sessions shows it (the report has them all)."""
+
+    rule_id: str
+    message_key: str
+    args: dict[str, Any]
+    cost: float
+    rounds_touched: int
+    rounds_lost: int
+
+
 class SessionSummary(BaseModel):
     id: uuid.UUID
     started_at: dt.datetime
@@ -61,6 +83,10 @@ class SessionSummary(BaseModel):
     enough: bool
     """Whether the player had enough history for a reference."""
     headlines: list[Comparison]
+    maps: list[PlayedMap]
+    """Its matches in the order played."""
+    top_priority: TopPriority | None
+    """Null when no rule fired on the session."""
 
 
 class SessionList(BaseModel):
@@ -199,7 +225,56 @@ def _cases(of: list[str], rounds: int, per_round: dict[str, float | None]) -> in
     return round(sum(c for c in counts if c is not None) * rounds)
 
 
-def _summary(row: tuple[Any, ...], comparisons: list[Comparison]) -> dict[str, Any]:
+PLAYED = """
+SELECT sm.session_id, m.id, m.map,
+       CASE WHEN m.score_a IS NULL THEN NULL
+            WHEN m.score_a = m.score_b THEN 'tie'
+            WHEN (mp.team = 'A') = (m.score_a > m.score_b) THEN 'win'
+            ELSE 'loss' END,
+       CASE WHEN mp.team = 'A' THEN m.score_a ELSE m.score_b END,
+       CASE WHEN mp.team = 'A' THEN m.score_b ELSE m.score_a END
+FROM play_session_match sm
+JOIN play_session s ON s.id = sm.session_id
+JOIN match m ON m.id = sm.match_id
+JOIN match_player mp ON mp.match_id = m.id AND mp.steam_id = s.steam_id
+WHERE sm.session_id = ANY(%(sessions)s)
+ORDER BY m.played_at, m.id
+"""
+
+TOP = """
+SELECT session_id, rule_id, message_key, message_args, cost, rounds_touched, rounds_lost
+FROM advice WHERE session_id = ANY(%(sessions)s) AND priority = 1
+"""
+
+
+def _extras(
+    conn: ConnDep, sessions: list[uuid.UUID]
+) -> tuple[dict[uuid.UUID, list[PlayedMap]], dict[uuid.UUID, TopPriority]]:
+    """The matches and the first priority of each session, in one query each."""
+    played: dict[uuid.UUID, list[PlayedMap]] = {s: [] for s in sessions}
+    for r in conn.execute(PLAYED, {"sessions": sessions}):
+        played[r[0]].append(
+            PlayedMap(match_id=r[1], map=r[2], result=r[3], my_score=r[4], their_score=r[5])
+        )
+    top = {
+        r[0]: TopPriority(
+            rule_id=r[1],
+            message_key=r[2],
+            args=r[3],
+            cost=r[4],
+            rounds_touched=r[5],
+            rounds_lost=r[6],
+        )
+        for r in conn.execute(TOP, {"sessions": sessions})
+    }
+    return played, top
+
+
+def _summary(
+    row: tuple[Any, ...],
+    comparisons: list[Comparison],
+    extras: tuple[dict[uuid.UUID, list[PlayedMap]], dict[uuid.UUID, TopPriority]],
+) -> dict[str, Any]:
     by_id = {c.metric_id: c for c in comparisons}
     return {
         "id": row[0],
@@ -212,6 +287,8 @@ def _summary(row: tuple[Any, ...], comparisons: list[Comparison]) -> dict[str, A
         "losses": row[7],
         "ties": row[8],
         "headlines": [by_id[m] for m in HEADLINES if m in by_id],
+        "maps": extras[0].get(row[0], []),
+        "top_priority": extras[1].get(row[0]),
     }
 
 
@@ -233,14 +310,17 @@ def list_sessions(
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> SessionList:
-    """The user's own sessions, most recent first, with their headline comparisons."""
+    """The user's own sessions, most recent first, with their headline comparisons, their
+    maps and their first priority."""
     rows = conn.execute(
         f"{SESSION} GROUP BY s.id ORDER BY s.started_at DESC LIMIT %(limit)s OFFSET %(offset)s",
         {"user": user, "limit": limit, "offset": offset},
     ).fetchall()
-    comparisons = _comparisons(conn, [row[0] for row in rows])
+    ids = [row[0] for row in rows]
+    comparisons = _comparisons(conn, ids)
+    extras = _extras(conn, ids)
     return SessionList(
-        items=[SessionSummary(**_summary(row, comparisons[row[0]])) for row in rows],
+        items=[SessionSummary(**_summary(row, comparisons[row[0]], extras)) for row in rows],
         limit=limit,
         offset=offset,
     )
@@ -281,7 +361,7 @@ def get_session(session_id: uuid.UUID, conn: ConnDep, user: UserDep) -> SessionR
         {"user": user, "session": session_id},
     ).fetchall()
     return SessionReport(
-        **_summary(row, comparisons),
+        **_summary(row, comparisons, _extras(conn, [session_id])),
         reference=Reference(
             kind=window[5],
             level_low=window[6],

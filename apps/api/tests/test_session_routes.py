@@ -163,6 +163,18 @@ def test_my_sessions(client: TestClient, session_id: uuid.UUID) -> None:
     assert (session["matches"], session["wins"], session["losses"], session["ties"]) == (1, 0, 1, 0)
     assert [h["metric_id"] for h in session["headlines"]] == list(HEADLINES)
     assert session["headlines"][0]["delta"] == 0.5
+    # What a list of sessions shows of each one: its maps and its first priority.
+    [played] = session["maps"]
+    assert (played["map"], played["result"]) == ("de_cache", "loss")
+    assert played["my_score"] < played["their_score"]
+    top = session["top_priority"]
+    assert (top["rule_id"], top["cost"], top["rounds_touched"], top["rounds_lost"]) == (
+        "trade.untraded_deaths",
+        3.5,
+        4,
+        3,
+    )
+    assert top["args"]["events"] == 4
 
 
 def test_session_report(client: TestClient, session_id: uuid.UUID) -> None:
