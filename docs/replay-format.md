@@ -38,4 +38,22 @@ Player states: `x`, `y`, `z` (world units, integers), `yaw` (whole degrees, 0 to
 SteamIDs are strings everywhere: they do not fit in a JavaScript number.
 
 On the radar, a world point `(x, y)` falls at pixel `((x - pos_x) / scale, (pos_y - y) / scale)`.
-Radar images are not part of this repository (see the maps' notes in `untraded.maps`).
+
+## Radars
+
+The viewer's backgrounds are our own radars, in `apps/web/public/radars/` (served at
+`/radars/{map}.svg`, and `/radars/{map}_lower.svg` for the lower level of Nuke, Train and
+Vertigo). They are licensed CC BY 4.0, credit "The Untraded Authors".
+
+- **What they are**: SVGs of 1024 x 1024 pixels in the radar transform above. The walkable areas
+  of the map's navigation mesh are drawn white on a transparent background, more opaque the
+  higher they are (four height bands), so a light or a dark theme can tint them.
+- **What they are not**: Valve's radar images. Those are not in this repository.
+- **Redrawing them**, after a map update, from a CS2 installation (`untraded.vpk` reads each map's
+  navigation mesh out of `game/csgo/maps/{map}.vpk`):
+
+  ```bash
+  uv run untraded radars apps/web/public/radars --cs2 "C:/Program Files (x86)/Steam/steamapps/common/Counter-Strike Global Offensive"
+  ```
+
+  `--navs DIR` reads `.nav` files instead, and `--map NAME` limits it to one map.

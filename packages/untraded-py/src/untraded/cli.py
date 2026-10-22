@@ -17,11 +17,12 @@ from tempfile import TemporaryDirectory
 
 import polars as pl
 
-from untraded import calibration, corpus, fixtures, reference, report, resources
+from untraded import calibration, corpus, fixtures, radars, reference, report, resources
 from untraded.corpus.sync import SftpRemote, SyncError, SyncReport, pull, push
 from untraded.demofile import CorruptDemoError, NotADemoError
 from untraded.derive import derive
 from untraded.metrics import REGISTRY, Dataset, compute, compute_table
+from untraded.navmesh import NavError
 from untraded.parsing import (
     MODES,
     CanonicalError,
@@ -30,6 +31,7 @@ from untraded.parsing import (
     parse_demo,
 )
 from untraded.validation import csdm
+from untraded.vpk import VpkError
 
 DEFAULT_MANIFEST = Path("corpus") / "manifest.toml"
 
@@ -47,6 +49,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         UnsupportedModeError,
         fixtures.FixtureError,
         reference.ReferenceError,
+        NavError,
+        VpkError,
     ) as error:
         print(f"error: {error}", file=sys.stderr)
         return 2
@@ -158,6 +162,16 @@ def _parser() -> argparse.ArgumentParser:
     expect.add_argument("dirs", nargs="+", type=Path)
     expect.set_defaults(run=_fixture_expect)
 
+    radar = commands.add_parser(
+        "radars", help="draw the 2D viewer's radars (SVG) from the maps' navigation meshes"
+    )
+    radar.add_argument("out", type=Path, help="directory to write the SVG files to")
+    source = radar.add_mutually_exclusive_group(required=True)
+    source.add_argument("--cs2", type=Path, help="a CS2 installation directory")
+    source.add_argument("--navs", type=Path, help="a directory of .nav files")
+    radar.add_argument("--map", action="append", dest="maps", help="only this map (repeatable)")
+    radar.set_defaults(run=_radars)
+
     corpus_parser = commands.add_parser("corpus", help="manage the reference demo corpus")
     corpus_parser.add_argument(
         "--manifest",
@@ -202,6 +216,21 @@ def _parser() -> argparse.ArgumentParser:
         sync.add_argument("--dry-run", action="store_true", help="only show what would be done")
         sync.set_defaults(run=run)
     return parser
+
+
+def _radars(args: argparse.Namespace) -> int:
+    if args.cs2 is not None:
+        cs2: Path = args.cs2
+        written = radars.write_radars(lambda name: radars.game_nav(cs2, name), args.out, args.maps)
+    else:
+        navs: Path = args.navs
+        written = radars.write_radars(lambda name: radars.nav_file(navs, name), args.out, args.maps)
+    for path in written:
+        print(path)
+    if not written:
+        print("no map found", file=sys.stderr)
+        return 1
+    return 0
 
 
 def _positive_int(value: str) -> int:
