@@ -62,6 +62,10 @@ def test_fixtures_hold_no_personal_data(name: str) -> None:
         for column in columns:
             items = set(tables[table][column].explode().drop_nulls().to_list())
             assert not {i for i in items if "nife" in i or "ayonet" in i} - {fixtures.KNIFE}
+    for table, columns in fixtures.ITEM_NAME_COLUMNS.items():
+        for column in columns:
+            items = set(tables[table][column].drop_nulls().to_list())
+            assert not {i for i in items if "nife" in i or "ayonet" in i} - {fixtures.KNIFE}
     for table, columns in fixtures.WEAPON_COLUMNS.items():
         for column in columns:
             weapons = set(tables[table][column].to_list())
