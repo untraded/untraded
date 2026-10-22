@@ -50,7 +50,13 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
 
       {ready && (
         <>
-          <Rounds rounds={match.rounds} label={t("rounds")} overtime={t("overtime")} />
+          <Rounds
+            match={match.id}
+            rounds={match.rounds}
+            label={t("rounds")}
+            overtime={t("overtime")}
+            link={(round) => t("roundLink", { round })}
+          />
           <div className="mt-8 grid gap-6 lg:grid-cols-2">
             {(["A", "B"] as const).map((team) => (
               <TeamTable key={team} match={match} team={team} locale={locale} />
@@ -62,23 +68,39 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
   );
 }
 
-function Rounds({ rounds, label, overtime }: { rounds: Round[]; label: string; overtime: string }) {
+/** The match's rounds, each opening the 2D viewer. */
+function Rounds({
+  match,
+  rounds,
+  label,
+  overtime,
+  link,
+}: {
+  match: string;
+  rounds: Round[];
+  label: string;
+  overtime: string;
+  link: (round: number) => string;
+}) {
   return (
     <section className="mt-8">
       <h2 className="mb-2 text-sm font-medium text-muted-foreground">{label}</h2>
       <ol className="flex flex-wrap gap-1">
         {rounds.map((round) => (
-          <li
-            key={round.round}
-            title={`${round.round} · ${round.winner_side ?? "?"} · ${round.reason}${round.is_overtime ? ` · ${overtime}` : ""}`}
-            className={cn(
-              "flex h-8 w-7 flex-col items-center justify-center rounded text-[10px] tabular-nums",
-              round.winner_team === "A" ? "bg-side-ct/20" : "bg-side-t/20",
-              "text-foreground",
-            )}
-          >
-            <span className="font-semibold">{round.round}</span>
-            <span>{round.winner_team ?? "–"}</span>
+          <li key={round.round}>
+            <Link
+              href={`/matches/${match}/rounds/${round.round}`}
+              aria-label={link(round.round)}
+              title={`${round.round} · ${round.winner_side ?? "?"} · ${round.reason}${round.is_overtime ? ` · ${overtime}` : ""}`}
+              className={cn(
+                "flex h-8 w-7 flex-col items-center justify-center rounded text-[10px] tabular-nums hover:ring-2 hover:ring-ring focus-visible:ring-2 focus-visible:ring-ring",
+                round.winner_team === "A" ? "bg-side-ct/20" : "bg-side-t/20",
+                "text-foreground",
+              )}
+            >
+              <span className="font-semibold">{round.round}</span>
+              <span>{round.winner_team ?? "–"}</span>
+            </Link>
           </li>
         ))}
       </ol>

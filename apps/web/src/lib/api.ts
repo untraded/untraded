@@ -14,8 +14,7 @@ export function internalApiUrl(): string {
   return (process.env.UNTRADED_API_INTERNAL_URL ?? "http://localhost:8000").replace(/\/$/, "");
 }
 
-/** How browsers reach the API: through the web itself (`app/api/[...path]`). */
-export const PUBLIC_API_PATH = "/api";
+export { PUBLIC_API_PATH } from "./api-path";
 
 export interface Consent {
   text_version: string;

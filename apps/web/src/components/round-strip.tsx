@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 "use client";
 
-import { Check, Copy } from "lucide-react";
+import { Check, Copy, Map as MapIcon } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 
 export interface StripMark {
@@ -13,7 +14,7 @@ export interface StripMark {
   /** The sentence before the commands: which round, which side, what to do in CS2. */
   command: string;
   /** Every moment to review in the round (a rule can flag several), in the order they happened. */
-  moments: { tick: number; label: string; copy: string }[];
+  moments: { tick: number; label: string; copy: string; view?: string }[];
 }
 
 export interface StripCell {
@@ -42,7 +43,7 @@ export function RoundStrip({
   cells: StripCell[];
   /** `false` when the match could not be loaded: only its rounds to review, not consecutive. */
   match?: boolean;
-  labels: { copied: string };
+  labels: { copied: string; view: string };
 }) {
   const marked = cells.filter((cell) => cell.mark);
   const [selected, setSelected] = useState(marked[0]?.round ?? 0);
@@ -134,6 +135,15 @@ export function RoundStrip({
                     )}
                   </Button>
                 </span>
+                {moment.view && (
+                  <Link
+                    href={moment.view}
+                    className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1.5")}
+                  >
+                    <MapIcon aria-hidden="true" />
+                    {labels.view}
+                  </Link>
+                )}
               </li>
             );
           })}

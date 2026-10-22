@@ -178,6 +178,9 @@ async function Evidence({
   const byRound = new Map<number, AdviceEvent[]>();
   for (const event of events)
     byRound.set(event.round, [...(byRound.get(event.round) ?? []), event]);
+  // The 2D viewer opens on the moment (5 s before the event), when the match can be loaded.
+  const viewer = (event: AdviceEvent, round: number) =>
+    match ? `/matches/${event.match_id}/rounds/${round}?t=${event.goto_tick}` : undefined;
   const mark = (moments: AdviceEvent[], round: number, side: string, won: boolean | null) => ({
     label:
       won === null
@@ -193,6 +196,7 @@ async function Evidence({
         tick: event.goto_tick,
         label: t("moment", { index: i + 1, count: moments.length }),
         copy: t("copyCommand", { command }),
+        view: viewer(event, round),
       };
     }),
   });
@@ -240,7 +244,7 @@ async function Evidence({
       match={Boolean(match && match.rounds.length > 0 && match.my_team)}
       legend={t("stripLegend")}
       cells={cells}
-      labels={{ copied: t("copied") }}
+      labels={{ copied: t("copied"), view: t("view2d") }}
     />
   );
 }
