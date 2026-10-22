@@ -195,4 +195,9 @@ cannot be decrypted, and every source has to be added again.
 git pull && docker compose up -d --build
 ```
 
-`migrate` applies any new migration before the services start.
+`migrate` applies any new migration before the services start. After an update that adds or
+changes the 2D viewer's round replays, write them for the matches parsed before:
+
+```bash
+docker compose exec worker untraded-worker replays
+```

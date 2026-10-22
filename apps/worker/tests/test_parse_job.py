@@ -6,6 +6,7 @@ the parser (no demo in the repository)."""
 from __future__ import annotations
 
 import dataclasses
+import shutil
 import uuid
 from pathlib import Path
 from typing import Any
@@ -15,7 +16,7 @@ import psycopg
 import pytest
 
 from untraded.parsing import CanonicalMatch, UnsupportedModeError
-from untraded_worker import queue
+from untraded_worker import queue, replays
 from untraded_worker.analysis import Analysis
 from untraded_worker.jobs import ON_DEAD, JobError, ParseJob
 from untraded_worker.load import load_match, refresh_access, sql_frames
@@ -154,6 +155,16 @@ def test_parse_job_end_to_end(
     assert row == ("ready", SHA, f"matches/{match_id}")
     assert store.exists(f"matches/{match_id}/round_player.parquet")
     assert store.exists(f"matches/{match_id}/kill.parquet")
+    # The 2D viewer's replays, one per round.
+    assert store.exists(f"matches/{match_id}/replay/11.json.gz")
+    assert store.exists(f"matches/{match_id}/replay/15.json.gz")
+
+    # Matches parsed before replays existed get them from `untraded-worker replays`.
+    shutil.rmtree(store.path(f"matches/{match_id}/replay"))
+    assert replays.backfill(db, store) == 1
+    assert store.exists(f"matches/{match_id}/replay/11.json.gz")
+    assert replays.backfill(db, store) == 0  # nothing left to do
+    assert replays.backfill(db, store, force=True) == 1
 
 
 def test_a_known_demo_is_merged_into_its_match(

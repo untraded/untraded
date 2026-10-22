@@ -19,6 +19,7 @@ analyse (a Competitive or Wingman match in Valve's share-code chain) makes the m
 from __future__ import annotations
 
 import datetime as dt
+import logging
 import urllib.parse
 import uuid
 from collections.abc import Callable
@@ -30,7 +31,7 @@ import psycopg
 
 from untraded.demofile import CorruptDemoError, NotADemoError, demo_suffix, digest
 from untraded.parsing import CanonicalMatch, UnsupportedModeError, parse_demo
-from untraded_worker import erase, load, queue, sessions
+from untraded_worker import erase, load, queue, replays, sessions
 from untraded_worker.analysis import analyze
 from untraded_worker.download import BlockedAddressError, DemoGone, fetch
 from untraded_worker.queue import Job
@@ -38,6 +39,8 @@ from untraded_worker.runner import DeadHandler, Handler
 from untraded_worker.store import LocalStore
 
 Parse = Callable[..., CanonicalMatch]
+
+log = logging.getLogger("untraded.worker")
 
 
 class JobError(ValueError):
@@ -87,6 +90,10 @@ class ParseJob:
         analysis = analyze(canonical.tables())
         prefix = f"matches/{match_id}"
         self.store.write_tables(prefix, analysis.tables)
+        try:
+            replays.write_replays(self.store, prefix, analysis.tables)
+        except Exception:  # the viewer's files are derived: the analysis stands without them
+            log.exception("replays of match %s failed; `untraded-worker replays` retries", match_id)
         load.load_match(conn, match_id, analysis)
         conn.execute(
             "UPDATE match SET status = 'ready', parquet_prefix = %s, parsed_at = now(), "

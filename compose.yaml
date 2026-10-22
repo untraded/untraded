@@ -160,9 +160,12 @@ services:
       UNTRADED_SECRET_KEY: ${UNTRADED_SECRET_KEY:?set UNTRADED_SECRET_KEY}
       STEAM_WEB_API_KEY: ${STEAM_WEB_API_KEY:?set STEAM_WEB_API_KEY}
       UNTRADED_BACKUPS_DIR: /backups
+      UNTRADED_STORE_DIR: /data/store
     volumes:
       # Read-only: the admin's health page shows the last dump.
       - backups:/backups:ro
+      # Read-only: the 2D viewer's round replays, written by the worker.
+      - store:/data/store:ro
     depends_on:
       migrate:
         condition: service_completed_successfully
