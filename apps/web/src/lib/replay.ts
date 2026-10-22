@@ -231,6 +231,25 @@ export function levelOf(replay: Pick<Replay, "radar">, z: number | null): Level 
   return below !== null && below !== undefined && z !== null && z < below ? "lower" : "upper";
 }
 
+/**
+ * The level a player stands on at a tick, for the viewer to show it on its own. Where their height
+ * is not known at that moment (no sample yet, dead), their last known height counts, else the
+ * next one; upper when there is none, or when the map has one level.
+ */
+export function levelAt(
+  replay: Pick<Replay, "radar" | "ticks" | "players">,
+  steamid: string | null,
+  tick: number,
+): Level {
+  const player = replay.players.find((p) => p.steamid === steamid);
+  if (!player || !hasLevels(replay)) return "upper";
+  const sample = sampleAt(replay.ticks, tick);
+  let z = between(player.z, sample);
+  for (let i = sample.i0; z === null && i >= 0; i--) z = player.z[i] ?? null;
+  for (let i = sample.i1; z === null && i < player.z.length; i++) z = player.z[i] ?? null;
+  return levelOf(replay, z);
+}
+
 /** What the clock shows: the buy time left, the round time left, or the bomb's. */
 export function clock(
   replay: Pick<Replay, "tickrate" | "freeze_end_tick" | "bomb">,

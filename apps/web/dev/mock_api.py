@@ -231,8 +231,9 @@ HEADLINES = ["rating.hltv1", "base.adr", "base.kast", "trade.untraded_deaths"]
 # Round replays (2D viewer): the five rounds of the `premier-half` fixture (de_cache, rounds 11 to
 # 15), built by `untraded.replay` when it is installed (`uv run`), else none (404). Round n of a
 # ready match is fixture round n modulo 5, its players renamed as the mock's ("you" is A1). The
-# fixture's map has no radar values (`radar: null`); matches on Nuke get Nuke's transform, with
-# heights moved so that some players stand on its lower level, to see both cases.
+# positions are Cache's, so most replays stay on de_cache, with its radar. Matches on Nuke get
+# Nuke's transform, with heights moved so that some players stand on its lower level; matches on
+# Anubis get no transform (`radar: null`), to see every case.
 NUKE = {"pos_x": -3453, "pos_y": 2887, "scale": 7.0, "lower_below": -495}
 NUKE_Z = -2150
 
@@ -277,8 +278,11 @@ def replay(match: dict[str, Any], n: int) -> dict[str, Any] | None:
         blind["victim"], blind["flasher"] = rename(blind["victim"]), rename(blind["flasher"])
     for event in found["bomb"]["events"]:
         event["player"] = rename(event["player"])
-    found.update({"match_id": match["id"], "round": n, "map": match["map"]})
+    found.update({"match_id": match["id"], "round": n})
+    if match["map"] == "de_anubis":
+        found.update({"map": "de_anubis", "radar": None})
     if match["map"] == "de_nuke":
+        found["map"] = "de_nuke"
         found["radar"] = NUKE
         move = lambda z: None if z is None else z + NUKE_Z  # noqa: E731
         for player in found["players"]:

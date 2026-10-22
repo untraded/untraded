@@ -134,11 +134,16 @@ export async function createScene(
   function draw({ tick, focus, level }: SceneState) {
     ground.scale.set(scale);
     for (const [key, sprite] of Object.entries(radars) as [Level, Sprite][]) {
-      sprite.visible = !two || key === level || !radars[level];
+      // Only the level shown: when its radar is missing, no radar rather than the other level's.
+      sprite.visible = !two || key === level;
       sprite.tint = colors.radar;
     }
     const sample = sampleAt(replay.ticks, tick);
     const unit = frame.scale * scale;
+    // What stands on the other level is drawn faded, as its players are (hollow).
+    const away = (z: number | null | undefined) =>
+      two && z !== null && z !== undefined && levelOf(replay, z) !== level;
+    const AWAY = 0.35;
     zones.clear();
     marks.clear();
     bodies.clear();
@@ -148,10 +153,11 @@ export async function createScene(
       if (!g.detonate || g.detonate_tick === null || tick < g.detonate_tick) continue;
       if (g.end_tick !== null && tick > g.end_tick) continue;
       const [x, y] = at(g.detonate[0], g.detonate[1]);
+      const dim = away(g.detonate[2]) ? AWAY : 1;
       if (g.type === "smoke") {
-        zones.circle(x, y, SMOKE_RADIUS * unit).fill({ color: colors.muted, alpha: 0.42 });
+        zones.circle(x, y, SMOKE_RADIUS * unit).fill({ color: colors.muted, alpha: 0.42 * dim });
       } else if (g.type === "molotov" || g.type === "incendiary") {
-        zones.circle(x, y, FIRE_RADIUS * unit).fill({ color: colors.t, alpha: 0.3 });
+        zones.circle(x, y, FIRE_RADIUS * unit).fill({ color: colors.t, alpha: 0.3 * dim });
       }
     }
 
@@ -159,17 +165,22 @@ export async function createScene(
     for (const g of replay.grenades) {
       if (tick < g.throw_tick || (g.detonate_tick !== null && tick >= g.detonate_tick)) continue;
       const color = sideColor(g.side);
-      let last: [number, number] | null = null;
+      let last: { point: [number, number]; away: boolean } | null = null;
       g.path.ticks.forEach((t, k) => {
         if (t > tick) return;
         const point = at(g.path.x[k] ?? 0, g.path.y[k] ?? 0);
-        if (k % 2 === 0) marks.circle(point[0], point[1], 1).fill({ color, alpha: 0.7 });
-        last = point;
+        const off = away(g.path.z[k]);
+        if (k % 2 === 0) {
+          marks.circle(point[0], point[1], 1).fill({ color, alpha: 0.7 * (off ? AWAY : 1) });
+        }
+        last = { point, away: off };
       });
-      if (last)
-        marks
-          .circle((last as [number, number])[0], (last as [number, number])[1], 2.5)
-          .fill({ color });
+      const end = last as { point: [number, number]; away: boolean } | null;
+      if (end) {
+        const [x, y] = end.point;
+        if (end.away) marks.circle(x, y, 2.5).stroke({ width: 1.25, color, alpha: AWAY + 0.15 });
+        else marks.circle(x, y, 2.5).fill({ color });
+      }
     }
 
     // Flashes and HE: a short burst where they go off.
@@ -180,10 +191,13 @@ export async function createScene(
       if (since < 0 || since > 0.6) continue;
       const [x, y] = at(g.detonate[0], g.detonate[1]);
       const k = since / 0.6;
+      const dim = away(g.detonate[2]) ? AWAY : 1;
       const radius = 6 + k * (g.type === "flash" ? 26 : 18);
       const color = g.type === "flash" ? colors.foreground : colors.loss;
-      if (g.type === "flash") marks.circle(x, y, radius).fill({ color, alpha: (1 - k) * 0.3 });
-      marks.circle(x, y, radius).stroke({ width: 2, color, alpha: 1 - k });
+      if (g.type === "flash") {
+        marks.circle(x, y, radius).fill({ color, alpha: (1 - k) * 0.3 * dim });
+      }
+      marks.circle(x, y, radius).stroke({ width: 2, color, alpha: (1 - k) * dim });
     }
 
     // The bomb, once planted: it blinks, faster after it explodes it stays.
@@ -193,9 +207,12 @@ export async function createScene(
         exploded && tick >= exploded.tick
           ? true
           : Math.floor((tick - planted.tick) / (replay.tickrate / 2)) % 2 === 0;
-      marks
-        .poly([x, y - 7, x + 7, y, x, y + 7, x - 7, y])
-        .fill({ color: colors.loss, alpha: on ? 1 : 0.45 });
+      const diamond = [x, y - 7, x + 7, y, x, y + 7, x - 7, y];
+      if (away(replay.bomb.planted_at[2])) {
+        marks.poly(diamond).stroke({ width: 1.5, color: colors.loss, alpha: on ? 0.6 : 0.3 });
+      } else {
+        marks.poly(diamond).fill({ color: colors.loss, alpha: on ? 1 : 0.45 });
+      }
     }
 
     // Deaths: a cross where the player fell.
@@ -204,12 +221,17 @@ export async function createScene(
       const victim = replay.players.find((p) => p.steamid === kill.victim);
       if (!victim) continue;
       const [x, y] = at(kill.victim_x, kill.victim_y);
+      const off = away(kill.victim_z);
       marks
         .moveTo(x - 5, y - 5)
         .lineTo(x + 5, y + 5)
         .moveTo(x + 5, y - 5)
         .lineTo(x - 5, y + 5)
-        .stroke({ width: 2, color: sideColor(victim.side), alpha: 0.75 });
+        .stroke({
+          width: off ? 1.25 : 2,
+          color: sideColor(victim.side),
+          alpha: off ? AWAY : 0.75,
+        });
     }
 
     // Players, the highlighted one on top.
