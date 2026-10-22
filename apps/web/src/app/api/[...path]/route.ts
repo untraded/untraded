@@ -38,6 +38,18 @@ async function relay(
     if (value) out.set(name, value);
   }
   for (const cookie of response.headers.getSetCookie()) out.append("set-cookie", cookie);
+  // `fetch` decompresses what the API gzipped (a round replay: 40 kB gzipped, 500 kB of JSON),
+  // and Next does not compress a route's stream: gzip it again for a browser that takes it.
+  const gzipped = /\bgzip\b/.test(response.headers.get("content-encoding") ?? "");
+  const accepted = /\bgzip\b/.test(request.headers.get("accept-encoding") ?? "");
+  if (gzipped && response.body) {
+    out.set("vary", "accept-encoding");
+    if (accepted) {
+      out.set("content-encoding", "gzip");
+      const body = response.body.pipeThrough(new CompressionStream("gzip"));
+      return new Response(body, { status: response.status, headers: out });
+    }
+  }
   return new Response(response.body, { status: response.status, headers: out });
 }
 

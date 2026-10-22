@@ -143,7 +143,8 @@
     "deaths": "D",
     "notReady": "This match is not analysed yet.",
     "missing": "Missing from this demo: {items}",
-    "overtime": "OT"
+    "overtime": "OT",
+    "roundLink": "Review round {round} in 2D"
   },
   "sessions": {
     "title": "Sessions",
@@ -304,7 +305,8 @@
     "roundLabelSide": "Round {round}, {side}",
     "roundCommandMany": "Round {round}, {side}: {count} moments to review. In CS2, open the demo, then",
     "moment": "Moment {index} of {count}",
-    "stripUnavailable": "{map}, match unavailable: the rounds alone"
+    "stripUnavailable": "{map}, match unavailable: the rounds alone",
+    "view2d": "Review in 2D"
   },
   "actions": {
     "kinds": {
@@ -583,5 +585,64 @@
     "eraseFailed": "The erasure could not start. Try again in a moment.",
     "you": "You",
     "yourSettings": "Erase from your Settings"
+  },
+  "viewer": {
+    "title": "Round {round}",
+    "of": "of {count}",
+    "crumb": "{map}, {date}, {score}",
+    "previous": "Round {round}",
+    "next": "Round {round}",
+    "previousLabel": "Previous round: {round}",
+    "nextLabel": "Next round: {round}",
+    "won": "Round won",
+    "lost": "Round lost",
+    "tie": "Round",
+    "winner": "{side} win",
+    "reasons": {
+      "bomb_exploded": "the bomb explodes",
+      "bomb_defused": "the bomb is defused",
+      "elimination": "elimination",
+      "time_ran_out": "time runs out",
+      "ct_surrender": "surrender",
+      "t_surrender": "surrender"
+    },
+    "focus": "A moment to review, opened 5 s before.",
+    "focusPlayer": "{name} is highlighted.",
+    "inGame": "In CS2:",
+    "copy": "Copy {command}",
+    "copied": "Copied",
+    "canvas": "Round {round} from above: players' positions, grenades and the bomb",
+    "loading": "Loading the round…",
+    "missing": "This round has no replay: the match was analysed before the viewer existed, or its replay could not be made.",
+    "failed": "The replay could not be loaded. Try again in a moment.",
+    "noGraphics": "This browser cannot show the viewer: it needs WebGL.",
+    "play": "Play",
+    "pause": "Pause",
+    "back": "Back 5 s",
+    "forward": "Forward 5 s",
+    "speed": "Playback speed",
+    "timeline": "Moment of the round",
+    "level": "Level",
+    "upper": "Upper",
+    "lower": "Lower",
+    "freeze": "buy",
+    "bomb": "bomb",
+    "noRadar": "No background for this map: framed on the round.",
+    "alive": "{count} alive",
+    "dead": "dead",
+    "kills": "Kills",
+    "noKills": "No kill yet.",
+    "headshot": "head",
+    "world": "the world",
+    "knife": "Knife",
+    "c4": "C4",
+    "keys": "Space: play or pause. Arrows: ±1 s, with Shift: ±5 s.",
+    "legendKill": "line: kill",
+    "legendBomb": "diamond: bomb",
+    "legendFocus": "moment to review",
+    "markKill": "{attacker} kills {victim} at {time}",
+    "markPlant": "Bomb planted at {time}",
+    "markFocus": "Moment to review",
+    "winnerReason": "{side} win: {reason}"
   }
 }
