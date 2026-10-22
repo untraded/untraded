@@ -114,6 +114,7 @@ export const TWO_LEVELS = new Set(["de_nuke", "de_train", "de_vertigo"]);
 export const RADAR_MAPS = new Set([
   "de_ancient",
   "de_anubis",
+  "de_cache",
   "de_dust2",
   "de_inferno",
   "de_mirage",

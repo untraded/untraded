@@ -40,6 +40,7 @@ RADARS: dict[str, Radar] = {
     "de_inferno": Radar(-2087, 3870, 4.9),
     "de_nuke": Radar(-3453, 2887, 7.0, lower_below=-495),
     "de_ancient": Radar(-2953, 2164, 5.0),
+    "de_cache": Radar(-2000, 3250, 5.5),
     "de_anubis": Radar(-2796, 3328, 5.22),
     "de_dust2": Radar(-2476, 3239, 4.4),
     "de_train": Radar(-2308, 2078, 4.082077, lower_below=-50),
