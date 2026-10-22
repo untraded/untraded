@@ -11,7 +11,8 @@ run to the next. It answers like `apps/api` (same JSON shapes, see `apps/web/src
 - sessions cover the three references (own days, level, none), priorities with evidence,
   👍/👎 (kept in memory), and the follow-up of the previous priorities;
 - matches cover every status (ready, analysing, unavailable...);
-- onboarding (consent, then the two codes) and the admin, with players in every state.
+- onboarding (consent, then the two codes) and the admin, with players in every state;
+- round replays for the 2D viewer, from the `premier-half` fixture (see `fixture_replays`).
 
 The signed-in player starts followed and admin. `/api/mock/state/<state>` switches them, to see
 each screen: `joined`, `consented`, `followed`, `error` (Valve refuses their code), `withdrawn`,
@@ -227,13 +228,102 @@ def with_cases(values: list[dict[str, Any]], rounds: int) -> list[dict[str, Any]
 HEADLINES = ["rating.hltv1", "base.adr", "base.kast", "trade.untraded_deaths"]
 
 
+# Round replays (2D viewer): the five rounds of the `premier-half` fixture (de_cache, rounds 11 to
+# 15), built by `untraded.replay` when it is installed (`uv run`), else none (404). Round n of a
+# ready match is fixture round n modulo 5, its players renamed as the mock's ("you" is A1). The
+# fixture's map has no radar values (`radar: null`); matches on Nuke get Nuke's transform, with
+# heights moved so that some players stand on its lower level, to see both cases.
+NUKE = {"pos_x": -3453, "pos_y": 2887, "scale": 7.0, "lower_below": -495}
+NUKE_Z = -2150
+
+
+def fixture_replays() -> list[dict[str, Any]]:
+    try:
+        from pathlib import Path
+
+        from untraded import fixtures
+        from untraded.replay import build_replays
+    except ImportError:
+        return []
+    root = Path(__file__).resolve().parents[3] / "packages" / "untraded-py" / "tests" / "fixtures"
+    replays = build_replays(fixtures.read(root / "premier-half"))
+    return [replays[n] for n in sorted(replays)]
+
+
+FIXTURE_REPLAYS = fixture_replays()
+REPLAY_NAMES = {
+    str(n): (ME if n == 1 else str(76561190000000100 + n - 1), NAMES[n - 1]) for n in range(1, 11)
+}
+
+
+def fixture_round(n: int) -> dict[str, Any] | None:
+    return FIXTURE_REPLAYS[(n - 1) % len(FIXTURE_REPLAYS)] if FIXTURE_REPLAYS else None
+
+
+def replay(match: dict[str, Any], n: int) -> dict[str, Any] | None:
+    base = fixture_round(n)
+    if base is None:
+        return None
+    found = json.loads(json.dumps(base))
+    rename = lambda sid: REPLAY_NAMES.get(sid, (sid, ""))[0] if sid is not None else None  # noqa: E731
+    for player in found["players"]:
+        player["steamid"], player["name"] = REPLAY_NAMES[player["steamid"]]
+    for kill in found["kills"]:
+        for key in ("attacker", "victim", "assister"):
+            kill[key] = rename(kill[key])
+    for grenade in found["grenades"]:
+        grenade["thrower"] = rename(grenade["thrower"])
+    for blind in found["blinds"]:
+        blind["victim"], blind["flasher"] = rename(blind["victim"]), rename(blind["flasher"])
+    for event in found["bomb"]["events"]:
+        event["player"] = rename(event["player"])
+    found.update({"match_id": match["id"], "round": n, "map": match["map"]})
+    if match["map"] == "de_nuke":
+        found["radar"] = NUKE
+        move = lambda z: None if z is None else z + NUKE_Z  # noqa: E731
+        for player in found["players"]:
+            player["z"] = [move(z) for z in player["z"]]
+        for kill in found["kills"]:
+            kill["attacker_z"], kill["victim_z"] = move(kill["attacker_z"]), move(kill["victim_z"])
+        for grenade in found["grenades"]:
+            grenade["path"]["z"] = [move(z) for z in grenade["path"]["z"]]
+            if grenade["detonate"]:
+                grenade["detonate"][2] = move(grenade["detonate"][2])
+        if found["bomb"]["planted_at"]:
+            found["bomb"]["planted_at"][2] = move(found["bomb"]["planted_at"][2])
+    return found
+
+
+REPLAY_CACHE: dict[tuple[str, int], bytes] = {}
+
+
+def replay_gz(match: dict[str, Any], n: int) -> bytes | None:
+    """The replay as the API serves it: compact JSON, gzipped."""
+    if (match["id"], n) not in REPLAY_CACHE:
+        found = replay(match, n)
+        if found is None:
+            return None
+        from untraded.replay import to_json_gz
+
+        REPLAY_CACHE[(match["id"], n)] = to_json_gz(found)
+    return REPLAY_CACHE[(match["id"], n)]
+
+
+def evidence_tick(n: int, i: int) -> int:
+    """A kill tick of the replay of round n, so that a round to review opens on its event."""
+    base = fixture_round(n)
+    if base is None or not base["kills"]:
+        return 40_000 + 9_000 * i
+    return base["kills"][i % len(base["kills"])]["tick"]
+
+
 def evidence(match: dict[str, Any], count: int, zone: str | None = None) -> list[dict[str, Any]]:
     return [
         {
             "match_id": match["id"],
             "round": 3 + 2 * i,
-            "tick": 40_000 + 9_000 * i,
-            "goto_tick": 39_680 + 9_000 * i,
+            "tick": evidence_tick(3 + 2 * i, i),
+            "goto_tick": evidence_tick(3 + 2 * i, i) - 320,
             "map": match["map"],
             "side": "T" if i % 2 else "CT",
             "killer": str(76561190000000106),
@@ -623,6 +713,16 @@ class Handler(BaseHTTPRequestHandler):
     def signed_in(self) -> bool:
         return f"{COOKIE}=" in (self.headers.get("cookie") or "")
 
+    def send_raw(self, gzipped: bytes) -> None:
+        """A replay, as the API sends it: gzipped JSON that never changes."""
+        self.send_response(200)
+        self.send_header("content-type", "application/json")
+        self.send_header("content-encoding", "gzip")
+        self.send_header("cache-control", "private, max-age=86400")
+        self.send_header("content-length", str(len(gzipped)))
+        self.end_headers()
+        self.wfile.write(gzipped)
+
     def reply(self, status: int, body: Any = None, headers: dict[str, str] | None = None) -> None:
         data = b"" if body is None else json.dumps(body).encode()
         self.send_response(status)
@@ -667,6 +767,14 @@ class Handler(BaseHTTPRequestHandler):
             for n, session in enumerate(SESSIONS):
                 if session["id"] == found[1]:
                     return self.reply(200, report(n))
+        if found := re.fullmatch(r"/matches/([0-9a-f-]+)/rounds/(\d+)/replay", path):
+            n = int(found[2])
+            for match in MATCHES:
+                if match["id"] == found[1] and match["status"] == "ready":
+                    data = replay_gz(match, n) if 1 <= n <= match["rounds_played"] else None
+                    if data is not None:
+                        return self.send_raw(data)
+            return self.reply(404, {"detail": "no such replay"})
         if found := re.fullmatch(r"/matches/([0-9a-f-]+)/players/(\d+)", path):
             return self.reply(200, player_metrics(found[1], found[2]))
         if found := re.fullmatch(r"/matches/([0-9a-f-]+)", path):

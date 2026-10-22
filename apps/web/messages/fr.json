@@ -143,7 +143,8 @@
     "deaths": "M",
     "notReady": "Ce match n'est pas encore analysé.",
     "missing": "Absent de cette démo : {items}",
-    "overtime": "Prol."
+    "overtime": "Prol.",
+    "roundLink": "Revoir le round {round} en 2D"
   },
   "sessions": {
     "title": "Sessions",
@@ -304,7 +305,8 @@
     "roundLabelSide": "Round {round}, {side}",
     "roundCommandMany": "Round {round}, {side} : {count} moments à revoir. Dans CS2, ouvre la démo, puis",
     "moment": "Moment {index} sur {count}",
-    "stripUnavailable": "{map}, match indisponible : les rounds seuls"
+    "stripUnavailable": "{map}, match indisponible : les rounds seuls",
+    "view2d": "Revoir en 2D"
   },
   "actions": {
     "kinds": {
@@ -583,5 +585,64 @@
     "eraseFailed": "L'effacement n'a pas pu être lancé. Réessaie dans un moment.",
     "you": "C'est toi",
     "yourSettings": "Effacer depuis tes Réglages"
+  },
+  "viewer": {
+    "title": "Round {round}",
+    "of": "sur {count}",
+    "crumb": "{map}, {date}, {score}",
+    "previous": "Round {round}",
+    "next": "Round {round}",
+    "previousLabel": "Round précédent : {round}",
+    "nextLabel": "Round suivant : {round}",
+    "won": "Round gagné",
+    "lost": "Round perdu",
+    "tie": "Round",
+    "winner": "Les {side} gagnent",
+    "reasons": {
+      "bomb_exploded": "la bombe explose",
+      "bomb_defused": "la bombe est désamorcée",
+      "elimination": "élimination",
+      "time_ran_out": "le temps est écoulé",
+      "ct_surrender": "abandon",
+      "t_surrender": "abandon"
+    },
+    "focus": "Moment à revoir, ouvert 5 s avant.",
+    "focusPlayer": "{name} est mis en avant.",
+    "inGame": "Dans CS2 :",
+    "copy": "Copier {command}",
+    "copied": "Copié",
+    "canvas": "Vue de dessus du round {round} : positions des joueurs, grenades et bombe",
+    "loading": "Chargement du round…",
+    "missing": "Ce round n'a pas de replay : le match a été analysé avant le viewer, ou son replay n'a pas pu être créé.",
+    "failed": "Le replay n'a pas pu être chargé. Réessaie dans un instant.",
+    "noGraphics": "Ce navigateur ne peut pas afficher le viewer : il lui faut WebGL.",
+    "play": "Lecture",
+    "pause": "Pause",
+    "back": "Reculer de 5 s",
+    "forward": "Avancer de 5 s",
+    "speed": "Vitesse de lecture",
+    "timeline": "Moment du round",
+    "level": "Étage",
+    "upper": "Haut",
+    "lower": "Bas",
+    "freeze": "achat",
+    "bomb": "bombe",
+    "noRadar": "Pas de fond pour cette carte : cadrage sur le round.",
+    "alive": "{count} en vie",
+    "dead": "mort",
+    "kills": "Kills",
+    "noKills": "Aucun kill pour l'instant.",
+    "headshot": "tête",
+    "world": "le monde",
+    "knife": "Couteau",
+    "c4": "C4",
+    "keys": "Espace : lecture ou pause. Flèches : ±1 s, avec Maj : ±5 s.",
+    "legendKill": "trait : kill",
+    "legendBomb": "losange : bombe",
+    "legendFocus": "moment à revoir",
+    "markKill": "{attacker} tue {victim} à {time}",
+    "markPlant": "Bombe posée à {time}",
+    "markFocus": "Moment à revoir",
+    "winnerReason": "Les {side} gagnent : {reason}"
   }
 }
