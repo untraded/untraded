@@ -8,13 +8,12 @@ import { Button } from "@/components/ui/button";
 import { PUBLIC_API_PATH } from "@/lib/api-path";
 import { cn } from "@/lib/cn";
 import {
-  between,
   clock,
   clockText,
   hasLevels,
   killWeapon,
   type Level,
-  levelOf,
+  levelAt,
   nearest,
   REPLAY_VERSION,
   type Replay,
@@ -157,9 +156,7 @@ export function ReplayViewer({
 
   // The level shown: the one chosen, else the highlighted player's.
   const sample = replay ? sampleAt(replay.ticks, tick) : null;
-  const focused = replay?.players.find((p) => p.steamid === focus);
-  const autoLevel: Level =
-    replay && focused && sample ? levelOf(replay, between(focused.z, sample)) : "upper";
+  const autoLevel: Level = replay ? levelAt(replay, focus, tick) : "upper";
   const level = chosenLevel ?? autoLevel;
   viewRef.current = { focus, level };
   playRef.current = { playing, speed };

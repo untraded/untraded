@@ -9,6 +9,7 @@ import {
   clockText,
   frameOf,
   hasLevels,
+  levelAt,
   levelOf,
   sampleAt,
   startTick,
@@ -107,5 +108,23 @@ describe("replay", () => {
     expect(weaponKind("knife_t")).toBe("knife");
     expect(weaponKind("C4 Explosive")).toBe("c4");
     expect(weaponKind("AK-47")).toBeNull();
+  });
+
+  it("finds the level a player stands on, from their last known height", () => {
+    const ticks = [0, 4, 8, 12];
+    const player = (steamid: string, z: (number | null)[]) =>
+      ({ steamid, z }) as unknown as Parameters<typeof levelAt>[0]["players"][number];
+    const replay = {
+      radar: NUKE,
+      ticks,
+      players: [player("up", [-400, -400, null, null]), player("down", [null, -600, -600, -600])],
+    };
+    expect(levelAt(replay, "up", 6)).toBe("upper");
+    // No height yet at the opening sample: the next one counts, not a default.
+    expect(levelAt(replay, "down", 0)).toBe("lower");
+    // No height any more (dead): the last one counts.
+    expect(levelAt(replay, "up", 12)).toBe("upper");
+    expect(levelAt(replay, "nobody", 6)).toBe("upper");
+    expect(levelAt({ ...replay, radar: { ...NUKE, lower_below: null } }, "down", 6)).toBe("upper");
   });
 });
