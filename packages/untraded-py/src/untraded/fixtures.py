@@ -58,6 +58,10 @@ ITEM_COLUMNS: dict[str, tuple[str, ...]] = {
     "kill": ("victim_inventory",),
 }
 """Inventories (item names, such as "Butterfly Knife")."""
+ITEM_NAME_COLUMNS: dict[str, tuple[str, ...]] = {
+    "player_tick": ("active_weapon",),
+}
+"""Single item names (the weapon in hand, such as "Butterfly Knife")."""
 WEAPON_COLUMNS: dict[str, tuple[str, ...]] = {
     "kill": ("weapon",),
     "damage": ("weapon",),
@@ -83,6 +87,11 @@ def generic_knives(tables: Mapping[str, pl.DataFrame]) -> Tables:
             pl.col(c).list.eval(
                 pl.when(_is_knife_item(pl.element())).then(pl.lit(KNIFE)).otherwise(pl.element())
             )
+            for c in columns
+        )
+    for table, columns in ITEM_NAME_COLUMNS.items():
+        out[table] = out[table].with_columns(
+            pl.when(_is_knife_item(pl.col(c))).then(pl.lit(KNIFE)).otherwise(pl.col(c)).alias(c)
             for c in columns
         )
     for table, columns in WEAPON_COLUMNS.items():
