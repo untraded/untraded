@@ -13,3 +13,10 @@ path = "packages/**"
 precedence = "closest"
 SPDX-FileCopyrightText = "2026 The Untraded Authors"
 SPDX-License-Identifier = "MIT"
+
+# Our radars for the 2D viewer, drawn from the maps' navigation meshes (`untraded radars`).
+[[annotations]]
+path = "apps/web/public/radars/**"
+precedence = "closest"
+SPDX-FileCopyrightText = "2026 The Untraded Authors"
+SPDX-License-Identifier = "CC-BY-4.0"
