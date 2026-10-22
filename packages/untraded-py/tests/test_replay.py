@@ -30,7 +30,7 @@ def test_one_replay_per_round_with_its_frame(replays: dict[int, dict[str, Any]])
     assert first["round"] == 11
     assert first["start_tick"] <= first["freeze_end_tick"] <= first["end_tick"]
     assert first["ticks"] == sorted(first["ticks"])
-    assert first["radar"] is None  # de_cache is not in the map pool
+    assert first["radar"] == {"pos_x": -2000, "pos_y": 3250, "scale": 5.5, "lower_below": None}
 
 
 def test_every_player_state_is_aligned_on_the_timeline(
