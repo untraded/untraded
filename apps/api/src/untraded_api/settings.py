@@ -36,6 +36,8 @@ class Settings:
     """`STEAM_WEB_API_KEY`: checks a player's codes with Steam before keeping them."""
     backups_dir: str | None = None
     """`UNTRADED_BACKUPS_DIR`: where the `backup` service writes its dumps, for `/admin/health`."""
+    store_dir: str | None = None
+    """`UNTRADED_STORE_DIR`: the worker's store (read-only here), for the round replays."""
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -58,4 +60,5 @@ class Settings:
             secret_key=secret_key(key) if (key := os.environ.get("UNTRADED_SECRET_KEY")) else None,
             steam_api_key=os.environ.get("STEAM_WEB_API_KEY") or None,
             backups_dir=os.environ.get("UNTRADED_BACKUPS_DIR") or None,
+            store_dir=os.environ.get("UNTRADED_STORE_DIR") or None,
         )
