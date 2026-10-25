@@ -38,6 +38,17 @@ class Settings:
     """`UNTRADED_BACKUPS_DIR`: where the `backup` service writes its dumps, for `/admin/health`."""
     store_dir: str | None = None
     """`UNTRADED_STORE_DIR`: the worker's store (read-only here), for the round replays."""
+    uploads_dir: str | None = None
+    """`UNTRADED_UPLOADS_DIR`: where the demos players send are written, for the worker to take
+    (`ingest_upload`). Without it, players cannot send demos."""
+    upload_max_bytes: int = 400_000_000
+    """`UNTRADED_UPLOAD_MAX_MB`: the largest file a player may send (FACEIT demos: up to 300 MB)."""
+    uploads_per_day: int = 20
+    """`UNTRADED_UPLOADS_PER_DAY`: uploads per player in 24 hours; 0 for no limit."""
+    uploads_in_flight: int = 3
+    """`UNTRADED_UPLOADS_IN_FLIGHT`: a player's uploads not yet analysed; 0 for no limit."""
+    upload_min_free_bytes: int = 5_000_000_000
+    """`UNTRADED_UPLOAD_MIN_FREE_GB`: uploads are refused when the disk has less free space."""
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -61,4 +72,11 @@ class Settings:
             steam_api_key=os.environ.get("STEAM_WEB_API_KEY") or None,
             backups_dir=os.environ.get("UNTRADED_BACKUPS_DIR") or None,
             store_dir=os.environ.get("UNTRADED_STORE_DIR") or None,
+            uploads_dir=os.environ.get("UNTRADED_UPLOADS_DIR") or None,
+            upload_max_bytes=int(float(os.environ.get("UNTRADED_UPLOAD_MAX_MB", "400")) * 1e6),
+            uploads_per_day=int(os.environ.get("UNTRADED_UPLOADS_PER_DAY", "20")),
+            uploads_in_flight=int(os.environ.get("UNTRADED_UPLOADS_IN_FLIGHT", "3")),
+            upload_min_free_bytes=int(
+                float(os.environ.get("UNTRADED_UPLOAD_MIN_FREE_GB", "5")) * 1e9
+            ),
         )
