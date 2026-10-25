@@ -198,6 +198,7 @@
     "record": "{wins} V – {losses} D{ties, plural, =0 {} other { – # N}}",
     "reference": "Comparé à tes {matches, plural, one {# match} other {# matchs}} ({rounds} rounds) du {since} au {until}.",
     "notEnough": "Pas encore assez d'historique pour une référence : il faut {minMatches} matchs et {minRounds} rounds dans les 30 jours avant la session ({matches} et {rounds} pour l'instant).",
+    "allMetrics": "Toutes les métriques",
     "matches": "Matchs",
     "metric": "Métrique",
     "session": "Session",
