@@ -32,6 +32,7 @@ import {
   trend,
   trendClass,
 } from "@/lib/format";
+import { catalogFor } from "@/lib/metric-docs-files";
 
 const FAMILIES = ["base", "rating", "duel", "trade", "clutch", "util", "eco", "pos"];
 const STANDOUT = 5;
@@ -45,6 +46,7 @@ const ARROW: Record<Trend, string> = { better: "▲", worse: "▼", same: "=" };
 export async function Report({ report, back }: { report: SessionReport; back: boolean }) {
   const t = await getTranslations("sessions");
   const families = await getTranslations("families");
+  const formulas = await getTranslations("formulas");
   const advice = await getTranslations("advice");
   const columns = await getTranslations("matches");
   const locale = (await getLocale()) as Locale;
@@ -61,12 +63,16 @@ export async function Report({ report, back }: { report: SessionReport; back: bo
     if (match) matches.set(match.id, match);
   }
 
+  // Metric names in the player's language, from the formulas' catalog; the API gives English.
+  const names = catalogFor(locale)?.names ?? {};
   const rows: GapRow[] = report.metrics.map((c) => {
     const { kind, gap: value } = compare(c, report.rounds);
+    const name = names[c.metric_id] ?? c.name;
     const perRound = c.basis === "per_round" ? t("perRound") : null;
     return {
       id: c.metric_id,
-      name: c.name,
+      name,
+      formula: formulas("open", { name }),
       family: families(family(c.metric_id)),
       perRound,
       value: metric(c.session, c.unit, c.basis, locale),
