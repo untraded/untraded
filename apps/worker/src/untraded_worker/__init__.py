@@ -17,3 +17,8 @@ def conninfo() -> str:
 
 def store_dir() -> str:
     return os.environ.get("UNTRADED_STORE_DIR", "store")
+
+
+def uploads_dir() -> str:
+    """Where the API writes the demos players send (`UNTRADED_UPLOADS_DIR`)."""
+    return os.environ.get("UNTRADED_UPLOADS_DIR", "uploads")

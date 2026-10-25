@@ -34,6 +34,7 @@ __all__ = [
     "SUFFIXES",
     "CorruptDemoError",
     "DemoDigest",
+    "DemoTooLargeError",
     "NotADemoError",
     "demo_suffix",
     "digest",
@@ -50,6 +51,10 @@ class NotADemoError(ValueError):
 
 class CorruptDemoError(ValueError):
     """The compressed file is truncated or damaged."""
+
+
+class DemoTooLargeError(ValueError):
+    """The decompressed demo is larger than allowed (a decompression bomb, or not a match)."""
 
 
 @dataclass(frozen=True)
@@ -82,8 +87,9 @@ def open_demo(path: Path) -> io.BufferedIOBase:
             return path.open("rb")
 
 
-def digest(path: Path) -> DemoDigest:
-    """Hashes the decompressed demo, checking that it starts like a CS2 demo."""
+def digest(path: Path, *, max_size: int | None = None) -> DemoDigest:
+    """Hashes the decompressed demo, checking that it starts like a CS2 demo. With `max_size`,
+    a demo that decompresses to more bytes raises DemoTooLargeError (files sent by users)."""
     sha = hashlib.sha256()
     size = 0
     try:
@@ -94,6 +100,8 @@ def digest(path: Path) -> DemoDigest:
             while chunk:
                 sha.update(chunk)
                 size += len(chunk)
+                if max_size is not None and size > max_size:
+                    raise DemoTooLargeError(f"{path.name}: more than {max_size} bytes")
                 chunk = demo.read(_CHUNK)
     except (EOFError, zstd.ZstdError, OSError) as error:
         if isinstance(error, FileNotFoundError | PermissionError):

@@ -215,3 +215,55 @@ def test_a_match_of_another_mode_is_set_aside(db: psycopg.Connection[Any], tmp_p
     ).fetchone()
     assert row == ("unavailable", "not a Premier match: rank type 12 (Competitive)", True)
     assert not store.exists("demos/a.dem")
+
+
+def _sent_by(db: psycopg.Connection[Any], match_id: uuid.UUID, steam_id: int) -> None:
+    """The match is a demo `steam_id` sent from the site."""
+    user = db.execute(
+        "INSERT INTO app_user (steam_id, display_name) VALUES (%s, 'u') RETURNING id", (steam_id,)
+    ).fetchone()
+    assert user is not None
+    source = db.execute(
+        "INSERT INTO ingest_source (user_id, kind) VALUES (%s, 'upload') RETURNING id", (user[0],)
+    ).fetchone()
+    assert source is not None
+    db.execute(
+        "INSERT INTO match_source (match_id, kind, external_id, source_id) "
+        "VALUES (%s, 'upload', %s, %s)",
+        (match_id, str(match_id), source[0]),
+    )
+
+
+def test_a_demo_sent_by_someone_who_did_not_play_is_not_analysed(
+    db: psycopg.Connection[Any], tmp_path: Path, fake: FakeParser
+) -> None:
+    store = LocalStore(tmp_path)
+    (tmp_path / "demos").mkdir()
+    (tmp_path / "demos" / "a.dem").write_bytes(b"demo")
+    match_id = _match(db)
+    _sent_by(db, match_id, 99)  # the fixture's players are 1 to 10
+    ParseJob(store, fake)(db, queue.Job(1, "parse", {"match_id": str(match_id)}, 1, 5))
+    row = db.execute(
+        "SELECT m.status::text, m.error, ms.rejected FROM match m "
+        "JOIN match_source ms ON ms.match_id = m.id WHERE m.id = %s",
+        (match_id,),
+    ).fetchone()
+    assert row == ("unavailable", "not_a_player", "not_a_player")
+    assert not store.exists("demos/a.dem")
+    assert _count(db, "match_player", match_id) == 0
+
+
+def test_a_demo_sent_by_one_of_its_players_is_analysed(
+    db: psycopg.Connection[Any], tmp_path: Path, fake: FakeParser
+) -> None:
+    match_id = _match(db)
+    _sent_by(db, match_id, 1)
+    ParseJob(LocalStore(tmp_path), fake)(
+        db, queue.Job(1, "parse", {"match_id": str(match_id)}, 1, 5)
+    )
+    row = db.execute(
+        "SELECT m.status::text, ms.rejected FROM match m "
+        "JOIN match_source ms ON ms.match_id = m.id WHERE m.id = %s",
+        (match_id,),
+    ).fetchone()
+    assert row == ("ready", None)

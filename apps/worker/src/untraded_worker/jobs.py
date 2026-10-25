@@ -13,7 +13,10 @@ under `matches/{id}/`, loads the SQL tables, refreshes who sees the match, and m
 A demo already known by its sha256 (the same match brought by two players, ADR 0009) is not
 stored twice: the new match row is merged into the existing one. A demo of a mode we do not
 analyse (a Competitive or Wingman match in Valve's share-code chain) makes the match
-`unavailable` and its demo is deleted.
+`unavailable` and its demo is deleted. So does a demo a player sent without playing in it, when
+nothing else brought it (`not_a_player`).
+
+`ingest_upload` (a demo a player sent) is in `uploads`.
 """
 
 from __future__ import annotations
@@ -31,7 +34,7 @@ import psycopg
 
 from untraded.demofile import CorruptDemoError, NotADemoError, demo_suffix, digest
 from untraded.parsing import CanonicalMatch, UnsupportedModeError, parse_demo
-from untraded_worker import erase, load, queue, replays, sessions
+from untraded_worker import erase, load, queue, replays, sessions, uploads
 from untraded_worker.analysis import analyze
 from untraded_worker.download import BlockedAddressError, DemoGone, fetch
 from untraded_worker.queue import Job
@@ -76,7 +79,15 @@ class ParseJob:
                 played_at=played_at.date() if isinstance(played_at, dt.datetime) else None,
             )
         except UnsupportedModeError as error:
+            conn.execute(
+                "UPDATE match_source SET rejected = 'unsupported_mode' "
+                "WHERE match_id = %s AND kind = 'upload' AND rejected IS NULL",
+                (match_id,),
+            )
             self._out_of_scope(conn, match_id, demo_key, str(error))
+            return
+        if not self._uploaders_played(conn, match_id, canonical):
+            self._out_of_scope(conn, match_id, demo_key, "not_a_player")
             return
 
         known = conn.execute(
@@ -102,6 +113,31 @@ class ParseJob:
         )
         load.refresh_access(conn, match_id)
         sessions.queue_sessions(conn, match_id)
+
+    def _uploaders_played(
+        self, conn: psycopg.Connection[Any], match_id: uuid.UUID, canonical: CanonicalMatch
+    ) -> bool:
+        """Rejects the uploads of players who are not in the match (`not_a_player`). False when
+        nothing else brought the match: it is not analysed."""
+        players = set(canonical.player["steamid"].to_list())
+        sent = conn.execute(
+            "SELECT ms.external_id, u.steam_id FROM match_source ms "
+            "JOIN ingest_source s ON s.id = ms.source_id JOIN app_user u ON u.id = s.user_id "
+            "WHERE ms.match_id = %s AND ms.kind = 'upload' AND ms.rejected IS NULL",
+            (match_id,),
+        ).fetchall()
+        outsiders = [external for external, steam_id in sent if steam_id not in players]
+        if not outsiders:
+            return True
+        conn.execute(
+            "UPDATE match_source SET rejected = 'not_a_player' "
+            "WHERE kind = 'upload' AND external_id = ANY(%s)",
+            (outsiders,),
+        )
+        others = conn.execute(
+            "SELECT 1 FROM match_source WHERE match_id = %s AND rejected IS NULL", (match_id,)
+        ).fetchone()
+        return others is not None
 
     def _out_of_scope(
         self, conn: psycopg.Connection[Any], match_id: uuid.UUID, demo_key: str, reason: str
@@ -194,9 +230,10 @@ def match_failed(conn: psycopg.Connection[Any], job: Job, error: str) -> None:
     )
 
 
-def handlers(store: LocalStore) -> dict[str, Handler]:
+def handlers(store: LocalStore, uploads_dir: Path) -> dict[str, Handler]:
     return {
         "download": DownloadJob(store),
+        "ingest_upload": uploads.IngestUploadJob(store, uploads_dir, uploads.max_demo_bytes()),
         "parse": ParseJob(store),
         "session": sessions.SessionJob(store),
         "erase_player": erase.ErasePlayerJob(store),
@@ -204,3 +241,7 @@ def handlers(store: LocalStore) -> dict[str, Handler]:
 
 
 ON_DEAD: dict[str, DeadHandler] = {"download": match_failed, "parse": match_failed}
+
+
+def dead_handlers(uploads_dir: Path) -> dict[str, DeadHandler]:
+    return {**ON_DEAD, "ingest_upload": uploads.UploadFailed(uploads_dir)}

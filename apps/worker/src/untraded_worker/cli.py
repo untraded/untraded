@@ -1,8 +1,8 @@
 # SPDX-FileCopyrightText: 2026 The Untraded Authors
 # SPDX-License-Identifier: AGPL-3.0-only
 """`untraded-worker run`: process the job queue (UNTRADED_DATABASE_URL, UNTRADED_STORE_DIR,
-UNTRADED_DEMO_RETENTION_DAYS). `untraded-worker replays`: write the 2D viewer's round replays of
-the matches parsed before."""
+UNTRADED_UPLOADS_DIR, UNTRADED_UPLOAD_MAX_DEMO_GB, UNTRADED_DEMO_RETENTION_DAYS).
+`untraded-worker replays`: write the 2D viewer's round replays of the matches parsed before."""
 
 from __future__ import annotations
 
@@ -14,8 +14,8 @@ from pathlib import Path
 
 import psycopg
 
-from untraded_worker import conninfo, levels, replays, retention, store_dir
-from untraded_worker.jobs import ON_DEAD, handlers
+from untraded_worker import conninfo, levels, replays, retention, store_dir, uploads_dir
+from untraded_worker.jobs import dead_handlers, handlers
 from untraded_worker.runner import Periodic, Worker
 from untraded_worker.store import LocalStore
 
@@ -40,7 +40,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             done = replays.backfill(conn, store, force=args.force)
         logging.info("replays written for %s match(es)", done)
         return 0
-    known = handlers(store)
+    uploads = Path(uploads_dir())
+    known = handlers(store, uploads)
     kinds = args.kinds.split(",") if args.kinds else list(known)
     unknown = set(kinds) - set(known)
     if unknown:
@@ -49,7 +50,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     periodic = [Periodic(levels.EVERY, levels.compute_levels)]
     if keep is not None:
         periodic.append(Periodic(RETENTION_EVERY, retention.Sweep(store, keep)))
-    worker = Worker(conninfo(), {k: known[k] for k in kinds}, on_dead=ON_DEAD, periodic=periodic)
+    worker = Worker(
+        conninfo(), {k: known[k] for k in kinds}, on_dead=dead_handlers(uploads), periodic=periodic
+    )
     if args.name:
         worker.name = args.name
     processed = worker.run(once=args.once)

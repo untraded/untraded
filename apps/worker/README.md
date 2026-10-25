@@ -18,6 +18,8 @@ uv run untraded-worker run         # until SIGINT or SIGTERM; --once stops when 
 | `UNTRADED_DATABASE_URL` | the `compose.dev.yaml` database | PostgreSQL |
 | `UNTRADED_STORE_DIR` | `store` | object store: raw demos and Parquet tables (ADR 0009) |
 | `UNTRADED_DEMO_RETENTION_DAYS` | unset (kept) | raw demo retention after the parse (ADR 0009) |
+| `UNTRADED_UPLOADS_DIR` | `uploads` | where the API writes the demos players send (shared with the API) |
+| `UNTRADED_UPLOAD_MAX_DEMO_GB` | `1.5` | the largest decompressed demo a player may send |
 
 - `queue.py`: claim with `FOR UPDATE SKIP LOCKED`, exponential backoff, `dead` after
   `max_attempts`, abandoned jobs put back after 30 minutes (3 hours for `download`).
@@ -30,7 +32,12 @@ uv run untraded-worker run         # until SIGINT or SIGTERM; --once stops when 
   known by its sha256 is merged into its match. `download` (`{"match_id": ..., "url": ...}`):
   resumable HTTP download (Valve drops connections), stored as received under
   `demos/{sha256}{suffix}`, then a `parse` job; a demo gone from the server (404, 410) makes the
-  match `unavailable`.
+  match `unavailable`. A demo sent by a player who is not in the match is not analysed
+  (`not_a_player`).
+- `uploads.py`: the `ingest_upload` job (`{"match_id": ..., "file": ...}`), for a demo a player
+  sent (`POST /uploads`): checked (a CS2 demo, at most `UNTRADED_UPLOAD_MAX_DEMO_GB`
+  decompressed), recognised as Premier when it comes from Valve's servers, copied to the store,
+  then a `parse` job. A refused upload keeps its reason in `match_source.rejected`.
 - `sessions.py`: the `session` job, queued after each parse for every invited player of the
   match. Matches with at most one hour between the end of one and the start of the next form a
   session; its report (`play_session_metric`) compares it with the player's 30 days before
