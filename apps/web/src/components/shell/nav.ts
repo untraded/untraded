@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 //
 // The app's sections: where they live and which pages belong to them. Only sections whose page
-// exists are listed; Progress, Import and Formulas join when they are built. Admin shows to admins
+// exists are listed; Progress and Import join when they are built. Admin shows to admins
 // only (`me.admin`).
 
 import {
@@ -11,15 +11,17 @@ import {
   House,
   type LucideIcon,
   ShieldCheck,
+  Sigma,
   SlidersHorizontal,
 } from "lucide-react";
 
-export type Section = "home" | "sessions" | "matches" | "admin" | "settings";
+export type Section = "home" | "sessions" | "matches" | "formulas" | "admin" | "settings";
 
 export const SECTIONS: Record<Section, { href: string; icon: LucideIcon }> = {
   home: { href: "/", icon: House },
   sessions: { href: "/sessions", icon: CalendarDays },
   matches: { href: "/matches", icon: Crosshair },
+  formulas: { href: "/formulas", icon: Sigma },
   admin: { href: "/admin", icon: ShieldCheck },
   settings: { href: "/settings", icon: SlidersHorizontal },
 };
@@ -27,7 +29,7 @@ export const SECTIONS: Record<Section, { href: string; icon: LucideIcon }> = {
 /** The section a page belongs to, to mark it in the navigation. */
 export function sectionOf(pathname: string): Section | null {
   if (pathname === "/") return "home";
-  for (const section of ["sessions", "matches", "admin", "settings"] as const) {
+  for (const section of ["sessions", "matches", "formulas", "admin", "settings"] as const) {
     const { href } = SECTIONS[section];
     if (pathname === href || pathname.startsWith(`${href}/`)) return section;
   }

@@ -1,5 +1,6 @@
 {
   "nav": {
+    "formulas": "Formules",
     "matches": "Matchs",
     "signOut": "Se déconnecter",
     "language": "Langue",
@@ -101,6 +102,57 @@
     "notInvited": "Ce compte Steam n'est pas encore invité à la bêta.",
     "failed": "Steam n'a pas pu confirmer la connexion. Réessaie.",
     "erased": "Ton compte est fermé et tes données sont en cours de suppression. Merci d'avoir testé Untraded."
+  },
+  "formulas": {
+    "title": "Formules",
+    "lead": "Chaque chiffre d'Untraded vient d'une formule publique : sa définition, ses paramètres, un exemple sur un vrai match, ses limites et son code. Une formule qui change change de version.",
+    "source": "Ces fiches sont les pages docs/metrics du dépôt public, générées depuis le code des métriques.",
+    "search": "Chercher une métrique",
+    "searchPlaceholder": "trade, KAST, flash…",
+    "searchButton": "Chercher",
+    "clear": "Effacer",
+    "count": "{shown, plural, one {# formule} other {# formules}} sur {total}",
+    "noResult": "Aucune formule ne correspond à « {query} ».",
+    "spec": "Spécification complète sur GitHub",
+    "conventions": "Conventions communes à toutes les métriques",
+    "familyCount": "{count, plural, one {# métrique} other {# métriques}}",
+    "better": {
+      "higher": "plus haut = mieux",
+      "lower": "plus bas = mieux",
+      "neutral": "ni mieux ni moins bien"
+    },
+    "betterShort": {
+      "higher": "plus haut",
+      "lower": "plus bas",
+      "neutral": "neutre"
+    },
+    "units": {
+      "count": "nombre",
+      "pct": "%",
+      "per_round": "par round",
+      "damage_per_round": "dégâts par round",
+      "ratio": "ratio",
+      "units": "unités du jeu",
+      "hp": "points de vie",
+      "seconds": "secondes",
+      "dollars": "dollars",
+      "table": "tableau"
+    },
+    "version": "version {version}",
+    "reads": "lit {tables}",
+    "code": "Code sur GitHub",
+    "definition": "Définition",
+    "parameters": "Paramètres",
+    "default": "Par défaut",
+    "example": "Exemple",
+    "csdm": "Contre CS Demo Manager",
+    "limits": "Limites",
+    "history": "Historique",
+    "seeConventions": "Voir aussi les conventions communes à toutes les métriques.",
+    "yourSession": "Ta dernière session",
+    "openReport": "Ouvrir le rapport",
+    "back": "Toutes les formules",
+    "open": "Formule : {name}"
   },
   "matches": {
     "title": "Matchs",

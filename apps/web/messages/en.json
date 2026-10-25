@@ -1,5 +1,6 @@
 {
   "nav": {
+    "formulas": "Formulas",
     "matches": "Matches",
     "signOut": "Sign out",
     "language": "Language",
@@ -101,6 +102,57 @@
     "notInvited": "This Steam account is not invited to the beta yet.",
     "failed": "Steam could not confirm the sign-in. Please try again.",
     "erased": "Your account is closed and your data is being deleted. Thank you for testing Untraded."
+  },
+  "formulas": {
+    "title": "Formulas",
+    "lead": "Every number in Untraded comes from a public formula: its definition, its parameters, an example on a real match, its limits and its code. A formula that changes gets a new version.",
+    "source": "These pages are docs/metrics from the public repository, generated from the metrics' code.",
+    "search": "Search a metric",
+    "searchPlaceholder": "trade, KAST, flash…",
+    "searchButton": "Search",
+    "clear": "Clear",
+    "count": "{shown, plural, one {# formula} other {# formulas}} of {total}",
+    "noResult": "No formula matches “{query}”.",
+    "spec": "Full specification on GitHub",
+    "conventions": "Conventions shared by every metric",
+    "familyCount": "{count, plural, one {# metric} other {# metrics}}",
+    "better": {
+      "higher": "higher = better",
+      "lower": "lower = better",
+      "neutral": "neither better nor worse"
+    },
+    "betterShort": {
+      "higher": "higher",
+      "lower": "lower",
+      "neutral": "neutral"
+    },
+    "units": {
+      "count": "count",
+      "pct": "%",
+      "per_round": "per round",
+      "damage_per_round": "damage per round",
+      "ratio": "ratio",
+      "units": "game units",
+      "hp": "hit points",
+      "seconds": "seconds",
+      "dollars": "dollars",
+      "table": "table"
+    },
+    "version": "version {version}",
+    "reads": "reads {tables}",
+    "code": "Code on GitHub",
+    "definition": "Definition",
+    "parameters": "Parameters",
+    "default": "Default",
+    "example": "Example",
+    "csdm": "Against CS Demo Manager",
+    "limits": "Limits",
+    "history": "History",
+    "seeConventions": "See also the conventions shared by every metric.",
+    "yourSession": "Your last session",
+    "openReport": "Open the report",
+    "back": "All formulas",
+    "open": "Formula: {name}"
   },
   "matches": {
     "title": "Matches",

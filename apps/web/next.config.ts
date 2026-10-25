@@ -7,6 +7,12 @@ const config: NextConfig = {
   // A self-contained server for the container image (deployment PR).
   output: "standalone",
   poweredByHeader: false,
+  // The formulas pages read `docs/metrics/` of the repository at run time: ship them beside the
+  // standalone server (`src/lib/metric-docs-files.ts`).
+  outputFileTracingIncludes: {
+    "/formulas": ["../../docs/metrics/*.md"],
+    "/formulas/[id]": ["../../docs/metrics/*.md"],
+  },
   // Our radars (`public/radars/`) change only when they are redrawn, after a map update: a day in
   // the browser, then a week served while it checks for a new one (`docs/replay-format.md`).
   async headers() {

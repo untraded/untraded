@@ -12,6 +12,8 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/web/package.json apps/web/
 RUN pnpm install --frozen-lockfile --filter @untraded/web
 COPY apps/web/ apps/web/
+# The formulas pages show the metric pages of the repository, read as they are.
+COPY docs/metrics/ docs/metrics/
 RUN pnpm --filter @untraded/web build
 
 FROM node:24-bookworm-slim
