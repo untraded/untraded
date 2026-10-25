@@ -75,6 +75,11 @@ class UploadLine(BaseModel):
 
 class UploadList(BaseModel):
     items: list[UploadLine]
+    refusal: str | None
+    """Why a demo sent now would be refused (`off`, `disk_full`, `consent`, `quota`, `busy`), or
+    null: the site says so before sending hundreds of megabytes the API would not read."""
+    max_bytes: int
+    """The largest file the player may send: the site checks it first too."""
 
 
 def _refusal(db: Database, user: uuid.UUID, settings: Settings) -> str | None:
@@ -132,10 +137,9 @@ async def send_demo(
     declared = request.headers.get("content-length")
     if declared is not None and declared.isdigit() and int(declared) > settings.upload_max_bytes:
         raise Refused(status.HTTP_413_CONTENT_TOO_LARGE, "too_large")
-    folder = Path(settings.uploads_dir)
-    folder.mkdir(parents=True, exist_ok=True)
-    if shutil.disk_usage(folder).free < settings.upload_min_free_bytes:
+    if _disk_full(settings.uploads_dir, settings):
         raise Refused(status.HTTP_507_INSUFFICIENT_STORAGE, "disk_full")
+    folder = Path(settings.uploads_dir)
     refusal = await run_in_threadpool(_refusal, db, user, settings)
     if refusal is not None:
         raise Refused(LIMIT_STATUS[refusal], refusal)
@@ -208,7 +212,28 @@ def _line(row: tuple[Any, ...]) -> UploadLine:
 
 
 @router.get("")
-def list_uploads(conn: ConnDep) -> UploadList:
-    """The player's uploads of the last 30 days, newest first."""
+def list_uploads(conn: ConnDep, settings: SettingsDep) -> UploadList:
+    """The player's uploads of the last 30 days, newest first, and whether they may send one."""
     rows = conn.execute("SELECT * FROM my_uploads(%s)", (KEPT_DAYS,)).fetchall()
-    return UploadList(items=[_line(tuple(row)) for row in rows])
+    refusal: str | None
+    if settings.uploads_dir is None:
+        refusal = "off"
+    elif _disk_full(settings.uploads_dir, settings):
+        refusal = "disk_full"
+    else:
+        row = conn.execute(
+            "SELECT my_upload_refusal(%s, %s)",
+            (settings.uploads_per_day, settings.uploads_in_flight),
+        ).fetchone()
+        refusal = str(row[0]) if row and row[0] is not None else None
+    return UploadList(
+        items=[_line(tuple(row)) for row in rows],
+        refusal=refusal,
+        max_bytes=settings.upload_max_bytes,
+    )
+
+
+def _disk_full(uploads_dir: str, settings: Settings) -> bool:
+    folder = Path(uploads_dir)
+    folder.mkdir(parents=True, exist_ok=True)
+    return shutil.disk_usage(folder).free < settings.upload_min_free_bytes

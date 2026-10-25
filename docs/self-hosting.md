@@ -54,7 +54,10 @@ stack variables.
 | `UNTRADED_BACKUP_HOUR`, `UNTRADED_BACKUP_KEEP_DAYS`, `UNTRADED_BACKUP_KEEP_WEEKS` | no | when the daily database dump runs (3, UTC) and how many are kept: 7 daily, plus 4 weekly (Sunday's) |
 | `COLLECTOR_INTERVAL_SECONDS` | no | time between collection rounds (3600) |
 | `UNTRADED_SITE_URL` | for the site | the site's address as browsers see it, e.g. `https://untraded.example.com` (default `http://localhost:3000`). Steam sends users back there after signing in, and `https` makes the session cookie `Secure` |
-| `UNTRADED_BIND`, `UNTRADED_WEB_PORT` | no | where the web is published (`127.0.0.1:3000`); `172.17.0.1` lets a reverse proxy running in Docker reach it |
+| `UNTRADED_BIND`, `UNTRADED_WEB_PORT`, `UNTRADED_API_PORT` | no | where the web and the API are published for the reverse proxy (`127.0.0.1`, ports 3000 and 8000); `172.17.0.1` lets a reverse proxy running in Docker reach them |
+| `UNTRADED_UPLOAD_MAX_MB`, `UNTRADED_UPLOAD_MAX_DEMO_GB` | no | the largest demo a player may send from the site (400 MB), and once decompressed (1.5 GB) |
+| `UNTRADED_UPLOADS_PER_DAY`, `UNTRADED_UPLOADS_IN_FLIGHT` | no | uploads per player in 24 hours (20) and still being analysed (3); `0` lifts a limit |
+| `UNTRADED_UPLOAD_MIN_FREE_GB` | no | uploads are refused while the disk has less free space (5) |
 | `UNTRADED_OPERATOR_NAME`, `UNTRADED_OPERATOR_EMAIL` | for invited players | who runs this instance and where players write to use their rights: the consent text names them as the data controller |
 | `UNTRADED_HOSTING` | no | where the data lives, as the consent text states it, e.g. `Oracle Cloud, Frankfurt (EU); backups on Hetzner, Germany`. Unset, the text asks players to write to the operator |
 | `UNTRADED_TIME_ZONE` | no | time zone of the dates on the site until each player's browser sends its own (`Europe/Paris`), as an IANA name such as `America/New_York`; an unknown name falls back to `Europe/Paris` |
@@ -113,13 +116,26 @@ Put a reverse proxy with HTTPS in front of the web, for example Caddy:
 
 ```caddyfile
 untraded.example.com {
+	# Demos players send go to the API directly (up to 400 MB; see below).
+	handle /api/uploads {
+		request_body {
+			max_size 400MB
+		}
+		uri strip_prefix /api
+		reverse_proxy 127.0.0.1:8000
+	}
 	reverse_proxy 127.0.0.1:3000
 }
 ```
 
-With Caddy itself in Docker, publish the web on the Docker bridge (`UNTRADED_BIND=172.17.0.1`)
-and use `reverse_proxy 172.17.0.1:3000`. Set `UNTRADED_SITE_URL` to the same address. Only
-the web is published; the API, the worker and the database stay inside Compose.
+With Caddy itself in Docker, publish on the Docker bridge (`UNTRADED_BIND=172.17.0.1`) and use
+`172.17.0.1` in both `reverse_proxy` lines. Set `UNTRADED_SITE_URL` to the same address. The web
+(`UNTRADED_WEB_PORT`, 3000) and the API (`UNTRADED_API_PORT`, 8000) are published for the proxy
+only; the worker and the database stay inside Compose.
+
+The `/api/uploads` block matters for players on slow lines: the web relays it too, but Node
+drops a request that takes more than 5 minutes to arrive (a 300 MB demo below about 8 Mbit/s).
+Keep `max_size` in line with `UNTRADED_UPLOAD_MAX_MB`.
 
 ## Checking it works
 
@@ -136,6 +152,9 @@ A match goes `downloading`, then `parsing`, then `ready`. Other outcomes:
 - `unavailable`: Valve no longer has the demo, or the match is not a Premier match. The
   share-code chain also holds Competitive and Wingman matches, and the worker sets them aside.
 - `failed`: the job used up its attempts, and `match.error` tells why.
+- For a demo a player sent: `unavailable` also when it was refused, with the reason in
+  `match_source.rejected` (`not_a_demo`, `corrupt`, `too_large`, `unsupported_mode`,
+  `not_a_player`).
 
 ## Data
 
@@ -145,6 +164,7 @@ A match goes `downloading`, then `parsing`, then `ready`. Other outcomes:
 | `backups` | the daily dumps of the database (`daily/`, `weekly/`) | yes, off the machine (below) |
 | `store` | raw demos (`demos/`) and Parquet per match (`matches/`) | the Parquet, at least: metrics are recomputed from it (ADR 0009) |
 | `collector-data` | the bot's refresh token (`.state.json`, mode 600) | no: log in again instead |
+| `uploads` | demos players sent, until the worker moves them to `store` (minutes) | no |
 
 ## Erasing a player
 

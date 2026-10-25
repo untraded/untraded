@@ -122,13 +122,17 @@ def test_what_is_refused_before_it_is_kept(
 
 def test_consent_comes_first(settings: Settings, client: Any) -> None:
     me = client(settings, consent=False)
+    assert me.get("/uploads").json()["refusal"] == "consent"  # the site says so first
     refused = me.post("/uploads", params=PARAMS, content=ZSTD)
     assert (refused.status_code, refused.json()["detail"]) == (409, {"reason": "consent"})
 
 
 def test_the_limits(db: psycopg.Connection[Any], settings: Settings, client: Any) -> None:
     me = client(dataclasses.replace(settings, uploads_per_day=0, uploads_in_flight=1))
+    room = me.get("/uploads").json()
+    assert (room["refusal"], room["max_bytes"]) == (None, settings.upload_max_bytes)
     assert me.post("/uploads", params=PARAMS, content=ZSTD).status_code == 202
+    assert me.get("/uploads").json()["refusal"] == "busy"
     busy = me.post("/uploads", params=PARAMS, content=ZSTD)
     assert (busy.status_code, busy.json()["detail"]) == (429, {"reason": "busy"})
     db.execute("UPDATE match SET status = 'ready'")  # analysed: room again
@@ -143,9 +147,11 @@ def test_the_limits(db: psycopg.Connection[Any], settings: Settings, client: Any
 
 def test_a_full_disk_and_uploads_off(settings: Settings, client: Any) -> None:
     full = client(dataclasses.replace(settings, upload_min_free_bytes=1 << 62))
+    assert full.get("/uploads").json()["refusal"] == "disk_full"
     refused = full.post("/uploads", params=PARAMS, content=ZSTD)
     assert (refused.status_code, refused.json()["detail"]) == (507, {"reason": "disk_full"})
     off = client(dataclasses.replace(settings, uploads_dir=None))
+    assert off.get("/uploads").json()["refusal"] == "off"
     assert off.post("/uploads", params=PARAMS, content=ZSTD).status_code == 503
 
 

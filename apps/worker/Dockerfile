@@ -18,8 +18,9 @@ COPY . .
 RUN uv sync --frozen --no-dev --no-editable --package untraded-worker \
     && rm -rf /root/.cache /src
 
-RUN useradd --create-home --uid 1000 untraded && mkdir -p /data/store && chown -R untraded /data
+RUN useradd --create-home --uid 1000 untraded && mkdir -p /data/store /data/uploads \
+    && chown -R untraded /data
 USER untraded
 WORKDIR /data
-ENV UNTRADED_STORE_DIR=/data/store
+ENV UNTRADED_STORE_DIR=/data/store UNTRADED_UPLOADS_DIR=/data/uploads
 CMD ["untraded-worker", "run"]

@@ -17,7 +17,9 @@ COPY . .
 RUN uv sync --frozen --no-dev --no-editable --package untraded-api \
     && rm -rf /root/.cache /src
 
-RUN useradd --create-home --uid 1000 untraded
+# /data/uploads: the demos players send (a volume shared with the worker), owned by the user so
+# that a new volume is too.
+RUN useradd --create-home --uid 1000 untraded && mkdir -p /data/uploads && chown untraded /data/uploads
 USER untraded
 WORKDIR /home/untraded
 EXPOSE 8000
