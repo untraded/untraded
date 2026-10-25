@@ -45,7 +45,8 @@ COOKIE = "untraded_session"
 ME = "76561190000000001"
 NAMES = ["you", "Kestrel", "Brindle", "Oxide", "Tamsin", "Vireo", "Quill", "Marlow", "Juno", "Pike"]
 MAPS = ["de_mirage", "de_ancient", "de_inferno", "de_nuke", "de_dust2", "de_anubis", "de_train"]
-NOW = dt.datetime(2026, 10, 20, 22, 0, tzinfo=dt.UTC)
+# The latest match an hour ago, so the lists show today, yesterday, this week… as the site sees them.
+NOW = dt.datetime.now(dt.UTC).replace(minute=0, second=0, microsecond=0)
 rand = random.Random(7)
 
 
@@ -104,7 +105,8 @@ def build_matches() -> list[dict[str, Any]]:
     statuses = ["parsing"] + ["ready"] * 11 + ["unavailable", "failed", "ready", "ready"]
     found = []
     for n, status in enumerate(statuses):
-        start = NOW - dt.timedelta(hours=1 + n * 9)
+        # Every 9 hours, then further and further apart: older matches reach back two months.
+        start = NOW - dt.timedelta(hours=1 + n * 9 + max(0, n - 7) ** 2 * 24)
         ready = status == "ready"
         a, b = (13, rand.randint(4, 11)) if n % 3 else (rand.randint(5, 12), 13)
         team = "A" if n % 2 else "B"
