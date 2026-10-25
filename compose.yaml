@@ -108,8 +108,12 @@ services:
       UNTRADED_DEMO_RETENTION_DAYS: ${UNTRADED_DEMO_RETENTION_DAYS:-}
       # 1: demos may come from private addresses (a server on your network). Off by default.
       UNTRADED_ALLOW_PRIVATE_DEMO_URLS: ${UNTRADED_ALLOW_PRIVATE_DEMO_URLS:-}
+      # The largest demo a player may send, decompressed (GB).
+      UNTRADED_UPLOAD_MAX_DEMO_GB: ${UNTRADED_UPLOAD_MAX_DEMO_GB:-1.5}
     volumes:
       - store:/data/store
+      # The demos players send, written by the API.
+      - uploads:/data/uploads
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -161,11 +165,25 @@ services:
       STEAM_WEB_API_KEY: ${STEAM_WEB_API_KEY:?set STEAM_WEB_API_KEY}
       UNTRADED_BACKUPS_DIR: /backups
       UNTRADED_STORE_DIR: /data/store
+      # Demos players send from the site, and their limits: file size (MB), uploads per player
+      # in 24 hours and still being analysed (0: no limit), free disk below which they wait (GB).
+      UNTRADED_UPLOADS_DIR: /data/uploads
+      UNTRADED_UPLOAD_MAX_MB: ${UNTRADED_UPLOAD_MAX_MB:-400}
+      UNTRADED_UPLOADS_PER_DAY: ${UNTRADED_UPLOADS_PER_DAY:-20}
+      UNTRADED_UPLOADS_IN_FLIGHT: ${UNTRADED_UPLOADS_IN_FLIGHT:-3}
+      UNTRADED_UPLOAD_MIN_FREE_GB: ${UNTRADED_UPLOAD_MIN_FREE_GB:-5}
     volumes:
       # Read-only: the admin's health page shows the last dump.
       - backups:/backups:ro
       # Read-only: the 2D viewer's round replays, written by the worker.
       - store:/data/store:ro
+      # The only volume the API writes: the demos players send, for the worker.
+      - uploads:/data/uploads
+    ports:
+      # For the reverse proxy only, next to the web: it sends `/api/uploads` here directly (the
+      # web's relay works too, but Node gives up on a request after 5 minutes: a 300 MB demo
+      # on a slow line). See docs/self-hosting.md.
+      - "${UNTRADED_BIND:-127.0.0.1}:${UNTRADED_API_PORT:-8000}:8000"
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -204,3 +222,4 @@ volumes:
   store:
   collector-data:
   backups:
+  uploads:

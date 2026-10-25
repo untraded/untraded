@@ -3,14 +3,17 @@
 //
 // `/api/*` is relayed to the API: the web and the API share one origin, so the API's session
 // cookie is the web's and a reverse proxy only has to reach the web. Redirects (Steam sign-in)
-// and cookies pass through untouched.
+// and cookies pass through untouched. Bodies are streamed, never read whole: a demo a player
+// sends (`POST /api/uploads`) weighs up to 400 MB.
 
 import type { NextRequest } from "next/server";
 import { internalApiUrl } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
-const REQUEST_HEADERS = ["accept", "content-type", "cookie", "user-agent"];
+// `content-length` too: the body is streamed, and the API refuses a too large upload from it
+// before reading anything.
+const REQUEST_HEADERS = ["accept", "content-length", "content-type", "cookie", "user-agent"];
 const RESPONSE_HEADERS = ["cache-control", "content-type", "location"];
 
 async function relay(
@@ -25,13 +28,22 @@ async function relay(
     if (value) headers.set(name, value);
   }
   const hasBody = !["GET", "HEAD"].includes(request.method);
-  const response = await fetch(target, {
-    method: request.method,
-    headers,
-    body: hasBody ? await request.arrayBuffer() : null,
-    redirect: "manual",
-    cache: "no-store",
-  });
+  let response: Response;
+  try {
+    response = await fetch(target, {
+      method: request.method,
+      headers,
+      body: hasBody ? request.body : null,
+      // A stream body must say so (Node's fetch): it is sent as it arrives.
+      duplex: "half",
+      redirect: "manual",
+      cache: "no-store",
+    } as RequestInit);
+  } catch {
+    // The API is down, or answered and closed while the body was still coming (an upload it
+    // refused at once): the site checks `GET /api/uploads` first for that.
+    return Response.json({ detail: "the API did not answer" }, { status: 502 });
+  }
   const out = new Headers();
   for (const name of RESPONSE_HEADERS) {
     const value = response.headers.get(name);
