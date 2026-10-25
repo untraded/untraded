@@ -225,13 +225,18 @@ export function compare(
 }
 
 /** A size in bytes, in the largest unit that keeps it above 1: `412 Mo`, `48 GB`. */
-export function bytes(value: number | null | undefined, locale: Locale): string {
+export function bytes(
+  value: number | null | undefined,
+  locale: Locale,
+  /** 1024 for file sizes, as file managers and the upload limit (400 MB) count them. */
+  base: 1000 | 1024 = 1000,
+): string {
   if (value === null || value === undefined || !Number.isFinite(value)) return DASH;
   const units = ["byte", "kilobyte", "megabyte", "gigabyte", "terabyte"] as const;
   let size = value;
   let unit = 0;
-  while (size >= 1000 && unit < units.length - 1) {
-    size /= 1000;
+  while (size >= base && unit < units.length - 1) {
+    size /= base;
     unit += 1;
   }
   return new Intl.NumberFormat(locale, {

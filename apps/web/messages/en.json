@@ -32,7 +32,88 @@
     "codesBroken": "Following your matches stopped: give your codes again in the Settings.",
     "codesBrokenLink": "Open the Settings",
     "waiting": "We follow your matches",
-    "waitingLead": "Your first report arrives after your next Premier session, a few minutes after its last match ends."
+    "waitingLead": "Your first report arrives after your next Premier session, a few minutes after its last match ends.",
+    "waitingUpload": "Meanwhile, you can send a FACEIT, ESEA or scrim demo.",
+    "waitingUploadLink": "Send a demo"
+  },
+  "upload": {
+    "title": "Send a demo",
+    "lead": "For your FACEIT and ESEA matches and your scrims: download the demo from the match page, then send it here. The analysis takes a few minutes, and the match joins your sessions like a Premier match.",
+    "refusals": {
+      "off": {
+        "title": "Sending demos is off on this server",
+        "text": "The operator of this server has not turned it on."
+      },
+      "disk_full": {
+        "title": "The server is short of space",
+        "text": "Sending is paused while space is freed. Try again later."
+      },
+      "consent": {
+        "title": "Your consent is needed to analyse your demos",
+        "text": "Give it in the Settings: it covers the demos you send too."
+      },
+      "quota": {
+        "title": "You reached today's upload limit",
+        "text": "You can send more tomorrow."
+      },
+      "busy": {
+        "title": "Too many demos are being analysed",
+        "text": "Wait for one analysis to finish, then send the next."
+      }
+    },
+    "openSettings": "Open the Settings",
+    "dropTitle": "Drop your demo here",
+    "dropHint": "Or choose the file: .dem, .dem.zst (FACEIT), .dem.bz2 or .dem.gz, {max} at most. A Premier match the bot missed works too.",
+    "choose": "Choose a file",
+    "remove": "Remove this file",
+    "file": "Demo to send",
+    "mode": "Mode",
+    "modes": {
+      "faceit": "FACEIT",
+      "esea": "ESEA",
+      "scrim": "Scrim",
+      "premier": "Premier"
+    },
+    "date": "Match start",
+    "dateHint": "Filled in from the file. It puts the match in the right session: correct it if needed.",
+    "send": "Send",
+    "cancel": "Cancel the upload",
+    "progress": "Sending: {sent} of {total}",
+    "done": "Demo received. The analysis takes a few minutes: follow it in your uploads, below.",
+    "aborted": "Upload cancelled.",
+    "errors": {
+      "not_a_demo": "This file is not a CS2 demo. Check that it is the demo itself (.dem, or .dem.zst for FACEIT).",
+      "too_large": "This file is over the maximum size ({max}).",
+      "consent": "Your consent is needed to analyse your demos: give it in the Settings.",
+      "quota": "You reached today's upload limit. Try again tomorrow.",
+      "busy": "Too many demos are being analysed. Wait for one to finish.",
+      "disk_full": "The server is short of space. Try again later.",
+      "off": "Sending demos is off on this server.",
+      "date": "The match date is invalid or in the future.",
+      "network": "The upload was cut off. Check your connection, then try again.",
+      "unknown": "The upload failed. Try again in a moment."
+    },
+    "history": "Your uploads",
+    "historyHint": "The last 30 days.",
+    "empty": "No upload yet.",
+    "states": {
+      "processing": "Being analysed",
+      "ready": "Ready",
+      "refused": "Refused",
+      "failed": "Failed"
+    },
+    "openMatch": "Open the match",
+    "mapUnknown": "Map not known yet",
+    "received": "sent {date}",
+    "reasons": {
+      "not_a_demo": "This file is not a CS2 demo.",
+      "corrupt": "The demo is damaged or incomplete: download it again, then send it again.",
+      "too_large": "The decompressed demo is too large.",
+      "unsupported_mode": "This is not a match analysed here (Competitive or Wingman): only Premier, FACEIT, ESEA and scrims are.",
+      "not_a_player": "You do not play in this match: only your own matches are analysed.",
+      "parse_failed": "The analysis failed. You can send it again; if it happens again, report it."
+    },
+    "cta": "Send a demo"
   },
   "settings": {
     "title": "Settings",

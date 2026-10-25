@@ -32,7 +32,88 @@
     "codesBroken": "Le suivi de tes matchs s'est arrêté : redonne tes codes dans les Réglages.",
     "codesBrokenLink": "Ouvrir les Réglages",
     "waiting": "On suit tes matchs",
-    "waitingLead": "Ton premier rapport arrive après ta prochaine session Premier, quelques minutes après la fin du dernier match."
+    "waitingLead": "Ton premier rapport arrive après ta prochaine session Premier, quelques minutes après la fin du dernier match.",
+    "waitingUpload": "En attendant, tu peux envoyer une démo FACEIT, ESEA ou de scrim.",
+    "waitingUploadLink": "Envoyer une démo"
+  },
+  "upload": {
+    "title": "Envoyer une démo",
+    "lead": "Pour tes matchs FACEIT, ESEA et tes scrims : télécharge la démo sur la page du match, puis envoie-la ici. L'analyse prend quelques minutes, et le match rejoint tes sessions comme un match Premier.",
+    "refusals": {
+      "off": {
+        "title": "L'envoi de démos est désactivé sur ce serveur",
+        "text": "L'opérateur de ce serveur ne l'a pas activé."
+      },
+      "disk_full": {
+        "title": "Le serveur manque de place",
+        "text": "L'envoi est suspendu le temps de libérer de l'espace. Réessaie plus tard."
+      },
+      "consent": {
+        "title": "Il faut ton accord pour analyser tes démos",
+        "text": "Donne ton accord dans les Réglages : il couvre aussi les démos que tu envoies."
+      },
+      "quota": {
+        "title": "Tu as atteint la limite d'envois du jour",
+        "text": "Tu pourras en envoyer d'autres demain."
+      },
+      "busy": {
+        "title": "Trop de démos sont en cours d'analyse",
+        "text": "Attends qu'une analyse se termine, puis envoie la suivante."
+      }
+    },
+    "openSettings": "Ouvrir les Réglages",
+    "dropTitle": "Glisse ta démo ici",
+    "dropHint": "Ou choisis le fichier : .dem, .dem.zst (FACEIT), .dem.bz2 ou .dem.gz, {max} au plus. Un match Premier que le bot n'a pas récupéré passe aussi.",
+    "choose": "Choisir un fichier",
+    "remove": "Retirer ce fichier",
+    "file": "Démo à envoyer",
+    "mode": "Mode",
+    "modes": {
+      "faceit": "FACEIT",
+      "esea": "ESEA",
+      "scrim": "Scrim",
+      "premier": "Premier"
+    },
+    "date": "Début du match",
+    "dateHint": "Préremplie d'après le fichier. Elle range le match dans la bonne session : corrige-la si besoin.",
+    "send": "Envoyer",
+    "cancel": "Annuler l'envoi",
+    "progress": "Envoi : {sent} sur {total}",
+    "done": "Démo reçue. L'analyse prend quelques minutes : suis-la dans tes envois, ci-dessous.",
+    "aborted": "Envoi annulé.",
+    "errors": {
+      "not_a_demo": "Ce fichier n'est pas une démo CS2. Vérifie que c'est bien la démo (.dem, ou .dem.zst pour FACEIT).",
+      "too_large": "Ce fichier dépasse la taille maximale ({max}).",
+      "consent": "Il faut ton accord pour analyser tes démos : donne-le dans les Réglages.",
+      "quota": "Tu as atteint la limite d'envois du jour. Réessaie demain.",
+      "busy": "Trop de démos sont en cours d'analyse. Attends qu'une se termine.",
+      "disk_full": "Le serveur manque de place. Réessaie plus tard.",
+      "off": "L'envoi de démos est désactivé sur ce serveur.",
+      "date": "La date du match est invalide ou dans le futur.",
+      "network": "L'envoi a été coupé. Vérifie ta connexion, puis réessaie.",
+      "unknown": "L'envoi a échoué. Réessaie dans un moment."
+    },
+    "history": "Tes envois",
+    "historyHint": "Les 30 derniers jours.",
+    "empty": "Aucun envoi pour l'instant.",
+    "states": {
+      "processing": "Analyse en cours",
+      "ready": "Prêt",
+      "refused": "Refusé",
+      "failed": "Échec"
+    },
+    "openMatch": "Ouvrir le match",
+    "mapUnknown": "Carte pas encore connue",
+    "received": "envoyée {date}",
+    "reasons": {
+      "not_a_demo": "Ce fichier n'est pas une démo CS2.",
+      "corrupt": "La démo est abîmée ou incomplète : télécharge-la à nouveau, puis renvoie-la.",
+      "too_large": "La démo décompressée est trop grande.",
+      "unsupported_mode": "Ce n'est pas un match analysé ici (Compétitif ou Wingman) : seuls Premier, FACEIT, ESEA et les scrims le sont.",
+      "not_a_player": "Tu ne joues pas dans ce match : seuls tes propres matchs sont analysés.",
+      "parse_failed": "L'analyse a échoué. Tu peux la renvoyer ; si ça recommence, signale-le."
+    },
+    "cta": "Envoyer une démo"
   },
   "settings": {
     "title": "Réglages",
