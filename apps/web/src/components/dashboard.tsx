@@ -80,6 +80,12 @@ export async function Dashboard({ me, tone }: { me: Me; tone: Tone }) {
         <Card>
           <h2 className="font-semibold">{t("waiting")}</h2>
           <p className="mt-1 max-w-prose text-muted-foreground">{t("waitingLead")}</p>
+          <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
+            {t("waitingUpload")}
+            <Link href="/upload" className={buttonVariants({ variant: "outline", size: "sm" })}>
+              {t("waitingUploadLink")}
+            </Link>
+          </p>
         </Card>
       ) : (
         <div className="grid items-start gap-3 md:gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
