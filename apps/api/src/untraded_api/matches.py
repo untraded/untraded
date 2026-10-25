@@ -10,6 +10,9 @@ version of each metric (`metric_current`), with the default parameters.
 # No `from __future__ import annotations`: FastAPI reads the dependencies from the annotations.
 
 import datetime as dt
+import gzip
+import io
+import re
 import uuid
 from pathlib import Path as FilePath
 from typing import Annotated, Any
@@ -242,6 +245,14 @@ def get_match(match_id: uuid.UUID, conn: ConnDep, user: UserDep) -> MatchDetail:
     )
 
 
+def _replay_version(gzipped: bytes) -> int | None:
+    """The format version of a stored replay: its first key (`untraded.replay.to_json_gz`)."""
+    with gzip.GzipFile(fileobj=io.BytesIO(gzipped)) as file:
+        head = file.read(32)
+    found = re.match(rb'\{"version":(\d+)', head)
+    return int(found[1]) if found else None
+
+
 @router.get(
     "/{match_id}/rounds/{round_number}/replay",
     response_class=Response,
@@ -252,17 +263,29 @@ def get_replay(
     round_number: Annotated[int, Path(ge=0, le=200)],
     conn: ConnDep,
     settings: SettingsDep,
+    v: Annotated[int | None, Query(ge=1)] = None,
 ) -> Response:
     """A round as the 2D viewer replays it (`untraded.replay`, format `version`), gzipped.
-    404 when the match is not one the user may see, or has no replay for that round."""
+    404 when the match is not one the user may see, or has no replay for that round.
+
+    `v` is the format version the viewer reads, and so part of the address the browser caches
+    the replay under: a replay written in another version is a 404 that is not kept, so that a
+    viewer newer than the replays never caches an old one under its own version."""
     row = conn.execute("SELECT parquet_prefix FROM match WHERE id = %s", (match_id,)).fetchone()
     if row is None or row[0] is None or settings.store_dir is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no such replay")
     path = FilePath(settings.store_dir, *row[0].split("/"), "replay", f"{round_number}.json.gz")
     if not path.is_file():
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no such replay")
+    content = path.read_bytes()
+    if v is not None and _replay_version(content) != v:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            "no replay in this version",
+            headers={"Cache-Control": "no-store"},
+        )
     return Response(
-        content=path.read_bytes(),
+        content=content,
         media_type="application/json",
         # A replay never changes once written (a new format is a new version, rewritten).
         headers={"Content-Encoding": "gzip", "Cache-Control": "private, max-age=86400"},

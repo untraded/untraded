@@ -143,6 +143,10 @@ def test_a_round_replay_is_served_to_who_may_see_the_match(
         assert answer.headers["content-encoding"] == "gzip"
         body = answer.json()  # the client unzips it
         assert (body["round"], len(body["players"])) == (11, 10)
+        version = body["version"]
+        assert me.get(f"/matches/{match_id}/rounds/11/replay?v={version}").status_code == 200
+        newer = me.get(f"/matches/{match_id}/rounds/11/replay?v={version + 1}")
+        assert (newer.status_code, newer.headers["cache-control"]) == (404, "no-store")
         assert me.get(f"/matches/{match_id}/rounds/12/replay").status_code == 404
         stranger = as_player(client, STRANGER)
         assert stranger.get(f"/matches/{match_id}/rounds/11/replay").status_code == 404
