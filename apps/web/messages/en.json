@@ -198,6 +198,7 @@
     "record": "{wins} W – {losses} L{ties, plural, =0 {} other { – # T}}",
     "reference": "Compared with your {matches, plural, one {# match} other {# matches}} ({rounds} rounds) from {since} to {until}.",
     "notEnough": "Not enough history for a reference yet: it needs {minMatches} matches and {minRounds} rounds in the 30 days before the session ({matches} and {rounds} so far).",
+    "allMetrics": "Every metric",
     "matches": "Matches",
     "metric": "Metric",
     "session": "Session",
