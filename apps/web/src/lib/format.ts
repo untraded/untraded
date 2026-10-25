@@ -289,3 +289,55 @@ export function hours(startIso: string, endIso: string, locale: Locale, timeZone
       : `${shortDay(endIso, locale, timeZone)} ${time(endIso, locale, timeZone)}`;
   return `${time(startIso, locale, timeZone)} – ${end}`;
 }
+
+/** How far back the list of matches groups: the first period that holds a match wins. */
+export const PERIODS = [
+  "today",
+  "yesterday",
+  "thisWeek",
+  "lastWeek",
+  "thisMonth",
+  "older",
+] as const;
+export type Period = (typeof PERIODS)[number];
+
+/** A calendar day `days` before another one: `2026-10-20`, 1 → `2026-10-19`. */
+function daysBefore(isoDate: string, days: number): string {
+  return new Date(Date.parse(`${isoDate}T00:00:00Z`) - days * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+}
+
+/**
+ * Which period an instant falls in, seen from `now` in the user's time zone: today, yesterday,
+ * this week and last week (Monday to Sunday), the last 30 days, then older. An unknown date is
+ * older.
+ */
+export function period(iso: string | null, now: string, timeZone: string): Period {
+  if (!iso) return "older";
+  const day = localDate(iso, timeZone);
+  const today = localDate(now, timeZone);
+  const week = monday(today);
+  if (day >= today) return "today";
+  if (day === daysBefore(today, 1)) return "yesterday";
+  if (day >= week) return "thisWeek";
+  if (day >= daysBefore(week, 7)) return "lastWeek";
+  if (day >= daysBefore(today, 30)) return "thisMonth";
+  return "older";
+}
+
+/** Items grouped by period, newest first as given, keeping their order. */
+export function byPeriod<T extends { played_at: string | null }>(
+  items: T[],
+  now: string,
+  timeZone: string,
+): { period: Period; items: T[] }[] {
+  const groups: { period: Period; items: T[] }[] = [];
+  for (const item of items) {
+    const found = period(item.played_at, now, timeZone);
+    const last = groups.at(-1);
+    if (last?.period === found) last.items.push(item);
+    else groups.push({ period: found, items: [item] });
+  }
+  return groups;
+}

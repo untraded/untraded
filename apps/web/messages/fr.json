@@ -104,6 +104,25 @@
   },
   "matches": {
     "title": "Matchs",
+    "periods": {
+      "today": "Aujourd'hui",
+      "yesterday": "Hier",
+      "thisWeek": "Cette semaine",
+      "lastWeek": "La semaine dernière",
+      "thisMonth": "Ce mois-ci",
+      "older": "Plus d'un mois"
+    },
+    "periodSummary": "{matches, plural, one {# match} other {# matchs}} · {record}",
+    "when": "Quand",
+    "untradedShort": "MNT",
+    "waiting": {
+      "pending": "En attente de téléchargement",
+      "downloading": "Téléchargement de la démo",
+      "parsing": "Analyse en cours, quelques minutes",
+      "failed": "L'analyse a échoué : le détail est sur la page du match",
+      "unavailable": "Pas analysé : la raison est sur la page du match",
+      "ready": "Prêt"
+    },
     "empty": "Aucun match pour l'instant. Tes nouveaux matchs Premier apparaissent ici quelques minutes après leur fin.",
     "date": "Date",
     "map": "Carte",

@@ -104,6 +104,25 @@
   },
   "matches": {
     "title": "Matches",
+    "periods": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "thisWeek": "This week",
+      "lastWeek": "Last week",
+      "thisMonth": "This month",
+      "older": "More than a month ago"
+    },
+    "periodSummary": "{matches, plural, one {# match} other {# matches}} · {record}",
+    "when": "When",
+    "untradedShort": "UD",
+    "waiting": {
+      "pending": "Waiting for download",
+      "downloading": "Downloading the demo",
+      "parsing": "Being analysed, a few minutes",
+      "failed": "The analysis failed: details on the match page",
+      "unavailable": "Not analysed: the reason is on the match page",
+      "ready": "Ready"
+    },
     "empty": "No match yet. New Premier matches appear here a few minutes after they end.",
     "date": "Date",
     "map": "Map",

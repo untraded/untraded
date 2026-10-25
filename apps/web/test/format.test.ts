@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { pickLocale } from "../src/i18n/locale";
 import { isTimeZone, pickTimeZone } from "../src/i18n/time-zone";
 import {
+  byPeriod,
   bytes,
   byWeek,
   compare,
@@ -22,6 +23,7 @@ import {
   monday,
   number,
   percent,
+  period,
   score,
   shortDay,
   time,
@@ -282,5 +284,35 @@ describe("weeks", () => {
     expect(hours("2026-10-20T20:00:00Z", "2026-10-20T23:10:00Z", "fr", "Europe/Paris")).toBe(
       "22:00 – 21 oct. 01:10",
     );
+  });
+
+  it("groups matches by period, from today back to more than a month", () => {
+    // Wednesday 21 October 2026, 10:00 in Paris; the week started on Monday 19.
+    const now = "2026-10-21T08:00:00Z";
+    const at = (iso: string | null) => period(iso, now, "Europe/Paris");
+    expect(at("2026-10-20T22:30:00Z")).toBe("today"); // 00:30 on the 21st in Paris
+    expect(at("2026-10-20T21:30:00Z")).toBe("yesterday");
+    expect(at("2026-10-19T06:00:00Z")).toBe("thisWeek");
+    expect(at("2026-10-18T20:00:00Z")).toBe("lastWeek");
+    expect(at("2026-10-12T06:00:00Z")).toBe("lastWeek");
+    expect(at("2026-10-11T20:00:00Z")).toBe("thisMonth");
+    expect(at("2026-09-21T06:00:00Z")).toBe("thisMonth");
+    expect(at("2026-09-20T06:00:00Z")).toBe("older");
+    expect(at(null)).toBe("older");
+    // On a Monday, yesterday is still "yesterday", not last week.
+    expect(period("2026-10-18T10:00:00Z", "2026-10-19T10:00:00Z", "UTC")).toBe("yesterday");
+    const groups = byPeriod(
+      [
+        { played_at: "2026-10-21T07:00:00Z" },
+        { played_at: "2026-10-21T06:00:00Z" },
+        { played_at: null },
+      ],
+      now,
+      "Europe/Paris",
+    );
+    expect(groups.map((g) => [g.period, g.items.length])).toEqual([
+      ["today", 2],
+      ["older", 1],
+    ]);
   });
 });
