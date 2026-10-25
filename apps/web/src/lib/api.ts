@@ -170,6 +170,31 @@ export interface PlayerMetrics {
   metrics: MetricValue[];
 }
 
+/** Why a demo sent now would be refused, before sending it (`GET /uploads`). */
+export type UploadRefusal = "off" | "disk_full" | "consent" | "quota" | "busy";
+
+/** A demo the player sent, and what became of it. */
+export interface UploadLine {
+  upload_id: string;
+  /** The match it became, or the one it already was (a demo sent twice): open it once ready. */
+  match_id: string;
+  received_at: string;
+  mode: string;
+  map: string | null;
+  played_at: string | null;
+  state: "processing" | "ready" | "refused" | "failed";
+  /** Why it was refused or failed: `not_a_demo`, `corrupt`, `too_large`, `unsupported_mode`,
+   * `not_a_player`, `parse_failed`. */
+  reason: string | null;
+}
+
+export interface UploadList {
+  items: UploadLine[];
+  refusal: UploadRefusal | null;
+  /** The largest file the API takes. */
+  max_bytes: number;
+}
+
 /** The cookie header to forward: only our session cookie. */
 async function sessionHeader(): Promise<Record<string, string>> {
   const session = (await cookies()).get(SESSION_COOKIE);
@@ -443,3 +468,4 @@ export async function findSessionOf(
 /** A session's report the page can do without: `null` when it is missing or the API fails. */
 export const findSession = (id: string) =>
   apiGetOptional<SessionReport>(`/sessions/${encodeURIComponent(id)}`);
+export const getUploads = () => apiGet<UploadList>("/uploads");

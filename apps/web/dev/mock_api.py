@@ -35,6 +35,7 @@ import json
 import os
 import random
 import re
+import urllib.parse
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
@@ -564,6 +565,103 @@ def player_metrics(match_id: str, steam_id: str) -> dict[str, Any]:
     return {"match_id": match_id, "steam_id": steam_id, "metrics": values}
 
 
+# Uploads, as in `apps/api` (`uploads.py`). `/mock/uploads/<refusal>` sets why a new demo would be
+# refused before it is sent (`off`, `disk_full`, `consent`, `quota`, `busy`, or `none`). A demo is
+# processed for 20 s, then its file name decides what became of it: `notademo`, `corrupt`,
+# `compet` (Competitive), `notme` (the player is not in it) or `broken` (parsing failed); any
+# other name becomes a match.
+UPLOAD_MAX = 400 * 1024 * 1024
+UPLOAD_SUFFIXES = (".dem.bz2", ".dem.gz", ".dem.zst", ".dem")
+UPLOAD_STATUS = {"off": 503, "disk_full": 507, "consent": 409, "quota": 429, "busy": 429}
+UPLOAD_OUTCOMES = {
+    "notademo": "not_a_demo",
+    "corrupt": "corrupt",
+    "compet": "unsupported_mode",
+    "notme": "not_a_player",
+    "broken": "parse_failed",
+}
+UPLOAD_STATE: dict[str, Any] = {"refusal": None}
+PROCESSING = dt.timedelta(seconds=20)
+
+
+def upload(n: int, outcome: str, mode: str, days: int) -> dict[str, Any]:
+    match = MATCHES[1 + n]
+    return {
+        "upload_id": mock_id(5, n),
+        "match_id": match["id"],
+        "received_at": iso(NOW - dt.timedelta(days=days)),
+        "mode": mode,
+        "map": match["map"],
+        "played_at": match["played_at"],
+        "_outcome": outcome,
+        "_ready_at": NOW - dt.timedelta(days=days),
+    }
+
+
+UPLOADS = [
+    upload(0, "ready", "faceit", 1),
+    upload(1, "not_a_player", "faceit", 2),
+    upload(2, "unsupported_mode", "faceit", 3),
+    upload(3, "parse_failed", "scrim", 4),
+]
+
+
+def upload_line(item: dict[str, Any]) -> dict[str, Any]:
+    line = {k: v for k, v in item.items() if not k.startswith("_")}
+    outcome = item["_outcome"]
+    if dt.datetime.now(dt.UTC) < item["_ready_at"]:
+        return line | {"state": "processing", "reason": None, "map": None}
+    if outcome == "ready":
+        return line | {"state": "ready", "reason": None}
+    state = "failed" if outcome == "parse_failed" else "refused"
+    return line | {"state": state, "reason": outcome}
+
+
+def receive_upload(handler: Handler, query: str) -> None:
+    """`POST /uploads`: the checks before the body, then the body read and dropped."""
+    args = dict(re.findall(r"([a-z_]+)=([^&]*)", query))
+    name = urllib.parse.unquote(args.get("name", ""))
+    size = int(handler.headers.get("content-length") or 0)
+    refusal = UPLOAD_STATE["refusal"]
+    if refusal == "off":
+        return handler.reply(503, {"detail": "uploads are off here"})
+    if args.get("mode") not in ("faceit", "esea", "scrim"):
+        return handler.reply(422, {"detail": {"field": "mode"}})
+    try:
+        played = dt.datetime.fromisoformat(urllib.parse.unquote(args.get("played_at", "")))
+    except ValueError:
+        played = None
+    if played is None or played.tzinfo is None:
+        return handler.reply(422, {"detail": {"field": "played_at"}})
+    if refusal:
+        return handler.reply(UPLOAD_STATUS[refusal], {"detail": {"reason": refusal}})
+    if not name.lower().endswith(UPLOAD_SUFFIXES):
+        return handler.reply(422, {"detail": {"reason": "not_a_demo"}})
+    if size > UPLOAD_MAX:
+        return handler.reply(413, {"detail": {"reason": "too_large"}})
+    left = size
+    while left > 0:
+        chunk = handler.rfile.read(min(left, 1 << 20))
+        if not chunk:
+            break
+        left -= len(chunk)
+    outcome = next((o for key, o in UPLOAD_OUTCOMES.items() if key in name.lower()), "ready")
+    n = len(UPLOADS)
+    match = MATCHES[1 + n % 10]
+    item = {
+        "upload_id": mock_id(5, n),
+        "match_id": match["id"],
+        "received_at": iso(dt.datetime.now(dt.UTC)),
+        "mode": args["mode"],
+        "map": match["map"],
+        "played_at": played.astimezone(dt.UTC).isoformat().replace("+00:00", "Z"),
+        "_outcome": outcome,
+        "_ready_at": dt.datetime.now(dt.UTC) + PROCESSING,
+    }
+    UPLOADS.insert(0, item)
+    return handler.reply(202, {"upload_id": item["upload_id"]})
+
+
 # Onboarding and admin, as in `apps/api` (`onboarding.py`, `admin.py`).
 CONSENT_VERSION = "1"
 AUTH_CODE = re.compile(r"(?<![A-Z0-9-])[A-Z0-9]{4}-[A-Z0-9]{5}-[A-Z0-9]{4}(?![A-Z0-9-])")
@@ -767,6 +865,21 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(303, headers={"location": f"{WEB}/"})
         if path == "/me":
             return self.reply(200, me())
+        if found := re.fullmatch(r"/mock/uploads/(\w+)", path):
+            choice = None if found[1] == "none" else found[1]
+            if choice is not None and choice not in UPLOAD_STATUS:
+                return self.reply(404, {"detail": f"refusals: none, {', '.join(UPLOAD_STATUS)}"})
+            UPLOAD_STATE["refusal"] = choice
+            return self.reply(303, headers={"location": f"{WEB}/upload"})
+        if path == "/uploads":
+            return self.reply(
+                200,
+                {
+                    "items": [upload_line(u) for u in UPLOADS],
+                    "refusal": UPLOAD_STATE["refusal"],
+                    "max_bytes": UPLOAD_MAX,
+                },
+            )
         if path.startswith("/admin/") and not ME_STATE["admin"]:
             return self.reply(403, {"detail": "admins only"})
         if path == "/admin/players":
@@ -804,6 +917,11 @@ class Handler(BaseHTTPRequestHandler):
         return self.reply(404, {"detail": "not found"})
 
     def do_POST(self) -> None:
+        path, _, query = self.path.partition("?")
+        if path == "/uploads":
+            if not self.signed_in():
+                return self.reply(401, {"detail": "not signed in"})
+            return receive_upload(self, query)
         size = int(self.headers.get("content-length") or 0)
         body = json.loads(self.rfile.read(size) or b"{}")
         if self.path == "/auth/logout":

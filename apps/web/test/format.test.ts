@@ -247,6 +247,7 @@ describe("bytes", () => {
     expect(bytes(21_500_000_000, "en")).toBe("21.5 GB");
     expect(bytes(512, "en")).toBe("512 byte");
     expect(bytes(null, "fr")).toBe("–");
+    expect(bytes(400 * 1024 * 1024, "en", 1024)).toBe("400 MB");
   });
 });
 

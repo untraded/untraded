@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 The Untraded Authors
 // SPDX-License-Identifier: AGPL-3.0-only
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Upload } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -43,12 +43,19 @@ export default async function Matches({
   if (!list) redirect("/");
   const t = await getTranslations("matches");
   const s = await getTranslations("sessions");
+  const u = await getTranslations("upload");
   const timeZone = await getTimeZone();
   const now = new Date().toISOString();
   const pager = "h-8 gap-1.5 text-[0.8125rem]";
   return (
     <section className="flex flex-col gap-5">
-      <h1 className="text-2xl font-semibold md:text-[1.75rem]">{t("title")}</h1>
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold md:text-[1.75rem]">{t("title")}</h1>
+        <Link href="/upload" className={cn(buttonVariants({ variant: "outline" }), "gap-1.5")}>
+          <Upload aria-hidden="true" />
+          {u("cta")}
+        </Link>
+      </header>
       {list.items.length === 0 && <p className="text-muted-foreground">{t("empty")}</p>}
       {byPeriod(list.items, now, timeZone).map((group, index) => {
         const count = (result: "win" | "loss" | "tie") =>
