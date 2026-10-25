@@ -24,6 +24,7 @@ from untraded_worker.uploads import IngestUploadJob
 pytestmark = pytest.mark.db
 PLAIN = DEMO_MAGIC + b"a FACEIT match" * 1000
 SHA = hashlib.sha256(PLAIN).hexdigest()
+PACKED = zstd.compress(PLAIN)  # 40 bytes: it repeats itself
 
 
 @pytest.fixture
@@ -96,7 +97,7 @@ def test_a_demo_from_valve_servers_is_premier(
     ("content", "reason"),
     [
         (zstd.compress(b"<html>" * 100), "not_a_demo"),
-        (zstd.compress(PLAIN)[:100], "corrupt"),
+        (PACKED[: len(PACKED) // 2], "corrupt"),
         (zstd.compress(PLAIN * 3), "too_large"),
     ],
 )
