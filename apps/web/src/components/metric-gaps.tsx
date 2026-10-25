@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { cn } from "@/lib/cn";
 import type { GapKind, Trend } from "@/lib/format";
@@ -10,6 +11,8 @@ import type { GapKind, Trend } from "@/lib/format";
 export interface GapRow {
   id: string;
   name: string;
+  /** The accessible name of the link to its formula ("Formula: ADR"). */
+  formula: string;
   family: string;
   perRound: string | null;
   value: string;
@@ -167,7 +170,17 @@ function Group({
               )}
             >
               <span>
-                {row.name}
+                <span className="inline-flex items-center gap-1.5">
+                  {row.name}
+                  <Link
+                    href={`/formulas/${row.id}`}
+                    aria-label={row.formula}
+                    title={row.formula}
+                    className="inline-grid size-5 place-items-center rounded-[3px] border border-border font-mono text-[0.6875rem] text-muted-foreground italic hover:border-foreground hover:text-foreground"
+                  >
+                    ƒ
+                  </Link>
+                </span>
                 {note && <span className="block text-xs text-muted-foreground">{note}</span>}
               </span>
               <span className={cn("text-right font-semibold", compare && "hidden sm:block")}>
