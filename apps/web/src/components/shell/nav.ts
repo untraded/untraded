@@ -13,14 +13,23 @@ import {
   ShieldCheck,
   Sigma,
   SlidersHorizontal,
+  Upload,
 } from "lucide-react";
 
-export type Section = "home" | "sessions" | "matches" | "formulas" | "admin" | "settings";
+export type Section =
+  | "home"
+  | "sessions"
+  | "matches"
+  | "upload"
+  | "formulas"
+  | "admin"
+  | "settings";
 
 export const SECTIONS: Record<Section, { href: string; icon: LucideIcon }> = {
   home: { href: "/", icon: House },
   sessions: { href: "/sessions", icon: CalendarDays },
   matches: { href: "/matches", icon: Crosshair },
+  upload: { href: "/upload", icon: Upload },
   formulas: { href: "/formulas", icon: Sigma },
   admin: { href: "/admin", icon: ShieldCheck },
   settings: { href: "/settings", icon: SlidersHorizontal },
@@ -29,7 +38,14 @@ export const SECTIONS: Record<Section, { href: string; icon: LucideIcon }> = {
 /** The section a page belongs to, to mark it in the navigation. */
 export function sectionOf(pathname: string): Section | null {
   if (pathname === "/") return "home";
-  for (const section of ["sessions", "matches", "formulas", "admin", "settings"] as const) {
+  for (const section of [
+    "sessions",
+    "matches",
+    "upload",
+    "formulas",
+    "admin",
+    "settings",
+  ] as const) {
     const { href } = SECTIONS[section];
     if (pathname === href || pathname.startsWith(`${href}/`)) return section;
   }
