@@ -153,6 +153,23 @@ export interface MatchDetail extends MatchSummary {
   players: Player[];
 }
 
+/** One metric of one player in one match, on the whole match (`match`) or on one side. */
+export interface MetricValue {
+  metric_id: string;
+  version: string;
+  name: string;
+  unit: string;
+  better: Comparison["better"];
+  scope: "match" | "ct" | "t";
+  value: number | null;
+}
+
+export interface PlayerMetrics {
+  match_id: string;
+  steam_id: string;
+  metrics: MetricValue[];
+}
+
 /** The cookie header to forward: only our session cookie. */
 async function sessionHeader(): Promise<Record<string, string>> {
   const session = (await cookies()).get(SESSION_COOKIE);
@@ -392,3 +409,37 @@ export const getAdminHealth = () => apiGet<Health>("/admin/health");
 /** A match the page can do without: `null` when it is missing or the API fails. */
 export const findMatch = (id: string) =>
   apiGetOptional<MatchDetail>(`/matches/${encodeURIComponent(id)}`);
+/** A player's metrics in a match, on each scope: `null` when the API cannot give them. */
+export const findPlayerMetrics = (matchId: string, steamId: string) =>
+  apiGetOptional<PlayerMetrics>(
+    `/matches/${encodeURIComponent(matchId)}/players/${encodeURIComponent(steamId)}`,
+  );
+
+/** How many pages of sessions to look through for a match's session (20 per page). */
+const SESSION_PAGES = 5;
+
+/**
+ * The session a match belongs to, found in the list of sessions (newest first): `null` when none
+ * holds it, or when the API fails. Stops at the first page that reaches back before the match.
+ */
+export async function findSessionOf(
+  matchId: string,
+  playedAt: string | null,
+): Promise<SessionSummary | null> {
+  const played = playedAt ? Date.parse(playedAt) : Number.NaN;
+  for (let page = 0; page < SESSION_PAGES; page++) {
+    const list = await apiGetOptional<SessionList>(`/sessions?limit=20&offset=${page * 20}`);
+    if (!list) return null;
+    const found = list.items.find((s) => s.maps.some((m) => m.match_id === matchId));
+    if (found) return found;
+    const oldest = list.items.at(-1);
+    if (list.items.length < list.limit || !oldest || Date.parse(oldest.started_at) < played) {
+      return null;
+    }
+  }
+  return null;
+}
+
+/** A session's report the page can do without: `null` when it is missing or the API fails. */
+export const findSession = (id: string) =>
+  apiGetOptional<SessionReport>(`/sessions/${encodeURIComponent(id)}`);

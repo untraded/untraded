@@ -541,11 +541,23 @@ def report(n: int) -> dict[str, Any]:
     }
 
 
+# The numbers the match page splits by side, drawn within plausible bounds (per side: ~12 rounds).
+SIDE_VALUES = {
+    "base.kills": (4, 16), "base.deaths": (5, 13), "base.adr": (45, 105), "base.kast": (55, 88),
+    "trade.untraded_deaths": (0, 5), "duel.opening_kills": (0, 3), "duel.opening_attempts": (3, 6),
+    "rating.hltv1": (0.55, 1.45),
+}  # fmt: skip
+
+
 def player_metrics(match_id: str, steam_id: str) -> dict[str, Any]:
     values = []
     for m in METRICS:
         for scope in ("match", "ct", "t"):
             value = rand.uniform(0.1, 1.4) if m["unit"] in TOTALS else rand.uniform(5, 90)
+            if m["id"] in SIDE_VALUES:
+                low, high = SIDE_VALUES[m["id"]]
+                value = rand.randint(low, high) if isinstance(low, int) else rand.uniform(low, high)
+                value *= 2 if scope == "match" and m["unit"] in TOTALS else 1
             values.append({"metric_id": m["id"], "version": m["version"], "name": m["name"], "unit": m["unit"], "better": m["better"], "scope": scope, "value": round(value, 3)})  # fmt: skip
     return {"match_id": match_id, "steam_id": steam_id, "metrics": values}
 
