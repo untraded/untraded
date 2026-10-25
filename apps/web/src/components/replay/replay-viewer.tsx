@@ -130,12 +130,15 @@ export function ReplayViewer({
   const headRef = useRef<HTMLSpanElement>(null);
   const doneRef = useRef<HTMLSpanElement>(null);
 
-  // The replay, from the API (gzipped, and cached by the browser: it never changes).
+  // The replay, from the API (gzipped, and cached by the browser: it never changes). The format
+  // version is in the address, so a new viewer never reads a replay cached for the old one.
   useEffect(() => {
     let live = true;
     setReplay(null);
     setProblem(null);
-    fetch(`${PUBLIC_API_PATH}/matches/${encodeURIComponent(matchId)}/rounds/${round}/replay`)
+    fetch(
+      `${PUBLIC_API_PATH}/matches/${encodeURIComponent(matchId)}/rounds/${round}/replay?v=${REPLAY_VERSION}`,
+    )
       .then(async (response) => {
         if (!live) return;
         if (response.status === 404) return setProblem("missing");

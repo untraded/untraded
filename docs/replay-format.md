@@ -11,6 +11,9 @@ tables (`untraded.replay`, MIT) when a match is parsed, and kept gzipped next to
 
 - **API**: `GET /matches/{match_id}/rounds/{round}/replay`, for a user who may see the match. Its
   answer is gzipped (`Content-Encoding: gzip`) and never changes (`Cache-Control: private`).
+  The viewer asks for its format version (`?v=1`), so the browser keeps one copy per version: a
+  replay written in another version is a 404 that is not cached (`no-store`), until
+  `untraded-worker replays --force` rewrites it.
 - **Matches parsed before** replays existed, or after a format change: `untraded-worker replays`
   (add `--force` to rewrite the existing ones).
 
@@ -43,7 +46,9 @@ On the radar, a world point `(x, y)` falls at pixel `((x - pos_x) / scale, (pos_
 
 The viewer's backgrounds are our own radars, in `apps/web/public/radars/` (served at
 `/radars/{map}.svg`, and `/radars/{map}_lower.svg` for the lower level of Nuke, Train and
-Vertigo). They are licensed CC BY 4.0, credit "The Untraded Authors".
+Vertigo). They are licensed CC BY 4.0, credit "The Untraded Authors". The browser keeps them a
+day, then uses its copy for up to a week while it checks for a new one: a redrawn radar can take
+that long to reach a returning viewer.
 
 - **What they are**: SVGs of 1024 x 1024 pixels in the radar transform above. The walkable areas
   of the map's navigation mesh are drawn white on a transparent background, more opaque the
