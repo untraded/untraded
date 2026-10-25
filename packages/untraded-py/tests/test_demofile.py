@@ -12,6 +12,7 @@ from compression import zstd
 from untraded.demofile import (
     DEMO_MAGIC,
     CorruptDemoError,
+    DemoTooLargeError,
     NotADemoError,
     demo_suffix,
     digest,
@@ -62,6 +63,13 @@ def test_demo_suffix_rejects_other_files(name: str) -> None:
 def test_digest_rejects_a_file_that_is_not_a_demo(tmp_path: Path) -> None:
     with pytest.raises(NotADemoError, match="not a CS2 demo"):
         digest(write(tmp_path, ".dem.bz2", b"HL2DEMO\x00" + bytes(100)))
+
+
+def test_digest_stops_at_the_size_limit(tmp_path: Path) -> None:
+    path = write(tmp_path, ".dem.zst")
+    assert digest(path, max_size=len(CONTENT)).size == len(CONTENT)
+    with pytest.raises(DemoTooLargeError):
+        digest(path, max_size=len(CONTENT) - 1)
 
 
 def test_digest_reports_a_truncated_archive(tmp_path: Path) -> None:
