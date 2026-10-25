@@ -12,6 +12,7 @@ describe("shell", () => {
     expect(sectionOf("/matches/0000")).toBe("matches");
     expect(sectionOf("/settings")).toBe("settings");
     expect(sectionOf("/formulas/base.adr")).toBe("formulas");
+    expect(sectionOf("/upload")).toBe("upload");
     expect(sectionOf("/admin")).toBe("admin");
     expect(sectionOf("/admin/health")).toBe("admin");
     expect(sectionOf("/report")).toBeNull();
