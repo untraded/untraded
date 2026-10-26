@@ -639,6 +639,65 @@
       "box1": "<b>1. (required to take part)</b> I agree that my matches are collected and analysed as described above, and that my statistics count in the anonymous references by level.",
       "box2": "<b>2. (optional)</b> I agree that the demos of my matches are kept in Untraded's private research corpus beyond the time above, to calibrate the tool and build the rating model, until I withdraw my consent.",
       "version": "Text version 1, 20/10/2026."
+    },
+    "v2": {
+      "title": "Joining the Untraded closed beta",
+      "lead": "Untraded is a Counter-Strike 2 match analysis tool under development. It collects your matches, analyses the demos, and after each session gives you your priorities, with the rounds that prove them. During the closed beta, a few players use it to help us improve it. This text explains what we do with your data, so that you agree knowing what you agree to.",
+      "controller": "<b>Data controller</b>: {operator}, {email}.",
+      "s1": {
+        "title": "1. What we collect",
+        "i1": "<b>Your Steam ID</b> (SteamID64) and <b>Steam display name</b>, to sign you in and recognise your matches.",
+        "i2": "<b>Your match history authentication code</b> and a match <b>share code</b>. With them, our bot account fetches your Premier matches from Valve. The authentication code is <b>encrypted</b> in our database, and you can revoke it at any time in Steam (see § 6).",
+        "i3": "<b>The demos of your matches</b>: those Valve provides, and those <b>you send yourself</b> from the site (FACEIT, ESEA, scrims). A demo holds everything that happened in the match, including the actions and names of the <b>nine other players</b>. A demo you send is analysed only if <b>you played in that match</b>; otherwise it is deleted without being analysed.",
+        "i4": "<b>The statistics computed</b> from those demos: metrics, session reports, priorities.",
+        "i5": "<b>Your feedback</b> (useful or not useful) on the advice, and your display preferences (language, tone, theme, time zone).",
+        "i6": "<b>A session cookie</b> to keep you signed in, and preference cookies. No advertising or analytics cookies.",
+        "after": "We do not collect your Steam password, your Steam e-mail address, your inventory or any payment details."
+      },
+      "s2": {
+        "title": "2. Why",
+        "i1": "<b>To analyse your play</b>: your session reports, your priorities, and how your indicators move.",
+        "i2": "<b>To improve the tool</b>: calibrate the rules' thresholds, fix errors, and measure whether the advice helps (through your feedback).",
+        "i3": "<b>References by level</b>: until you have enough history of your own, your session is compared with players of the same level. These references are <b>anonymous aggregates</b> over every player of the collected matches, published only when they pool at least 20 players. Nobody can find your own statistics in them.",
+        "i4": "<b>With your separate consent (box 2)</b>: keep the demos of your matches, <b>including those you send</b>, in a private <b>research corpus</b>, to calibrate the tool and build an open rating model (win probability per round).",
+        "after": "We do not sell your data, we do not advertise, and nothing that identifies you is published. Untraded's <b>code</b> is open source; <b>your data is not</b>."
+      },
+      "s3": {
+        "title": "3. Who sees what",
+        "i1": "<b>You</b>: your matches, sessions and priorities.",
+        "i2": "<b>Other testers</b>: nothing of yours. They only see the matches they played, with the players of those matches, as in a demo.",
+        "i3": "<b>The Untraded team</b> ({operator}): all the data, to run and fix the tool.",
+        "i4": "<b>Hosting</b>: {hosting}.",
+        "hostingUnknown": "<b>Hosting</b>: ask {email}."
+      },
+      "s4": {
+        "title": "4. How long",
+        "i1": "<b>Raw demos</b>, fetched or sent: deleted from the server <b>{days, plural, one {# day} other {# days}}</b> after the analysis, except those you agree to give to the research corpus (box 2).",
+        "i1Parsed": "<b>Raw demos</b>, fetched or sent: deleted from the server once analysed, except those you agree to give to the research corpus (box 2).",
+        "i1Kept": "<b>Raw demos</b>, fetched or sent: kept on the server for as long as your account exists.",
+        "i2": "<b>Statistics, sessions, priorities, feedback</b>: kept during the beta, then for as long as your account exists.",
+        "i3": "<b>If you leave the beta</b> or ask for deletion: your data is deleted within <b>30 days</b>, corpus demos included. Anonymous aggregates, from which you cannot be identified, remain."
+      },
+      "s5": {
+        "title": "5. Your rights",
+        "lead": "At any time, you can:",
+        "i1": "<b>withdraw your consent</b> and leave the beta, without giving a reason (in the Settings);",
+        "i2": "ask for <b>access</b> to your data, a <b>copy</b> (in a reusable format), its <b>correction</b> or its <b>deletion</b>;",
+        "i3": "ask for your statistics <b>not to count</b> in the references by level.",
+        "after": "To do so, write to {email}. We answer within one month at most. You can also lodge a complaint with your data protection authority (in France, the CNIL)."
+      },
+      "s6": {
+        "title": "6. Revoking access to your match history",
+        "body": "The authentication code only gives access to the list of your matches; it cannot sign in to your account. To cut the access, <b>generate a new code</b> in Steam: the old one stops working, and we can no longer fetch your new matches."
+      },
+      "s7": {
+        "title": "7. This is a beta",
+        "body": "The tool is being tested. It may contain errors, in the statistics as in the advice, and data may be lost. The advice is a training lead, not the truth. The beta is free and may stop at any time; we will tell you."
+      },
+      "agree": "8. Your consent",
+      "box1": "<b>1. (required to take part)</b> I agree that my matches, fetched by the bot or sent by me, are analysed as described above, and that my statistics count in the anonymous references by level.",
+      "box2": "<b>2. (optional)</b> I agree that the demos of my matches, including those I send, are kept in Untraded's private research corpus beyond the time above, to calibrate the tool and build the rating model, until I withdraw my consent.",
+      "version": "Text version 2, 26/10/2026: adds the demos you send from the site."
     }
   },
   "welcome": {
@@ -650,7 +709,6 @@
     "consentLead": "Read this text before you start: it says what we do with your data.",
     "outdated": "The text changed since you agreed: read the new version and agree again.",
     "withdrawn": "You withdrew your consent: we no longer follow your matches. You can give it again here.",
-    "draft": "First draft, under legal review.",
     "unknownText": "This site does not know the consent text “{version}”. Tell the operator at {email}.",
     "agreeButton": "I agree, continue",
     "errorVersion": "The text changed while you were reading: read it again, then agree again.",

@@ -31,7 +31,7 @@ pytestmark = [
 PLAYER = 76561198000000003
 ZSTD = b"\x28\xb5\x2f\xfd" + bytes(1000)  # what a FACEIT demo starts with
 PARAMS = {"name": "match.dem.zst", "mode": "faceit", "played_at": "2026-10-24T20:00:00+02:00"}
-CONSENT = {"text_version": "1", "analysis": True, "research_corpus": False}
+CONSENT = {"text_version": "2", "analysis": True, "research_corpus": False}
 
 
 @pytest.fixture

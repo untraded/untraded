@@ -124,9 +124,7 @@ async function ConsentStep({
       <p className="max-w-prose text-muted-foreground">{notice}</p>
       <div className="rounded-lg border border-border bg-card p-4 sm:p-6">
         <ConsentText version={version} />
-        <p className="mt-4 text-[0.8125rem] text-muted-foreground">
-          {text(`v${version}.version`)} {t("draft")}
-        </p>
+        <p className="mt-4 text-[0.8125rem] text-muted-foreground">{text(`v${version}.version`)}</p>
       </div>
       <form action={giveConsent} className="flex flex-col gap-3">
         <input type="hidden" name="text_version" value={version} />

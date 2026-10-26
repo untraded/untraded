@@ -1,4 +1,9 @@
-# Untraded
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/untraded-horizontal-long-paper.svg">
+    <img alt="Untraded" src="docs/brand/untraded-horizontal-long-ink.svg" height="48">
+  </picture>
+</h1>
 
 **Never die untraded.**
 
@@ -43,6 +48,10 @@ just check     # lint, type-check, test, license check
 ## Contributing
 
 Contributions are welcome, starting with the metrics engine. Read [CONTRIBUTING.md](CONTRIBUTING.md); a light [Contributor License Agreement](CLA.md) is signed through a pull request comment.
+
+## Name and logo
+
+The code is free software, but the Untraded name and logo are trademarks: you may use them to talk about the project or link to it, and run an unmodified instance under its name. A fork needs its own name and logo. See [TRADEMARKS.md](TRADEMARKS.md).
 
 ## Disclaimer
 
