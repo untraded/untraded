@@ -44,6 +44,31 @@ describe("winprob", () => {
     expect(list[1]?.credits.map((c) => c.player)).toEqual(["7", "8", "2"]);
   });
 
+  it("reads the move between the last two points of the tick, past a sample on the same tick", () => {
+    const sampled: ReplayWinProb = {
+      model: "1.0",
+      ticks: [100, 200, 200, 200],
+      p_ct: [0.5, 0.3, 0.5, 0.3],
+      swings: [
+        { tick: 200, event: "kill", player: "6", side: "T", swing: 0.2 },
+        { tick: 200, event: "kill", player: "1", side: "CT", swing: -0.2 },
+      ],
+    };
+    const [kill] = events(sampled);
+    expect(kill?.ct).toBeCloseTo(-0.2);
+    expect(kill?.gainer).toBe("T");
+  });
+
+  it("falls back on the swings when the curve has no step on the tick", () => {
+    const flat: ReplayWinProb = {
+      model: "1.0",
+      ticks: [100, 300],
+      p_ct: [0.5, 0.6],
+      swings: [{ tick: 200, event: "kill", player: "1", side: "CT", swing: 0.15 }],
+    };
+    expect(events(flat)[0]?.ct).toBeCloseTo(0.15);
+  });
+
   it("marks plants, defuses and the kills that moved the chance enough", () => {
     const list = events(winprob);
     expect(marked(list).map((e) => e.tick)).toEqual([300, 500]);
