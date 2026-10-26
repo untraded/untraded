@@ -166,6 +166,25 @@ def test_a_late_match_queues_the_sessions_whose_reference_it_joins(
 
 
 @pytest.mark.db
+def test_a_metric_version_no_parse_recorded_yet_is_recorded_by_the_session(
+    db: psycopg.Connection[Any],
+    tmp_path: Path,
+    analysis: Analysis,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = LocalStore(tmp_path)
+    match_id = add_match(db, store, analysis, at(20))
+    # An update bumps a metric after the match was parsed: its new version is in no table yet.
+    bumped = dataclasses.replace(REGISTRY["base.kills"], version="9.9.9")
+    monkeypatch.setitem(REGISTRY, "base.kills", bumped)
+    run(SessionJob(store), db, match_id)
+    saved = db.execute(
+        "SELECT version FROM play_session_metric WHERE metric_id = 'base.kills'"
+    ).fetchone()
+    assert saved == ("9.9.9",)
+
+
+@pytest.mark.db
 def test_without_enough_history_the_reference_is_not_shown(
     db: psycopg.Connection[Any], tmp_path: Path, analysis: Analysis
 ) -> None:
