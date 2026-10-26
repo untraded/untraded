@@ -1,0 +1,5 @@
+Copyright 2026 The Untraded Authors. All rights reserved.
+
+These files contain the Untraded name and logo, which are trademarks of The Untraded Authors. They
+are not covered by the licences of the code in this repository. Their use is governed by the
+trademark policy in TRADEMARKS.md.
