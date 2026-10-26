@@ -28,6 +28,7 @@ import {
   type Trend,
   time,
 } from "@/lib/format";
+import { catalogFor } from "@/lib/metric-docs-files";
 
 const IN_PROGRESS: MatchStatus[] = ["pending", "downloading", "parsing"];
 const ARROW: Record<Trend, string> = { better: "▲", worse: "▼", same: "=" };
@@ -321,7 +322,7 @@ async function Recent({ items, locale }: { items: SessionSummary[]; locale: Loca
                     const moved = gapTrend(gap(c));
                     return (
                       <span key={c.metric_id} className="whitespace-nowrap">
-                        {c.name}{" "}
+                        {catalogFor(locale)?.names[c.metric_id] ?? c.name}{" "}
                         <span className="font-semibold text-foreground">
                           {metric(c.session, c.unit, c.basis, locale)}
                         </span>
