@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
+import { LogoHorizontal, LogoSymbol16 } from "@/components/brand/logo";
 import type { Me } from "@/lib/api";
 import { AccountMenu } from "./account-menu";
 import { MoreSheet } from "./more-sheet";
@@ -30,19 +31,11 @@ export async function AppShell({
     >
       <aside className="sticky top-0 hidden h-dvh flex-col gap-0.5 border-r border-border bg-card px-2.5 py-3 md:flex">
         <div className="flex items-center justify-center gap-2 px-1 pb-3 lg:justify-between lg:group-data-[collapsed=true]/shell:flex-col lg:group-data-[collapsed=true]/shell:justify-center">
-          <Link href="/" aria-label="Untraded" className="px-1 text-base font-bold">
-            <span
-              aria-hidden="true"
-              className="hidden lg:inline lg:group-data-[collapsed=true]/shell:hidden"
-            >
-              Untraded
-            </span>
-            <span
-              aria-hidden="true"
-              className="lg:hidden lg:group-data-[collapsed=true]/shell:inline"
-            >
-              U
-            </span>
+          <Link href="/" aria-label="Untraded" className="flex h-8 items-center rounded-md px-1">
+            {/* The logo when the sidebar is wide; folded, the compact sign alone, in its version
+                drawn for small sizes. */}
+            <LogoHorizontal className="hidden h-5 w-auto lg:block lg:group-data-[collapsed=true]/shell:hidden" />
+            <LogoSymbol16 className="size-4 lg:hidden lg:group-data-[collapsed=true]/shell:block" />
           </Link>
           <SidebarToggle
             collapsed={collapsed}
@@ -74,8 +67,8 @@ export async function AppShell({
 
       <div className="min-w-0">
         <header className="sticky top-0 z-10 flex h-13 items-center border-b border-border bg-card px-4 md:hidden">
-          <Link href="/" className="font-bold">
-            Untraded
+          <Link href="/" aria-label="Untraded" className="flex h-8 items-center">
+            <LogoHorizontal className="h-5 w-auto" />
           </Link>
         </header>
         <main className="mx-auto max-w-6xl px-4 pt-6 pb-24 md:px-8 md:pt-8 md:pb-12">

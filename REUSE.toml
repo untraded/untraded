@@ -20,3 +20,18 @@ path = "apps/web/public/radars/**"
 precedence = "closest"
 SPDX-FileCopyrightText = "2026 The Untraded Authors"
 SPDX-License-Identifier = "CC-BY-4.0"
+
+# The Untraded name and logo: trademarks, all rights reserved, never under the code's licences
+# (`LICENSES/LicenseRef-Untraded-Trademark.txt`). The `Logo` component carries the same identifier
+# in its own header.
+[[annotations]]
+path = [
+  "apps/web/src/app/favicon.ico",
+  "apps/web/src/app/icon.svg",
+  "apps/web/src/app/apple-icon.png",
+  "apps/web/src/app/opengraph-image.png",
+  "apps/web/public/icons/**",
+]
+precedence = "override"
+SPDX-FileCopyrightText = "2026 The Untraded Authors"
+SPDX-License-Identifier = "LicenseRef-Untraded-Trademark"
