@@ -129,4 +129,4 @@
 |---|---|---|---|---|---|
 | [`rating.hltv1`](rating.hltv1.md) | HLTV Rating 1.0 | 1.0.0 | ratio | higher | compared (1 %) |
 | [`rating.hltv2_approx`](rating.hltv2_approx.md) | HLTV 2.0 (approx.) | 1.1.0 | ratio | higher | compared (1 %) |
-| [`rating.swing`](rating.swing.md) | Win-probability swing | 1.0.0 | pct | higher | — |
+| [`rating.swing`](rating.swing.md) | Win-probability swing | 1.1.0 | pct | higher | — |

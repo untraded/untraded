@@ -154,6 +154,14 @@ def test_swings_are_zero_sum_and_credit_damage(
     )
     for row in last.iter_rows(named=True):
         assert row["p_ct_after"] == (1.0 if row["winner_side"] == "CT" else 0.0)
+    # Nothing once the round is decided (round 12: a death to the explosion, after it).
+    decided = tables["round"].select(
+        "round",
+        pl.min_horizontal("end_tick", "bomb_defused_tick", "bomb_exploded_tick").alias("at"),
+    )
+    late = credits.join(decided, on="round").filter(pl.col("tick") > pl.col("at"))
+    assert late.is_empty()
+    assert tables["kill"].join(decided, on="round").filter(pl.col("tick") > pl.col("at")).height
     flashed = tables["kill"].filter(pl.col("flash_assist") & pl.col("assister").is_not_null())
     for row in flashed.iter_rows(named=True):
         rows = kills.filter(pl.col("tick") == row["tick"])

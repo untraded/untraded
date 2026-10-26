@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 The Untraded Authors
 // SPDX-License-Identifier: AGPL-3.0-only
 //
-// Round replays for the 2D viewer (`docs/replay-format.md`, version 1), and what the viewer
+// Round replays for the 2D viewer (`docs/replay-format.md`, version 2), and what the viewer
 // computes from them: where a moment falls between samples, where a world point falls on the
 // radar, the level, the clock and the bomb. Pure, tested without a browser.
 
@@ -76,6 +76,25 @@ export type BombEventType =
   | "dropped"
   | "picked_up";
 
+/** One credit of a kill, a plant or a defuse: how much it moved the player's side's chance of
+ * winning the round, from -1 to 1. */
+export interface ReplaySwing {
+  tick: number;
+  event: "kill" | "plant" | "defuse";
+  player: string;
+  side: Side;
+  swing: number;
+}
+
+/** The counter-terrorists' chance of winning the round over time (`docs/winprob.md`): the curve
+ * steps at each event (two points on its tick, before and after) and ends on the result. */
+export interface ReplayWinProb {
+  model: string;
+  ticks: number[];
+  p_ct: number[];
+  swings: ReplaySwing[];
+}
+
 export interface Replay {
   version: number;
   match_id: string;
@@ -98,10 +117,12 @@ export interface Replay {
     events: { tick: number; type: BombEventType; player: string | null; site: string | null }[];
     planted_at: [number, number, number] | null;
   };
+  /** Null for a round the model does not cover (no winner, or an end such as a surrender). */
+  winprob: ReplayWinProb | null;
 }
 
 /** The format version this viewer reads. */
-export const REPLAY_VERSION = 1;
+export const REPLAY_VERSION = 2;
 /** Premier: a round lasts 1:55 after the freeze time, the bomb 40 s once planted. */
 export const ROUND_SECONDS = 115;
 export const BOMB_SECONDS = 40;

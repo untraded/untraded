@@ -11,17 +11,17 @@ tables (`untraded.replay`, MIT) when a match is parsed, and kept gzipped next to
 
 - **API**: `GET /matches/{match_id}/rounds/{round}/replay`, for a user who may see the match. Its
   answer is gzipped (`Content-Encoding: gzip`) and never changes (`Cache-Control: private`).
-  The viewer asks for its format version (`?v=1`), so the browser keeps one copy per version: a
+  The viewer asks for its format version (`?v=2`), so the browser keeps one copy per version: a
   replay written in another version is a 404 that is not cached (`no-store`), until
   `untraded-worker replays --force` rewrites it.
 - **Matches parsed before** replays existed, or after a format change: `untraded-worker replays`
   (add `--force` to rewrite the existing ones).
 
-## Format, version 1
+## Format, version 2
 
 | Key | Content |
 |---|---|
-| `version` | `1`; a change is a new version, and the replays are rewritten |
+| `version` | `2`; a change is a new version, and the replays are rewritten |
 | `match_id`, `round`, `map`, `tickrate` | |
 | `radar` | where world points fall on the map's 1024-pixel radar: `pos_x`, `pos_y`, `scale`, `lower_below` (world `z` under which a point is on the lower level, or null); null for a map without known values (`untraded.maps`) |
 | `start_tick`, `freeze_end_tick`, `end_tick` | the round, its freeze time ending at `freeze_end_tick` |
@@ -33,6 +33,9 @@ tables (`untraded.replay`, MIT) when a match is parsed, and kept gzipped next to
 | `grenades` | `id`, `type` (`flash`, `he`, `smoke`, `molotov`, `incendiary`, `decoy`), `thrower`, `side`, `throw_tick`, `detonate_tick`, `end_tick` (smoke and fire), `detonate` (`[x, y, z]`), `path` (`ticks`, `x`, `y`, `z`) |
 | `blinds` | `tick`, `victim`, `flasher`, `duration` (seconds) |
 | `bomb` | `events` (`tick`, `type`: `plant_begin`, `planted`, `defuse_begin`, `defused`, `exploded`, `dropped`, `picked_up`; `player`, `site`) and `planted_at` (`[x, y, z]`: the planter's position when it was planted) |
+| `winprob` | the counter-terrorists' chance of winning the round over time ([winprob](winprob.md)): `model` (its version), `ticks` and `p_ct` (0 to 1, three decimals), and `swings` (`tick`, `event`: `kill`, `plant` or `defuse`; `player`, `side`, `swing`: from -1 to 1, seen by the player's side). The curve has a point per second of play, two points on the tick of each event (before and after, so it steps at once), and ends on the result, 1 or 0, when the round is decided. Null for a round the model does not cover (no winner, or an end such as a surrender) |
+
+Version 2 (2026-10-26) adds `winprob`; version 1 had everything else.
 
 Player states: `x`, `y`, `z` (world units, integers), `yaw` (whole degrees, 0 to 359), `hp`,
 `armor`, `alive` (0 or 1), `flash` (seconds of blindness left, one decimal), `scoped`, `defusing`

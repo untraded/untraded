@@ -11,6 +11,7 @@ before it and just after it, and the difference is the event's swing:
   flash assist takes `FLASH_SHARE` of it first. The victim is debited the same swing, seen by
   their side. A team kill debits the killer instead; a death to the world debits the victim.
   The death of a bot (`kill.victim` null) is not credited.
+- Nothing is credited once the round is decided: the bomb's victims and exit frags.
 - **the plant**: the bomb goes down with `BOMB_SECONDS` to go; the planter gets the swing.
 - **the defuse**: the counter-terrorists win; the defuser gets the swing.
 
@@ -118,6 +119,11 @@ def swings(tables: Mapping[str, pl.DataFrame], model: Model) -> pl.DataFrame:
             continue
         if kill["victim"] is None:  # a bot: no state of its own to take away
             continue
+        exploded = rnd["bomb_exploded_tick"]
+        ends = [t for t in (rnd["end_tick"], rnd["bomb_defused_tick"], exploded) if t is not None]
+        late = bool(ends) and kill["tick"] > min(ends)
+        if late or (exploded is not None and kill["tick"] >= exploded):
+            continue  # the round is already decided: the bomb's victims, exit frags
         try:
             before = state_at(tables, kill["round"], kill["tick"])
         except ValueError:
