@@ -281,7 +281,11 @@ def replay(match: dict[str, Any], n: int) -> dict[str, Any] | None:
         blind["victim"], blind["flasher"] = rename(blind["victim"]), rename(blind["flasher"])
     for event in found["bomb"]["events"]:
         event["player"] = rename(event["player"])
+    for swing in (found.get("winprob") or {}).get("swings", []):
+        swing["player"] = rename(swing["player"])
     found.update({"match_id": match["id"], "round": n})
+    if n % 9 == 0:  # a round the model does not cover: the viewer draws no curve
+        found["winprob"] = None
     if match["map"] == "de_anubis":
         found.update({"map": "de_anubis", "radar": None})
     if match["map"] == "de_nuke":
