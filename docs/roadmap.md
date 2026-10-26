@@ -11,4 +11,19 @@ Untraded moves phase by phase; a phase opens only when the previous one meets it
 | **4. Hosted version** | Bot pool, adaptive polling, rank-based benchmarks, backups, observability | — |
 | **5. Later** | Pattern detection, true line of sight, aim level 2, optional LLM summaries grounded in computed evidence, scouting, public API and plugins | — |
 
+## Phase 2 so far
+
+Delivered:
+
+- **Valve collector** (`apps/collector`): follows players' Premier matches through their share-code chain and a Game Coordinator bot, and queues the demos.
+- **Demo uploads**: players send FACEIT, ESEA and scrim demos from the site; Valve demos are recognised as Premier. A demo the sender did not play in is refused.
+- **Worker** (`apps/worker`): download, upload checks, parsing, play sessions and their reports, advice, round replays, swings, references by level, raw demo retention, erasure on request.
+- **API** (`apps/api`, FastAPI): Steam sign-in by invitation, under row-level security; matches, sessions, replays, uploads, consent, erasure, admin.
+- **Web app** (`apps/web`, Next.js, English and French): home page, matches, match page, 2D round viewer (our own radars, the round's win-probability curve and swings), session reports with priorities and follow-up, progress page, formulas pages, demo upload, settings (language, coach or analyst tone, consent, erasure), onboarding and admin.
+- **Rule-based advice** (`untraded.advice`, [advice.md](advice.md)): 10 open rules, up to three priorities per session with evidence rounds, actions and feedback, followed from one session to the next.
+- **Open win-probability model** v1 (`untraded.winprob`, [winprob.md](winprob.md)), each action's swing and the `rating.swing` metric.
+- **Self-hosting** with Docker Compose ([self-hosting.md](self-hosting.md)), with a daily database dump.
+
+Still to come in phase 2: the open rating on its 1.00 scale, Renown, the FACEIT extension (the [S0.3](../spikes/S0.3-faceit-extension/) prototype is not part of the product yet), the Discord bot, the PWA and exports.
+
 Metric definitions for phase 1: [metrics-v1.md](metrics-v1.md). Architecture decisions: [adr/](adr/).

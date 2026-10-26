@@ -1,6 +1,6 @@
 # Calibration of the v0 thresholds (E9)
 
-Six thresholds of the v1 catalogue were v0 guesses, marked 🎯 in [metrics-v1](metrics-v1.md) and in the [parameters page](metrics/parameters.md). This page gives the method used for each one, the results on the corpus, and the decisions taken.
+Seven thresholds of the v1 catalogue were v0 guesses, marked 🎯 in [metrics-v1](metrics-v1.md) and in the [parameters page](metrics/parameters.md). This page gives the method used for each one, the results on the corpus, and the decisions taken.
 
 **Rule.** A suggestion is evidence for a decision, not a new default. A default only changes when the data **clearly** contradicts it, with a version bump of every metric that reads it ([ADR 0003](adr/0003-versioned-metric-registry.md)). Calibration only uses demos of consenting players at the target level ([ADR 0010](adr/0010-reference-data-and-corpus.md)).
 
@@ -11,7 +11,7 @@ untraded parse --mode premier --source valve --dates-from corpus/manifest.toml -
 untraded calibrate parsed/matches/*
 ```
 
-The code is `untraded.calibration`. Each function measures what a threshold should separate and states its rule.
+The code is `untraded.calibration`. Each function measures what a threshold should separate and states its rule. `untraded calibrate` prints, in order: the buy profile with the least populated bucket between 500 and 2,500 $ and between 3,000 and 5,500 $, the traded share by distance to the nearest teammate with the suggested radius, the quantiles of the real trade distances, and the replication table of recurring spots.
 
 ## Results (20/10/2026)
 
@@ -30,7 +30,7 @@ The code is `untraded.calibration`. Each function measures what a threshold shou
 
 ### `isolation.radius` = 1000 units
 
-- **Method**: deaths by an enemy with a living teammate, grouped by the distance to the nearest teammate in buckets of 250 units, with the share traded within 5 s. The rule: the radius is where the traded share falls below half of its value at close range (under 500 units), since beyond it a teammate is too far to trade.
+- **Method**: deaths by an enemy with a living teammate, grouped by the distance to the nearest teammate in buckets of 250 units, with the share traded within 5 s. The rule: the radius is where the traded share falls below half of its value at close range (under 500 units), since beyond it a teammate is too far to trade. Buckets of fewer than 20 deaths are ignored.
 - **Result**:
 
   | Nearest teammate | Deaths | Traded |

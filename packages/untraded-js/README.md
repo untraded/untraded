@@ -2,9 +2,11 @@
 
 Open, transparent Counter-Strike 2 match metrics.
 
-> **Early preview.** This package will host the open metrics library of [Untraded](https://github.com/untraded), a self-hostable CS2 demo analyzer and coach. Every metric ships with its formula, its version and its tests.
+> **Early preview.** This package will host the open metrics library of [Untraded](https://github.com/untraded/untraded), a self-hostable CS2 demo analyzer and coach. Every metric ships with its formula, its version and its tests. For now it holds one function; the full metrics engine (parsing, round model, every metric) is the Python package [`untraded`](https://pypi.org/project/untraded/).
 
 ## Available now
+
+An ES module with its TypeScript types, for Node.js 18 or later.
 
 ```js
 import { ratingHltv1 } from "untraded";
@@ -21,6 +23,8 @@ KillRating      = (kills / rounds) / 0.679
 SurvivalRating  = ((rounds − deaths) / rounds) / 0.317
 MultiKillRating = ((1K + 4×2K + 9×3K + 16×4K + 25×5K) / rounds) / 1.277
 ```
+
+Its argument has the type `MatchTotals` (also exported). It throws a `RangeError` when `rounds` is not positive or a `multikills` key is not between 1 and 5.
 
 Untraded is not affiliated with HLTV or Valve.
 

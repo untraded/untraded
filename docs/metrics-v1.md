@@ -1,6 +1,6 @@
 # Metric catalog v1 (phase 1)
 
-*Version 1, 2026-10-13. This catalog is **closed** for phase 1: new metrics go to v2. Each entry becomes a registered metric (`packages/untraded-py/src/untraded/metrics/`) with a generated documentation page.*
+*Version 1, 2026-10-13, updated 2026-10-26. This catalog is **closed** for phase 1: new metrics go to v2. Two entries were added since, `base.assist_score` (settled with the CS Demo Manager comparison) and `rating.swing` (the first step of the open rating). Each entry is a registered metric (`packages/untraded-py/src/untraded/metrics/`, 82 in all: 73 values and 9 tables) with a generated documentation page ([metrics/](metrics/README.md)), which also gives its version and history.*
 
 **Legend**
 - **ID**: stable registry identifier. It never changes, even when the formula's version does.
@@ -22,6 +22,7 @@
 | Distances | 3D Euclidean distance between positions, in Hammer units (a player is about 72 u tall). Navmesh path distance comes in v2. |
 | Zones | The player's `last_place_name`, i.e. the engine navmesh place name (e.g. `BombsiteA`, `Connector`). Mapping to community callouts comes in v2. |
 | Multi-match averages | Per-round metrics are recomputed over all rounds, never as an average of per-match averages. |
+| Bots | A dead player who takes over a bot of their team gets the bot's kills and damage, as on the in-game scoreboard. The death of a bot, controlled or not, is nobody's death, and an assist on the death of an uncontrolled bot is not counted. |
 
 ---
 
@@ -34,7 +35,7 @@
 | `base.assists` | Assists | Enemy kills where the player is the `assister`, **flash assists excluded** | ✅ |
 | `base.flash_assists` | Flash assists | Enemy kills with `assistedflash` credited to the player | ✅ |
 | `base.assist_score` | Weighted assists | Assists + ⚙ `assist.flash_weight = 0.5` × flash assists: a flash assist counts, but less than an assist | — |
-| `base.team_kills`, `base.suicides` | Team kills, suicides | Counts | ✅ |
+| `base.team_kills`, `base.suicides` | Team kills, suicides | Teammates killed by the player; deaths where the player is both attacker and victim | ✅ |
 | `base.kd_diff` | K−D | kills − deaths | ✅ |
 | `base.kpr`, `base.dpr`, `base.apr` | Per round | kills, deaths or assists ÷ rounds played | ✅ |
 | `base.adr` | ADR | Sum of capped damage to enemies ÷ rounds played | ✅ (≤ 1 %) |
@@ -47,7 +48,7 @@
 ## 2. Duels and trades (priority)
 
 **Core definitions**
-- **Opening**: the first enemy kill of the round after freeze-time end.
+- **Opening**: the first enemy kill of the round after freeze-time end. A death by a fall or the world (no killer) is not an opening.
 - **Trade**: A is killed by enemy B at tick *t*. If a teammate C of A kills B within [*t*, *t* + W], the same tick included, then:
   - **A's death is traded**;
   - **C gets a trade kill**.
@@ -64,18 +65,19 @@
 | `duel.opening_success_pct` | Opening success | Opening kills ÷ opening duels × 100 | ✅ |
 | `duel.opening_attempt_pct` | Opening frequency | Opening duels ÷ rounds played × 100 | — |
 | `duel.opening_win_conversion_pct` | Opening conversion | % of rounds with an opening kill by the player that the team wins | — |
-| `trade.trade_kills` | Trade kills | Trade kills made | ✅ |
+| `trade.trade_kills` | Trade kills | Trade kills made: kills of an enemy who killed a teammate of the player within W before | ✅ |
 | `trade.traded_deaths` | Traded deaths | The player's deaths that were traded | ✅ |
 | `trade.traded_death_pct` | Traded death % | Traded deaths ÷ deaths × 100 | — |
-| `trade.untraded_deaths` | **Untraded deaths** | Deaths − traded deaths (the product's signature metric) | — |
+| `trade.untraded_deaths` | **Untraded deaths** | Deaths − traded deaths (the product's signature metric). Includes deaths with no teammate left to trade them | — |
+| `trade.trade_kills_w3`, `trade.traded_deaths_w3`, `trade.traded_death_pct_w3`, `trade.untraded_deaths_w3` | 3-second variants | The same four metrics with W = 3 s (⚙ `trade.window_w3_s = 3.0`) | — |
 | `trade.kill_opportunities` | Trade opportunities | The player's trade opportunities (as defined above) | — |
 | `trade.kill_conversion_pct` | Opportunity conversion | Trade kills ÷ trade opportunities × 100 | — |
 | `trade.death_opportunities` | Tradable deaths | The player's deaths where at least one teammate had a trade opportunity | — |
-| `duel.isolated_deaths` | Isolated deaths | **Untraded** deaths where the nearest living teammate was more than R units away. ⚙🎯 `isolation.radius = 1000` u. A death with no living teammate (last player alive) is not isolated | — |
+| `duel.isolated_deaths` | Isolated deaths | **Untraded** deaths where the nearest living teammate was more than R units away. ⚙🎯 `isolation.radius = 1000` u (checked on the corpus and kept, [calibration.md](calibration.md)). A death with no living teammate (last player alive) is not isolated | — |
 | `duel.isolated_death_pct` | Isolated death % | Isolated deaths ÷ deaths × 100 | — |
 | `duel.nearest_teammate_at_death` | Spacing at death | Median, over deaths with a living teammate, of the distance to the nearest one (u) | — |
-| `clutch.attempts_1v{1..5}` | Clutch attempts | Rounds where the player becomes the last one alive on the team, facing N living enemies | ✅ |
-| `clutch.wins_1v{1..5}` | Clutch wins | …and the team wins the round | ✅ |
+| `clutch.attempts_1v{1..5}` | Clutch attempts | Rounds where the player becomes the last one alive on the team, facing N living enemies. Kills after the round end are ignored, only the enemies present in the round count, and when the last two players of a team die on the same tick nobody clutched | ✅ |
+| `clutch.wins_1v{1..5}` | Clutch wins | …and the team wins the round, whether or not the clutcher survives | ✅ |
 | `clutch.win_pct` | Clutch success | Clutch wins ÷ clutch attempts × 100, over all N | ✅ |
 
 ## 3. Positioning (priority)
@@ -85,8 +87,8 @@ These metrics are distributions per map and side, not one number per player: the
 | ID | Name | Definition | CSDM |
 |---|---|---|---|
 | `pos.death_zones` | Death zones | Distribution of deaths by zone, per map and side, with the traded % for each zone | — |
-| `pos.kill_zones` | Kill zones | Distribution of kills by zone (killer position), per map and side | — |
-| `pos.setup_zone_t20` | Position at T+20 s | The player's zone 20 s after freeze-time end (⚙ `setup.offset_s = 20`), distribution per map and side: CT setups, T defaults | — |
+| `pos.kill_zones` | Kill zones | Distribution of enemy kills by zone (killer position), per map and side | — |
+| `pos.setup_zone_t20` | Position at T+20 s | The player's zone 20 s after freeze-time end (⚙ `setup.offset_s = 20`, applied when the round model is derived), over the rounds where the player is alive then, distribution per map and side: CT setups, T defaults | — |
 | `pos.setup_diversity` | Predictability | Normalized entropy of that distribution, per map and side: entropy ÷ ln of the number of distinct zones used (0 = always the same spot, 1 = spread evenly; 0 with a single zone) | — |
 | `pos.recurring_death_spot` | Recurring death spot | For each map and side: a zone holding ≥ X % of the player's **untraded** deaths, when the player played ≥ N rounds there. ⚙🎯 `pos.recurring_death_share = 0.25`, `pos.recurring_min_rounds = 32` (calibrated, [calibration.md](calibration.md)). **First building block of pattern-based advice.** | — |
 | `pos.heatmap_points` | Heatmap points | Raw export of kill and death positions (killer and victim), per map and side. Rendering comes in phase 2. | ≈ |
@@ -102,7 +104,7 @@ These metrics are distributions per map and side, not one number per player: the
 | `util.blind_per_flash` | Flash efficiency | Enemy blind time dealt ÷ flashes thrown | — |
 | `util.teammates_flashed`, `util.team_blind_time` | Team flashes | Count (same minimum) and total duration on teammates, the player excluded | ✅ |
 | `util.self_flashed` | Self-flashes | Times the player blinded themselves, same minimum | — |
-| `util.flash_to_kill` | Decisive flashes | Enemies blinded by the player and killed by the player's team **while still blind** (blind tick ≤ kill tick ≤ blind tick + duration; no minimum) | — |
+| `util.flash_to_kill` | Decisive flashes | Enemies blinded by the player and killed by the player's team, the player included, **while still blind** (blind tick ≤ kill tick ≤ blind tick + duration; no minimum). One count per kill for each player whose flash was still active | — |
 | `util.he_damage`, `util.he_team_damage` | HE damage | Capped damage to enemies and to teammates; self-damage counts as neither | ✅ |
 | `util.fire_damage` | Fire damage | Capped molotov and incendiary damage to enemies (fire ownership is verified, see demoparser2 issue #317) | ✅ |
 | `util.unused_value_at_death` | Wasted utility | Value ($) of grenades in the inventory at death, averaged per death (buy prices: flash 200, HE 300, smoke 300, molotov 400, incendiary 500, decoy 50) | — |
@@ -121,14 +123,14 @@ These metrics are distributions per map and side, not one number per player: the
 | **force** | Previous round lost, and neither eco nor full |
 | **semi** | Everything else |
 
-⚙🎯 All thresholds are parameters.
+⚙🎯 All thresholds are parameters (`buy.eco_max`, `buy.full_min_ct`, `buy.full_min_t`), applied when the round model is derived; they were checked on the corpus and kept ([calibration.md](calibration.md)).
 
 | ID | Name | Definition | CSDM |
 |---|---|---|---|
 | `eco.buy_type` | Buy type | The player's team buy type per round (derived, exposed as a split: `Dataset.split(buy=...)`); the metric counts rounds per buy type with the % won | ✅ |
 | `eco.win_pct_by_matchup` | Win % by economy | % of rounds won per (team buy type, opponent buy type) pair | — |
 | `eco.equipment_lost_at_death` | Equipment lost | The player's equipment value at the tick of death, averaged per death | — |
-| `eco.kills_vs_buy` | Kills by economy | Enemy kills split by (killer, victim) weapon class: the best weapon held, among `awp`, `rifle` (other snipers included), `heavy` (shotguns and machine guns), `smg`, else `pistol`. The killer's inventory is its last change before the kill | — |
+| `eco.kills_vs_buy` | Kills by economy | Enemy kills split by (killer, victim) weapon class: the best weapon held, among `awp`, `rifle` (other snipers included), `heavy` (shotguns and machine guns), `smg`, else `pistol`. The killer's inventory is its last change before the kill, the victim's is read at the kill | — |
 
 `eco.buy_type`, `eco.win_pct_by_matchup` and `eco.kills_vs_buy` are table metrics (§ 3).
 
@@ -137,8 +139,8 @@ These metrics are distributions per map and side, not one number per player: the
 | ID | Name | Definition | CSDM |
 |---|---|---|---|
 | `rating.hltv1` | HLTV Rating 1.0 | (KillRating + 0.7 × SurvivalRating + MultiKillRating) / 2.7, with reference averages 0.679, 0.317 and 1.277 (public formula); a round of N kills is worth N² multi-kill points. Kills are enemy kills, deaths any death. Same formula as `rating_hltv_1`, published in `untraded` 0.0.1. | ✅ |
-| `rating.hltv2_approx` | HLTV 2.0 (approx.) | 0.0073 × KAST + 0.3591 × KPR − 0.5329 × DPR + 0.2372 × Impact + 0.0032 × ADR + 0.1587, with Impact = 2.13 × KPR + 0.42 × APR − 0.41 and KAST in % (`base.kast`, same parameters). **Always labeled "approx."** | ≈ |
-| `rating.swing` | Win-probability swing | The player's swings (derived table `swing`: how much each of their kills, deaths, plants and defuses moved their team's chance of winning the round, by the open win-probability model 1.0, [winprob](winprob.md)), summed and divided by the rounds played, in percentage points. 0 is a player whose actions moved nothing on balance | — |
+| `rating.hltv2_approx` | HLTV 2.0 (approx.) | 0.0073 × KAST + 0.3591 × KPR − 0.5329 × DPR + 0.2372 × Impact + 0.0032 × ADR + 0.1587, with Impact = 2.13 × KPR + 0.42 × APR − 0.41 and KAST in % (`base.kast`, same parameters). Can be negative (CS Demo Manager floors it at 0). **Always labeled "approx."** | ≈ |
+| `rating.swing` | Win-probability swing | The player's swings (derived table `swing`: how much each of their kills, deaths, plants and defuses moved their team's chance of winning the round, by the open win-probability model 1.0, [winprob](winprob.md)), summed and divided by the rounds played, in percentage points. 0 is a player whose actions moved nothing on balance. Can be negative. Matches derived before the `swing` table existed are left out | — |
 
 **Validation.**
 - HLTV 1.0: the demos of the 1.0 era are CS:GO demos, which the CS2 parser does not read, so it is checked against independent calculations. The reference average player rates exactly 1.00. Over 18 Premier matches, the mean of each lobby is 0.99, ranging from 0.91 to 1.04. Against CS Demo Manager on 30 matches (E8), every gap comes from the rounds counted or from bots ([validation-csdm.md](validation-csdm.md)).
@@ -148,13 +150,12 @@ The **open Untraded rating** will be built on `rating.swing`, on a scale where 1
 
 ## 7. Splits available in v1
 
-Every metric can be computed on any subset of rounds:
-- **map**;
-- **side** (CT/T);
-- **team buy type**;
-- **half**;
-- **source** (Premier, FACEIT, scrim);
-- **period** (7 and 30 days).
+Every metric can be computed on any subset of rounds. `Dataset.split` keeps the rounds a player played:
+- on a **map** (`map=...`);
+- on a **side** (`side="CT"` or `"T"`);
+- with a **team buy type** (`buy=...`, § 5).
+
+The matches a dataset is built from (`Dataset.from_matches`) choose the rest: a **source** (Premier, FACEIT, scrim) or a **period**, such as the self reference below. A split by **half** is not built in yet.
 
 By design, there are no splits by fatigue, tilt, time of day or ping.
 
@@ -174,7 +175,7 @@ A session is compared with the player's own reference ([ADR 0010](adr/0010-refer
 | Topic | Phase |
 |---|---|
 | Aim level 1: accuracy by weapon, distance and movement; counter-strafing; time to damage | 2 |
-| Open rating (win probability) | 2 |
+| Open rating on the 1.00 scale, built on `rating.swing` (§ 6) | 2 |
 | Typical positions by clustering, arrival timings, team spacing at first contact | 2-3 |
 | Team stats: executes, setups, trade network, retakes and post-plants | 3 |
 | True line of sight, crossfire exposure, aim level 2 | 5 |

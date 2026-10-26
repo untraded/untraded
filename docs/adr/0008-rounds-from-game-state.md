@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-14
 - Refines: [0002](0002-parser-agnostic-canonical-tables.md)
+- Note (2026-10-26): `incomplete_start` is not a column: a truncated start is `match.first_round` > 1 ([canonical-tables.md](../canonical-tables.md)). Besides the filtering of point 6, the parse refuses a demo given as `premier` whose players' `rank_type` says Competitive or Wingman (#66).
 
 ## Context
 

@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-14
 - Supersedes: [0005](0005-storage-layout.md)
+- Note (2026-10-26): as implemented, an uncompressed `.dem` is stored as received too, without the zstd pass; the Parquet tables are under the match's database id (`matches/{id}/`, `match.parquet_prefix`), not its sha256; the only store so far is the local filesystem. Raw demo retention is `UNTRADED_DEMO_RETENTION_DAYS` (unset: kept).
 
 ## Context
 

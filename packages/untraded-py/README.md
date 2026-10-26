@@ -2,9 +2,9 @@
 
 Open, transparent Counter-Strike 2 match metrics.
 
-The metrics engine of [Untraded](https://github.com/untraded/untraded), a self-hostable CS2 demo analyzer and coach. It turns a demo into canonical tables, a round model and **81 versioned metrics**: base stats, duels and trades, positioning, utility, economy, HLTV 1.0 and an approximation of HLTV 2.0. Every metric ships with its formula, its parameters, its version and its tests ([metric pages](https://github.com/untraded/untraded/tree/main/docs/metrics)), and the shared stats are checked against CS Demo Manager on 30 matches ([report](https://github.com/untraded/untraded/blob/main/docs/validation-csdm.md)).
+The metrics engine of [Untraded](https://github.com/untraded/untraded), a self-hostable CS2 demo analyzer and coach. It turns a demo into canonical tables, a round model and **82 versioned metrics**: base stats, duels and trades, positioning, utility, economy, HLTV 1.0, an approximation of HLTV 2.0, and the win-probability swing of an open round win-probability model ([method](https://github.com/untraded/untraded/blob/main/docs/winprob.md)). It also holds the open advice rules that turn a session into up to three priorities ([advice](https://github.com/untraded/untraded/blob/main/docs/advice.md)). Every metric ships with its formula, its parameters, its version and its tests ([metric pages](https://github.com/untraded/untraded/tree/main/docs/metrics)), and the shared stats are checked against CS Demo Manager on 30 matches ([report](https://github.com/untraded/untraded/blob/main/docs/validation-csdm.md)).
 
-> **Alpha.** The library and the command line are usable now; the web app comes later. Metric versions follow semver, but the Python API may still change before 1.0.
+> **Alpha.** The library and the command line are usable now. Metric versions follow semver, but the Python API may still change before 1.0.
 
 ## Command line
 
@@ -15,7 +15,7 @@ untraded analyze match.dem.zst --mode premier --format json > report.json
 untraded analyze match.dem.zst --mode premier --out out/   # also writes Parquet
 ```
 
-The report lists every player's main stats (K, D, A, ADR, HS %, KAST, opening kills, untraded deaths, HLTV 1.0 and an approximation of HLTV 2.0), the same per side, and the key rounds: multi-kills, won clutches, eco or force rounds won against a full buy. The JSON output holds every metric of the registry, with its version. `--out` writes the canonical tables, the round model and the metrics as Parquet.
+The report lists every player's main stats (K, D, A, K-D, ADR, HS %, KAST, opening kills, untraded deaths, HLTV 1.0 and an approximation of HLTV 2.0), the main ones per side (K, D, ADR, KAST, HLTV 1.0), and the key rounds: multi-kills, won clutches, eco or force rounds won against a full buy. The JSON output holds every metric of the registry, with its version. `--out` writes the canonical tables, the round model and the metrics as Parquet.
 
 Demos can be `.dem`, `.dem.bz2`, `.dem.gz` or `.dem.zst`. The modes are `premier`, `faceit`, `esea`, `scrim` and `pro`.
 
@@ -23,12 +23,16 @@ Several matches:
 
 ```bash
 untraded parse demos/*.dem.bz2 --mode premier --out parsed/     # in parallel, as the free RAM allows
-untraded reference parsed/matches/* --player 7656119... --session <match id>
+untraded reference parsed/matches/* --player 7656119... --session <match id>   # repeat --session per match
 ```
 
 `untraded parse` takes many demos at once and adapts to the machine (low priority, a demo starts when the free RAM covers it). `untraded reference` compares a session with the player's own 30 days before it, recomputed over all the rounds, and shown from 5 matches and 100 rounds. `untraded calibrate` measures the adjustable thresholds on a corpus ([method](https://github.com/untraded/untraded/blob/main/docs/calibration.md)).
 
 `untraded compare-csdm` checks our stats against CS Demo Manager's analyzer (see `docs/validation-csdm.md`).
+
+`untraded winprob train` fits and validates the round win-probability model on parsed matches (pro matches are left out), and `untraded winprob swings <match directory>` prints each player's swing per round with the published model.
+
+`untraded radars --cs2 <CS2 directory> out/` draws the 2D viewer's radars as SVG from the maps' navigation meshes (or `--navs` for a directory of `.nav` files). `untraded corpus` manages a reference demo corpus: `add`, `verify`, `list`, `push` and `pull` to a shared store over SSH.
 
 `untraded fixture extract match.dem.zst --mode premier --rounds 11-15 --name my-bug --out my-bug/` writes an anonymized extract of a few rounds: steamids, names, server, teams, date and rank are removed. It is enough to reproduce most metric issues, so you can attach it to a bug report instead of your demo.
 
@@ -48,6 +52,8 @@ compute(ds)  # every value metric, per player
 compute(ds.split(side="CT"), ["base.kast"])  # one metric, CT rounds only
 compute(ds, params={"trade.window_s": 3.0})  # another trade window
 ```
+
+`derive` also computes the `swing` table with the published win-probability model (`untraded.winprob.default_model()`), which `rating.swing` reads. The advice engine works on the same datasets: `untraded.advice.find(session, player, comparison, history=...)` then `prioritize(...)`, with `comparison` the `values` table of `untraded.reference.compare_to_self(...)`.
 
 Results record each metric's version and the parameters used. The ratings are also available on match totals:
 

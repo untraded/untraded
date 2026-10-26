@@ -1,13 +1,14 @@
 # Apps
 
-Product services, all AGPL-3.0-only. They arrive in phase 2 (see `docs/roadmap.md`):
+Product services, all AGPL-3.0-only, built in phase 2 (see `docs/roadmap.md`). `compose.yaml` runs them together ([docs/self-hosting.md](../docs/self-hosting.md)); each app has its own README.
 
 | App | Language | Role |
 |---|---|---|
-| `collector` | TypeScript | Steam share-code chain, Game Coordinator bot pool, Renown polling, scheduling |
-| `extension` | TypeScript | Browser extension sending FACEIT demos from the match room |
-| `worker` | Python | Consumes the job queue, runs the `untraded` library (`download` and `parse` jobs, raw demo retention) |
-| `api` | Python (FastAPI) | REST API, Steam OpenID login (in progress: sign-in), ingestion endpoints (uploads, MatchZy webhook) |
-| `web` | TypeScript (Next.js, Tailwind, shadcn/ui) | Web app and PWA (in progress: sign-in, matches) |
+| [`collector`](collector/) | TypeScript | Follows players' Valve matches (Premier): Steam share-code chain, Game Coordinator bot, one `download` job per new match |
+| [`worker`](worker/) | Python | Consumes the PostgreSQL job queue and runs the `untraded` library: `download`, `ingest_upload` (demos players send), `parse` (tables, metrics, round replays, swings), `session` (reports and advice), `erase_player`; also references by level and raw demo retention |
+| [`api`](api/) | Python (FastAPI) | Steam sign-in by invitation, under row-level security: matches, round replays, sessions, advice feedback, demo uploads, consent, erasure, admin |
+| [`web`](web/) | TypeScript (Next.js, Tailwind, shadcn/ui, PixiJS) | The site, in English and French: home, matches, match page, 2D round viewer, session reports, progress, formulas, demo upload, settings, onboarding and admin. It relays `/api/*` to the API |
 
-Phase 0 prototypes live in `spikes/`.
+The database migrations live in `db/` (`untraded-db`).
+
+Not built yet: Renown polling in the collector and the FACEIT browser extension (phase 2), the scrim webhook for MatchZy (phase 3). Phase 0 prototypes live in `spikes/`.

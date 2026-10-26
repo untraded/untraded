@@ -5,23 +5,30 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Self-hosting
 
-`compose.yaml` runs Untraded: the Valve matches of the players you follow are downloaded,
-parsed and analysed into PostgreSQL, and the site shows each player their sessions and matches
-after signing in with Steam. Phase 2 is under way (see `docs/roadmap.md`).
+`compose.yaml` runs Untraded: the Valve matches of the players you follow, and the demos players
+send from the site, are downloaded, parsed and analysed into PostgreSQL, and the site shows each
+player their sessions, matches and rounds (2D viewer) after signing in with Steam. Phase 2 is
+under way (see `docs/roadmap.md`).
 
 ```
-collector ──(match + download job)──▶ PostgreSQL ◀──(parse job, tables, metrics)── worker
-   │ Steam Web API, Game Coordinator                                    │ demo and Parquet store
+collector ──(match + download job)──▶ PostgreSQL ◀──(jobs, tables, metrics)── worker
+   │ Steam Web API, Game Coordinator       ▲                                    │ store: demos, Parquet, replays
+                                           │ row-level security                 │
+browser ──▶ reverse proxy ──▶ web ──/api──▶ api ──(demos players send: uploads)──┘
 ```
 
 | Service | Image | Role |
 |---|---|---|
 | `db` | `postgres:16` | everything, including the job queue (ADR 0004, 0011) |
+| `backup` | `postgres:16` | dumps the database every day into the `backups` volume (see [Backups](#backups)) |
 | `migrate` | `apps/worker/Dockerfile` | applies the migrations, then exits (`untraded-db upgrade`) |
-| `worker` | `apps/worker/Dockerfile` | `download` and `parse` jobs, raw demo retention (`apps/worker`) |
+| `worker` | `apps/worker/Dockerfile` | the jobs `download`, `ingest_upload`, `parse` (with the round replays), `session` (reports and priorities) and `erase_player`; hourly level references and raw demo retention (`apps/worker`) |
 | `collector` | `apps/collector/Dockerfile` | follows players' Valve matches (`apps/collector`) |
-| `api` | `apps/api/Dockerfile` | Steam sign-in, matches and session reports, under row-level security (`apps/api`) |
-| `web` | `apps/web/Dockerfile` | the site; it relays `/api/*` to `api`, so it is the only published service (`apps/web`) |
+| `api` | `apps/api/Dockerfile` | Steam sign-in, matches, session reports and round replays under row-level security, consent and codes, uploads, erasure, admin (`apps/api`) |
+| `web` | `apps/web/Dockerfile` | the site; it relays `/api/*` to `api` (`apps/web`) |
+
+Only the web and the API are published, on the loopback by default, for the reverse proxy (see
+[The site](#the-site)).
 
 Every image builds on amd64 and arm64.
 
@@ -43,16 +50,17 @@ stack variables.
 | Variable | Required | Role |
 |---|---|---|
 | `UNTRADED_DB_PASSWORD` | yes | PostgreSQL password (letters and digits: it goes into a URL) |
-| `UNTRADED_SECRET_KEY` | yes | 32 random bytes, base64 (`openssl rand -base64 32`): encrypts the authentication codes in the database. Losing it means adding the sources again |
-| `STEAM_WEB_API_KEY` | yes | Steam Web API key |
+| `UNTRADED_SECRET_KEY` | yes | 32 random bytes, base64 (`openssl rand -base64 32`): encrypts the authentication codes in the database, those of `add-source` (collector) and those players give on the site (API). Losing it means adding the sources again |
+| `STEAM_WEB_API_KEY` | yes | Steam Web API key: the collector walks the share-code chains with it, and the API checks the codes players give |
 | `BOT_ACCOUNT_NAME` | yes | the bot's account name |
 | `BOT_REFRESH_TOKEN` | first start | the bot's refresh token, if you have one (see below) |
 | `UNTRADED_DEMO_RETENTION_DAYS` | no | days to keep raw demos after parsing; unset keeps them, `0` deletes them once parsed |
-| `UNTRADED_ADMIN_STEAM_IDS` | for invitations | SteamID64s of the admins, comma-separated. They invite players and follow the collector and the backups from the site's admin pages (API: `/admin`) |
+| `UNTRADED_ADMIN_STEAM_IDS` | for invitations | SteamID64s of the admins, comma-separated. From the site's admin pages (API: `/admin`) they invite players, pause, resume or remove a followed player, erase a player, and follow the jobs, the collector, the backups and the disk |
 | `UNTRADED_CONSENT_VERSION` | no | the version of the consent text invited players agree to on the site (`2`, which covers the demos players send). Change it when the text changes: players then agree again |
 | `UNTRADED_ALLOW_PRIVATE_DEMO_URLS` | no | `1` lets the worker download demos from private addresses (a server on your own network). Off by default: a demo URL never reaches a private, loopback or cloud metadata address |
 | `UNTRADED_BACKUP_HOUR`, `UNTRADED_BACKUP_KEEP_DAYS`, `UNTRADED_BACKUP_KEEP_WEEKS` | no | when the daily database dump runs (3, UTC) and how many are kept: 7 daily, plus 4 weekly (Sunday's) |
 | `COLLECTOR_INTERVAL_SECONDS` | no | time between collection rounds (3600) |
+| `MAX_MATCHES_PER_RUN` | no | new matches collected per player and round (20) |
 | `UNTRADED_SITE_URL` | for the site | the site's address as browsers see it, e.g. `https://untraded.example.com` (default `http://localhost:3000`). Steam sends users back there after signing in, `https` makes the session cookie `Secure`, and the share image of links is served from it |
 | `UNTRADED_BIND`, `UNTRADED_WEB_PORT`, `UNTRADED_API_PORT` | no | where the web and the API are published for the reverse proxy (`127.0.0.1`, ports 3000 and 8000); `172.17.0.1` lets a reverse proxy running in Docker reach them |
 | `UNTRADED_UPLOAD_MAX_MB`, `UNTRADED_UPLOAD_MAX_DEMO_GB` | no | the largest demo a player may send from the site (400 MB), and once decompressed (1.5 GB) |
@@ -91,7 +99,8 @@ Then, once:
    matches after it are collected.
 
 The next round (or `docker compose restart collector`) picks the player up. `add-source` also
-**invites** the player to the site: signing in is open only to Steam accounts with a user.
+**invites** the player to the site: signing in is open only to Steam accounts with a user or an
+invitation.
 
 If you follow other players, record their consent with `--text-version` (and `--corpus` for the
 research corpus) on `add-source`, or later with the `consent` command.
@@ -99,7 +108,8 @@ research corpus) on `add-source`, or later with the `consent` command.
 **From the site** (admins only): invite a player by their SteamID64. Their first sign-in with
 Steam creates their account; they then agree to the consent text and give their two codes, which
 the API checks with Steam and stores encrypted. No command line, and the admin never sees the
-codes.
+codes. Players give new codes from their settings when the collector cannot follow them any more,
+and send the demos the bot cannot bring (FACEIT, ESEA, scrims) from the upload page.
 
 The collector also lists, fixes, pauses and removes the followed players (`sources`,
 `update-source`, `pause-source`, `resume-source`, `remove-source`): see
@@ -147,14 +157,20 @@ docker compose exec db psql -U untraded -c \
   "SELECT kind, status, attempts, last_error FROM job ORDER BY id DESC LIMIT 10"
 ```
 
-A match goes `downloading`, then `parsing`, then `ready`. Other outcomes:
+A match goes `downloading`, then `parsing`, then `ready` (a demo a player sent starts
+`pending`). Other outcomes:
 
-- `unavailable`: Valve no longer has the demo, or the match is not a Premier match. The
+- `unavailable`: Valve has no demo or no longer has it, or the match is not a Premier match. The
   share-code chain also holds Competitive and Wingman matches, and the worker sets them aside.
-- `failed`: the job used up its attempts, and `match.error` tells why.
+- `failed`: the job used up its attempts (it is then `dead` in `job`), and `match.error` tells
+  why. A job that fails waits and retries (`queued` again, with its `last_error`) until then.
 - For a demo a player sent: `unavailable` also when it was refused, with the reason in
   `match_source.rejected` (`not_a_demo`, `corrupt`, `too_large`, `unsupported_mode`,
   `not_a_player`).
+
+Admins see the same from the site, on the admin's health page (`/admin/health`): jobs by status
+and the last failed ones, the matches of the last 7 days, the sources in error, the last dump
+and the free disk.
 
 ## Data
 
@@ -162,7 +178,7 @@ A match goes `downloading`, then `parsing`, then `ready`. Other outcomes:
 |---|---|---|
 | `db-data` | PostgreSQL | through `backups` |
 | `backups` | the daily dumps of the database (`daily/`, `weekly/`) | yes, off the machine (below) |
-| `store` | raw demos (`demos/`) and Parquet per match (`matches/`) | the Parquet, at least: metrics are recomputed from it (ADR 0009) |
+| `store` | raw demos (`demos/`), and per match its Parquet tables and round replays (`matches/{id}/`) | the Parquet, at least: metrics are recomputed from it (ADR 0009), and replays rewritten |
 | `collector-data` | the bot's refresh token (`.state.json`, mode 600) | no: log in again instead |
 | `uploads` | demos players sent, until the worker moves them to `store` (minutes) | no |
 
@@ -172,8 +188,8 @@ A player erases their account from their settings (`POST /me/erase`), or an admi
 (`DELETE /admin/players/{steam_id}`). Their account closes at once: signed out, and no longer
 followed by the collector. The worker's `erase_player` job then deletes:
 
-- their account, with their sources and encrypted codes, consents, votes, invitation and
-  personal workspace;
+- their account, with their sources and encrypted codes, consents, sign-in sessions, votes,
+  invitation and personal workspace;
 - their play sessions, advice and aggregates;
 - the matches no other user played in: rows, Parquet and raw demo.
 
@@ -215,16 +231,19 @@ cannot be decrypted, and every source has to be added again.
 git pull && docker compose up -d --build
 ```
 
-`migrate` applies any new migration before the services start. After an update that adds or
-changes the 2D viewer's round replays, write them for the matches parsed before:
+`migrate` applies any new migration before the services start, and sessions are recomputed as
+new matches arrive. The files derived from the Parquet are not rewritten by themselves: after an
+update that changes them, write them for the matches parsed before. Each command skips the
+matches that already have them; `--force` rewrites every match.
 
 ```bash
-docker compose exec worker untraded-worker replays
+docker compose exec worker untraded-worker swings --force    # a new win-probability model
+docker compose exec worker untraded-worker replays --force   # a new round replay format (2D viewer)
 ```
 
-After an update that adds the win-probability swings or a new model, write the `swing` table of
-the matches parsed before (`--force` rewrites every match, for a new model):
+The replays carry the swings, read from the `swing` table: after a new model, run `swings
+--force` first, then `replays --force`.
 
-```bash
-docker compose exec worker untraded-worker swings
-```
+Without `--force`, `replays` only fills in the matches that have no replay (parsed before the
+viewer existed, or whose replays failed), and `swings` those that have no `swing` table. A
+viewer newer than the replays shows a round as missing until they are rewritten.
