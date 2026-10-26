@@ -235,25 +235,29 @@ async function FigureCard({
               />
             </div>
           ))}
-          <table className="sr-only">
-            <caption>{label}</caption>
-            <thead>
-              <tr>
-                <th scope="col">{t("date")}</th>
-                <th scope="col">{t("you")}</th>
-                <th scope="col">{t("reference")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {points.map((p, i) => (
-                <tr key={line.points[i]?.sessionId}>
-                  <th scope="row">{p.date}</th>
-                  <td>{p.value}</td>
-                  <td>{p.reference ?? "–"}</td>
+          {/* `sr-only` on the table itself does not hide it: a table grows to its content, and the
+              page then scrolls sideways on phones. */}
+          <div className="sr-only">
+            <table>
+              <caption>{label}</caption>
+              <thead>
+                <tr>
+                  <th scope="col">{t("date")}</th>
+                  <th scope="col">{t("you")}</th>
+                  <th scope="col">{t("reference")}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {points.map((p, i) => (
+                  <tr key={line.points[i]?.sessionId}>
+                    <th scope="row">{p.date}</th>
+                    <td>{p.value}</td>
+                    <td>{p.reference ?? "–"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       ) : (
         <p className="py-6 text-[0.8125rem] text-muted-foreground">{t("tooFew")}</p>
