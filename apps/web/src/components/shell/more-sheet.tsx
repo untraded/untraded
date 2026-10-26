@@ -17,6 +17,7 @@ export function MoreSheet({
   labels: {
     more: string;
     settings: string;
+    progress: string;
     upload: string;
     formulas: string;
     admin: string | null;
@@ -29,6 +30,7 @@ export function MoreSheet({
   const Admin = SECTIONS.admin.icon;
   const Formulas = SECTIONS.formulas.icon;
   const Send = SECTIONS.upload.icon;
+  const Trend = SECTIONS.progress.icon;
   const row =
     "flex h-11 w-full items-center gap-3 rounded-md px-3 text-[0.9375rem] hover:bg-muted [&_svg]:size-[18px] [&_svg]:text-muted-foreground";
   return (
@@ -44,6 +46,10 @@ export function MoreSheet({
       >
         <div aria-hidden="true" className="mx-auto mb-2 h-1 w-9 rounded-full bg-border" />
         <SheetTitle className="sr-only">{labels.more}</SheetTitle>
+        <Link href={SECTIONS.progress.href} className={row} onClick={() => setOpen(false)}>
+          <Trend aria-hidden="true" />
+          {labels.progress}
+        </Link>
         <Link href={SECTIONS.upload.href} className={row} onClick={() => setOpen(false)}>
           <Send aria-hidden="true" />
           {labels.upload}
