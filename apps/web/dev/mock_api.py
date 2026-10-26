@@ -103,11 +103,11 @@ def line() -> dict[str, float]:
 
 
 def build_matches() -> list[dict[str, Any]]:
-    statuses = ["parsing"] + ["ready"] * 11 + ["unavailable", "failed", "ready", "ready"]
+    statuses = ["parsing"] + ["ready"] * 11 + ["unavailable", "failed"] + ["ready"] * 36
     found = []
     for n, status in enumerate(statuses):
-        # Every 9 hours, then further and further apart: older matches reach back two months.
-        start = NOW - dt.timedelta(hours=1 + n * 9 + max(0, n - 7) ** 2 * 24)
+        # Every 9 hours, then about one every 2.5 days: older matches reach back over 3 months.
+        start = NOW - dt.timedelta(hours=1 + n * 9 + max(0, n - 7) * 60)
         ready = status == "ready"
         a, b = (13, rand.randint(4, 11)) if n % 3 else (rand.randint(5, 12), 13)
         team = "A" if n % 2 else "B"
@@ -413,7 +413,34 @@ def advice(session_n: int, match: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 VOTES: dict[str, int] = {}
-KINDS = ["level", "self", "self", "none", "self", "self"]
+KINDS = ["level", "self", "self", "none", "self", "self"] + ["self"] * 17
+
+# The key figures follow a slow improvement (the newest session first), so the progress page
+# draws something readable: (newest value, oldest value, noise, newest reference, oldest one).
+HEADLINE_TREND = {
+    "rating.hltv1": (1.09, 0.92, 0.06, 1.04, 0.96),
+    "base.adr": (83.0, 72.0, 5.0, 81.0, 76.0),
+    "base.kast": (74.0, 66.0, 3.0, 72.0, 69.0),
+    "trade.untraded_deaths": (0.30, 0.46, 0.04, 0.35, 0.41),
+}
+
+
+def headline(value: dict[str, Any], n: int, enough: bool) -> dict[str, Any]:
+    """A key figure of session `n` (0 = newest) on its trend, instead of a random draw."""
+    trend = HEADLINE_TREND.get(value["metric_id"])
+    if trend is None:
+        return value
+    new, old, noise, ref_new, ref_old = trend
+    age = n / (len(KINDS) - 1)
+    session = new + (old - new) * age + rand.uniform(-noise, noise)
+    reference = ref_new + (ref_old - ref_new) * age
+    return value | {
+        "session": round(session, 4),
+        "reference": round(reference, 4) if enough else None,
+        "delta": round(session - reference, 4) if enough else None,
+    }
+
+
 # A session with a reference where no rule fires: the list says nothing stands out.
 QUIET = {2}
 
@@ -449,7 +476,7 @@ def build_sessions() -> list[dict[str, Any]]:
             break
         enough = KINDS[n] != "none"
         rounds = sum(m["rounds_played"] for m in group)
-        values = with_cases([comparison(m, enough) for m in METRICS], rounds)
+        values = with_cases([headline(comparison(m, enough), n, enough) for m in METRICS], rounds)
         wins = sum(m["my_result"] == "win" for m in group)
         found.append(
             {
