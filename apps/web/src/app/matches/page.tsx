@@ -25,9 +25,11 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 const PAGE = 30;
 
-/** The columns of a row on wider screens: when, map, score, K–D, ADR, KAST, UD, rating, chevron. */
+/** The columns of a row on wide screens (`lg`: below, the sidebar leaves too little room for the
+ * nine columns, and rows keep their two-line layout): when, map, score, K–D, ADR, KAST, UD,
+ * rating, chevron. */
 const COLUMNS =
-  "md:grid-cols-[8.5rem_minmax(0,1fr)_5.5rem_5.5rem_3rem_3.5rem_3rem_4.5rem_1rem] md:items-center md:gap-x-4";
+  "lg:grid-cols-[8.5rem_minmax(0,1fr)_5.5rem_5.5rem_3rem_3.5rem_3rem_4.5rem_1rem] lg:items-center lg:gap-x-4";
 
 /**
  * The player's matches, newest first, grouped by period (today, yesterday, this week, last week,
@@ -131,7 +133,7 @@ async function ColumnHeads() {
     <div
       aria-hidden="true"
       className={cn(
-        "hidden border-b border-border px-4 py-2 text-xs font-medium text-muted-foreground md:grid",
+        "hidden border-b border-border px-4 py-2 text-xs font-medium text-muted-foreground lg:grid",
         COLUMNS,
       )}
     >
@@ -169,25 +171,25 @@ async function MatchRow({ match, period }: { match: MatchSummary; period: Period
   const diff =
     line && line.kills !== null && line.deaths !== null ? line.kills - line.deaths : null;
   const signed = diff === null ? "" : diff > 0 ? `+${diff}` : `${diff}`;
-  const label = "text-muted-foreground md:sr-only";
+  const label = "text-muted-foreground lg:sr-only";
   return (
     <li className="border-t border-line-soft first:border-t-0">
       <Link
         href={`/matches/${match.id}`}
         className={cn(
-          "grid grid-cols-[minmax(0,1fr)_auto_1rem] gap-x-3 gap-y-1 px-3.5 py-2.5 hover:bg-muted md:px-4",
+          "grid grid-cols-[minmax(0,1fr)_auto_1rem] gap-x-3 gap-y-1 px-3.5 py-2.5 hover:bg-muted lg:px-4",
           COLUMNS,
         )}
       >
-        <span className="col-start-1 row-start-2 text-xs whitespace-nowrap text-muted-foreground tabular-nums md:row-start-1 md:text-sm">
-          <span className="md:hidden">{whenShort}</span>
-          <span className="hidden md:inline">{when}</span>
+        <span className="col-start-1 row-start-2 text-xs whitespace-nowrap text-muted-foreground tabular-nums lg:row-start-1 lg:text-sm">
+          <span className="lg:hidden">{whenShort}</span>
+          <span className="hidden lg:inline">{when}</span>
         </span>
-        <span className="col-start-1 row-start-1 font-semibold md:col-start-2">
+        <span className="col-start-1 row-start-1 font-semibold lg:col-start-2">
           {mapName(match.map)}
         </span>
         {match.status === "ready" && match.my_result && mine !== null && theirs !== null ? (
-          <span className="col-start-2 row-start-1 flex items-center justify-end gap-2 font-semibold tabular-nums md:col-start-3 md:justify-start">
+          <span className="col-start-2 row-start-1 flex items-center justify-end gap-2 font-semibold tabular-nums lg:col-start-3 lg:justify-start">
             <span
               aria-hidden="true"
               className={cn(
@@ -203,37 +205,37 @@ async function MatchRow({ match, period }: { match: MatchSummary; period: Period
             {mine} – {theirs}
           </span>
         ) : (
-          <span className="col-start-2 row-start-1 text-right text-[0.8125rem] text-muted-foreground md:col-span-6 md:col-start-3 md:text-left">
-            <span className="md:hidden">{status(match.status)}</span>
-            <span className="hidden md:inline">{t(`waiting.${match.status}`)}</span>
+          <span className="col-start-2 row-start-1 text-right text-[0.8125rem] text-muted-foreground lg:col-span-6 lg:col-start-3 lg:text-left">
+            <span className="lg:hidden">{status(match.status)}</span>
+            <span className="hidden lg:inline">{t(`waiting.${match.status}`)}</span>
           </span>
         )}
         {line && (
           <>
-            <span className="col-start-2 row-start-2 text-right text-xs whitespace-nowrap text-muted-foreground tabular-nums md:hidden">
+            <span className="col-start-2 row-start-2 text-right text-xs whitespace-nowrap text-muted-foreground tabular-nums lg:hidden">
               <span className="sr-only">{t("kd")} </span>
               {number(line.kills, locale)}–{number(line.deaths, locale)} ·{" "}
               <span className="sr-only">{t("rating")} </span>
               {number(line.hltv1, locale, 2)}
             </span>
-            <span className="hidden text-right whitespace-nowrap tabular-nums md:block">
+            <span className="hidden text-right whitespace-nowrap tabular-nums lg:block">
               <span className={label}>{t("kd")} </span>
               {number(line.kills, locale)}–{number(line.deaths, locale)}{" "}
               <span className="text-xs text-muted-foreground">{signed}</span>
             </span>
-            <span className="hidden text-right tabular-nums md:block">
+            <span className="hidden text-right tabular-nums lg:block">
               <span className={label}>{t("adr")} </span>
               {number(line.adr, locale)}
             </span>
-            <span className="hidden text-right tabular-nums md:block">
+            <span className="hidden text-right tabular-nums lg:block">
               <span className={label}>{t("kast")} </span>
               {percent(line.kast, locale)}
             </span>
-            <span className="hidden text-right tabular-nums md:block">
+            <span className="hidden text-right tabular-nums lg:block">
               <span className={label}>{t("untraded")} </span>
               {number(line.untraded_deaths, locale)}
             </span>
-            <span className="hidden text-right font-semibold tabular-nums md:block">
+            <span className="hidden text-right font-semibold tabular-nums lg:block">
               <span className={label}>{t("rating")} </span>
               {number(line.hltv1, locale, 2)}
             </span>
@@ -241,7 +243,7 @@ async function MatchRow({ match, period }: { match: MatchSummary; period: Period
         )}
         <ChevronRight
           aria-hidden="true"
-          className="col-start-3 row-span-2 row-start-1 size-4 self-center text-muted-foreground md:col-start-9 md:row-span-1"
+          className="col-start-3 row-span-2 row-start-1 size-4 self-center text-muted-foreground lg:col-start-9 lg:row-span-1"
         />
       </Link>
     </li>

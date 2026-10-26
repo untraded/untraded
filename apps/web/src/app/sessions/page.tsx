@@ -200,7 +200,7 @@ async function SessionRow({ session }: { session: SessionSummary }) {
                   <span aria-hidden="true">1. </span>
                   {advice(`rules.${top.rule_id}.label`)}
                 </span>{" "}
-                <span className="text-muted-foreground">
+                <span className="whitespace-nowrap text-muted-foreground">
                   {dashboard("lostOf", { lost: top.rounds_lost, touched: top.rounds_touched })}
                 </span>
               </>

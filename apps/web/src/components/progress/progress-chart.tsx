@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { cn } from "@/lib/cn";
 import type { Trend } from "@/lib/format";
 import type { Geometry } from "@/lib/progress";
@@ -39,20 +39,29 @@ export function ProgressChart({
   /** The value guides, written out (same order as `geometry.ticks`). */
   ticks: string[];
 }) {
-  const box = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState<number | null>(null);
   const band = active === null ? null : g.bands[active];
   const point = active === null ? null : points[active];
-  const left =
-    band && box.current
-      ? Math.min(
-          Math.max(((band.x + band.width / 2) / g.width) * box.current.clientWidth, 64),
-          box.current.clientWidth - 64,
-        )
-      : 0;
   const last = g.dots.length - 1;
   return (
-    <div ref={box} className="relative mt-2" onPointerLeave={() => setActive(null)}>
+    <div className="mt-1" onPointerLeave={() => setActive(null)}>
+      {/* The session pointed at, on a line kept for it above the curve: a bubble over the chart
+          covered the card's figures. Empty, it keeps its height, so the curve does not move. */}
+      <p
+        aria-hidden="true"
+        className="flex h-5 items-baseline gap-1.5 text-xs whitespace-nowrap text-muted-foreground"
+      >
+        {point && (
+          <>
+            <span>{point.date}</span>
+            <span className="text-[0.8125rem] font-semibold text-foreground tabular-nums">
+              {point.value}
+            </span>
+            {point.reference && <span className="tabular-nums">{point.reference}</span>}
+            {point.trend && <span className={cn(TONE[point.trend])}>{ARROW[point.trend]}</span>}
+          </>
+        )}
+      </p>
       {/* Drawn for the eyes: the page gives the same values as a table to screen readers. */}
       <svg
         viewBox={`0 0 ${g.width} ${g.height}`}
@@ -129,20 +138,6 @@ export function ProgressChart({
           />
         ))}
       </svg>
-      {point && (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute top-0 -translate-x-1/2 -translate-y-full rounded-md border border-border bg-background px-2 py-1.5 text-xs whitespace-nowrap shadow-sm"
-          style={{ left }}
-        >
-          <div className="text-muted-foreground">{point.date}</div>
-          <span className="text-[0.8125rem] font-semibold tabular-nums">{point.value}</span>{" "}
-          {point.reference && (
-            <span className="text-muted-foreground tabular-nums">{point.reference}</span>
-          )}{" "}
-          {point.trend && <span className={cn(TONE[point.trend])}>{ARROW[point.trend]}</span>}
-        </div>
-      )}
     </div>
   );
 }
