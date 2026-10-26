@@ -663,7 +663,7 @@ def receive_upload(handler: Handler, query: str) -> None:
 
 
 # Onboarding and admin, as in `apps/api` (`onboarding.py`, `admin.py`).
-CONSENT_VERSION = "1"
+CONSENT_VERSION = "2"
 AUTH_CODE = re.compile(r"(?<![A-Z0-9-])[A-Z0-9]{4}-[A-Z0-9]{5}-[A-Z0-9]{4}(?![A-Z0-9-])")
 SHARE_CODE = re.compile(r"CSGO(?:-[A-Za-z0-9]{5}){5}(?![A-Za-z0-9-])")
 

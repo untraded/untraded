@@ -26,7 +26,7 @@ class Settings:
     admins: frozenset[int] = frozenset()
     """SteamID64s of the admins (`UNTRADED_ADMIN_STEAM_IDS`, comma-separated): they manage
     invitations and sources (`/admin`)."""
-    consent_version: str = "1"
+    consent_version: str = "2"
     """The version of the consent text the site shows (`UNTRADED_CONSENT_VERSION`): a player
     agrees to this one."""
     secret_key: bytes | None = None
@@ -67,7 +67,7 @@ class Settings:
                 for part in os.environ.get("UNTRADED_ADMIN_STEAM_IDS", "").split(",")
                 if part.strip()
             ),
-            consent_version=os.environ.get("UNTRADED_CONSENT_VERSION", "1"),
+            consent_version=os.environ.get("UNTRADED_CONSENT_VERSION", "2"),
             secret_key=secret_key(key) if (key := os.environ.get("UNTRADED_SECRET_KEY")) else None,
             steam_api_key=os.environ.get("STEAM_WEB_API_KEY") or None,
             backups_dir=os.environ.get("UNTRADED_BACKUPS_DIR") or None,

@@ -639,6 +639,65 @@
       "box1": "<b>1. (obligatoire pour participer)</b> J'accepte que mes matchs soient collectés et analysés comme décrit ci-dessus, et que mes statistiques entrent dans les références anonymes par niveau.",
       "box2": "<b>2. (facultatif)</b> J'accepte que les démos de mes matchs soient conservées dans le corpus de recherche privé d'Untraded au-delà de la durée ci-dessus, pour calibrer l'outil et construire le modèle de rating, jusqu'à ce que je retire mon accord.",
       "version": "Version 1 du texte, 20/10/2026."
+    },
+    "v2": {
+      "title": "Participer à la bêta fermée d'Untraded",
+      "lead": "Untraded est un outil d'analyse de matchs Counter-Strike 2 en cours de développement. Il récupère tes matchs, analyse les démos, et te donne après chaque session tes priorités, avec les rounds qui les prouvent. Pendant la bêta fermée, quelques joueurs l'utilisent pour nous aider à l'améliorer. Ce texte explique ce que nous faisons de tes données, pour que tu acceptes en connaissance de cause.",
+      "controller": "<b>Responsable du traitement</b> : {operator}, {email}.",
+      "s1": {
+        "title": "1. Ce que nous collectons",
+        "i1": "<b>Ton identifiant Steam</b> (SteamID64) et ton <b>pseudo Steam</b>, pour te connecter et reconnaître tes matchs.",
+        "i2": "<b>Ton code d'authentification de l'historique des matchs</b> et un <b>code de partage</b> de match. Avec eux, notre compte bot récupère tes matchs Premier auprès de Valve. Le code d'authentification est <b>chiffré</b> dans notre base, et tu peux le révoquer à tout moment dans Steam (voir le § 6).",
+        "i3": "<b>Les démos de tes matchs</b> : celles que Valve fournit, et celles que <b>tu envoies toi-même</b> depuis le site (FACEIT, ESEA, scrims). Une démo contient tout ce qui s'est passé dans le match, y compris les actions et les pseudos des <b>neuf autres joueurs</b>. Une démo que tu envoies n'est analysée que si <b>tu as joué dans ce match</b> ; sinon, elle est supprimée sans être analysée.",
+        "i4": "<b>Les statistiques calculées</b> à partir de ces démos : métriques, rapports de session, priorités.",
+        "i5": "<b>Tes avis</b> (utile ou pas utile) sur les conseils, et tes préférences d'affichage (langue, ton, thème, fuseau horaire).",
+        "i6": "<b>Un cookie de session</b> pour rester connecté, et des cookies de préférences. Aucun cookie publicitaire ni de mesure d'audience.",
+        "after": "Nous ne collectons ni ton mot de passe Steam, ni ton adresse e-mail Steam, ni ton inventaire, ni de moyen de paiement."
+      },
+      "s2": {
+        "title": "2. Pourquoi",
+        "i1": "<b>T'analyser</b> : produire tes rapports de session, tes priorités et le suivi de tes indicateurs.",
+        "i2": "<b>Améliorer l'outil</b> : calibrer les seuils des règles, corriger les erreurs, mesurer si les conseils sont utiles (grâce à tes avis).",
+        "i3": "<b>Les références par niveau</b> : quand tu n'as pas encore assez d'historique, ta session est comparée aux joueurs du même niveau. Ces références sont des <b>agrégats anonymes</b>, calculés sur tous les joueurs des matchs collectés et publiés seulement s'ils regroupent au moins 20 joueurs. Personne ne peut y retrouver tes statistiques à toi.",
+        "i4": "<b>Avec ton accord séparé (case 2)</b> : garder les démos de tes matchs, <b>y compris celles que tu envoies</b>, dans un <b>corpus de recherche</b> privé, pour calibrer l'outil et construire un modèle de rating ouvert (probabilité de victoire par round).",
+        "after": "Nous ne vendons pas tes données, nous ne faisons pas de publicité, et rien ne t'identifiant n'est publié. Le <b>code</b> d'Untraded est open source ; <b>tes données ne le sont pas</b>."
+      },
+      "s3": {
+        "title": "3. Qui voit quoi",
+        "i1": "<b>Toi</b> : tes matchs, tes sessions, tes priorités.",
+        "i2": "<b>Les autres testeurs</b> : rien de toi. Ils voient seulement les matchs où ils ont joué, avec les joueurs de ces matchs, comme dans une démo.",
+        "i3": "<b>L'équipe d'Untraded</b> ({operator}) : l'ensemble des données, pour faire fonctionner et corriger l'outil.",
+        "i4": "<b>Hébergement</b> : {hosting}.",
+        "hostingUnknown": "<b>Hébergement</b> : demande-le à {email}."
+      },
+      "s4": {
+        "title": "4. Combien de temps",
+        "i1": "<b>Démos brutes</b>, récupérées ou envoyées : supprimées du serveur <b>{days, plural, one {# jour} other {# jours}}</b> après l'analyse. Seule exception : celles que tu acceptes de verser au corpus de recherche (case 2).",
+        "i1Parsed": "<b>Démos brutes</b>, récupérées ou envoyées : supprimées du serveur dès l'analyse. Seule exception : celles que tu acceptes de verser au corpus de recherche (case 2).",
+        "i1Kept": "<b>Démos brutes</b>, récupérées ou envoyées : conservées sur le serveur tant que ton compte existe.",
+        "i2": "<b>Statistiques, sessions, priorités, avis</b> : conservés pendant la bêta, puis tant que ton compte existe.",
+        "i3": "<b>Si tu arrêtes la bêta</b> ou demandes la suppression : tes données sont supprimées sous <b>30 jours</b>, démos du corpus comprises. Les agrégats anonymes, d'où tu ne peux pas être retrouvé, restent."
+      },
+      "s5": {
+        "title": "5. Tes droits",
+        "lead": "Tu peux à tout moment :",
+        "i1": "<b>retirer ton accord</b> et quitter la bêta, sans avoir à te justifier (dans les Réglages) ;",
+        "i2": "demander <b>l'accès</b> à tes données, leur <b>copie</b> (dans un format réutilisable), leur <b>correction</b> ou leur <b>suppression</b> ;",
+        "i3": "demander que tes statistiques <b>ne comptent pas</b> dans les références par niveau.",
+        "after": "Pour cela, écris à {email}. Nous répondons sous un mois au plus. Si tu estimes que tes droits ne sont pas respectés, tu peux saisir la CNIL (www.cnil.fr)."
+      },
+      "s6": {
+        "title": "6. Révoquer l'accès à ton historique",
+        "body": "Le code d'authentification ne donne accès qu'à la liste de tes matchs. Il ne permet pas de te connecter à ton compte. Pour couper l'accès, <b>génère un nouveau code</b> dans Steam : l'ancien ne marche plus, et nous ne pouvons plus récupérer tes nouveaux matchs."
+      },
+      "s7": {
+        "title": "7. C'est une bêta",
+        "body": "L'outil est en test. Il peut contenir des erreurs, dans les statistiques comme dans les conseils, et des données peuvent être perdues. Les conseils sont des pistes d'entraînement, pas des vérités. La bêta est gratuite et peut s'arrêter à tout moment ; nous te préviendrons."
+      },
+      "agree": "8. Ton accord",
+      "box1": "<b>1. (obligatoire pour participer)</b> J'accepte que mes matchs, récupérés par le bot ou envoyés par moi, soient analysés comme décrit ci-dessus, et que mes statistiques entrent dans les références anonymes par niveau.",
+      "box2": "<b>2. (facultatif)</b> J'accepte que les démos de mes matchs, y compris celles que j'envoie, soient conservées dans le corpus de recherche privé d'Untraded au-delà de la durée ci-dessus, pour calibrer l'outil et construire le modèle de rating, jusqu'à ce que je retire mon accord.",
+      "version": "Version 2 du texte, 26/10/2026 : ajoute les démos que tu envoies depuis le site."
     }
   },
   "welcome": {
@@ -650,7 +709,6 @@
     "consentLead": "Lis ce texte avant de commencer : il dit ce que nous faisons de tes données.",
     "outdated": "Le texte a changé depuis ton accord : lis la nouvelle version et donne ton accord à nouveau.",
     "withdrawn": "Tu as retiré ton accord : nous ne suivons plus tes matchs. Tu peux le redonner ici.",
-    "draft": "Premier jet, en cours de relecture juridique.",
     "unknownText": "Ce site ne connaît pas le texte de consentement « {version} ». Préviens l'opérateur à {email}.",
     "agreeButton": "J'accepte et je continue",
     "errorVersion": "Le texte a changé pendant ta lecture : relis-le, puis donne ton accord à nouveau.",
