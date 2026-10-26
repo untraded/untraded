@@ -18,8 +18,9 @@ from untraded.derive.clutches import build_clutches
 from untraded.derive.deaths import build_deaths
 from untraded.derive.players import build_round_players
 from untraded.derive.schema import TABLES
+from untraded.winprob import Model, default_model, swings
 
-__all__ = ["BuyThresholds", "DerivedError", "RoundModel", "derive"]
+__all__ = ["BuyThresholds", "DerivedError", "RoundModel", "derive", "swing_table"]
 
 
 class DerivedError(ValueError):
@@ -33,6 +34,7 @@ class RoundModel:
     trade_opportunity: pl.DataFrame
     clutch: pl.DataFrame
     team_round: pl.DataFrame
+    swing: pl.DataFrame
 
     def tables(self) -> dict[str, pl.DataFrame]:
         return {f.name: getattr(self, f.name) for f in fields(self)}
@@ -42,9 +44,13 @@ DEFAULT_BUY_THRESHOLDS = BuyThresholds()
 
 
 def derive(
-    tables: Mapping[str, pl.DataFrame], *, buy_thresholds: BuyThresholds = DEFAULT_BUY_THRESHOLDS
+    tables: Mapping[str, pl.DataFrame],
+    *,
+    buy_thresholds: BuyThresholds = DEFAULT_BUY_THRESHOLDS,
+    winprob: Model | None = None,
 ) -> RoundModel:
-    """Derives the round model of one match from its canonical tables."""
+    """Derives the round model of one match from its canonical tables. `winprob` is the
+    win-probability model the swings are computed with (default: the published one)."""
     tickrate = float(tables["match"]["tickrate"][0])
     rounds = tables["round"]
     states = tables["player_tick"]
@@ -66,10 +72,16 @@ def derive(
         "trade_opportunity": opportunities,
         "clutch": build_clutches(death, rounds, states, teams),
         "team_round": build_team_rounds(tables["economy"], rounds, teams, buy_thresholds),
+        "swing": swings(tables, winprob or default_model()),
     }
     derived = RoundModel(**{name: _conform(frame, name) for name, frame in model.items()})
     _check(derived)
     return derived
+
+
+def swing_table(tables: Mapping[str, pl.DataFrame], winprob: Model | None = None) -> pl.DataFrame:
+    """The `swing` table alone, for matches derived before it existed."""
+    return _conform(swings(tables, winprob or default_model()), "swing")
 
 
 def _conform(frame: pl.DataFrame, name: str) -> pl.DataFrame:

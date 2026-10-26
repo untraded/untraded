@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """`untraded-worker run`: process the job queue (UNTRADED_DATABASE_URL, UNTRADED_STORE_DIR,
 UNTRADED_UPLOADS_DIR, UNTRADED_UPLOAD_MAX_DEMO_GB, UNTRADED_DEMO_RETENTION_DAYS).
-`untraded-worker replays`: write the 2D viewer's round replays of the matches parsed before."""
+`untraded-worker replays`: write the 2D viewer's round replays of the matches parsed before.
+`untraded-worker swings`: write the `swing` table of the matches parsed before."""
 
 from __future__ import annotations
 
@@ -14,7 +15,7 @@ from pathlib import Path
 
 import psycopg
 
-from untraded_worker import conninfo, levels, replays, retention, store_dir, uploads_dir
+from untraded_worker import conninfo, levels, replays, retention, store_dir, swings, uploads_dir
 from untraded_worker.jobs import dead_handlers, handlers
 from untraded_worker.runner import Periodic, Worker
 from untraded_worker.store import LocalStore
@@ -31,6 +32,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     run.add_argument("--name", help="worker name recorded on its jobs (default: host name)")
     again = actions.add_parser("replays", help="write the round replays of parsed matches")
     again.add_argument("--force", action="store_true", help="rewrite existing replays too")
+    swing = actions.add_parser("swings", help="write the swing table of parsed matches")
+    swing.add_argument("--force", action="store_true", help="rewrite existing swing tables too")
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -39,6 +42,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         with psycopg.connect(conninfo(), autocommit=True) as conn:
             done = replays.backfill(conn, store, force=args.force)
         logging.info("replays written for %s match(es)", done)
+        return 0
+    if args.action == "swings":
+        with psycopg.connect(conninfo(), autocommit=True) as conn:
+            done = swings.backfill(conn, store, force=args.force)
+        logging.info("swing tables written for %s match(es)", done)
         return 0
     uploads = Path(uploads_dir())
     known = handlers(store, uploads)

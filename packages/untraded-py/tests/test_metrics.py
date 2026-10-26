@@ -159,4 +159,4 @@ def test_every_rate_says_what_it_is_computed_over() -> None:
 
 
 def test_only_differences_are_signed() -> None:
-    assert [m.id for m in REGISTRY.values() if m.signed] == ["base.kd_diff"]
+    assert [m.id for m in REGISTRY.values() if m.signed] == ["base.kd_diff", "rating.swing"]

@@ -63,6 +63,7 @@
     "pos.setup_zone_t20": "Position à T+20 s",
     "rating.hltv1": "HLTV Rating 1.0",
     "rating.hltv2_approx": "HLTV 2.0 (approx.)",
+    "rating.swing": "Swing de probabilité de victoire",
     "trade.death_opportunities": "Morts tradables",
     "trade.kill_conversion_pct": "Conversion des occasions",
     "trade.kill_opportunities": "Occasions de trade",
@@ -253,6 +254,10 @@
     "Grenades thrown (all types) ÷ rounds played.": "Grenades lancées (tous types) ÷ rounds joués.",
     "Grenades of type `smoke` thrown.": "Grenades de type `smoke` lancées.",
     "Buy value of the grenades in the player's inventory at death, averaged over their deaths (flash 200, HE 300, smoke 300, molotov 400, incendiary 500, decoy 50).": "Valeur d'achat des grenades dans l'inventaire du joueur à sa mort, en moyenne sur ses morts (flash 200, HE 300, smoke 300, molotov 400, incendiaire 500, leurre 50).",
-    "Fixed buy prices; grenades picked up from the ground count at the same price.": "Prix d'achat fixes ; les grenades ramassées au sol comptent au même prix."
+    "Fixed buy prices; grenades picked up from the ground count at the same price.": "Prix d'achat fixes ; les grenades ramassées au sol comptent au même prix.",
+    "The player's swings (`swing` table: how much each of their kills, deaths, plants and defuses moved their team's chance of winning the round, by the open win-probability model 1.0, docs/winprob.md), summed and divided by the rounds played, in percentage points. 0 is a player whose actions moved nothing on balance.": "Les swings du joueur (table `swing` : de combien chacun de ses kills, de ses morts, de ses poses et de ses désamorçages a changé les chances de son équipe de gagner le round, selon le modèle ouvert de probabilité de victoire 1.0, docs/winprob.md), additionnés et divisés par les rounds joués, en points de pourcentage. 0 est un joueur dont les actions, au total, n'ont rien changé.",
+    "The model is trained on a small corpus of high-level matches (docs/winprob.md): its numbers move with each new model version, which bumps this metric's version.": "Le modèle est entraîné sur un petit corpus de matchs de haut niveau (docs/winprob.md) : ses chiffres bougent à chaque nouvelle version du modèle, qui fait monter la version de cette métrique.",
+    "The death of a bot is not credited.": "La mort d'un bot n'est pas comptée.",
+    "First version, with the win-probability model 1.0 (#125).": "Première version, avec le modèle de probabilité de victoire 1.0 (#125)."
   }
 }
