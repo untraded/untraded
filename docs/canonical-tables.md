@@ -1,6 +1,6 @@
 # Canonical tables v1 (specification)
 
-*Version 1, accepted 2026-10-15. The parsing adapter (workstream E3) implements all 13 tables (`untraded.parsing.parse_demo`, `untraded parse`). A 30-round Premier match takes about 34 s and 1.4 GB of memory at peak on a desktop x86 CPU (bz2 decompression and hashing included), and 6.1 MB of Parquet, 5.9 MB of it `player_tick`.*
+*Version 1, accepted 2026-10-15; schema 1.1 since 2026-10-19 (`kill.victim_bot`, #38). The parsing adapter (workstream E3) implements all 13 tables (`untraded.parsing.parse_demo`, `untraded parse`); their strict Polars schemas are `untraded.parsing.schema.TABLES`, and the version is `SCHEMA_VERSION`. A 30-round Premier match takes about 34 s and 1.4 GB of memory at peak on a desktop x86 CPU (bz2 decompression and hashing included), and 6.1 MB of Parquet, 5.9 MB of it `player_tick`.*
 
 The canonical tables are what the parsing adapter produces from a demo (ADR 0002), what metrics read, and the **long-term record** of a match: metrics are recomputed from them, and the raw demo may be deleted after parsing (ADR 0009). Anything left out here is lost for every match whose demo is gone. Each column is therefore listed with **its source** and **why it is kept**.
 
@@ -10,10 +10,10 @@ Sources were checked on Premier, FACEIT, LAN and online tournament demos (spikes
 
 | Topic | Rule |
 |---|---|
-| Storage | One Parquet file per table and match, `matches/{match_id}/{table}.parquet`, zstd. Polars schemas are strict and validated on creation. |
+| Storage | One Parquet file per table and match, zstd. The worker writes them, with the [derived tables](round-model.md), under `matches/{id}/{table}.parquet`, where `id` is the match's database id (`match.parquet_prefix`). Polars schemas are strict and validated on creation. |
 | Identifiers | `match_id` = sha256 of the decompressed demo (one map = one demo = one match). Players are `steamid` (UInt64). Names live only in `player`. |
 | Ticks | `tick` is Int32, as in the demo. Durations are converted with the match `tickrate`, never assumed (ADR 0008). |
-| Rounds | `round` is the 1-based round number from game state (`total_rounds_played + 1`). Rows outside a live round (warmup, pre-match) are dropped. |
+| Rounds | `round` is the 1-based round number from game state (`total_rounds_played + 1` at its freeze end). A restarted round keeps its last freeze end; a round the demo cuts before it ends is dropped. An event belongs to the round from its `start_tick` to the next round's (kills just after a round's end, such as exit frags, belong to it); rows outside a live round (warmup, pre-match) are dropped. |
 | Sides and teams | `side` is `CT` or `T` at that moment. `team` is `A` (started the match on CT) or `B`: stable across the half-time and overtime side switches. |
 | Positions | `x`, `y`, `z` in Hammer units, Float32. `place` is the engine navmesh place name (`last_place_name`). |
 | Missing data | A table whose source is missing in a demo is rebuilt by its documented fallback, or is empty with the reason recorded in `match.unavailable`. It is never silently empty. |
@@ -27,16 +27,17 @@ Sources were checked on Premier, FACEIT, LAN and online tournament demos (spikes
 |---|---|---|---|
 | `match_id` | String | sha256 of the decompressed demo | identity, deduplication |
 | `schema_version` | String | this spec | recomputation (ADR 0003, 0009) |
-| `parser`, `parser_version` | String | adapter | traceability |
+| `parser`, `parser_version` | String | adapter: `demoparser2` and its installed version | traceability |
 | `source`, `mode`, `played_at` | String, String, Date? | **ingestion input** (the demo carries none of them; for `premier`, the players' `rank_type` must be 11 when the demo has it, or the parse is refused) | splits, filtering (ADR 0008) |
-| `map`, `game_build`, `server_name` | String | header | splits, patch analysis |
+| `map`, `game_build`, `server_name` | String | header (`map_name`, `patch_version`, `server_name`; empty when absent) | splits, patch analysis |
 | `tickrate` | Float32 | computed: ticks ÷ elapsed `game_time` | every duration |
-| `ticks` | Int32 | last tick | |
-| `rounds_played`, `score_a`, `score_b` | Int16 | game state at the last tick | validation, win rates |
+| `ticks` | Int32 | last tick of the demo | |
+| `rounds_played` | Int16 | number of live rounds in the demo (rows of `round`) | validation |
+| `score_a`, `score_b` | Int16 | the last round's `score_a`, `score_b` | validation, win rates |
 | `team_a_name`, `team_b_name` | String? | `team_clan_name` (empty on online servers) | display |
 | `first_round` | Int16 | first live round | **`incomplete_start`** when > 1 (ADR 0008) |
 | `events_available` | List[String] | `list_game_events()` | which fallbacks were used |
-| `unavailable` | List[String] | adapter | tables or columns that could not be built, with the reason |
+| `unavailable` | List[String] | adapter | tables or columns that could not be built, with the reason; also dropped or uncredited rows (disconnections, bot kills) and a surrender voted in freeze time after the last round (that round is not played, but the official score counts it) |
 
 ### `player` — one row per player
 
@@ -60,8 +61,8 @@ Sources were checked on Premier, FACEIT, LAN and online tournament demos (spikes
 | `winner_side`, `winner_team` | Enum | `round_win_status` | win rates, conversion, clutches |
 | `reason` | Enum | `round_win_reason` mapped: `bomb_exploded`, `bomb_defused`, `elimination`, `time_ran_out`, `surrender`, `other` | post-plant and retake stats |
 | `ct_team`, `t_team` | Enum A/B | `team_num` at freeze end | sides per round |
-| `score_a`, `score_b` | Int16 | `team_rounds_total` after the round | match state |
-| `is_overtime` | Boolean | round number vs. regulation length | pistol rounds, splits |
+| `score_a`, `score_b` | Int16 | `team_rounds_total` at `end_tick` (the running count of wins when no player of a team is left) | match state |
+| `is_overtime` | Boolean | round number > 24 (MR12 regulation) | pistol rounds, splits |
 | `bomb_planted_tick`, `bomb_site`, `bomb_planter` | Int32?, Enum A/B?, UInt64? | `bomb_planted`; the site from the planter's `last_place_name` (`BombsiteA`/`BombsiteB`), since the event only carries an entity id | post-plant, retakes |
 | `bomb_defused_tick`, `bomb_defuser` | Int32?, UInt64? | `bomb_defused` | |
 | `bomb_exploded_tick` | Int32? | `bomb_exploded` | |
@@ -108,64 +109,64 @@ Sources were checked on Premier, FACEIT, LAN and online tournament demos (spikes
 
 | Column | Type | Source | Why |
 |---|---|---|---|
-| `tick`, `round`, `shooter`, `weapon`, `silenced` | | event (`weapon` without its `weapon_` prefix; grenade throws and knife swings included) | shot counts |
+| `tick`, `round`, `shooter`, `weapon`, `silenced` | Int32, Int16, UInt64?, String, Boolean | event (`weapon` without its `weapon_` prefix; grenade throws and knife swings included) | shot counts |
 | `x/y/z`, `pitch`, `yaw`, `velocity_x/y/z` | Float32 | props at the tick | **aim and movement metrics later** (not in v1): lost if not kept |
-| `is_scoped`, `ducking`, `is_airborne`, `is_walking`, `accuracy_penalty` | | props at the tick | same |
+| `is_scoped`, `ducking`, `is_airborne`, `is_walking`, `accuracy_penalty` | Boolean, `accuracy_penalty` Float32 | props at the tick | same |
 
 ### `grenade` — one row per grenade thrown
 
 | Column | Type | Source | Why |
 |---|---|---|---|
 | `grenade_id` | Int32 | sequential within the match by throw tick; one throw is a run of consecutive ticks of a projectile entity (entity ids are reused) | key |
-| `entity_id`, `round`, `thrower`, `side` | | `parse_grenades` | |
+| `entity_id`, `round`, `thrower`, `side` | Int32, Int16, UInt64?, Enum CT/T | `parse_grenades` | |
 | `type` | Enum: `flash`, `he`, `smoke`, `molotov`, `incendiary`, `decoy` | projectile class from `parse_grenades`; molotov vs. incendiary from the thrower's `weapon_fire` | `util.thrown_*` |
-| `throw_tick`, `throw_x/y/z` | | first trajectory point | lineups, display |
-| `detonate_tick`, `detonate_x/y/z` | | detonate event of the projectile's entity (`decoy_started` for decoys); for fire, `inferno_startburn` one tick after the projectile ends, from the same thrower (the fire has its own entity id); last trajectory point as fallback | utility metrics |
+| `throw_tick`, `throw_x/y/z` | Int32, Float32 | first trajectory point | lineups, display |
+| `detonate_tick`, `detonate_x/y/z` | Int32?, Float32? | detonate event of the projectile's entity (`decoy_started` for decoys); for fire, `inferno_startburn` one tick after the projectile ends, from the same thrower (the fire has its own entity id); last trajectory point as fallback | utility metrics |
 | `end_tick` | Int32? | `smokegrenade_expired`, `inferno_expire` | smoke and fire timelines |
 
 ### `grenade_path` — grenade trajectories at 16 Hz *(see § 4)*
 
-`grenade_id`, `tick`, `x`, `y`, `z`. For the 2D viewer and lineups. The projectile's flight from the throw to the detonation, at 16 Hz plus its last point: about 17,000 rows and 0.2 MB of Parquet for a 30-round Premier match (the projectile entity stays still for seconds after detonating, and grenades held in hand have no position: neither is kept).
+`grenade_id` (Int32), `tick` (Int32), `x`, `y`, `z` (Float32). For the 2D viewer and lineups. The projectile's flight from the throw to the detonation, at 16 Hz plus its last point: about 17,000 rows and 0.2 MB of Parquet for a 30-round Premier match (the projectile entity stays still for seconds after detonating, and grenades held in hand have no position: neither is kept).
 
 ### `blind` — one row per player blinded
 
 | Column | Type | Source | Why |
 |---|---|---|---|
-| `tick`, `round`, `victim`, `flasher`, `grenade_id` | | `player_blind`; **fallback**: rises of `flash_duration` at the `flashbang_detonate` tick, attributed to its thrower (ADR 0008). On a matchmaking demo with both, the fallback finds 156 of 161 blinds with the same tick, duration and flasher, and no false positive (the missed ones were already blinded). `grenade_id` is the flasher's flash detonating on that tick | `util.enemies_flashed`, blind time |
+| `tick`, `round`, `victim`, `flasher`, `grenade_id` | Int32, Int16, UInt64, UInt64?, Int32? | `player_blind`; **fallback**: rises of `flash_duration` at the `flashbang_detonate` tick, attributed to its thrower (ADR 0008). On a matchmaking demo with both, the fallback finds 156 of 161 blinds with the same tick, duration and flasher, and no false positive (the missed ones were already blinded). `grenade_id` is the flasher's flash detonating on that tick | `util.enemies_flashed`, blind time |
 | `duration` | Float32 (s) | `blind_duration`, or `flash_duration` | |
 | `is_teammate`, `is_self` | Boolean | sides at the tick | team and self flashes |
 | `from_fallback` | Boolean | adapter | traceability |
 
 ### `bomb` — one row per bomb event
 
-`tick`, `round`, `type` (`plant_begin`, `planted`, `defuse_begin`, `defused`, `exploded`, `dropped`, `picked_up`), `player`, `site`. From the bomb events, when present. `site` comes from the player's place for plant events, and from the round's plant for defuses and explosions. Kept for post-plant and retake analysis (team phase).
+`tick` (Int32), `round` (Int16), `type` (Enum: `plant_begin`, `planted`, `defuse_begin`, `defused`, `exploded`, `dropped`, `picked_up`), `player` (UInt64?), `site` (Enum A/B?). From the bomb events, when present. `site` comes from the player's place for plant events, and from the round's plant for defuses and explosions. Kept for post-plant and retake analysis (team phase).
 
 ### `economy` — one row per player and round
 
 | Column | Type | Source | Why |
 |---|---|---|---|
-| `round`, `steamid`, `side` | | | key |
+| `round`, `steamid`, `side` | Int16, UInt64, Enum CT/T | | key |
 | `money_start` | Int32 | `balance` at `start_tick` | buy decisions |
 | `spent` | Int32 | `cash_spent_this_round` at freeze end + 7 s | |
 | `equip_value` | Int32 | `current_equip_value` at freeze end + 7 s (metrics-v1 § 5) | `eco.buy_type` |
 | `round_start_equip_value` | Int32 | prop | saved equipment |
-| `armor`, `has_helmet`, `has_defuser` | | props at freeze end + 7 s | buy type details |
+| `armor`, `has_helmet`, `has_defuser` | Int16, Boolean, Boolean | props at freeze end + 7 s | buy type details |
 | `inventory` | List[String] | `inventory` at freeze end + 7 s | primary weapon class, utility bought |
 
 ### `inventory_change` — one row each time a player's inventory changes
 
-`tick`, `round`, `steamid`, `inventory` (List[String]). Purchases, drops and pickups are derived from consecutive rows (ADR 0008: no purchase event). Storing changes instead of the inventory at every tick keeps `player_tick` small. Changes are detected on the `player_tick` samples (16 Hz): a change undone within one interval (62 ms) is not seen. There were 4 such changes of 2,363 on a 30-round match, while reading the inventory at every tick doubled the peak memory of a parse (about 2 GB).
+`tick` (Int32), `round` (Int16), `steamid` (UInt64), `inventory` (List[String]). Purchases, drops and pickups are derived from consecutive rows (ADR 0008: no purchase event). Storing changes instead of the inventory at every tick keeps `player_tick` small. Changes are detected on the `player_tick` samples (16 Hz): a change undone within one interval (62 ms) is not seen. There were 4 such changes of 2,363 on a 30-round match, while reading the inventory at every tick doubled the peak memory of a parse (about 2 GB).
 
 ### `player_tick` — player state, sampled
 
-Rows at **16 Hz** (one tick in four at 64 ticks/s, ⚙ adapter parameter) within each round, from `start_tick` to `end_tick`, **plus every kill tick and every round's `freeze_end_tick` and `end_tick`**, so that kill-time and round-boundary states are exact. Only players on a team are kept. About 500,000 rows for a 30-round match.
+Rows at **16 Hz** (one tick in four at 64 ticks/s, ⚙ adapter parameter `SAMPLE_HZ`) within each round, from `start_tick` to `end_tick`, **plus every kill tick and every round's `freeze_end_tick` and `end_tick`**, so that kill-time and round-boundary states are exact. Only players on a team are kept. About 500,000 rows for a 30-round match.
 
 | Column | Type | Source | Why |
 |---|---|---|---|
-| `tick`, `round`, `steamid`, `side` | | | key |
+| `tick`, `round`, `steamid`, `side` | Int32, Int16, UInt64, Enum CT/T | | key |
 | `x`, `y`, `z`, `pitch`, `yaw` | Float32 | props | positioning, spacing, setups, 2D viewer |
 | `velocity_x`, `velocity_y`, `velocity_z` | Float32 | props | movement (later), viewer |
-| `health`, `armor`, `has_helmet`, `is_alive` | | props | survival, clutches, capped damage |
+| `health`, `armor`, `has_helmet`, `is_alive` | Int16, Int16, Boolean, Boolean | props | survival, clutches, capped damage |
 | `place` | String (dictionary-encoded) | `last_place_name` | `pos.setup_zone_t20`, zones |
 | `active_weapon` | String | `active_weapon_name` | viewer, later metrics |
 | `balance`, `equip_value` | Int32 | `balance`, `current_equip_value` | economy timeline |
@@ -209,8 +210,12 @@ Left out on purpose:
 
 ## 5. Validation on creation
 
-- Schemas and types are strict; ticks increase within each table.
-- Live freeze ends = rounds played = `score_a + score_b`, unless `incomplete_start` (ADR 0008).
-- Every event row has a round, or is dropped as warmup or pre-match.
-- Each player has at most one row per sampled tick; at most 5 players per side are alive.
+`untraded.parsing.validate` refuses the match on the first broken rule:
+
+- Schemas and types are strict; ticks increase within each event table, and `grenade` is in throw order.
+- `match` has one row. Round numbers are consecutive, from `first_round`, and `rounds_played` is their count; `score_a + score_b` equals the last round number (the score counts the rounds before a truncated start, ADR 0008).
+- Within each round, `start_tick` ≤ `freeze_end_tick` < `end_tick` < the next round's `start_tick`.
+- Every event row and grenade has a live round, or is dropped as warmup or pre-match.
+- `grenade_id` is unique, and every `grenade_id` of `grenade_path`, `damage` and `blind` is in `grenade`.
+- Each player has at most one row per sampled tick; at most 5 players per side are alive; one `economy` row per player and round; one `player` row per steamid.
 - Capped damage is between 0 and 100, and never exceeds `dmg_health` + 1.

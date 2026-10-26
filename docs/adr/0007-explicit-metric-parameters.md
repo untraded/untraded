@@ -1,7 +1,8 @@
 # 0007. Explicit metric parameters
 
-- Status: Accepted
+- Status: Accepted; refined by [0010](0010-reference-data-and-corpus.md)
 - Date: 2026-10-13
+- Note (2026-10-26): ADR 0010 replaced the pro corpus of the last point: 🎯 defaults are calibrated on consenting players' demos.
 
 ## Context
 

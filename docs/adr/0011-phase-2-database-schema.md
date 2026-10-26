@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-21
 - Builds on: [0004](0004-postgres-as-job-queue.md), [0006](0006-schema-ownership.md), [0009](0009-storage-and-retention.md)
+- Note (2026-10-26): implemented by migrations 0001 (this reference schema, unchanged) to 0010, which add sessions, references by level, consent, invitations, erasure and uploads: the current schema is in [docs/db/erd.md](../db/erd.md). The API connects as the services' user and switches to the `untraded_api` role in each transaction (migration 0002); the collector, like the worker, bypasses RLS. CI applies the migrations (`untraded-db upgrade`) before the isolation check.
 
 ## Context
 

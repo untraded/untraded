@@ -1,7 +1,8 @@
 # 0006. Database schema ownership
 
-- Status: Accepted
+- Status: Accepted; the Node part is not implemented as written
 - Date: 2026-10-13
+- Note (2026-10-26): the migrations are in `db/` with Alembic, as decided. The collector, the only Node service using the database, uses node-postgres (`pg`) with hand-written queries: there is no kysely, no generated types and no CI check of them.
 
 ## Context
 
