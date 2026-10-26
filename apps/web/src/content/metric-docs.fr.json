@@ -258,6 +258,7 @@
     "The player's swings (`swing` table: how much each of their kills, deaths, plants and defuses moved their team's chance of winning the round, by the open win-probability model 1.0, docs/winprob.md), summed and divided by the rounds played, in percentage points. 0 is a player whose actions moved nothing on balance.": "Les swings du joueur (table `swing` : de combien chacun de ses kills, de ses morts, de ses poses et de ses désamorçages a changé les chances de son équipe de gagner le round, selon le modèle ouvert de probabilité de victoire 1.0, docs/winprob.md), additionnés et divisés par les rounds joués, en points de pourcentage. 0 est un joueur dont les actions, au total, n'ont rien changé.",
     "The model is trained on a small corpus of high-level matches (docs/winprob.md): its numbers move with each new model version, which bumps this metric's version.": "Le modèle est entraîné sur un petit corpus de matchs de haut niveau (docs/winprob.md) : ses chiffres bougent à chaque nouvelle version du modèle, qui fait monter la version de cette métrique.",
     "The death of a bot is not credited.": "La mort d'un bot n'est pas comptée.",
-    "First version, with the win-probability model 1.0 (#125).": "Première version, avec le modèle de probabilité de victoire 1.0 (#125)."
+    "First version, with the win-probability model 1.0 (#125).": "Première version, avec le modèle de probabilité de victoire 1.0 (#125).",
+    "Nothing is credited once the round is decided: a death to the bomb's explosion debited its victim (#126).": "Plus rien n'est compté une fois le round décidé : une mort due à l'explosion de la bombe était débitée à sa victime (#126)."
   }
 }

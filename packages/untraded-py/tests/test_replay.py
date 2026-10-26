@@ -67,6 +67,29 @@ def test_the_planted_bomb_has_a_position(replays: dict[int, dict[str, Any]]) -> 
     assert all(r["bomb"]["planted_at"] is not None for r in planted)
 
 
+def test_the_win_probability_curve_steps_at_events_and_ends_on_the_result(
+    replays: dict[int, dict[str, Any]],
+) -> None:
+    for replay in replays.values():
+        winprob = replay["winprob"]
+        assert winprob["model"] == "1.0"
+        ticks, p_ct = winprob["ticks"], winprob["p_ct"]
+        assert len(ticks) == len(p_ct) > 2
+        assert ticks == sorted(ticks)
+        assert all(0 <= p <= 1 for p in p_ct)
+        assert replay["freeze_end_tick"] <= ticks[0]
+        assert p_ct[-1] == (1.0 if replay["winner_side"] == "CT" else 0.0)
+        players = {p["steamid"] for p in replay["players"]}
+        for swing in winprob["swings"]:
+            assert swing["player"] in players
+            assert swing["event"] in ("kill", "plant", "defuse")
+            assert swing["tick"] in ticks  # the curve steps there
+            assert -1 <= swing["swing"] <= 1
+    # Round 12 ends on the explosion: no step after it.
+    exploded = replays[12]
+    assert exploded["winprob"]["ticks"][-1] == exploded["end_tick"]
+
+
 def test_a_replay_is_small_once_gzipped(replays: dict[int, dict[str, Any]]) -> None:
     for replay in replays.values():
         packed = to_json_gz(replay)

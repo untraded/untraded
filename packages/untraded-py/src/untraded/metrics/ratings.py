@@ -98,7 +98,7 @@ def _frame(values: list[dict[str, float]]) -> pl.DataFrame:
 
 @metric(
     "rating.swing",
-    version="1.0.0",
+    version="1.1.0",
     name="Win-probability swing",
     unit="pct",
     better="higher",

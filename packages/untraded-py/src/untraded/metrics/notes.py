@@ -172,7 +172,11 @@ _RECURRING = (
 
 CHANGES: dict[str, dict[str, str]] = {
     "base.assist_score": {"1.0.0": "First version (#43)."},
-    "rating.swing": {"1.0.0": "First version, with the win-probability model 1.0 (#125)."},
+    "rating.swing": {
+        "1.0.0": "First version, with the win-probability model 1.0 (#125).",
+        "1.1.0": "Nothing is credited once the round is decided: a death to the bomb's explosion "
+        "debited its victim (#126).",
+    },
     "base.kast": {
         "1.1.0": "A death after the round end is not a survival (#43), as in CS Demo Manager. "
         + _TRADES,

@@ -89,8 +89,11 @@ Each event changes the state, and the model gives the probability just before an
 - **The defuse**: the counter-terrorists win; the defuser gets the swing.
 - When an event decides the round (the last enemy dies, the defuse), the probability after it is the result, 1 or 0.
 - The time passing between events is credited to no one.
+- Nothing is credited once the round is decided: the victims of the bomb's explosion and the kills after the round's end.
 
 Every parsed match keeps its swings in the derived table `swing` ([round model](round-model.md)), and the metric **`rating.swing`** adds up each player's swings per round played, in percentage points ([metrics-v1](metrics-v1.md) § 6). `untraded winprob swings <match directory>` prints them.
+
+The 2D viewer's round replays carry the curve and the swings ([replay format](replay-format.md), version 2).
 
 The **open rating** built on these swings comes next. On its scale, 1.00 is the average player of the corpus.
 

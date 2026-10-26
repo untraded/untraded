@@ -4,7 +4,7 @@
 
 | Version | Kind | Unit | Better | Reads | Code |
 |---|---|---|---|---|---|
-| 1.0.0 | value | pct | higher | `swing`, `round_player` | [`swing` in `metrics/ratings.py`](https://github.com/untraded/untraded/blob/main/packages/untraded-py/src/untraded/metrics/ratings.py) |
+| 1.1.0 | value | pct | higher | `swing`, `round_player` | [`swing` in `metrics/ratings.py`](https://github.com/untraded/untraded/blob/main/packages/untraded-py/src/untraded/metrics/ratings.py) |
 
 ## Definition
 
@@ -20,7 +20,7 @@ On the `premier-half` fixture: a Premier match on de_cache, rounds 11 to 15, ano
 
 | A1 | A2 | A3 | A4 | A5 | B1 | B2 | B3 | B4 | B5 |
 |---|---|---|---|---|---|---|---|---|---|
-| -5.64 | 6.87 | -7.74 | 2.09 | -8.57 | 23.24 | -10.6 | 7.73 | -12.05 | 2.93 |
+| -5.64 | 6.87 | 4.93 | 2.09 | -8.57 | 23.24 | -10.6 | 7.73 | -12.05 | 2.93 |
 
 ## Against CS Demo Manager
 
@@ -37,3 +37,4 @@ See also the [shared conventions](README.md#shared-conventions) of every metric.
 ## History
 
 - **1.0.0**: First version, with the win-probability model 1.0 (#125).
+- **1.1.0**: Nothing is credited once the round is decided: a death to the bomb's explosion debited its victim (#126).
