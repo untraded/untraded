@@ -16,7 +16,7 @@ import psycopg
 import pytest
 
 from untraded.parsing import CanonicalMatch, UnsupportedModeError
-from untraded_worker import queue, replays
+from untraded_worker import queue, replays, swings
 from untraded_worker.analysis import Analysis
 from untraded_worker.jobs import ON_DEAD, JobError, ParseJob
 from untraded_worker.load import load_match, refresh_access, sql_frames
@@ -165,6 +165,15 @@ def test_parse_job_end_to_end(
     assert store.exists(f"matches/{match_id}/replay/11.json.gz")
     assert replays.backfill(db, store) == 0  # nothing left to do
     assert replays.backfill(db, store, force=True) == 1
+
+    # The swings are derived with the rest; matches parsed before them get them from
+    # `untraded-worker swings`.
+    swing = f"matches/{match_id}/swing.parquet"
+    assert store.exists(swing)
+    store.delete(swing)
+    assert swings.backfill(db, store) == 1
+    assert store.read_table(f"matches/{match_id}", "swing").height > 0
+    assert swings.backfill(db, store) == 0
 
 
 def test_a_known_demo_is_merged_into_its_match(

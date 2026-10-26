@@ -221,3 +221,10 @@ changes the 2D viewer's round replays, write them for the matches parsed before:
 ```bash
 docker compose exec worker untraded-worker replays
 ```
+
+After an update that adds the win-probability swings or a new model, write the `swing` table of
+the matches parsed before (`--force` rewrites every match, for a new model):
+
+```bash
+docker compose exec worker untraded-worker swings
+```

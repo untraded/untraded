@@ -138,12 +138,13 @@ These metrics are distributions per map and side, not one number per player: the
 |---|---|---|---|
 | `rating.hltv1` | HLTV Rating 1.0 | (KillRating + 0.7 × SurvivalRating + MultiKillRating) / 2.7, with reference averages 0.679, 0.317 and 1.277 (public formula); a round of N kills is worth N² multi-kill points. Kills are enemy kills, deaths any death. Same formula as `rating_hltv_1`, published in `untraded` 0.0.1. | ✅ |
 | `rating.hltv2_approx` | HLTV 2.0 (approx.) | 0.0073 × KAST + 0.3591 × KPR − 0.5329 × DPR + 0.2372 × Impact + 0.0032 × ADR + 0.1587, with Impact = 2.13 × KPR + 0.42 × APR − 0.41 and KAST in % (`base.kast`, same parameters). **Always labeled "approx."** | ≈ |
+| `rating.swing` | Win-probability swing | The player's swings (derived table `swing`: how much each of their kills, deaths, plants and defuses moved their team's chance of winning the round, by the open win-probability model 1.0, [winprob](winprob.md)), summed and divided by the rounds played, in percentage points. 0 is a player whose actions moved nothing on balance | — |
 
 **Validation.**
 - HLTV 1.0: the demos of the 1.0 era are CS:GO demos, which the CS2 parser does not read, so it is checked against independent calculations. The reference average player rates exactly 1.00. Over 18 Premier matches, the mean of each lobby is 0.99, ranging from 0.91 to 1.04. Against CS Demo Manager on 30 matches (E8), every gap comes from the rounds counted or from bots ([validation-csdm.md](validation-csdm.md)).
 - HLTV 2.0 (approx.): HLTV does not publish the formula, and no published error margin was found for this community approximation. Over the same matches, its lobby mean is 1.10 and it correlates at 0.95 with the 1.0. Against CS Demo Manager, the formula is the same and every gap comes from its inputs (KAST, ADR, assists) or its floor at 0.
 
-The **open Untraded rating**, based on round win probability, is outside this catalog. It arrives in phase 2 and is trained on demos from consenting high-level players ([ADR 0010](adr/0010-reference-data-and-corpus.md)).
+The **open Untraded rating** will be built on `rating.swing`, on a scale where 1.00 is the average player. Its model is trained on demos from consenting high-level players only ([ADR 0010](adr/0010-reference-data-and-corpus.md), [winprob](winprob.md)).
 
 ## 7. Splits available in v1
 

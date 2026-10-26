@@ -17,6 +17,7 @@ from untraded.parsing.schema import Side, Team
 Columns = dict[str, pl.DataType | type[pl.DataType]]
 
 BuyType = pl.Enum(["pistol", "eco", "semi", "force", "full"])
+SwingEvent = pl.Enum(["kill", "plant", "defuse"])
 
 _ROUND_PLAYER: Columns = {
     "round": pl.Int16,
@@ -81,10 +82,22 @@ _TEAM_ROUND: Columns = {
     "buy_type": BuyType,
 }
 
+_SWING: Columns = {
+    "round": pl.Int16,
+    "tick": pl.Int32,
+    "event": SwingEvent,
+    "steamid": pl.UInt64,
+    "side": Side,
+    "swing": pl.Float32,
+    "p_ct_before": pl.Float32,
+    "p_ct_after": pl.Float32,
+}
+
 TABLES: dict[str, pl.Schema] = {
     "round_player": pl.Schema(_ROUND_PLAYER),
     "death": pl.Schema(_DEATH),
     "trade_opportunity": pl.Schema(_TRADE_OPPORTUNITY),
     "clutch": pl.Schema(_CLUTCH),
     "team_round": pl.Schema(_TEAM_ROUND),
+    "swing": pl.Schema(_SWING),
 }

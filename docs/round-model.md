@@ -57,6 +57,10 @@ A round is played when the player is on a team at freeze-time end (the `economy`
 | `force` | previous round lost, and neither eco nor full |
 | `semi` | everything else |
 
+### `swing` — one row per credit of a kill, a plant or a defuse
+
+How much each action moved the round, by the open win-probability model ([winprob](winprob.md)): `round`, `tick`, `event` (`kill`, `plant`, `defuse`), `steamid`, `side` (the player's), `swing` (the change in their side's chance of winning the round, from -1 to 1), `p_ct_before` and `p_ct_after` (the counter-terrorists' chance just before and just after the event). A kill has one row for the victim (debited) and one for each enemy who damaged them, by damage dealt, plus the flash assist; the death of a bot is not credited. The table depends on the model's version, unlike the others: a new model means deriving again.
+
 ## Invariants checked on creation
 
 One `round_player` row per player and round; at most one death per player and round; at most 5 players per team and round; at most one opening per round; at most one clutch per team and round; one `team_round` row per team and round.

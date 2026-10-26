@@ -136,6 +136,11 @@ LIMITS: dict[str, tuple[str, ...]] = {
         "HLTV's own values is known. Always label it approx.",
         "Can be negative; CS Demo Manager floors it at 0.",
     ),
+    "rating.swing": (
+        "The model is trained on a small corpus of high-level matches (docs/winprob.md): its "
+        "numbers move with each new model version, which bumps this metric's version.",
+        "The death of a bot is not credited.",
+    ),
 }
 
 FIRST_PR: dict[str, int] = {
@@ -167,6 +172,7 @@ _RECURRING = (
 
 CHANGES: dict[str, dict[str, str]] = {
     "base.assist_score": {"1.0.0": "First version (#43)."},
+    "rating.swing": {"1.0.0": "First version, with the win-probability model 1.0 (#125)."},
     "base.kast": {
         "1.1.0": "A death after the round end is not a survival (#43), as in CS Demo Manager. "
         + _TRADES,

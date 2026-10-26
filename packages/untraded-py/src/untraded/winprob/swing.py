@@ -10,6 +10,7 @@ before it and just after it, and the difference is the event's swing:
   who damaged the victim this round, by damage dealt (the killer at least has the last hit). A
   flash assist takes `FLASH_SHARE` of it first. The victim is debited the same swing, seen by
   their side. A team kill debits the killer instead; a death to the world debits the victim.
+  The death of a bot (`kill.victim` null) is not credited.
 - **the plant**: the bomb goes down with `BOMB_SECONDS` to go; the planter gets the swing.
 - **the defuse**: the counter-terrorists win; the defuser gets the swing.
 
@@ -114,6 +115,8 @@ def swings(tables: Mapping[str, pl.DataFrame], model: Model) -> pl.DataFrame:
     for kill in tables["kill"].iter_rows(named=True):
         rnd = rounds.get(kill["round"])
         if rnd is None or rnd["freeze_end_tick"] is None or kill["tick"] < rnd["freeze_end_tick"]:
+            continue
+        if kill["victim"] is None:  # a bot: no state of its own to take away
             continue
         try:
             before = state_at(tables, kill["round"], kill["tick"])

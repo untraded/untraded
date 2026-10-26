@@ -94,3 +94,34 @@ def hltv2_approx(ds: Dataset, p: Mapping[str, ParamValue]) -> pl.DataFrame:
 
 def _frame(values: list[dict[str, float]]) -> pl.DataFrame:
     return pl.DataFrame(values, schema={"steamid": pl.UInt64, "value": pl.Float64})
+
+
+@metric(
+    "rating.swing",
+    version="1.0.0",
+    name="Win-probability swing",
+    unit="pct",
+    better="higher",
+    cases=(ROUNDS,),
+    signed=True,
+    uses=("swing", "round_player"),
+    doc="The player's swings (`swing` table: how much each of their kills, deaths, plants and "
+    "defuses moved their team's chance of winning the round, by the open win-probability "
+    "model 1.0, docs/winprob.md), summed and divided by the rounds played, in percentage "
+    "points. 0 is a player whose actions moved nothing on balance.",
+)
+def swing(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
+    if "swing" not in ds.tables:  # tables derived before the swing existed
+        return per_player(ds, _frame([]), fill=None)
+    credits = ds.kept(ds["swing"])
+    # Only the matches that have swings: one derived before them has no row at all.
+    rounds = (
+        ds.played.join(credits.select("match_id").unique(), on="match_id", how="semi")
+        .group_by("steamid")
+        .agg(pl.len().alias("rounds"))
+    )
+    gained = credits.group_by("steamid").agg(pl.col("swing").cast(pl.Float64).sum())
+    values = rounds.join(gained, on="steamid", how="left").select(
+        "steamid", (pl.col("swing").fill_null(0.0) * 100 / pl.col("rounds")).alias("value")
+    )
+    return per_player(ds, values, fill=None)
