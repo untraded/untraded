@@ -84,12 +84,13 @@ Each event changes the state, and the model gives the probability just before an
   - The swing is shared among the enemies who damaged the victim this round, **by damage dealt** (the killer has at least the last hit).
   - A **flash assist** takes 10 % of it first.
   - The **victim** is debited the same swing. A team kill debits the killer; a death to the world debits the victim.
+  - The death of a bot is not credited: the demo gives it no state of its own.
 - **The plant**: the bomb goes down with 40 seconds to go; the planter gets the swing.
 - **The defuse**: the counter-terrorists win; the defuser gets the swing.
 - When an event decides the round (the last enemy dies, the defuse), the probability after it is the result, 1 or 0.
 - The time passing between events is credited to no one.
 
-`untraded winprob swings <match directory>` prints each player's swing per round.
+Every parsed match keeps its swings in the derived table `swing` ([round model](round-model.md)), and the metric **`rating.swing`** adds up each player's swings per round played, in percentage points ([metrics-v1](metrics-v1.md) § 6). `untraded winprob swings <match directory>` prints them.
 
 The **open rating** built on these swings comes next. On its scale, 1.00 is the average player of the corpus.
 

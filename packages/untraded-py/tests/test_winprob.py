@@ -12,6 +12,9 @@ import polars as pl
 import pytest
 
 from untraded import fixtures
+from untraded.derive import derive
+from untraded.derive.schema import TABLES
+from untraded.metrics import Dataset, compute
 from untraded.winprob import (
     NUMERIC,
     Model,
@@ -167,3 +170,21 @@ def test_the_published_model_loads_and_predicts(tables: dict[str, pl.DataFrame])
     assert "pro" not in model.trained_on["sources"]
     p = model.predict(samples(tables))
     assert ((p > 0) & (p < 1)).all()
+
+
+def test_the_swings_are_derived_and_summed_per_round(tables: dict[str, pl.DataFrame]) -> None:
+    derived = derive(tables).tables()
+    swing = derived["swing"]
+    assert swing.schema == TABLES["swing"]
+    assert set(swing["event"].unique().to_list()) <= {"kill", "plant", "defuse"}
+    ds = Dataset.from_matches([{**tables, **derived}])
+    values = compute(ds, ["rating.swing"])
+    rounds = derived["round_player"].group_by("steamid").len()
+    gained = swing.group_by("steamid").agg(pl.col("swing").cast(pl.Float64).sum())
+    for row in rounds.join(gained, on="steamid", how="left").iter_rows(named=True):
+        value = values.filter(pl.col("steamid") == row["steamid"])["value"].item()
+        assert value == pytest.approx((row["swing"] or 0.0) * 100 / row["len"], abs=1e-6)
+    # Tables derived before the swing existed: no value, rather than a wrong one.
+    older = {name: frame for name, frame in {**tables, **derived}.items() if name != "swing"}
+    missing = compute(Dataset.from_matches([older]), ["rating.swing"])
+    assert missing["value"].null_count() == missing.height
