@@ -907,6 +907,19 @@
     "markKill": "{attacker} kills {victim} at {time}",
     "markPlant": "Bomb planted at {time}",
     "markFocus": "Moment to review",
-    "winnerReason": "{side} win: {reason}"
+    "winnerReason": "{side} win: {reason}",
+    "winprob": {
+      "title": "Round win probability",
+      "model": "model {model}",
+      "method": "How it is computed",
+      "legend": "Blue: the CT's chance, orange: the T's. Markers: the actions that move it by 10 points or more, a diamond for the bomb.",
+      "moments": "The three actions that weighed most",
+      "kill": "{attacker} kills {victim}",
+      "plant": "{player} plants the bomb",
+      "defuse": "{player} defuses",
+      "forSide": "{points} points for the {side}",
+      "seek": "{what}, at {time}: go to this moment",
+      "none": "No win-probability curve for this round: the model does not cover how it ended."
+    }
   }
 }
