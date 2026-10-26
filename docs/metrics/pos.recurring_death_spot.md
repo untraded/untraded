@@ -15,8 +15,8 @@ Per map and side: zones holding at least `pos.recurring_death_share` of the play
 | Parameter | Default | Meaning |
 |---|---|---|
 | `trade.window_s` | 5.0 s | Trade window W: a death is traded when a teammate kills the killer within W seconds, both ends included (the same tick, and exactly W). 5 s is the usual convention (HLTV, CS Demo Manager); CS Demo Manager excludes exactly W. |
-| `pos.recurring_death_share` | 0.25 ratio | Share of the player's untraded deaths on a map and side that makes a zone recurring. 🎯 v0, to calibrate. |
-| `pos.recurring_min_rounds` | 32 rounds | Rounds the player must have played on a map and side before a zone can be recurring. 🎯 v0, to calibrate. |
+| `pos.recurring_death_share` | 0.25 ratio | Share of the player's untraded deaths on a map and side that makes a zone recurring. 🎯 Calibrated on the corpus (docs/calibration.md). |
+| `pos.recurring_min_rounds` | 32 rounds | Rounds the player must have played on a map and side before a zone can be recurring. 🎯 Calibrated on the corpus (docs/calibration.md). |
 
 ## Example
 
@@ -30,7 +30,7 @@ No equivalent in CS Demo Manager.
 
 ## Limits
 
-- The share and the minimum rounds are v0 thresholds (🎯); the table is empty until the player has played enough rounds on a map and side.
+- The share and the minimum rounds (🎯) were calibrated on the corpus (docs/calibration.md); the table is empty until the player has played enough rounds on a map and side.
 - Zones are the engine's navmesh place names (`last_place_name`, e.g. `BombsiteA`), not community callouts, and some places are large.
 - These are distributions per map and side: they become meaningful over many rounds on the same map, not on a single match.
 

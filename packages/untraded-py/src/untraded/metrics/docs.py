@@ -92,7 +92,7 @@ def _index() -> str:
     lines = ["# Metrics", "", GENERATED, ""]
     lines += [
         f"{len(REGISTRY)} metrics, each with its own page. Parameters, their defaults and the "
-        "thresholds still to calibrate are on [parameters.md](parameters.md).",
+        "calibrated thresholds are on [parameters.md](parameters.md).",
         "",
         "## Shared conventions",
         "",
@@ -126,8 +126,8 @@ def _parameters() -> str:
         '`compute(dataset, params={"trade.window_s": 3.0})`. Derivation parameters are applied '
         "when the round model is built, so changing one means deriving again. Reference "
         "parameters choose the matches of the player's own reference (`untraded.reference`). "
-        "🎯 marks a v0 "
-        "threshold still to calibrate on demos from consenting high-level players (ADR 0010).",
+        "🎯 marks a threshold calibrated on demos from consenting high-level players "
+        "([calibration.md](../calibration.md), ADR 0010), to measure again as the corpus grows.",
         "",
         "| Parameter | Default | Unit | Stage | 🎯 | Meaning | Used by |",
         "|---|---|---|---|---|---|---|",
@@ -172,7 +172,7 @@ def _page(m: Metric, example: str, where: str) -> str:
         lines += ["## Parameters", "", "| Parameter | Default | Meaning |", "|---|---|---|"]
         for key, default in m.params.items():
             p = PARAMETERS[key]
-            mark = " 🎯 v0, to calibrate." if p.calibrate else ""
+            mark = " 🎯 Calibrated on the corpus (docs/calibration.md)." if p.calibrate else ""
             unit = "" if isinstance(default, bool) else f" {p.unit}"
             lines.append(f"| `{key}` | {json.dumps(default)}{unit} | {p.doc}{mark} |")
         lines.append("")

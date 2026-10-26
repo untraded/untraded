@@ -2,7 +2,7 @@
 
 *Generated from the metric registry by `python -m untraded.metrics.docs`: do not edit by hand. The specification is [metrics-v1.md](../metrics-v1.md).*
 
-82 metrics, each with its own page. Parameters, their defaults and the thresholds still to calibrate are on [parameters.md](parameters.md).
+82 metrics, each with its own page. Parameters, their defaults and the calibrated thresholds are on [parameters.md](parameters.md).
 
 ## Shared conventions
 
