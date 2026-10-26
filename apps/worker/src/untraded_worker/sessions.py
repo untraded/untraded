@@ -33,7 +33,7 @@ import psycopg
 from psycopg.types.json import Jsonb
 
 from untraded import reference
-from untraded_worker import advice, levels, queue
+from untraded_worker import advice, levels, load, queue
 from untraded_worker.queue import Job
 from untraded_worker.store import LocalStore
 
@@ -243,6 +243,9 @@ class SessionJob:
         chosen: ChosenReference,
     ) -> uuid.UUID:
         """Writes the report; returns the session's id."""
+        # The report holds the deployed versions of the metrics, which no parse may have
+        # recorded yet (a new version, and no match parsed since the update).
+        load.register_metrics(conn)
         ids = [m.id for m in session]
         # Sessions this one replaces: any holding one of its matches (two sessions joined by a
         # match played between them, or the same session recomputed).
