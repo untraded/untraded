@@ -907,6 +907,19 @@
     "markKill": "{attacker} tue {victim} à {time}",
     "markPlant": "Bombe posée à {time}",
     "markFocus": "Moment à revoir",
-    "winnerReason": "Les {side} gagnent : {reason}"
+    "winnerReason": "Les {side} gagnent : {reason}",
+    "winprob": {
+      "title": "Probabilité de victoire du round",
+      "model": "modèle {model}",
+      "method": "Comment c'est calculé",
+      "legend": "Bleu : chance des CT, orange : celle des T. Pastilles : les actions qui la font bouger d'au moins 10 points, losange pour la bombe.",
+      "moments": "Les trois actions qui ont le plus pesé",
+      "kill": "{attacker} tue {victim}",
+      "plant": "{player} pose la bombe",
+      "defuse": "{player} désamorce",
+      "forSide": "{points} points pour les {side}",
+      "seek": "{what}, à {time} : aller à ce moment",
+      "none": "Pas de courbe de probabilité pour ce round : le modèle ne couvre pas sa fin."
+    }
   }
 }

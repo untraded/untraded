@@ -192,5 +192,18 @@ async function viewerLabels(round: number): Promise<ViewerLabels> {
       victim: keep("victim"),
       time: keep("time"),
     }),
+    winprob: {
+      title: t("winprob.title"),
+      model: t("winprob.model", { model: keep("model") }),
+      method: t("winprob.method"),
+      legend: t("winprob.legend"),
+      moments: t("winprob.moments"),
+      kill: t("winprob.kill", { attacker: keep("attacker"), victim: keep("victim") }),
+      plant: t("winprob.plant", { player: keep("player") }),
+      defuse: t("winprob.defuse", { player: keep("player") }),
+      forSide: t("winprob.forSide", { points: keep("points"), side: keep("side") }),
+      seek: t("winprob.seek", { what: keep("what"), time: keep("time") }),
+    },
+    noWinprob: t("winprob.none"),
   };
 }

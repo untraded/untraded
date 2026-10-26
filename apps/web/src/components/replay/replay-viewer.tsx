@@ -22,6 +22,7 @@ import {
   weaponKind,
 } from "@/lib/replay";
 import type { Scene, SceneColors } from "./scene";
+import { WinProbChart, type WinProbLabels } from "./winprob-chart";
 
 export interface ViewerLabels {
   canvas: string;
@@ -57,7 +58,13 @@ export interface ViewerLabels {
   markFocus: string;
   /** `{attacker}`, `{victim}` and `{time}` are replaced by the viewer. */
   markKill: string;
+  winprob: WinProbLabels;
+  /** Said instead of the curve for a round the model does not cover. */
+  noWinprob: string;
 }
+
+/** Where the win-probability model is explained. */
+const WINPROB_METHOD = "https://github.com/untraded/untraded/blob/main/docs/winprob.md";
 
 const SPEEDS = [0.5, 1, 2, 4] as const;
 /** How often the panel (teams, feed, clock) follows the playback, in ms. */
@@ -441,6 +448,23 @@ export function ReplayViewer({
                   className="absolute top-[9px] h-3.5 w-1 -translate-x-1/2 rounded-full bg-foreground"
                   style={{ left: `${share(tick)}%` }}
                 />
+              </div>
+              {/* Under the timeline and at its scale: the same column. */}
+              <div className="col-span-2 sm:col-span-1 sm:col-start-2">
+                {replay.winprob ? (
+                  <WinProbChart
+                    replay={replay}
+                    winprob={replay.winprob}
+                    tick={tick}
+                    onSeek={seek}
+                    roundTime={roundTime}
+                    name={(steamid) => name(steamid)}
+                    labels={labels.winprob}
+                    method={WINPROB_METHOD}
+                  />
+                ) : (
+                  <p className="text-xs text-muted-foreground">{labels.noWinprob}</p>
+                )}
               </div>
               <fieldset className="col-start-2 row-start-1 m-0 inline-flex justify-self-end rounded-md border border-border bg-card p-0.5 sm:col-start-3">
                 <legend className="sr-only">{labels.speed}</legend>
