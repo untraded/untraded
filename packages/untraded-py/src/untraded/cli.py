@@ -37,6 +37,7 @@ DEFAULT_MANIFEST = Path("corpus") / "manifest.toml"
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    _tolerant_output()
     args = _parser().parse_args(argv)
     try:
         return int(args.run(args))
@@ -54,6 +55,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     ) as error:
         print(f"error: {error}", file=sys.stderr)
         return 2
+
+
+def _tolerant_output() -> None:
+    """A console that cannot show a character (a player's name, on a Windows code page) shows a
+    `?` instead of stopping the command."""
+    for stream in (sys.stdout, sys.stderr):
+        if isinstance(stream, io.TextIOWrapper) and (stream.encoding or "").lower() not in (
+            "utf-8",
+            "utf8",
+        ):
+            stream.reconfigure(errors="replace")
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -122,7 +134,8 @@ def _parser() -> argparse.ArgumentParser:
 
     calibrate = commands.add_parser(
         "calibrate",
-        help="measure the 🎯 thresholds on parsed matches (consenting players only, ADR 0010)",
+        help="measure the adjustable thresholds on parsed matches (consenting players only, "
+        "ADR 0010)",
     )
     calibrate.add_argument(
         "matches", nargs="+", type=Path, help="match directories written by `untraded parse`"

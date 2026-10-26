@@ -191,7 +191,16 @@ def test_the_admin_lists_and_manages_players(db: psycopg.Connection[Any], tmp_pa
         listed = [p["steam_id"] for p in client.get("/admin/players").json()["items"]]
         assert str(GUEST) not in listed
 
+        # A dead job and one waiting to retry after an error are failures; a job done is not.
+        db.execute(
+            "INSERT INTO job (kind, status, attempts, last_error) VALUES ('parse', 'dead', 5, "
+            "'boom'), ('session', 'queued', 1, 'oops'), ('parse', 'done', 1, NULL)"
+        )
         health = client.get("/admin/health").json()
+        assert [(j["kind"], j["error"]) for j in health["failed_jobs"]] == [
+            ("session", "oops"),
+            ("parse", "boom"),
+        ]
         assert health["backups"]["last"]["name"] == "untraded-2026-10-21.dump"
         assert health["backups"]["offsite"]["ok"] is True
         assert health["sources"]["total"] == 0

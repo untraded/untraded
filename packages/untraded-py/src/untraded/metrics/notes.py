@@ -46,8 +46,9 @@ FAMILY_LIMITS: dict[str, tuple[str, ...]] = {
         "already depend on the distance and the angle to the flash.",
     ),
     "eco": (
-        "Buy types use v0 thresholds aligned with CS Demo Manager (`buy.eco_max`, "
-        "`buy.full_min_ct`, `buy.full_min_t`), still to calibrate on our target level.",
+        "Buy types use thresholds aligned with CS Demo Manager (`buy.eco_max`, "
+        "`buy.full_min_ct`, `buy.full_min_t`): a spending convention, checked on the corpus "
+        "and kept (docs/calibration.md).",
     ),
     "rating": (
         "Ratings summarize; they hide what the other metrics explain. Read them with KAST, ADR "
@@ -80,7 +81,8 @@ LIMITS: dict[str, tuple[str, ...]] = {
         "kill by a player.",
     ),
     "duel.isolated_deaths": (
-        "The radius is a v0 threshold (🎯), not yet calibrated.",
+        "The radius (🎯) was checked on the corpus and kept at 1000 units: the traded share "
+        "halves by 750 units and drops to almost nothing beyond 1250 (docs/calibration.md).",
         "The last player alive is never isolated: there is no teammate to be far from.",
     ),
     "duel.nearest_teammate_at_death": (
@@ -88,10 +90,12 @@ LIMITS: dict[str, tuple[str, ...]] = {
     ),
     "trade.kill_opportunities": (
         "An opportunity is a distance, not a sight line: a teammate behind a wall within the "
-        "distance had one. The distance is a v0 threshold (🎯).",
+        "distance had one. The distance (🎯) was calibrated on the corpus: 1300 units "
+        "(docs/calibration.md).",
     ),
     "trade.death_opportunities": (
-        "An opportunity is a distance, not a sight line. The distance is a v0 threshold (🎯).",
+        "An opportunity is a distance, not a sight line. The distance (🎯) was calibrated on "
+        "the corpus: 1300 units (docs/calibration.md).",
     ),
     "trade.untraded_deaths": (
         "Includes deaths with no teammate left to trade them (the last player alive).",
@@ -101,8 +105,9 @@ LIMITS: dict[str, tuple[str, ...]] = {
         "Only rounds where the player is alive 20 s after freeze-time end (`setup.offset_s`).",
     ),
     "pos.recurring_death_spot": (
-        "The share and the minimum rounds are v0 thresholds (🎯); the table is empty until the "
-        "player has played enough rounds on a map and side.",
+        "The share and the minimum rounds (🎯) were calibrated on the corpus "
+        "(docs/calibration.md); the table is empty until the player has played enough rounds "
+        "on a map and side.",
     ),
     "pos.heatmap_points": ("Raw points only: rendering comes in phase 2.",),
     "util.fire_damage": (

@@ -2,7 +2,7 @@
 
 *Generated from the metric registry by `python -m untraded.metrics.docs`: do not edit by hand. The specification is [metrics-v1.md](../metrics-v1.md).*
 
-Metric parameters are applied when a metric is computed: `compute(dataset, params={"trade.window_s": 3.0})`. Derivation parameters are applied when the round model is built, so changing one means deriving again. Reference parameters choose the matches of the player's own reference (`untraded.reference`). 🎯 marks a v0 threshold still to calibrate on demos from consenting high-level players (ADR 0010).
+Metric parameters are applied when a metric is computed: `compute(dataset, params={"trade.window_s": 3.0})`. Derivation parameters are applied when the round model is built, so changing one means deriving again. Reference parameters choose the matches of the player's own reference (`untraded.reference`). 🎯 marks a threshold calibrated on demos from consenting high-level players ([calibration.md](../calibration.md), ADR 0010), to measure again as the corpus grows.
 
 | Parameter | Default | Unit | Stage | 🎯 | Meaning | Used by |
 |---|---|---|---|---|---|---|
