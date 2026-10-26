@@ -6,34 +6,39 @@ SPDX-License-Identifier: AGPL-3.0-only
 # Round replays (2D viewer)
 
 A round as the 2D viewer replays it: one JSON document per round, built from the canonical
-tables (`untraded.replay`, MIT) when a match is parsed, and kept gzipped next to its tables, at
-`matches/{match_id}/replay/{round}.json.gz` (30 to 65 kB per round on a Premier match).
+tables and the derived `swing` table (`untraded.replay`, MIT) when a match is parsed, and kept
+gzipped next to its tables, at `matches/{id}/replay/{round}.json.gz`, where `id` is the match's
+database id (`match.parquet_prefix`) (30 to 65 kB per round on a Premier match).
 
-- **API**: `GET /matches/{match_id}/rounds/{round}/replay`, for a user who may see the match. Its
-  answer is gzipped (`Content-Encoding: gzip`) and never changes (`Cache-Control: private`).
+- **API**: `GET /matches/{id}/rounds/{round}/replay` (`/api/matches/...` through the site) (`id`: the match's database id, a UUID), for
+  a user who may see the match; a 404 otherwise, or when the round has no replay. Its answer is
+  the stored file as is, gzipped (`Content-Encoding: gzip`), and never changes
+  (`Cache-Control: private, max-age=86400`).
   The viewer asks for its format version (`?v=2`), so the browser keeps one copy per version: a
   replay written in another version is a 404 that is not cached (`no-store`), until
   `untraded-worker replays --force` rewrites it.
 - **Matches parsed before** replays existed, or after a format change: `untraded-worker replays`
-  (add `--force` to rewrite the existing ones).
+  (add `--force` to rewrite the existing ones). The swings come from the match's stored `swing`
+  table, else are computed with the published model; matches derived before that table existed
+  get it with `untraded-worker swings` (`--force` after a new model).
 
 ## Format, version 2
 
 | Key | Content |
 |---|---|
 | `version` | `2`; a change is a new version, and the replays are rewritten |
-| `match_id`, `round`, `map`, `tickrate` | |
+| `match_id`, `round`, `map`, `tickrate` | `match_id` is the canonical one (sha256 of the demo), not the database id |
 | `radar` | where world points fall on the map's 1024-pixel radar: `pos_x`, `pos_y`, `scale`, `lower_below` (world `z` under which a point is on the lower level, or null); null for a map without known values (`untraded.maps`) |
 | `start_tick`, `freeze_end_tick`, `end_tick` | the round, its freeze time ending at `freeze_end_tick` |
-| `winner_side`, `reason` | `CT` or `T`; `bomb_exploded`, `bomb_defused`, `elimination`, `time_ran_out`... |
+| `winner_side`, `reason` | `CT`, `T` or null; `round.reason` (`bomb_exploded`, `bomb_defused`, `elimination`, `time_ran_out`, `surrender`, `other`) |
 | `ticks` | the shared timeline: every `player_tick` sample of the round (16 Hz, exact at kills and round boundaries) |
 | `weapons` | weapon names, indexed by the players' `weapon` arrays |
-| `players` | one per player: `steamid` (string), `name`, `team` (`A`/`B`), `side` (`CT`/`T`), and one array per state, aligned on `ticks`, `null` where the player has no sample |
-| `kills` | `tick`, `attacker`, `victim`, `assister`, `weapon`, `headshot`, `wallbang`, `through_smoke`, `team_kill`, `attacker_x/y/z`, `victim_x/y/z` |
+| `players` | one per player with a sample in the round, by SteamID: `steamid` (string), `name` (the SteamID when unknown), `team` (`A`/`B`), `side` (`CT`/`T` in that round), and one array per state, aligned on `ticks`, `null` where the player has no sample |
+| `kills` | `tick`, `attacker`, `victim`, `assister`, `weapon`, `headshot`, `wallbang`, `through_smoke`, `team_kill`, `attacker_x/y/z`, `victim_x/y/z` (integers) |
 | `grenades` | `id`, `type` (`flash`, `he`, `smoke`, `molotov`, `incendiary`, `decoy`), `thrower`, `side`, `throw_tick`, `detonate_tick`, `end_tick` (smoke and fire), `detonate` (`[x, y, z]`), `path` (`ticks`, `x`, `y`, `z`) |
-| `blinds` | `tick`, `victim`, `flasher`, `duration` (seconds) |
+| `blinds` | `tick`, `victim`, `flasher`, `duration` (seconds, one decimal) |
 | `bomb` | `events` (`tick`, `type`: `plant_begin`, `planted`, `defuse_begin`, `defused`, `exploded`, `dropped`, `picked_up`; `player`, `site`) and `planted_at` (`[x, y, z]`: the planter's position when it was planted) |
-| `winprob` | the counter-terrorists' chance of winning the round over time ([winprob](winprob.md)): `model` (its version), `ticks` and `p_ct` (0 to 1, three decimals), and `swings` (`tick`, `event`: `kill`, `plant` or `defuse`; `player`, `side`, `swing`: from -1 to 1, seen by the player's side). The curve has a point per second of play, two points on the tick of each event (before and after, so it steps at once), and ends on the result, 1 or 0, when the round is decided. Null for a round the model does not cover (no winner, or an end such as a surrender) |
+| `winprob` | the counter-terrorists' chance of winning the round over time ([winprob](winprob.md)): `model` (its version), `ticks` and `p_ct` (0 to 1, three decimals), and `swings` (the round's rows of the derived [`swing`](round-model.md) table: `tick`, `event`: `kill`, `plant` or `defuse`; `player`, `side`, `swing`: from -1 to 1, seen by the player's side, three decimals). The curve has a point per second of play, two points on the tick of each event (before and after, so it steps at once), and ends on the result, 1 or 0, when the round is decided. Null for a round the model does not cover (no winner, or an end such as a surrender) |
 
 Version 2 (2026-10-26) adds `winprob`; version 1 had everything else.
 

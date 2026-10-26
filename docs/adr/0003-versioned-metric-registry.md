@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-13
+- Note (2026-10-26): the last consequence points to ADR 0005, superseded by [0009](0009-storage-and-retention.md): history is recomputed from the 16 Hz Parquet tables, not from raw demos or full tick data.
 
 ## Context
 

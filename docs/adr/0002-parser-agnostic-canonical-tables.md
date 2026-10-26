@@ -1,7 +1,8 @@
 # 0002. Parser-agnostic canonical tables
 
-- Status: Accepted
+- Status: Accepted; refined by [0008](0008-rounds-from-game-state.md)
 - Date: 2026-10-13
+- Note (2026-10-26): no `DemoParser` protocol was written: the one adapter is `untraded.parsing.parse_demo`, on demoparser2. The canonical tables are the 13 of [canonical-tables.md](../canonical-tables.md) (`bomb`, `grenade_path` and `inventory_change` added).
 
 ## Context
 

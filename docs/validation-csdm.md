@@ -13,8 +13,10 @@ npm install @akiver/cs-demo-analyzer@1.12.0
 untraded compare-csdm --csda node_modules/@akiver/cs-demo-analyzer/dist/bin/linux-x64/csda --mode premier --out e8/ demos/*.dem.zst
 ```
 
+The executable is `dist/bin/<os>-<arch>/csda` (`csda.exe` on Windows); pass the one of your platform.
+
 `untraded compare-csdm` parses each demo, runs the analyzer on it, prints one line per field (players, gaps, largest difference) and, with `--out`, writes every comparison row to `comparison.parquet`. The code is `untraded.validation.csdm`.
-Demos are compared in parallel, in low-priority processes: a demo starts whenever the free RAM covers it (about 2 GB, learned from the finished demos) on top of a reserve left to the user, so the number of demos running follows the machine's load. `--jobs N` runs exactly N at once instead.
+Demos are compared in parallel, in low-priority processes, at most one per logical CPU: a demo starts whenever the free RAM covers it (about 2 GB, learned from the finished demos) on top of a reserve left to the user (15 % of the RAM, at least 2 GB), so the number of demos running follows the machine's load. `--jobs N` runs exactly N at once instead.
 
 ## Results (20/10/2026)
 
