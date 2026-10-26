@@ -46,7 +46,10 @@ export function chanceAt(winprob: ReplayWinProb, tick: number): number {
 }
 
 /** The actions of the round, in order: one per tick and kind, the swings grouped under it. The
- * move is read on the curve, which steps on the event's tick (a point before, a point after). */
+ * move is read on the curve, which steps on the event's tick: its last two points there are the
+ * point before and the point after. (A once-a-second sample can fall on that tick too, first:
+ * read from the players' state at that tick, it already sees the victim dead, so it is not the
+ * "before".) */
 export function events(winprob: ReplayWinProb): WinProbEvent[] {
   const grouped = new Map<string, WinProbEvent>();
   for (const swing of winprob.swings) {
@@ -64,11 +67,10 @@ export function events(winprob: ReplayWinProb): WinProbEvent[] {
   }
   return [...grouped.values()]
     .map((event) => {
-      const first = winprob.ticks.indexOf(event.tick);
       const last = winprob.ticks.lastIndexOf(event.tick);
       const ct =
-        first >= 0 && last > first
-          ? (winprob.p_ct[last] ?? 0) - (winprob.p_ct[first] ?? 0)
+        last > 0 && winprob.ticks[last - 1] === event.tick
+          ? (winprob.p_ct[last] ?? 0) - (winprob.p_ct[last - 1] ?? 0)
           : // No step on the curve: the credited side's swings say how much it moved.
             event.credits
               .filter((c) => c.swing > 0)
