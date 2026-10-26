@@ -66,7 +66,7 @@ class Model:
         return json.dumps({"format": FORMAT_VERSION, **asdict(self)}, indent=2, sort_keys=False)
 
     def save(self, path: Path) -> None:
-        path.write_text(self.to_json() + "\n", encoding="utf-8")
+        path.write_text(self.to_json() + "\n", encoding="utf-8", newline="\n")
 
     @classmethod
     def from_json(cls, text: str) -> Model:
