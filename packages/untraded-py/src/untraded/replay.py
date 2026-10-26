@@ -3,11 +3,12 @@
 """A round as the 2D viewer replays it: compact, one JSON document per round.
 
 Built from the canonical tables of a match (`player_tick`, `kill`, `grenade`, `grenade_path`,
-`bomb`, `blind`, `round`, `player`, `match`). The players' states share one timeline, the
-`player_tick` samples of the round (16 Hz, exact at kills and round boundaries): each player has
-one array per state, aligned on `ticks`, with `null` where they have no sample. Coordinates are
-world units rounded to integers, angles whole degrees: enough for a 1024-pixel radar, where one
-pixel is 4 to 7 units.
+`bomb`, `blind`, `round`, `player`, `match`), and the derived `swing` table when there is one
+(else the swings are computed with the published win-probability model). The players' states
+share one timeline, the `player_tick` samples of the round (16 Hz, exact at kills and round
+boundaries): each player has one array per state, aligned on `ticks`, with `null` where they have
+no sample. Coordinates are world units rounded to integers, angles whole degrees: enough for a
+1024-pixel radar, where one pixel is 4 to 7 units.
 
 Format version `REPLAY_VERSION`; a change to it is a new version, and the replays are rebuilt.
 """
@@ -22,8 +23,9 @@ from typing import Any
 import polars as pl
 
 from untraded.maps import RADARS
+from untraded.winprob import Model, default_model, samples, swings
 
-REPLAY_VERSION = 1
+REPLAY_VERSION = 2
 
 STATES = {
     # replay key: (player_tick column, how it is stored)
@@ -41,12 +43,28 @@ STATES = {
 """The player states a replay keeps. `weapon` is kept too, as an index into `weapons`."""
 
 
-def build_replays(tables: Mapping[str, pl.DataFrame]) -> dict[int, dict[str, Any]]:
-    """Every round of the match, by round number."""
-    return {int(number): build_replay(tables, int(number)) for number in tables["round"]["round"]}
+def build_replays(
+    tables: Mapping[str, pl.DataFrame], model: Model | None = None
+) -> dict[int, dict[str, Any]]:
+    """Every round of the match, by round number. `model` is the win-probability model of the
+    curve (default: the published one)."""
+    model = model or default_model()
+    states = samples(tables)
+    curve = states.select("round", "tick", pl.Series("p_ct", model.predict(states)))
+    credits = tables["swing"] if "swing" in tables else swings(tables, model)
+    return {
+        int(number): build_replay(
+            tables, int(number), _winprob(model, curve, credits, tables, int(number))
+        )
+        for number in tables["round"]["round"]
+    }
 
 
-def build_replay(tables: Mapping[str, pl.DataFrame], number: int) -> dict[str, Any]:
+def build_replay(
+    tables: Mapping[str, pl.DataFrame], number: int, winprob: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """One round. `winprob` is its win-probability curve and swings (`build_replays`), else
+    none."""
     match = tables["match"].row(0, named=True)
     round_ = tables["round"].filter(pl.col("round") == number).row(0, named=True)
     sides = {round_["ct_team"]: "CT", round_["t_team"]: "T"}
@@ -106,6 +124,7 @@ def build_replay(tables: Mapping[str, pl.DataFrame], number: int) -> dict[str, A
             {"tick": "tick", "victim": "victim", "flasher": "flasher", "duration": "duration"},
         ),
         "bomb": _bomb(tables["bomb"], ticks_frame, number),
+        "winprob": winprob,
     }
 
 
@@ -218,3 +237,57 @@ def _bomb(bomb: pl.DataFrame, ticks: pl.DataFrame, number: int) -> dict[str, Any
             last = planter.row(-1, named=True)
             position = [round(last["x"]), round(last["y"]), round(last["z"])]
     return {"events": events, "planted_at": position}
+
+
+def _winprob(
+    model: Model,
+    curve: pl.DataFrame,
+    credits: pl.DataFrame,
+    tables: Mapping[str, pl.DataFrame],
+    number: int,
+) -> dict[str, Any] | None:
+    """The counter-terrorists' chance of winning the round over time, and the swings.
+
+    The curve has the model's sample of every second (`untraded.winprob.features.samples`), the
+    probability just before and just after each kill, plant and defuse (so it steps at once),
+    and the result, 1 or 0, when the round is decided. None for a round the model does not
+    cover (no winner, or an end such as a surrender)."""
+    round_ = tables["round"].filter(pl.col("round") == number).row(0, named=True)
+    if round_["winner_side"] is None or str(round_["reason"]) not in {
+        "bomb_exploded",
+        "bomb_defused",
+        "elimination",
+        "time_ran_out",
+    }:
+        return None
+    points = [
+        (t, p)
+        for t, p in curve.filter(pl.col("round") == number).select("tick", "p_ct").iter_rows()
+    ]
+    mine = credits.filter(pl.col("round") == number).sort("tick")
+    events = mine.unique(["tick", "event"], keep="first", maintain_order=True)
+    for row in events.iter_rows(named=True):
+        points += [(row["tick"], row["p_ct_before"]), (row["tick"], row["p_ct_after"])]
+    ends = [
+        round_[k]
+        for k in ("end_tick", "bomb_defused_tick", "bomb_exploded_tick")
+        if round_[k] is not None
+    ]
+    points.append((min(ends), 1.0 if round_["winner_side"] == "CT" else 0.0))
+    # Samples first at a tick, then each event's before and after, in order.
+    points.sort(key=lambda point: point[0])
+    return {
+        "model": model.version,
+        "ticks": [int(t) for t, _ in points],
+        "p_ct": [round(float(p), 3) for _, p in points],
+        "swings": [
+            {
+                "tick": row["tick"],
+                "event": str(row["event"]),
+                "player": _value("player", row["steamid"]),
+                "side": str(row["side"]),
+                "swing": round(float(row["swing"]), 3),
+            }
+            for row in mine.iter_rows(named=True)
+        ],
+    }
