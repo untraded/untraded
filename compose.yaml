@@ -199,6 +199,8 @@ services:
     restart: unless-stopped
     environment:
       UNTRADED_API_INTERNAL_URL: http://api:8000
+      # The site's address as browsers see it: the share image and icons are linked from it.
+      UNTRADED_SITE_URL: ${UNTRADED_SITE_URL:-http://localhost:3000}
       # Dates and times render on the server: in each player's time zone (sent by their browser),
       # else in this one (an IANA name; an unknown one falls back to Europe/Paris).
       UNTRADED_TIME_ZONE: ${UNTRADED_TIME_ZONE:-Europe/Paris}

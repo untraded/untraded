@@ -53,7 +53,7 @@ stack variables.
 | `UNTRADED_ALLOW_PRIVATE_DEMO_URLS` | no | `1` lets the worker download demos from private addresses (a server on your own network). Off by default: a demo URL never reaches a private, loopback or cloud metadata address |
 | `UNTRADED_BACKUP_HOUR`, `UNTRADED_BACKUP_KEEP_DAYS`, `UNTRADED_BACKUP_KEEP_WEEKS` | no | when the daily database dump runs (3, UTC) and how many are kept: 7 daily, plus 4 weekly (Sunday's) |
 | `COLLECTOR_INTERVAL_SECONDS` | no | time between collection rounds (3600) |
-| `UNTRADED_SITE_URL` | for the site | the site's address as browsers see it, e.g. `https://untraded.example.com` (default `http://localhost:3000`). Steam sends users back there after signing in, and `https` makes the session cookie `Secure` |
+| `UNTRADED_SITE_URL` | for the site | the site's address as browsers see it, e.g. `https://untraded.example.com` (default `http://localhost:3000`). Steam sends users back there after signing in, `https` makes the session cookie `Secure`, and the share image of links is served from it |
 | `UNTRADED_BIND`, `UNTRADED_WEB_PORT`, `UNTRADED_API_PORT` | no | where the web and the API are published for the reverse proxy (`127.0.0.1`, ports 3000 and 8000); `172.17.0.1` lets a reverse proxy running in Docker reach them |
 | `UNTRADED_UPLOAD_MAX_MB`, `UNTRADED_UPLOAD_MAX_DEMO_GB` | no | the largest demo a player may send from the site (400 MB), and once decompressed (1.5 GB) |
 | `UNTRADED_UPLOADS_PER_DAY`, `UNTRADED_UPLOADS_IN_FLIGHT` | no | uploads per player in 24 hours (20) and still being analysed (3); `0` lifts a limit |

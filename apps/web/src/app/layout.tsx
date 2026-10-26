@@ -12,10 +12,23 @@ import { cn } from "@/lib/cn";
 import { plexMono, plexSans } from "./fonts";
 import "./globals.css";
 
-export const metadata: Metadata = {
-  title: { default: "Untraded", template: "%s · Untraded" },
-  description: "Open, transparent Counter-Strike 2 match analysis.",
-};
+/** The site's public address (`UNTRADED_SITE_URL`), so the share image and the icons are linked
+ * from it rather than from the container's own `localhost`. */
+function siteUrl(): URL | undefined {
+  try {
+    return process.env.UNTRADED_SITE_URL ? new URL(process.env.UNTRADED_SITE_URL) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function generateMetadata(): Metadata {
+  return {
+    metadataBase: siteUrl(),
+    title: { default: "Untraded", template: "%s · Untraded" },
+    description: "Open, transparent Counter-Strike 2 match analysis.",
+  };
+}
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const [locale, me, store, timeZone] = await Promise.all([
