@@ -17,7 +17,7 @@ from tempfile import TemporaryDirectory
 
 import polars as pl
 
-from untraded import calibration, corpus, fixtures, radars, reference, report, resources
+from untraded import calibration, corpus, fixtures, radars, reference, report, resources, winprob
 from untraded.corpus.sync import SftpRemote, SyncError, SyncReport, pull, push
 from untraded.demofile import CorruptDemoError, NotADemoError
 from untraded.derive import derive
@@ -172,6 +172,34 @@ def _parser() -> argparse.ArgumentParser:
     radar.add_argument("--map", action="append", dest="maps", help="only this map (repeatable)")
     radar.set_defaults(run=_radars)
 
+    wp = commands.add_parser("winprob", help="round win probability: train the model, read swings")
+    wp_actions = wp.add_subparsers(required=True, metavar="action")
+    train = wp_actions.add_parser(
+        "train",
+        help="fit and validate the model on parsed matches (consenting players only, ADR 0010)",
+    )
+    train.add_argument(
+        "matches", nargs="+", type=Path, help="match directories written by `untraded parse`"
+    )
+    train.add_argument("--out", required=True, type=Path, help="model file to write (JSON)")
+    train.add_argument("--version", required=True, help="the model's version, e.g. 1.0")
+    train.add_argument("--l2", type=float, default=1.0, help="L2 penalty (default 1.0)")
+    train.add_argument(
+        "--held-out", type=float, default=0.3, help="share of the newest matches held out (0.3)"
+    )
+    train.add_argument(
+        "--source",
+        action="append",
+        dest="sources",
+        default=[],
+        help="where the demos came from, recorded in the model (repeatable)",
+    )
+    train.set_defaults(run=_winprob_train)
+    swing = wp_actions.add_parser("swings", help="each player's swing in a parsed match")
+    swing.add_argument("match", type=Path, help="a match directory written by `untraded parse`")
+    swing.add_argument("--model", type=Path, help="a model file (default: the published model)")
+    swing.set_defaults(run=_winprob_swings)
+
     corpus_parser = commands.add_parser("corpus", help="manage the reference demo corpus")
     corpus_parser.add_argument(
         "--manifest",
@@ -216,6 +244,60 @@ def _parser() -> argparse.ArgumentParser:
         sync.add_argument("--dry-run", action="store_true", help="only show what would be done")
         sync.set_defaults(run=run)
     return parser
+
+
+def _winprob_train(args: argparse.Namespace) -> int:
+    frames = []
+    for directory in args.matches:
+        tables = CanonicalMatch.read(directory).tables()
+        if tables["match"]["mode"][0] == "pro":
+            # ADR 0010: nothing derived from pro demos is published.
+            print(f"{directory}: a pro match, left out", file=sys.stderr)
+            continue
+        frames.append(winprob.samples(tables))
+    if not frames:
+        print("no match to train on", file=sys.stderr)
+        return 2
+    frame = pl.concat(frames)
+    model = winprob.train_and_validate(
+        frame,
+        version=args.version,
+        held_out=args.held_out,
+        l2=args.l2,
+        trained_on=winprob.model.describe(frame, args.sources),
+    )
+    model.save(args.out)
+    report_ = model.validation
+    print(
+        f"{model.trained_on['matches']} matches, {model.trained_on['rounds']} rounds, "
+        f"{model.trained_on['samples']} samples -> {args.out}"
+    )
+    print(f"held out: {report_['test_matches']} newest matches, {report_['test_rounds']} rounds")
+    for name in ("model", "baseline_alive_only", "baseline_ct_rate", "before_plant", "after_plant"):
+        if report_.get(name):
+            print(f"  {name:20} {json.dumps(report_[name])}")
+    return 0
+
+
+def _winprob_swings(args: argparse.Namespace) -> int:
+    model = winprob.Model.load(args.model) if args.model else winprob.default_model()
+    canonical = CanonicalMatch.read(args.match)
+    tables = canonical.tables()
+    credits = winprob.swings(tables, model)
+    rounds = tables["round"].height
+    names = canonical.player.select("steamid", "name")
+    table = (
+        credits.group_by("steamid")
+        .agg(pl.col("swing").sum().alias("swing"), pl.len().alias("events"))
+        .join(names, on="steamid", how="left")
+        .with_columns((pl.col("swing") / rounds * 100).round(2).alias("per_round_pct"))
+        .sort("swing", descending=True)
+        .select("name", "steamid", "events", "per_round_pct")
+    )
+    with pl.Config(tbl_rows=20, tbl_hide_dataframe_shape=True):
+        print(f"model {model.version}, {rounds} rounds: swing per round, in win-probability points")
+        print(table)
+    return 0
 
 
 def _radars(args: argparse.Namespace) -> int:
