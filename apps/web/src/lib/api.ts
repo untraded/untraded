@@ -469,3 +469,32 @@ export async function findSessionOf(
 export const findSession = (id: string) =>
   apiGetOptional<SessionReport>(`/sessions/${encodeURIComponent(id)}`);
 export const getUploads = () => apiGet<UploadList>("/uploads");
+
+/** How many pages of sessions the progress page reads at most (20 per page). */
+const PROGRESS_PAGES = 10;
+
+/**
+ * The player's sessions, newest first, back to `since` (an instant; `null` for all of them) or
+ * until `count` are read. `null` when not signed in.
+ */
+export async function sessionsBack(
+  since: number | null,
+  count: number | null,
+): Promise<SessionSummary[] | null> {
+  const found: SessionSummary[] = [];
+  for (let page = 0; page < PROGRESS_PAGES; page++) {
+    const list = await apiGet<SessionList>(`/sessions?limit=20&offset=${page * 20}`);
+    if (!list) return page === 0 ? null : found;
+    found.push(...list.items);
+    const oldest = list.items.at(-1);
+    if (
+      list.items.length < list.limit ||
+      !oldest ||
+      (since !== null && Date.parse(oldest.started_at) < since) ||
+      (count !== null && found.length >= count)
+    ) {
+      break;
+    }
+  }
+  return found;
+}

@@ -1,5 +1,6 @@
 {
   "nav": {
+    "progress": "Progression",
     "upload": "Envoyer une démo",
     "formulas": "Formules",
     "matches": "Matchs",
@@ -115,6 +116,32 @@
       "parse_failed": "L'analyse a échoué. Tu peux la renvoyer ; si ça recommence, signale-le."
     },
     "cta": "Envoyer une démo"
+  },
+  "progress": {
+    "title": "Progression",
+    "lead": "Tes chiffres clés session après session, face à ta référence, et ce que deviennent tes priorités.",
+    "period": "Période",
+    "periods": {
+      "last10": "10 sessions",
+      "days30": "30 jours",
+      "days90": "3 mois",
+      "all": "Tout"
+    },
+    "range": "{count, plural, one {# session} other {# sessions}}, du {from} au {to}",
+    "date": "Session",
+    "you": "toi",
+    "reference": "ta référence",
+    "betterBy": "mieux de {gap} sur la période",
+    "worseBy": "moins bien de {gap} sur la période",
+    "stable": "stable sur la période",
+    "latest": "dernière session",
+    "ref": "réf. {value}",
+    "chart": "{name} sur {count, plural, one {# session} other {# sessions}}, de {from} à {to}",
+    "tooFew": "Il faut au moins deux sessions sur la période pour tracer une courbe.",
+    "noSession": "Pas encore de session : ta progression apparaît dès tes premiers matchs analysés.",
+    "noSessionInPeriod": "Aucune session sur cette période. Choisis une période plus longue.",
+    "priorities": "Tes priorités",
+    "noPriority": "Aucune priorité suivie pour l'instant : elles apparaissent après quelques sessions."
   },
   "settings": {
     "title": "Réglages",

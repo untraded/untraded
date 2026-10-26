@@ -1,5 +1,6 @@
 {
   "nav": {
+    "progress": "Progress",
     "upload": "Send a demo",
     "formulas": "Formulas",
     "matches": "Matches",
@@ -115,6 +116,32 @@
       "parse_failed": "The analysis failed. You can send it again; if it happens again, report it."
     },
     "cta": "Send a demo"
+  },
+  "progress": {
+    "title": "Progress",
+    "lead": "Your key figures session after session, against your reference, and what becomes of your priorities.",
+    "period": "Period",
+    "periods": {
+      "last10": "10 sessions",
+      "days30": "30 days",
+      "days90": "3 months",
+      "all": "All"
+    },
+    "range": "{count, plural, one {# session} other {# sessions}}, from {from} to {to}",
+    "date": "Session",
+    "you": "you",
+    "reference": "your reference",
+    "betterBy": "better by {gap} over the period",
+    "worseBy": "worse by {gap} over the period",
+    "stable": "stable over the period",
+    "latest": "last session",
+    "ref": "ref. {value}",
+    "chart": "{name} over {count, plural, one {# session} other {# sessions}}, from {from} to {to}",
+    "tooFew": "A curve needs at least two sessions in the period.",
+    "noSession": "No session yet: your progress shows as soon as your first matches are analysed.",
+    "noSessionInPeriod": "No session in this period. Pick a longer one.",
+    "priorities": "Your priorities",
+    "noPriority": "No priority followed yet: they show after a few sessions."
   },
   "settings": {
     "title": "Settings",
