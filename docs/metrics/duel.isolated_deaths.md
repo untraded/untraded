@@ -15,7 +15,7 @@
 | Parameter | Default | Meaning |
 |---|---|---|
 | `trade.window_s` | 5.0 s | Trade window W: a death is traded when a teammate kills the killer within W seconds, both ends included (the same tick, and exactly W). 5 s is the usual convention (HLTV, CS Demo Manager); CS Demo Manager excludes exactly W. |
-| `isolation.radius` | 1000.0 units | An untraded death is isolated when the nearest living teammate is farther than this. 🎯 v0, to calibrate. |
+| `isolation.radius` | 1000.0 units | An untraded death is isolated when the nearest living teammate is farther than this. 🎯 Calibrated on the corpus (docs/calibration.md). |
 
 ## Example
 
@@ -31,7 +31,7 @@ No equivalent in CS Demo Manager.
 
 ## Limits
 
-- The radius is a v0 threshold (🎯), not yet calibrated.
+- The radius (🎯) was checked on the corpus and kept at 1000 units: the traded share halves by 750 units and drops to almost nothing beyond 1250 (docs/calibration.md).
 - The last player alive is never isolated: there is no teammate to be far from.
 - Distances are straight lines between positions, through walls: neither line of sight nor the navmesh path is taken into account (both come later).
 

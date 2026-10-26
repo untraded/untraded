@@ -17,7 +17,7 @@ Stands on [`trade.kill_opportunities`](trade.kill_opportunities.md): a value ove
 | Parameter | Default | Meaning |
 |---|---|---|
 | `trade.window_s` | 5.0 s | Trade window W: a death is traded when a teammate kills the killer within W seconds, both ends included (the same tick, and exactly W). 5 s is the usual convention (HLTV, CS Demo Manager); CS Demo Manager excludes exactly W. |
-| `trade.opportunity_distance` | 1300.0 units | A living teammate of the victim within this straight-line distance of the killer had a trade opportunity. 🎯 v0, to calibrate. |
+| `trade.opportunity_distance` | 1300.0 units | A living teammate of the victim within this straight-line distance of the killer had a trade opportunity. 🎯 Calibrated on the corpus (docs/calibration.md). |
 
 ## Example
 

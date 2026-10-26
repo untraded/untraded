@@ -34,7 +34,7 @@ No equivalent in CS Demo Manager.
 ## Limits
 
 - The class is the best weapon held, not the weapon used: a rifle holder killing with a pistol is a `rifle` kill.
-- Buy types use v0 thresholds aligned with CS Demo Manager (`buy.eco_max`, `buy.full_min_ct`, `buy.full_min_t`), still to calibrate on our target level.
+- Buy types use thresholds aligned with CS Demo Manager (`buy.eco_max`, `buy.full_min_ct`, `buy.full_min_t`): a spending convention, checked on the corpus and kept (docs/calibration.md).
 
 See also the [shared conventions](README.md#shared-conventions) of every metric.
 

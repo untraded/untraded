@@ -5,8 +5,8 @@
 Metric parameters are applied when a metric is computed (`compute(..., params=...)`). Derivation
 parameters are applied when the round model is built: changing one means deriving again.
 Reference parameters choose the matches of the player's own reference (`untraded.reference`).
-`calibrate` marks the v0 thresholds still to calibrate on demos from consenting high-level
-players (🎯, ADR 0010).
+`calibrate` marks the thresholds calibrated on demos from consenting high-level players, to
+measure again as the corpus grows (🎯, ADR 0010, docs/calibration.md).
 """
 
 from __future__ import annotations

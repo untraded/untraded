@@ -17,7 +17,7 @@ Stands on [`base.deaths`](base.deaths.md): a value over few cases says little.
 | Parameter | Default | Meaning |
 |---|---|---|
 | `trade.window_s` | 5.0 s | Trade window W: a death is traded when a teammate kills the killer within W seconds, both ends included (the same tick, and exactly W). 5 s is the usual convention (HLTV, CS Demo Manager); CS Demo Manager excludes exactly W. |
-| `isolation.radius` | 1000.0 units | An untraded death is isolated when the nearest living teammate is farther than this. 🎯 v0, to calibrate. |
+| `isolation.radius` | 1000.0 units | An untraded death is isolated when the nearest living teammate is farther than this. 🎯 Calibrated on the corpus (docs/calibration.md). |
 
 ## Example
 

@@ -239,7 +239,8 @@ class Health(BaseModel):
     jobs: dict[str, int]
     """Jobs by status (`queued`, `running`, `failed`...)."""
     failed_jobs: list[dict[str, Any]]
-    """The last failed jobs: kind, attempts, error, when."""
+    """The last failed jobs: dead ones (attempts used up) and those waiting to retry after an
+    error; kind, attempts, error, when."""
     matches_7_days: dict[str, int]
     """Matches collected in the last 7 days, by status."""
     sources: dict[str, int]
@@ -285,7 +286,11 @@ def health(conn: AdminDep, settings: SettingsDep) -> Health:
         {"kind": r[0], "attempts": r[1], "error": r[2], "at": r[3]}
         for r in conn.execute(
             "SELECT kind, attempts, left(last_error, 300), coalesce(finished_at, created_at) "
-            "FROM job WHERE status = 'failed' ORDER BY id DESC LIMIT 10"
+            # The queue never sets `failed`: a failing job waits to retry (`queued` with its
+            # `last_error`), then is `dead` once its attempts are used up.
+            "FROM job WHERE status IN ('failed', 'dead') "
+            "OR (status IN ('queued', 'running') AND last_error IS NOT NULL) "
+            "ORDER BY id DESC LIMIT 10"
         )
     ]
     matches = dict(

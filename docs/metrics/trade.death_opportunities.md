@@ -14,7 +14,7 @@ The player's deaths where at least one teammate had a trade opportunity.
 
 | Parameter | Default | Meaning |
 |---|---|---|
-| `trade.opportunity_distance` | 1300.0 units | A living teammate of the victim within this straight-line distance of the killer had a trade opportunity. 🎯 v0, to calibrate. |
+| `trade.opportunity_distance` | 1300.0 units | A living teammate of the victim within this straight-line distance of the killer had a trade opportunity. 🎯 Calibrated on the corpus (docs/calibration.md). |
 
 ## Example
 
@@ -30,7 +30,7 @@ No equivalent in CS Demo Manager.
 
 ## Limits
 
-- An opportunity is a distance, not a sight line. The distance is a v0 threshold (🎯).
+- An opportunity is a distance, not a sight line. The distance (🎯) was calibrated on the corpus: 1300 units (docs/calibration.md).
 - A death is traded only when the killer is then killed **by the victim's team**, within `trade.window_s`, both ends included. CS Demo Manager differs in four ways: a killer killed by their own teammate trades the death, a player controlling a bot can trade, the kill of an enemy who had just killed a teammate is a trade kill, and a trade at exactly 5.00 s does not count (validation-csdm § 5).
 - Distances are straight lines between positions, through walls.
 
