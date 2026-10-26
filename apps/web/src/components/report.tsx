@@ -170,7 +170,7 @@ export async function Report({ report, back }: { report: SessionReport; back: bo
                     className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-2.5 border-t border-line-soft py-2 first:border-t-0 first:pt-0 sm:[&:nth-child(2)]:border-t-0 sm:[&:nth-child(2)]:pt-0 lg:[&:nth-child(2)]:border-t lg:[&:nth-child(2)]:pt-2"
                   >
                     <span className="text-[0.8125rem] text-muted-foreground">
-                      {c.name}
+                      {names[c.metric_id] ?? c.name}
                       {c.basis === "per_round" && `, ${t("perRound")}`}
                     </span>
                     <span className="text-right text-xl leading-tight font-semibold">
