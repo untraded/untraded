@@ -16,7 +16,13 @@ from untraded.metrics import REGISTRY
 from untraded_worker import queue
 from untraded_worker.analysis import Analysis
 from untraded_worker.load import load_match
-from untraded_worker.sessions import PlayedMatch, SessionJob, queue_sessions, session_of
+from untraded_worker.sessions import (
+    PlayedMatch,
+    SessionJob,
+    later_sessions,
+    queue_sessions,
+    session_of,
+)
 from untraded_worker.store import LocalStore
 
 DAY = dt.datetime(2026, 10, 19, tzinfo=dt.UTC)
@@ -45,6 +51,20 @@ def test_exactly_one_hour_still_counts() -> None:
     first = at(18)  # ends at 18:40
     matches = played(first, at(19 + 40 / 60))  # starts at 19:40
     assert session_of(matches, matches[1].id) == matches
+
+
+def test_a_late_match_is_in_the_reference_of_the_next_30_days() -> None:
+    # Sessions on day 0, day 2, day 2 later, day 31; then a match of day -1 arrives late.
+    matches = played(at(20), at(20, days=2), at(23.5, days=2), at(20, days=31))
+    late = played(at(20, days=-1))[0]
+    everything = sorted([late, *matches], key=lambda m: m.started_at)
+    following = later_sessions(everything, [late], window_days=30)
+    # Day 31's reference runs from day 1: the late match of day -1 is not in it.
+    assert [s[0] for s in following] == matches[:3]
+    # The newest session changes no one's reference.
+    assert later_sessions(everything, [matches[3]], window_days=30) == []
+    # Nor does a session for the sessions of its own day (their reference stops the day before).
+    assert later_sessions(everything, [matches[1]], window_days=30) == [[matches[3]]]
 
 
 # ------------------------------------------------------------------------------------------
@@ -121,6 +141,28 @@ def test_session_report_against_the_days_before(
     bridge = add_match(db, store, analysis, at(22.4))
     run(job, db, bridge)
     assert sessions(db) == [(4, 3, True, 4)]
+
+
+@pytest.mark.db
+def test_a_late_match_queues_the_sessions_whose_reference_it_joins(
+    db: psycopg.Connection[Any], tmp_path: Path, analysis: Analysis
+) -> None:
+    store = LocalStore(tmp_path)
+    today = add_match(db, store, analysis, at(20))
+    job = SessionJob(store)
+    run(job, db, today)
+    assert db.execute("SELECT count(*) FROM job WHERE kind = 'session'").fetchone() == (0,)
+
+    late = add_match(db, store, analysis, at(20, days=-3))  # sent days after it was played
+    run(job, db, late)
+    queued = db.execute("SELECT payload FROM job WHERE kind = 'session'").fetchall()
+    assert [p for (p,) in queued] == [
+        {"steam_id": str(ME), "match_id": str(today), "follow": False}
+    ]
+    # That job recomputes today's session with the late match in its reference, and stops.
+    job(db, queue.Job(2, "session", queued[0][0], 1, 5))
+    assert sessions(db) == [(1, 0, False, 1), (1, 1, False, 1)]
+    assert db.execute("SELECT count(*) FROM job WHERE kind = 'session'").fetchone() == (1,)
 
 
 @pytest.mark.db

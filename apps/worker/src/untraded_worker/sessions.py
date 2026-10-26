@@ -9,7 +9,10 @@ averaged from per-match values (metrics-v1 § 0).
 
 The `session` job (payload `{"steam_id": "...", "match_id": "<uuid>"}`) runs after each parse,
 for every invited player of the match: it recomputes the session holding that match. A match
-that joins two sessions merges them; the sessions it replaces are deleted.
+that joins two sessions merges them; the sessions it replaces are deleted. A match is also in the
+reference of the sessions of the `window_days` that follow it: when it arrives late (a demo sent
+days after it was played), the job queues a `session` job for each of those sessions too (payload
+`"follow": false`, so they do not queue others in turn).
 
 Without enough history of their own, the player is compared with players of the same Premier
 rating band (`levels`), and failing that with nothing: the report then shows the session alone.
@@ -60,15 +63,37 @@ class PlayedMatch:
     prefix: str
 
 
-def session_of(matches: Sequence[PlayedMatch], match_id: uuid.UUID) -> list[PlayedMatch]:
-    """The session holding `match_id`, among a player's matches sorted by start."""
+def sessions_of(matches: Sequence[PlayedMatch]) -> list[list[PlayedMatch]]:
+    """A player's matches, sorted by start, cut into sessions."""
     sessions: list[list[PlayedMatch]] = []
     for match in matches:
         if sessions and match.started_at - max(m.ended_at for m in sessions[-1]) <= GAP:
             sessions[-1].append(match)
         else:
             sessions.append([match])
-    return next((s for s in sessions if any(m.id == match_id for m in s)), [])
+    return sessions
+
+
+def session_of(matches: Sequence[PlayedMatch], match_id: uuid.UUID) -> list[PlayedMatch]:
+    """The session holding `match_id`, among a player's matches sorted by start."""
+    return next((s for s in sessions_of(matches) if any(m.id == match_id for m in s)), [])
+
+
+def later_sessions(
+    matches: Sequence[PlayedMatch], session: Sequence[PlayedMatch], window_days: int
+) -> list[list[PlayedMatch]]:
+    """The sessions after `session` whose reference holds one of its matches: those starting
+    within `window_days` days after it (the reference is the days before a session's first)."""
+    days = {m.started_at.date() for m in session}
+    later = []
+    for other in sessions_of(matches):
+        start = other[0].started_at.date()
+        first_day = start - dt.timedelta(days=window_days)
+        if other[0].started_at > session[-1].started_at and any(
+            first_day <= day < start for day in days
+        ):
+            later.append(other)
+    return later
 
 
 def queue_sessions(conn: psycopg.Connection[Any], match_id: uuid.UUID) -> int:
@@ -125,6 +150,13 @@ class SessionJob:
             chosen.values,
             chosen.kind,
         )
+        if job.payload.get("follow", True):
+            for later in later_sessions(played, session, self.window_days):
+                queue.enqueue(
+                    conn,
+                    "session",
+                    {"steam_id": str(steam_id), "match_id": str(later[0].id), "follow": False},
+                )
 
     def _reference(
         self,
