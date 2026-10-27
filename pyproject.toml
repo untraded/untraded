@@ -7,12 +7,12 @@ dependencies = ["untraded", "untraded-api", "untraded-db", "untraded-worker"]
 
 [dependency-groups]
 dev = [
-    "hypothesis==6.170.1",
+    "hypothesis==6.170.9",
     "mypy==2.4.0",
     "pytest==9.1.1",
     # charset-normalizer: python-magic needs libmagic, which Windows does not ship.
     "reuse[charset-normalizer]==6.2.0",
-    "ruff==0.17.1",
+    "ruff==0.17.2",
 ]
 
 [tool.uv]
