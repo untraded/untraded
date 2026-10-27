@@ -101,3 +101,20 @@ def check_codes(
 
 class SteamUnavailableError(Exception):
     """Steam did not answer the check: try again later."""
+
+
+PLAYER_SUMMARIES = "https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2"
+
+
+def persona_name(client: httpx.Client, api_key: str, steam_id: int) -> str | None:
+    """The account's public Steam name, or None when Steam does not give it (best effort: it
+    only helps the admin recognise who asks for an invitation)."""
+    try:
+        response = client.get(
+            PLAYER_SUMMARIES, params={"key": api_key, "steamids": str(steam_id)}, timeout=5
+        )
+        players = response.json()["response"]["players"] if response.status_code == 200 else []
+    except (httpx.HTTPError, ValueError, KeyError, TypeError):
+        return None
+    name = players[0].get("personaname") if players else None
+    return name.strip()[:64] or None if isinstance(name, str) else None

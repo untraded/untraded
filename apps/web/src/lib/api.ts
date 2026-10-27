@@ -64,6 +64,14 @@ export interface AdminPlayer {
   last_match_at: string | null;
 }
 
+/** A Steam account that signed in without an invitation and asked for one. */
+export interface InvitationRequest {
+  steam_id: string;
+  /** The public Steam name, when the API could read it. */
+  persona_name: string | null;
+  requested_at: string;
+}
+
 export interface Health {
   database_bytes: number;
   /** Jobs by status (`queued`, `running`, `failed`...). */
@@ -431,6 +439,8 @@ export const getSession = (id: string) =>
 export const getMatch = (id: string) => apiGet<MatchDetail>(`/matches/${encodeURIComponent(id)}`);
 export const getAdminPlayers = () => apiGet<{ items: AdminPlayer[] }>("/admin/players");
 export const getAdminHealth = () => apiGet<Health>("/admin/health");
+export const getInvitationRequests = () =>
+  apiGet<{ items: InvitationRequest[] }>("/admin/invitation-requests");
 /** A match the page can do without: `null` when it is missing or the API fails. */
 export const findMatch = (id: string) =>
   apiGetOptional<MatchDetail>(`/matches/${encodeURIComponent(id)}`);

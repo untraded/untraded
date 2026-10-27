@@ -16,6 +16,7 @@ pnpm --filter @untraded/web dev    # http://localhost:3000, with the API on http
 |---|---|---|
 | `UNTRADED_API_INTERNAL_URL` | `http://localhost:8000` | how the web server reaches the API |
 | `UNTRADED_SITE_URL` | unset | the site's address as browsers see it: the share image and the icons are linked from it |
+| `UNTRADED_DISCORD_URL` | unset | an invitation link to the instance's Discord server (`https://discord.gg/...`), shown on the sign-in page; unset hides it |
 | `UNTRADED_OPERATOR_NAME`, `UNTRADED_OPERATOR_EMAIL` | unset | the data controller and their contact, named in the consent text invited players agree to |
 | `UNTRADED_HOSTING` | unset | where the data lives, as the consent text states it |
 | `UNTRADED_DEMO_RETENTION_DAYS` | unset | the worker's raw demo retention, stated in the consent text (unset: kept; `0`: deleted once parsed) |

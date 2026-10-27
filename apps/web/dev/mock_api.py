@@ -800,6 +800,21 @@ def player(
     }
 
 
+# Steam accounts that signed in without an invitation and asked for one.
+INVITATION_REQUESTS: list[dict[str, Any]] = [
+    {
+        "steam_id": "76561199000000201",
+        "persona_name": "night_owl",
+        "requested_at": iso(NOW - dt.timedelta(days=2)),
+    },
+    {
+        "steam_id": "76561199000000202",
+        "persona_name": None,
+        "requested_at": iso(NOW - dt.timedelta(hours=5)),
+    },
+]
+
+
 PLAYERS: list[dict[str, Any]] = [
     # The admin is a player too: erasing them from the admin answers 409 (settings only).
     player(0, "you", "followed", matches=12) | {"steam_id": ME},
@@ -917,6 +932,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(200, {"items": PLAYERS})
         if path == "/admin/health":
             return self.reply(200, HEALTH)
+        if path == "/admin/invitation-requests":
+            return self.reply(200, {"items": INVITATION_REQUESTS})
         offset = int((re.search(r"offset=(\d+)", query) or [0, 0])[1])
         if path == "/matches":
             return self.reply(
@@ -953,6 +970,9 @@ class Handler(BaseHTTPRequestHandler):
             if not self.signed_in():
                 return self.reply(401, {"detail": "not signed in"})
             return receive_upload(self, query)
+        if path == "/auth/invitation-request":
+            # The real API checks the signed cookie of a refused sign-in; here, it is recorded.
+            return self.reply(303, headers={"location": f"{WEB}/?signin=requested"})
         size = int(self.headers.get("content-length") or 0)
         body = json.loads(self.rfile.read(size) or b"{}")
         if self.path == "/auth/logout":
@@ -989,6 +1009,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.reply(409, {"detail": "already invited or a user"})
             invited = player(0, name, "invited") | {"steam_id": steam_id, "invited_at": iso(NOW)}
             PLAYERS.insert(0, invited)
+            INVITATION_REQUESTS[:] = [r for r in INVITATION_REQUESTS if r["steam_id"] != steam_id]
             return self.reply(201, invited)
         if found := re.fullmatch(r"/admin/sources/([0-9a-f-]+)/(pause|resume)", self.path):
             owner = find_source(found[1])
@@ -1048,6 +1069,12 @@ class Handler(BaseHTTPRequestHandler):
                     PLAYERS.remove(p)
                     return self.reply(202)
             return self.reply(404, {"detail": "no such player"})
+        if found := re.fullmatch(r"/admin/invitation-requests/(\d+)", self.path):
+            for r in INVITATION_REQUESTS:
+                if r["steam_id"] == found[1]:
+                    INVITATION_REQUESTS.remove(r)
+                    return self.reply(204)
+            return self.reply(404, {"detail": "no such request"})
         if found := re.fullmatch(r"/admin/invitations/(\d+)", self.path):
             for p in PLAYERS:
                 if p["steam_id"] == found[1] and p["state"] == "invited":

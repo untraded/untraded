@@ -66,6 +66,7 @@ stack variables.
 | `UNTRADED_UPLOAD_MAX_MB`, `UNTRADED_UPLOAD_MAX_DEMO_GB` | no | the largest demo a player may send from the site (400 MB), and once decompressed (1.5 GB) |
 | `UNTRADED_UPLOADS_PER_DAY`, `UNTRADED_UPLOADS_IN_FLIGHT` | no | uploads per player in 24 hours (20) and still being analysed (3); `0` lifts a limit |
 | `UNTRADED_UPLOAD_MIN_FREE_GB` | no | uploads are refused while the disk has less free space (5) |
+| `UNTRADED_DISCORD_URL` | no | an invitation link to your Discord server (`https://discord.gg/...`), shown on the sign-in page, next to the invitation request |
 | `UNTRADED_OPERATOR_NAME`, `UNTRADED_OPERATOR_EMAIL` | for invited players | who runs this instance and where players write to use their rights: the consent text names them as the data controller |
 | `UNTRADED_HOSTING` | no | where the data lives, as the consent text states it, e.g. `Oracle Cloud, Frankfurt (EU); backups on Hetzner, Germany`. Unset, the text asks players to write to the operator |
 | `UNTRADED_TIME_ZONE` | no | time zone of the dates on the site until each player's browser sends its own (`Europe/Paris`), as an IANA name such as `America/New_York`; an unknown name falls back to `Europe/Paris` |

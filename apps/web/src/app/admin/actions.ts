@@ -44,6 +44,34 @@ export async function revokeInvitation(formData: FormData): Promise<void> {
   revalidatePath("/admin");
 }
 
+/**
+ * Invites the Steam account of a request, under the name the admin gives it; the API removes the
+ * request. Says in the page's address when it failed: `request=name`, `exists` or `failed`.
+ */
+export async function inviteRequest(formData: FormData): Promise<void> {
+  const body = {
+    steam_id: String(formData.get("steam_id") ?? "").trim(),
+    display_name: String(formData.get("display_name") ?? "").trim(),
+  };
+  const result = await apiSend("/admin/invitations", "POST", body);
+  revalidatePath("/admin");
+  if (!result.ok) {
+    const field = refusedField(result);
+    redirect(
+      `/admin?request=${field === "display_name" ? "name" : result.status === 409 ? "exists" : "failed"}`,
+    );
+  }
+}
+
+/** Dismisses a request without inviting: the account may ask again. */
+export async function dismissRequest(formData: FormData): Promise<void> {
+  const steamId = String(formData.get("steam_id"));
+  if (/^\d{17}$/.test(steamId)) {
+    await apiSend(`/admin/invitation-requests/${steamId}`, "DELETE");
+  }
+  revalidatePath("/admin");
+}
+
 const SOURCE = /^[0-9a-f-]{36}$/;
 
 /** Pauses, resumes or removes how the collector follows a player (`intent` in the form). */

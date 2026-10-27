@@ -210,7 +210,13 @@
     "beta": "La bêta est sur invitation.",
     "notInvited": "Ce compte Steam n'est pas encore invité à la bêta.",
     "failed": "Steam n'a pas pu confirmer la connexion. Réessaie.",
-    "erased": "Ton compte est fermé et tes données sont en cours de suppression. Merci d'avoir testé Untraded."
+    "erased": "Ton compte est fermé et tes données sont en cours de suppression. Merci d'avoir testé Untraded.",
+    "requestInvite": "Demander une invitation",
+    "requestLead": "L'équipe voit ta demande avec ton compte Steam, rien d'autre. Reconnecte-toi une fois invité.",
+    "requested": "Ta demande est enregistrée. Reconnecte-toi une fois que l'équipe t'a invité.",
+    "requestExpired": "La demande a expiré. Reconnecte-toi avec Steam, puis redemande.",
+    "discord": "Les nouvelles et les invitations, sur notre serveur Discord.",
+    "discordLink": "Rejoindre le Discord"
   },
   "formulas": {
     "title": "Formules",
@@ -848,7 +854,15 @@
     "eraseSelf": "C'est ton compte : supprime-le depuis tes Réglages.",
     "eraseFailed": "L'effacement n'a pas pu être lancé. Réessaie dans un moment.",
     "you": "C'est toi",
-    "yourSettings": "Effacer depuis tes Réglages"
+    "yourSettings": "Effacer depuis tes Réglages",
+    "requestsTitle": "Demandes d'invitation",
+    "requestsLead": "Des comptes Steam qui se sont connectés sans invitation et en ont demandé une. Invite-les sous un nom, ou ignore la demande.",
+    "requestedOn": "Demandé le {date}",
+    "steamProfile": "Profil Steam",
+    "dismiss": "Ignorer",
+    "requestName": "Donne un nom de 1 à 64 caractères.",
+    "requestExists": "Ce compte est déjà invité ou inscrit.",
+    "requestFailed": "L'invitation n'a pas pu être enregistrée."
   },
   "viewer": {
     "title": "Round {round}",

@@ -4,13 +4,25 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getLocale, getTimeZone, getTranslations } from "next-intl/server";
-import { changeSource, erasePlayer, revokeInvitation } from "@/app/admin/actions";
+import {
+  changeSource,
+  dismissRequest,
+  erasePlayer,
+  inviteRequest,
+  revokeInvitation,
+} from "@/app/admin/actions";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { InviteForm } from "@/components/admin/invite-form";
 import { ConfirmSubmit } from "@/components/confirm-submit";
 import { Button } from "@/components/ui/button";
 import type { Locale } from "@/i18n/locale";
-import { type AdminPlayer, getAdminPlayers, getMe } from "@/lib/api";
+import {
+  type AdminPlayer,
+  getAdminPlayers,
+  getInvitationRequests,
+  getMe,
+  type InvitationRequest,
+} from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { dateTime, day } from "@/lib/format";
 
@@ -25,10 +37,16 @@ const ERASE_NOTES = {
   failed: "eraseFailed",
 } as const;
 
+const REQUEST_NOTES = {
+  name: "requestName",
+  exists: "requestExists",
+  failed: "requestFailed",
+} as const;
+
 export default async function AdminPlayers({
   searchParams,
 }: {
-  searchParams: Promise<{ erased?: string; erase?: string }>;
+  searchParams: Promise<{ erased?: string; erase?: string; request?: string }>;
 }) {
   const me = await getMe();
   if (!me) redirect("/");
@@ -37,7 +55,12 @@ export default async function AdminPlayers({
     return <p className="text-muted-foreground">{t("forbidden")}</p>;
   }
   const players = (await getAdminPlayers())?.items ?? [];
-  const { erased, erase } = await searchParams;
+  const requests = (await getInvitationRequests())?.items ?? [];
+  const { erased, erase, request } = await searchParams;
+  const requestNote =
+    request && request in REQUEST_NOTES
+      ? REQUEST_NOTES[request as keyof typeof REQUEST_NOTES]
+      : null;
   const refused =
     erase && erase in ERASE_NOTES ? ERASE_NOTES[erase as keyof typeof ERASE_NOTES] : null;
   return (
@@ -59,6 +82,7 @@ export default async function AdminPlayers({
           },
         }}
       />
+      {requests.length > 0 && <Requests requests={requests} note={requestNote} />}
       {(erased || refused) && (
         <p
           role={refused ? "alert" : "status"}
@@ -229,5 +253,82 @@ async function Actions({ player }: { player: AdminPlayer }) {
         value="remove"
       />
     </form>
+  );
+}
+
+/** The Steam accounts that asked for an invitation: invite each under a name, or dismiss it. */
+async function Requests({
+  requests,
+  note,
+}: {
+  requests: InvitationRequest[];
+  note: (typeof REQUEST_NOTES)[keyof typeof REQUEST_NOTES] | null;
+}) {
+  const t = await getTranslations("admin");
+  const locale = (await getLocale()) as Locale;
+  const timeZone = await getTimeZone();
+  const input = "h-8 w-40 rounded-md border border-input bg-card px-2 text-sm";
+  return (
+    <section className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4">
+      <div>
+        <h2 className="font-semibold">
+          {t("requestsTitle")} <span className="text-muted-foreground">({requests.length})</span>
+        </h2>
+        <p className="text-sm text-muted-foreground">{t("requestsLead")}</p>
+      </div>
+      {note && (
+        <p role="alert" className="text-sm text-destructive">
+          {t(note)}
+        </p>
+      )}
+      <ul className="flex flex-col">
+        {requests.map((r) => (
+          <li
+            key={r.steam_id}
+            className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-line-soft py-2.5 first:border-t-0"
+          >
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-semibold">{r.persona_name ?? r.steam_id}</p>
+              <p className="text-xs text-muted-foreground">
+                <span className="font-mono" translate="no">
+                  {r.steam_id}
+                </span>{" "}
+                ·{" "}
+                <a
+                  href={`https://steamcommunity.com/profiles/${r.steam_id}`}
+                  rel="noopener noreferrer"
+                  target="_blank"
+                  className="underline underline-offset-2 hover:text-foreground"
+                >
+                  {t("steamProfile")}
+                </a>{" "}
+                · {t("requestedOn", { date: dateTime(r.requested_at, locale, timeZone) })}
+              </p>
+            </div>
+            <form action={inviteRequest} className="flex items-center gap-2">
+              <input type="hidden" name="steam_id" value={r.steam_id} />
+              <input
+                name="display_name"
+                required
+                maxLength={64}
+                autoComplete="off"
+                defaultValue={r.persona_name ?? ""}
+                aria-label={t("displayName")}
+                className={input}
+              />
+              <Button type="submit" size="sm">
+                {t("invite")}
+              </Button>
+            </form>
+            <form action={dismissRequest}>
+              <input type="hidden" name="steam_id" value={r.steam_id} />
+              <Button type="submit" variant="outline" size="sm">
+                {t("dismiss")}
+              </Button>
+            </form>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
