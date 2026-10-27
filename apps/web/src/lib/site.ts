@@ -37,3 +37,18 @@ export function operator(env: Record<string, string | undefined> = process.env):
  * code and find the share code of their last match. */
 export const STEAM_CODES_HELP =
   "https://help.steampowered.com/wizard/HelpWithGameIssue/?appid=730&issueid=128";
+
+/** `UNTRADED_DISCORD_URL`: an invitation link to the instance's Discord server, shown to
+ * visitors (where to ask for an invitation, follow the news); null hides it. Only `https` links
+ * to Discord are kept. */
+export function discordUrl(env: Record<string, string | undefined> = process.env): string | null {
+  const value = text(env.UNTRADED_DISCORD_URL);
+  if (value === null) return null;
+  try {
+    const url = new URL(value);
+    const discord = ["discord.gg", "discord.com", "www.discord.com"].includes(url.hostname);
+    return url.protocol === "https:" && discord ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}

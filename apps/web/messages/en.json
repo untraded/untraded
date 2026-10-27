@@ -210,7 +210,13 @@
     "beta": "The beta is by invitation.",
     "notInvited": "This Steam account is not invited to the beta yet.",
     "failed": "Steam could not confirm the sign-in. Please try again.",
-    "erased": "Your account is closed and your data is being deleted. Thank you for testing Untraded."
+    "erased": "Your account is closed and your data is being deleted. Thank you for testing Untraded.",
+    "requestInvite": "Ask for an invitation",
+    "requestLead": "The team sees your request with your Steam account, nothing else. Sign in again once you are invited.",
+    "requested": "Your request is recorded. Sign in again once the team has invited you.",
+    "requestExpired": "The request expired. Sign in with Steam again, then ask.",
+    "discord": "News and invitations on our Discord server.",
+    "discordLink": "Join the Discord"
   },
   "formulas": {
     "title": "Formulas",
@@ -848,7 +854,15 @@
     "eraseSelf": "This is your account: delete it from your Settings.",
     "eraseFailed": "The erasure could not start. Try again in a moment.",
     "you": "You",
-    "yourSettings": "Erase from your Settings"
+    "yourSettings": "Erase from your Settings",
+    "requestsTitle": "Invitation requests",
+    "requestsLead": "Steam accounts that signed in without an invitation and asked for one. Invite them under a name, or dismiss the request.",
+    "requestedOn": "Asked on {date}",
+    "steamProfile": "Steam profile",
+    "dismiss": "Dismiss",
+    "requestName": "Give a name between 1 and 64 characters.",
+    "requestExists": "This account is already invited or a player.",
+    "requestFailed": "The invitation could not be recorded."
   },
   "viewer": {
     "title": "Round {round}",

@@ -64,6 +64,17 @@ class PlayerList(BaseModel):
     items: list[Player]
 
 
+class InvitationRequest(BaseModel):
+    steam_id: str
+    persona_name: str | None
+    """The public Steam name when the API could read it (STEAM_WEB_API_KEY)."""
+    requested_at: dt.datetime
+
+
+class InvitationRequestList(BaseModel):
+    items: list[InvitationRequest]
+
+
 class InvitationIn(BaseModel):
     steam_id: str
     display_name: str
@@ -150,6 +161,7 @@ def invite(body: InvitationIn, conn: AdminDep, user: UserDep) -> Player:
     ).fetchone()
     if known:
         raise HTTPException(status.HTTP_409_CONFLICT, "already invited or a user")
+    conn.execute("DELETE FROM invitation_request WHERE steam_id = %s", (int(steam_id),))
     conn.execute(
         "INSERT INTO invitation (steam_id, display_name, invited_by) VALUES (%s, %s, %s) "
         "ON CONFLICT (steam_id) DO UPDATE SET display_name = EXCLUDED.display_name, "
@@ -158,6 +170,29 @@ def invite(body: InvitationIn, conn: AdminDep, user: UserDep) -> Player:
     )
     row = next(r for r in conn.execute(PLAYERS) if r[0] == steam_id)
     return _player(row)
+
+
+@router.get("/invitation-requests")
+def invitation_requests(conn: AdminDep) -> InvitationRequestList:
+    """The Steam accounts that asked for an invitation, oldest first: inviting one
+    (`POST /invitations`) or dismissing it removes its request."""
+    rows = conn.execute(
+        "SELECT steam_id::text, persona_name, requested_at FROM invitation_request "
+        "ORDER BY requested_at"
+    )
+    return InvitationRequestList(
+        items=[InvitationRequest(steam_id=r[0], persona_name=r[1], requested_at=r[2]) for r in rows]
+    )
+
+
+@router.delete("/invitation-requests/{steam_id}", status_code=status.HTTP_204_NO_CONTENT)
+def dismiss_request(steam_id: str, conn: AdminDep) -> None:
+    """Dismisses a request without inviting: the account may ask again."""
+    if not STEAM_ID.match(steam_id):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "no such request")
+    deleted = conn.execute("DELETE FROM invitation_request WHERE steam_id = %s", (int(steam_id),))
+    if deleted.rowcount == 0:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "no such request")
 
 
 @router.delete("/invitations/{steam_id}", status_code=status.HTTP_204_NO_CONTENT)

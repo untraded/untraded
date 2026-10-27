@@ -41,6 +41,7 @@ and trusts the reverse proxy's `X-Forwarded-*` headers.
 |---|---|
 | `GET /auth/steam` | redirects to Steam |
 | `GET /auth/steam/callback` | checks Steam's answer with Steam (`check_authentication`), opens a session for a registered or invited account (an invitation becomes an account at its first sign-in), sets the cookie, redirects to the web (`?signin=not_invited` or `?signin=failed` otherwise) |
+| `POST /auth/invitation-request` | a visitor whose sign-in was refused asks for an invitation (the web's form): the callback gave them a signed cookie, valid 30 minutes, naming the Steam account it proved; the request is recorded with the public Steam name when `STEAM_WEB_API_KEY` is set. Back to the web with `?signin=requested` (or `request_expired`) |
 | `POST /auth/logout` | ends the session |
 | `GET /me` | the signed-in user: admin or not, their current consent and the current text's version, their source (followed, last success, last error), and whether codes can be kept here (401 otherwise) |
 | `POST /me/consent` | records the player's consent (`text_version`, `analysis` for box 1, `research_corpus` for box 2); 409 unless it names the current text. `analysis: false` withdraws it and pauses their sources |
@@ -57,6 +58,7 @@ and trusts the reverse proxy's `X-Forwarded-*` headers.
 | `GET /uploads` | the player's uploads of the last 30 days, newest first (`processing`, `ready`, `refused` or `failed`, with the reason), the largest file accepted, and why a new one would be refused, if it would |
 | `GET /admin/players` | every player, newest first, with their state (`invited`, `joined`, `consented`, `followed`, `paused`, `withdrawn`), consent, source and matches |
 | `POST /admin/invitations` | invites a Steam account (`steam_id`, `display_name`): its first sign-in creates the user |
+| `GET /admin/invitation-requests`, `DELETE /admin/invitation-requests/{steam_id}` | the accounts that asked for an invitation, oldest first, and dismissing one; inviting an account (`POST /admin/invitations`) removes its request |
 | `DELETE /admin/invitations/{steam_id}` | withdraws an invitation not used yet |
 | `DELETE /admin/players/{steam_id}` | erases a player as `POST /me/erase` does, invitation included (409 for the admin themself) |
 | `POST /admin/sources/{id}/pause`, `POST /admin/sources/{id}/resume` | stops or resumes following a player |
