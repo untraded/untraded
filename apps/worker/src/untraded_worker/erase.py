@@ -4,7 +4,7 @@
 
 Afterwards the player is what any non-registered player of a match is:
 - their account goes with everything tied to it: sources and their encrypted codes, consents,
-  sign-in sessions, votes, invitation and personal workspace;
+  sign-in sessions, votes, invitation (or request for one) and personal workspace;
 - their play sessions, advice and aggregates go too;
 - the matches no other user played in are deleted whole: rows, Parquet and raw demo;
 - the matches other users played in stay, since they are those users' matches too. The player
@@ -80,6 +80,7 @@ def erase_player(conn: psycopg.Connection[Any], store: LocalStore, steam_id: int
             )
             conn.execute("DELETE FROM app_user WHERE id = %s", (user[0],))
         conn.execute("DELETE FROM invitation WHERE steam_id = %s", (steam_id,))
+        conn.execute("DELETE FROM invitation_request WHERE steam_id = %s", (steam_id,))
         # In the matches that stay, they are one of the players, out of the level references.
         still = conn.execute(
             "SELECT 1 FROM match_player WHERE steam_id = %s LIMIT 1", (steam_id,)

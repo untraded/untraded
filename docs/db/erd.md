@@ -1,6 +1,6 @@
 # Phase 2 database: entity-relationship diagram
 
-The decisions behind the schema are in [ADR 0011](../adr/0011-phase-2-database-schema.md). The migrations in [`db/`](../../db/src/untraded_db/migrations/versions/) are the source of truth (ADR 0006); this page shows the schema **after the last one, 0010**. [schema.sql](schema.sql) is the reference schema of ADR 0011, kept identical to migration 0001, which a test checks (`db/tests/test_migrations.py`): it does not hold the later migrations.
+The decisions behind the schema are in [ADR 0011](../adr/0011-phase-2-database-schema.md). The migrations in [`db/`](../../db/src/untraded_db/migrations/versions/) are the source of truth (ADR 0006); this page shows the schema **after the last one, 0011**. [schema.sql](schema.sql) is the reference schema of ADR 0011, kept identical to migration 0001, which a test checks (`db/tests/test_migrations.py`): it does not hold the later migrations.
 
 Every table and column is shown. Solid lines are foreign keys; dotted lines are links by Steam id that have no foreign key constraint (event and metric rows keep the Steam ids of every player of a match). Types: `char1` is `char(1)`, `char64` is `char(64)`, `text_array` is `text[]`, `double` is `double precision`.
 
@@ -16,6 +16,7 @@ Every table and column is shown. Solid lines are foreign keys; dotted lines are 
 | 0008 invitations | `invitation`; first sign-in of an invited account; the player's own source functions |
 | 0009 erasure | `request_erasure`, `request_my_erasure` |
 | 0010 uploads | `match_source.rejected`; the upload functions |
+| 0011 invitation requests | `invitation_request`; `request_invitation(steam, persona)` for the API role |
 
 ## Tenancy and players
 
@@ -96,6 +97,11 @@ erDiagram
         uuid invited_by FK "set null"
         timestamptz created_at
         timestamptz accepted_at "first sign-in"
+    }
+    invitation_request {
+        bigint steam_id PK
+        text persona_name "public Steam name, if read"
+        timestamptz requested_at
     }
     consent {
         bigint id PK "identity"
@@ -521,7 +527,7 @@ The API runs each transaction as `untraded_api` (no `BYPASSRLS`) with `app.user_
 | the user's own player, or a followed one | `play_session`, `play_session_match`, `play_session_metric` |
 | the user's own rows | `ingest_source`, `advice_feedback`, `consent`; `app_user` (and the users they share a workspace with) |
 | none (functions only) | `auth_session` |
-| no row-level security | `metric_definition`, `metric_current`, `level_reference`, `invitation`, `job` |
+| no row-level security | `metric_definition`, `metric_current`, `level_reference`, `invitation`, `invitation_request`, `job` |
 
 - `untraded_api` reads every table and view of migrations 0001 and 0002 except `auth_session`, `ingest_source` and `job`, plus `level_reference`, `consent` and `consent_current`; it has no grant on `invitation`. It writes only `advice_feedback` (the user's own votes) and `consent` (insert), and otherwise goes through `SECURITY DEFINER` functions:
   - sign-in: `open_auth_session`, `auth_session_user`, `close_auth_session`;

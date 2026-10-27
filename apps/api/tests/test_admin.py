@@ -36,7 +36,9 @@ AUTH_CODE, SHARE_CODE = "AAAA-BBBBB-CCCC", "CSGO-aaaaa-bbbbb-ccccc-ddddd-eeeee"
 @pytest.fixture
 def db() -> Iterator[psycopg.Connection[Any]]:
     with psycopg.connect(URL, autocommit=True) as conn:
-        conn.execute("TRUNCATE match, app_user, player, invitation, job CASCADE")
+        conn.execute(
+            "TRUNCATE match, app_user, player, invitation, invitation_request, job CASCADE"
+        )
         yield conn
 
 
@@ -229,3 +231,29 @@ def test_the_admin_erases_a_player(db: psycopg.Connection[Any], tmp_path: Path) 
         listed = [p["steam_id"] for p in client.get("/admin/players").json()["items"]]
         assert str(PLAYER) not in listed
         assert client.delete(f"/admin/players/{PLAYER}").status_code == 404
+
+
+def test_requests_are_listed_then_invited_or_dismissed(
+    db: psycopg.Connection[Any], tmp_path: Path
+) -> None:
+    db.execute("SELECT request_invitation(%s, 'Guest on Steam')", (GUEST,))
+    db.execute("SELECT request_invitation(%s, NULL)", (PLAYER,))
+    with app(tmp_path) as client:
+        client.cookies.set(COOKIE, add_user(db, ADMIN))
+        listed = client.get("/admin/invitation-requests").json()["items"]
+        assert [(r["steam_id"], r["persona_name"]) for r in listed] == [
+            (str(GUEST), "Guest on Steam"),
+            (str(PLAYER), None),
+        ]
+        # Inviting an account removes its request; dismissing removes the other.
+        body = {"steam_id": str(GUEST), "display_name": "Guest"}
+        assert client.post("/admin/invitations", json=body).status_code == 201
+        assert client.delete(f"/admin/invitation-requests/{PLAYER}").status_code == 204
+        assert client.delete(f"/admin/invitation-requests/{PLAYER}").status_code == 404
+        assert client.get("/admin/invitation-requests").json()["items"] == []
+    # An invited account cannot ask again.
+    assert db.execute("SELECT request_invitation(%s, NULL)", (GUEST,)).fetchone() == (False,)
+    # Only admins see the requests.
+    with app(tmp_path) as client:
+        client.cookies.set(COOKIE, add_user(db, PLAYER))
+        assert client.get("/admin/invitation-requests").status_code == 403

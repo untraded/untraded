@@ -5,12 +5,20 @@
 Sign-in is by invitation during the beta: Steam proves who the user is, and the database opens
 a session only for a Steam account that has a user (`open_auth_session`, migration 0002). The
 session cookie holds a random token; the database stores its sha256.
+
+A Steam account that is not invited may ask for an invitation (migration 0011): the callback
+gives it a short-lived signed cookie naming the account Steam just proved, and
+`POST /auth/invitation-request` records the request with it. Nothing is recorded unless the
+visitor asks.
 """
 
 # No `from __future__ import annotations`: FastAPI reads the dependencies from the annotations.
 
 import datetime as dt
+import hashlib
+import hmac
 import secrets
+import time
 import urllib.parse
 import uuid
 
@@ -24,6 +32,31 @@ from untraded_api.deps import COOKIE, ConnDep, DatabaseDep, SettingsDep, UserDep
 from untraded_api.settings import Settings
 
 router = APIRouter()
+
+REQUEST_COOKIE = "untraded_invitation_request"
+REQUEST_SECONDS = 30 * 60
+"""How long a visitor who is not invited has to ask for an invitation after signing in."""
+_REQUEST_KEY = secrets.token_bytes(32)
+"""Signs the request cookie; a new one at each start of the API ends the pending cookies."""
+
+
+def request_token(steam_id: int, now: float | None = None) -> str:
+    expires = int((now if now is not None else time.time()) + REQUEST_SECONDS)
+    payload = f"{steam_id}.{expires}"
+    return f"{payload}.{hmac.new(_REQUEST_KEY, payload.encode(), hashlib.sha256).hexdigest()}"
+
+
+def requested_steam_id(token: str | None, now: float | None = None) -> int | None:
+    """The Steam account a request cookie names, or None when it is missing, forged or old."""
+    if not token or token.count(".") != 2:
+        return None
+    steam_id, expires, signature = token.split(".")
+    expected = hmac.new(_REQUEST_KEY, f"{steam_id}.{expires}".encode(), hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(signature, expected) or not (steam_id + expires).isdigit():
+        return None
+    if int(expires) < (now if now is not None else time.time()):
+        return None
+    return int(steam_id)
 
 
 class Consent(BaseModel):
@@ -86,7 +119,17 @@ def sign_in_callback(request: Request, db: DatabaseDep, settings: SettingsDep) -
             (steam_id, token_hash(token), settings.session_ttl),
         ).fetchone()
     if row is None or row[0] is None:
-        return back_to_web(settings, "not_invited")
+        refused = back_to_web(settings, "not_invited")
+        refused.set_cookie(
+            REQUEST_COOKIE,
+            request_token(steam_id),
+            max_age=REQUEST_SECONDS,
+            httponly=True,
+            secure=settings.cookie_secure,
+            samesite="lax",
+            path="/",
+        )
+        return refused
     response = back_to_web(settings)
     response.set_cookie(
         COOKIE,
@@ -97,6 +140,26 @@ def sign_in_callback(request: Request, db: DatabaseDep, settings: SettingsDep) -
         samesite="lax",
         path="/",
     )
+    return response
+
+
+@router.post("/auth/invitation-request")
+def request_invitation(
+    request: Request, db: DatabaseDep, settings: SettingsDep
+) -> RedirectResponse:
+    """A visitor who is not invited asks for an invitation (a form on the web's home page): the
+    request names the Steam account the sign-in just proved. Back to the web with
+    `?signin=requested`, or `?signin=request_expired` without a valid cookie."""
+    steam_id = requested_steam_id(request.cookies.get(REQUEST_COOKIE))
+    if steam_id is None:
+        return back_to_web(settings, "request_expired")
+    name = None
+    if settings.steam_api_key:
+        name = steam.persona_name(request.app.state.steam_client, settings.steam_api_key, steam_id)
+    with db.transaction(None) as conn:
+        conn.execute("SELECT request_invitation(%s, %s)", (steam_id, name))
+    response = back_to_web(settings, "requested")
+    response.delete_cookie(REQUEST_COOKIE, path="/", secure=settings.cookie_secure, httponly=True)
     return response
 
 

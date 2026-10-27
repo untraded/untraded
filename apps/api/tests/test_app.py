@@ -15,6 +15,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from untraded_api.app import COOKIE, create_app
+from untraded_api.auth import REQUEST_COOKIE, request_token
 from untraded_api.settings import Settings
 from untraded_api.steam import ENDPOINT, NAMESPACE
 
@@ -46,7 +47,7 @@ def steam_answer(steam_id: int) -> dict[str, str]:
 @pytest.fixture
 def client() -> Iterator[TestClient]:
     with psycopg.connect(URL, autocommit=True) as conn:
-        conn.execute("TRUNCATE app_user CASCADE")
+        conn.execute("TRUNCATE app_user, invitation_request CASCADE")
         conn.execute(
             "INSERT INTO app_user (steam_id, display_name) VALUES (%s, 'me'), (%s, 'other')",
             (INVITED, OTHER),
@@ -91,6 +92,42 @@ def test_a_stranger_is_not_let_in(client: TestClient) -> None:
     assert response.headers["location"] == f"{WEB}/?signin=not_invited"
     assert COOKIE not in response.cookies
     assert client.get("/me").status_code == 401
+
+
+def test_a_stranger_may_ask_for_an_invitation_once(client: TestClient) -> None:
+    # Nothing is recorded by the refused sign-in itself: only a signed cookie to ask with.
+    sign_in(client, STRANGER)
+    assert REQUEST_COOKIE in client.cookies
+    assert requests() == []
+    response = client.post("/auth/invitation-request")
+    assert response.headers["location"] == f"{WEB}/?signin=requested"
+    assert REQUEST_COOKIE not in client.cookies  # used
+    assert requests() == [STRANGER]
+    sign_in(client, STRANGER)
+    client.post("/auth/invitation-request")
+    assert requests() == [STRANGER]  # one request per account
+    assert client.get("/me").status_code == 401  # asking lets no one in
+
+
+def test_no_request_without_a_valid_cookie(client: TestClient) -> None:
+    assert client.post("/auth/invitation-request").headers["location"] == (
+        f"{WEB}/?signin=request_expired"
+    )
+    forged = request_token(STRANGER).replace(str(STRANGER), str(OTHER + 10))
+    client.cookies.set(REQUEST_COOKIE, forged)
+    assert client.post("/auth/invitation-request").headers["location"].endswith("request_expired")
+    assert requests() == []
+
+
+def test_a_user_cannot_be_requested(client: TestClient) -> None:
+    client.cookies.set(REQUEST_COOKIE, request_token(INVITED))
+    assert client.post("/auth/invitation-request").headers["location"].endswith("requested")
+    assert requests() == []
+
+
+def requests() -> list[int]:
+    with psycopg.connect(URL) as conn:
+        return [r[0] for r in conn.execute("SELECT steam_id FROM invitation_request")]
 
 
 def test_a_bad_answer_is_refused(client: TestClient) -> None:
