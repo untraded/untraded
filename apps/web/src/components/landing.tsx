@@ -16,11 +16,11 @@ const GITHUB = "https://github.com/untraded/untraded";
 const FAQ = ["free", "modes", "faceit", "cheat", "rating", "selfhost"] as const;
 
 /** Screenshots of the site, rendered on invented data (no Valve image): captured at twice a
- * 600 px wide column, sharp on high-density screens. Their size keeps the layout still. */
+ * 600 px wide column (with a little of the page around), sharp on high-density screens. Their size keeps the layout still. */
 const SHOTS = {
-  viewer: { width: 1200, height: 1898 },
-  priorities: { width: 1200, height: 700 },
-  rating: { width: 1200, height: 546 },
+  viewer: { width: 1232, height: 1722 },
+  priorities: { width: 1232, height: 732 },
+  rating: { width: 1232, height: 578 },
 } as const;
 
 function Shot({
