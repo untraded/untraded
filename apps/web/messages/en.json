@@ -1,5 +1,6 @@
 {
   "nav": {
+    "team": "Team",
     "progress": "Progress",
     "upload": "Send a demo",
     "formulas": "Formulas",
@@ -142,6 +143,175 @@
     "noSessionInPeriod": "No session in this period. Pick a longer one.",
     "priorities": "Your priorities",
     "noPriority": "No priority followed yet: they show after a few sessions."
+  },
+  "team": {
+    "title": "Team",
+    "preview": "Preview: a mock-up of the team mode, invented data.",
+    "previewHint": "What you add or change stays in this browser.",
+    "reset": "Reset everything",
+    "viewAs": "View as",
+    "pages": "Team pages",
+    "pagesNames": {
+      "roster": "Team",
+      "lineups": "Lineups",
+      "execs": "Execs",
+      "strats": "Strats",
+      "stats": "Stats"
+    },
+    "roles": {
+      "owner": "Owner",
+      "coach": "Coach",
+      "player": "Player",
+      "viewer": "Viewer"
+    },
+    "noAccess": "As {role}, this page is not visible: the permission matrix closes it to this role.",
+    "all": "All",
+    "allMasculine": "All",
+    "map": "Map",
+    "side": "Side",
+    "grenade": "Grenade",
+    "site": "Site",
+    "kind": "Kind",
+    "add": "Add",
+    "remove": "Remove",
+    "cancel": "Cancel",
+    "save": "Save",
+    "copy": "Copy {command}",
+    "empty": "Nothing here for these filters, or nothing this role can see.",
+    "yours": "added here",
+    "by": "by {name}",
+    "levels": {
+      "none": "No access",
+      "view": "View",
+      "edit": "Edit",
+      "manage": "Manage"
+    },
+    "inGame": {
+      "igl": "IGL",
+      "entry": "Entry",
+      "awp": "AWP",
+      "support": "Support",
+      "lurker": "Lurker",
+      "anchor": "Anchor",
+      "rotator": "Rotator"
+    },
+    "grenades": {
+      "smoke": "Smoke",
+      "flash": "Flash",
+      "molotov": "Molotov",
+      "he": "HE"
+    },
+    "throws": {
+      "stand": "Standing",
+      "jump": "Jump",
+      "run": "Running",
+      "walk": "Walking",
+      "runjump": "Run and jump"
+    },
+    "sites": {
+      "A": "A",
+      "B": "B",
+      "mid": "Mid"
+    },
+    "access": {
+      "title": "Permissions",
+      "view": "Who sees",
+      "edit": "Who edits",
+      "ownerAlways": "The owner sees and edits everything.",
+      "readOnly": "Read only for this role."
+    },
+    "roster": {
+      "title": "Roster",
+      "starters": "Starters",
+      "standins": "Stand-ins",
+      "standinsHint": "A team match counts with at least three roster players.",
+      "members": "Members and roles",
+      "member": "Member",
+      "role": "Role",
+      "place": "Place",
+      "inGameCol": "In-game role",
+      "starter": "Starter",
+      "standin": "Stand-in",
+      "staff": "Staff",
+      "matrix": "Permissions by page",
+      "matrixHint": "What each role may do on each page. The owner manages everything.",
+      "matrixReadOnly": "What each role may do on each page. Only a role that manages this page can change it.",
+      "page": "Page",
+      "levelsHint": "View: read. Edit: add, remove one's own additions, and set the access of the items one may edit. Manage: also set the matrix. Each item can narrow further who sees it and who edits it. In this preview, an item's content cannot be rewritten yet."
+    },
+    "lineups": {
+      "lead": "The team's lineups, by map and side, each with a short in-game clip.",
+      "clipPlaceholder": "Lineup clip",
+      "where": "Where",
+      "from": "Position",
+      "aim": "Aim",
+      "throw": "Throw",
+      "author": "Added by",
+      "setpos": "setpos command",
+      "setposHint": "Paste it in the console, on a local server with sv_cheats 1.",
+      "new": "New lineup",
+      "name": "Name",
+      "clip": "Clip",
+      "clipHint": "mp4 or webm, a few seconds, 30 MB at most. It stays in this browser.",
+      "clipType": "The clip must be an mp4 or a webm.",
+      "clipTooBig": "Clip too large: 30 MB at most.",
+      "clipFailed": "The clip could not be kept in this browser. Save without a clip, or try another file."
+    },
+    "execs": {
+      "lead": "The executes, by map and site: who does what, with which grenades, when.",
+      "timing": "Start",
+      "tasks": "Roles",
+      "steps": "Steps",
+      "new": "New exec",
+      "name": "Name",
+      "player": "Player",
+      "task": "Task",
+      "lineup": "Lineup",
+      "noLineup": "No lineup",
+      "stepsHint": "One step per line.",
+      "playerN": "Player {n}",
+      "taskN": "Task {n}",
+      "lineupN": "Lineup {n}"
+    },
+    "strats": {
+      "lead": "The stratbook: by map and kind of round, each player's steps, notes and tags.",
+      "kinds": {
+        "default": "Default",
+        "pistol": "Pistol",
+        "eco": "Eco",
+        "antieco": "Anti-eco",
+        "retake": "Retake"
+      },
+      "notes": "Notes",
+      "new": "New strat",
+      "name": "Name",
+      "steps": "Steps per player",
+      "step": "Step",
+      "tags": "Tags",
+      "tagsHint": "Separated by commas.",
+      "stepN": "Step {n}"
+    },
+    "stats": {
+      "lead": "{matches} matches and {rounds} rounds over 30 days. Numbers invented for the mock-up.",
+      "won": "{won} of {tried}",
+      "sites": "Success by site",
+      "execs": "Success by exec",
+      "setups": "CT setups",
+      "economy": "Team economy",
+      "postplant": "Post-plant",
+      "retakes": "Retakes",
+      "trades": "Trade network",
+      "tradesHint": "Who trades whose death: the row trades, the column died.",
+      "trader": "Who trades",
+      "buys": {
+        "pistol": "Pistol",
+        "eco": "Eco",
+        "force": "Force buy",
+        "full": "Full buy"
+      },
+      "hiddenExec": "Restricted exec ({n})"
+    },
+    "loading": "Loading the preview"
   },
   "settings": {
     "title": "Settings",

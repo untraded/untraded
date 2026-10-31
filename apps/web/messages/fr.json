@@ -1,5 +1,6 @@
 {
   "nav": {
+    "team": "Équipe",
     "progress": "Progression",
     "upload": "Envoyer une démo",
     "formulas": "Formules",
@@ -142,6 +143,175 @@
     "noSessionInPeriod": "Aucune session sur cette période. Choisis une période plus longue.",
     "priorities": "Tes priorités",
     "noPriority": "Aucune priorité suivie pour l'instant : elles apparaissent après quelques sessions."
+  },
+  "team": {
+    "title": "Équipe",
+    "preview": "Aperçu : maquette du mode équipe, données inventées.",
+    "previewHint": "Ce que tu ajoutes ou changes reste dans ce navigateur.",
+    "reset": "Tout remettre à zéro",
+    "viewAs": "Voir en tant que",
+    "pages": "Pages de l'équipe",
+    "pagesNames": {
+      "roster": "Équipe",
+      "lineups": "Lineups",
+      "execs": "Execs",
+      "strats": "Strats",
+      "stats": "Stats"
+    },
+    "roles": {
+      "owner": "Propriétaire",
+      "coach": "Coach",
+      "player": "Joueur",
+      "viewer": "Observateur"
+    },
+    "noAccess": "En tant que {role}, cette page n'est pas visible : la matrice des permissions la ferme à ce rôle.",
+    "all": "Toutes",
+    "allMasculine": "Tous",
+    "map": "Carte",
+    "side": "Côté",
+    "grenade": "Grenade",
+    "site": "Site",
+    "kind": "Type",
+    "add": "Ajouter",
+    "remove": "Retirer",
+    "cancel": "Annuler",
+    "save": "Enregistrer",
+    "copy": "Copier {command}",
+    "empty": "Rien ici pour ces filtres, ou rien de visible pour ce rôle.",
+    "yours": "ajouté ici",
+    "by": "par {name}",
+    "levels": {
+      "none": "Aucun accès",
+      "view": "Voir",
+      "edit": "Modifier",
+      "manage": "Gérer"
+    },
+    "inGame": {
+      "igl": "IGL",
+      "entry": "Entry",
+      "awp": "AWP",
+      "support": "Support",
+      "lurker": "Lurker",
+      "anchor": "Ancre",
+      "rotator": "Rotateur"
+    },
+    "grenades": {
+      "smoke": "Smoke",
+      "flash": "Flash",
+      "molotov": "Molotov",
+      "he": "HE"
+    },
+    "throws": {
+      "stand": "Debout",
+      "jump": "Saut",
+      "run": "En courant",
+      "walk": "En marchant",
+      "runjump": "Course et saut"
+    },
+    "sites": {
+      "A": "A",
+      "B": "B",
+      "mid": "Mid"
+    },
+    "access": {
+      "title": "Permissions",
+      "view": "Qui voit",
+      "edit": "Qui modifie",
+      "ownerAlways": "Le propriétaire voit et modifie tout.",
+      "readOnly": "Lecture seule pour ce rôle."
+    },
+    "roster": {
+      "title": "Roster",
+      "starters": "Titulaires",
+      "standins": "Remplaçants",
+      "standinsHint": "Un match d'équipe compte avec au moins trois joueurs du roster.",
+      "members": "Membres et rôles",
+      "member": "Membre",
+      "role": "Rôle",
+      "place": "Place",
+      "inGameCol": "Rôle en jeu",
+      "starter": "Titulaire",
+      "standin": "Remplaçant",
+      "staff": "Staff",
+      "matrix": "Permissions par page",
+      "matrixHint": "Ce que chaque rôle peut faire sur chaque page. Le propriétaire gère tout.",
+      "matrixReadOnly": "Ce que chaque rôle peut faire sur chaque page. Seul un rôle qui gère cette page peut la changer.",
+      "page": "Page",
+      "levelsHint": "Voir : lire. Modifier : ajouter, retirer ses propres ajouts et régler l'accès des éléments qu'on peut modifier. Gérer : en plus, régler la matrice. Chaque élément peut restreindre encore qui le voit et qui le modifie. Dans cet aperçu, le contenu d'un élément ne se réécrit pas encore."
+    },
+    "lineups": {
+      "lead": "Les lineups de l'équipe, par carte et par côté, chacun avec un court clip en jeu.",
+      "clipPlaceholder": "Clip du lineup",
+      "where": "Où",
+      "from": "Position",
+      "aim": "Visée",
+      "throw": "Lancer",
+      "author": "Ajouté par",
+      "setpos": "Commande setpos",
+      "setposHint": "À coller dans la console, sur un serveur local avec sv_cheats 1.",
+      "new": "Nouveau lineup",
+      "name": "Nom",
+      "clip": "Clip",
+      "clipHint": "mp4 ou webm, quelques secondes, 30 Mo au plus. Il reste dans ce navigateur.",
+      "clipType": "Le clip doit être un mp4 ou un webm.",
+      "clipTooBig": "Clip trop lourd : 30 Mo au plus.",
+      "clipFailed": "Le clip n'a pas pu être gardé dans ce navigateur. Enregistre sans clip, ou essaie un autre fichier."
+    },
+    "execs": {
+      "lead": "Les executes, par carte et par site : qui fait quoi, avec quelles grenades, à quel moment.",
+      "timing": "Départ",
+      "tasks": "Rôles",
+      "steps": "Étapes",
+      "new": "Nouvel exec",
+      "name": "Nom",
+      "player": "Joueur",
+      "task": "Tâche",
+      "lineup": "Lineup",
+      "noLineup": "Sans lineup",
+      "stepsHint": "Une étape par ligne.",
+      "playerN": "Joueur {n}",
+      "taskN": "Tâche {n}",
+      "lineupN": "Lineup {n}"
+    },
+    "strats": {
+      "lead": "Le stratbook : par carte et par type de round, les étapes de chaque joueur, les notes et les étiquettes.",
+      "kinds": {
+        "default": "Défaut",
+        "pistol": "Pistol",
+        "eco": "Éco",
+        "antieco": "Anti-éco",
+        "retake": "Retake"
+      },
+      "notes": "Notes",
+      "new": "Nouvelle strat",
+      "name": "Nom",
+      "steps": "Étapes par joueur",
+      "step": "Étape",
+      "tags": "Étiquettes",
+      "tagsHint": "Séparées par des virgules.",
+      "stepN": "Étape {n}"
+    },
+    "stats": {
+      "lead": "{matches} matchs et {rounds} rounds sur 30 jours. Chiffres inventés pour la maquette.",
+      "won": "{won} sur {tried}",
+      "sites": "Réussite par site",
+      "execs": "Réussite par exec",
+      "setups": "Setups CT",
+      "economy": "Économie collective",
+      "postplant": "Post-plant",
+      "retakes": "Retakes",
+      "trades": "Réseau de trades",
+      "tradesHint": "Qui trade la mort de qui : en ligne celui qui trade, en colonne celui qui est mort.",
+      "trader": "Celui qui trade",
+      "buys": {
+        "pistol": "Pistol",
+        "eco": "Éco",
+        "force": "Force buy",
+        "full": "Achat complet"
+      },
+      "hiddenExec": "Exec réservé ({n})"
+    },
+    "loading": "Chargement de l'aperçu"
   },
   "settings": {
     "title": "Réglages",
