@@ -52,3 +52,15 @@ export async function deleteClip(key: string): Promise<void> {
   });
   db.close();
 }
+
+/** Forgets every clip of the preview (its reset), orphans included. */
+export async function clearClips(): Promise<void> {
+  const db = await open();
+  await new Promise<void>((resolve) => {
+    const tx = db.transaction(STORE, "readwrite");
+    tx.objectStore(STORE).clear();
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => resolve();
+  });
+  db.close();
+}

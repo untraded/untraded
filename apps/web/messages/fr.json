@@ -237,7 +237,7 @@
       "matrixHint": "Ce que chaque rôle peut faire sur chaque page. Le propriétaire gère tout.",
       "matrixReadOnly": "Ce que chaque rôle peut faire sur chaque page. Seul un rôle qui gère cette page peut la changer.",
       "page": "Page",
-      "levelsHint": "Voir : lire. Modifier : ajouter et changer ce qu'on a le droit de changer. Gérer : en plus, régler les permissions. Chaque élément peut restreindre encore qui le voit et qui le modifie."
+      "levelsHint": "Voir : lire. Modifier : ajouter, retirer ses propres ajouts et régler l'accès des éléments qu'on peut modifier. Gérer : en plus, régler la matrice. Chaque élément peut restreindre encore qui le voit et qui le modifie. Dans cet aperçu, le contenu d'un élément ne se réécrit pas encore."
     },
     "lineups": {
       "lead": "Les lineups de l'équipe, par carte et par côté, chacun avec un court clip en jeu.",
@@ -255,7 +255,7 @@
       "clipHint": "mp4 ou webm, quelques secondes, 30 Mo au plus. Il reste dans ce navigateur.",
       "clipType": "Le clip doit être un mp4 ou un webm.",
       "clipTooBig": "Clip trop lourd : 30 Mo au plus.",
-      "clipFailed": "Le clip n'a pas pu être gardé dans ce navigateur."
+      "clipFailed": "Le clip n'a pas pu être gardé dans ce navigateur. Enregistre sans clip, ou essaie un autre fichier."
     },
     "execs": {
       "lead": "Les executes, par carte et par site : qui fait quoi, avec quelles grenades, à quel moment.",
@@ -268,7 +268,10 @@
       "task": "Tâche",
       "lineup": "Lineup",
       "noLineup": "Sans lineup",
-      "stepsHint": "Une étape par ligne."
+      "stepsHint": "Une étape par ligne.",
+      "playerN": "Joueur {n}",
+      "taskN": "Tâche {n}",
+      "lineupN": "Lineup {n}"
     },
     "strats": {
       "lead": "Le stratbook : par carte et par type de round, les étapes de chaque joueur, les notes et les étiquettes.",
@@ -285,7 +288,8 @@
       "steps": "Étapes par joueur",
       "step": "Étape",
       "tags": "Étiquettes",
-      "tagsHint": "Séparées par des virgules."
+      "tagsHint": "Séparées par des virgules.",
+      "stepN": "Étape {n}"
     },
     "stats": {
       "lead": "{matches} matchs et {rounds} rounds sur 30 jours. Chiffres inventés pour la maquette.",
@@ -304,8 +308,10 @@
         "eco": "Éco",
         "force": "Force buy",
         "full": "Achat complet"
-      }
-    }
+      },
+      "hiddenExec": "Exec réservé ({n})"
+    },
+    "loading": "Chargement de l'aperçu"
   },
   "settings": {
     "title": "Réglages",

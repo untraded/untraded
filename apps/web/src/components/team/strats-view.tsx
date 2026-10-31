@@ -107,9 +107,10 @@ export function StratsView() {
                 <h2 className="font-semibold">{text(strat.title, locale)}</h2>
               </div>
               <ul className="flex flex-col">
-                {strat.steps.map((step) => (
+                {strat.steps.map((step, i) => (
                   <li
-                    key={step.member}
+                    // biome-ignore lint/suspicious/noArrayIndexKey: one player can have two steps
+                    key={i}
                     className="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-x-2 border-t border-line-soft py-1.5 text-sm first:border-t-0"
                   >
                     <span className="font-semibold">{memberName(step.member)}</span>
@@ -127,7 +128,7 @@ export function StratsView() {
               )}
               <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-line-soft pt-2.5">
                 <span className="flex flex-wrap items-center gap-2">
-                  {strat.tags.map((tag) => (
+                  {[...new Set(strat.tags)].map((tag) => (
                     <span key={tag} className="text-xs text-muted-foreground">
                       #{tag}
                     </span>
@@ -210,7 +211,7 @@ function AddStrat({ defaultMap, onDone }: { defaultMap: MapId; onDone: () => voi
       tags: value("tags")
         .split(",")
         .map((tag) => tag.trim())
-        .filter(Boolean),
+        .filter((tag, i, all) => tag !== "" && all.indexOf(tag) === i),
       access,
     });
     onDone();
@@ -221,7 +222,7 @@ function AddStrat({ defaultMap, onDone }: { defaultMap: MapId; onDone: () => voi
       <Field label={t("strats.name")}>
         <input name="title" required maxLength={80} className={inputClass} />
       </Field>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <Field label={t("map")}>
           <select name="map" defaultValue={defaultMap} className={inputClass}>
             {MAPS.map((m) => (
@@ -255,7 +256,7 @@ function AddStrat({ defaultMap, onDone }: { defaultMap: MapId; onDone: () => voi
             <select
               name={`member-${i}`}
               defaultValue={member.id}
-              aria-label={t("execs.player")}
+              aria-label={t("execs.playerN", { n: i + 1 })}
               className={inputClass}
             >
               {PLAYERS.map((m) => (
@@ -266,7 +267,7 @@ function AddStrat({ defaultMap, onDone }: { defaultMap: MapId; onDone: () => voi
             </select>
             <input
               name={`step-${i}`}
-              aria-label={t("strats.step")}
+              aria-label={t("strats.stepN", { n: i + 1 })}
               placeholder={t("strats.step")}
               className={inputClass}
             />

@@ -31,7 +31,7 @@ export function pageOf(pathname: string): Page {
  */
 export function TeamShell({ children }: { children: ReactNode }) {
   const t = useTranslations("team");
-  const { viewAs, setViewAs, matrix, reset } = useTeamPreview();
+  const { viewAs, setViewAs, matrix, reset, ready } = useTeamPreview();
   const page = pageOf(usePathname());
   const open = matrix[page][viewAs] !== "none";
   return (
@@ -93,7 +93,13 @@ export function TeamShell({ children }: { children: ReactNode }) {
           ))}
         </ul>
       </nav>
-      {open ? (
+      {/* Until the browser's copy is read, nothing: the pages would show as the owner, and a
+          role that may not see staff items would glimpse them. */}
+      {!ready ? (
+        <p aria-busy="true" className="h-40 animate-pulse rounded-lg border border-border bg-card">
+          <span className="sr-only">{t("loading")}</span>
+        </p>
+      ) : open ? (
         children
       ) : (
         <p className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">

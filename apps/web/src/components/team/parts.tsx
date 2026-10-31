@@ -8,8 +8,9 @@ import { type ReactNode, useEffect, useId, useState } from "react";
 import { cn } from "@/lib/cn";
 import { loadClip } from "@/lib/team-preview/clips";
 import { MEMBERS } from "@/lib/team-preview/data";
+import { canEdit, canSee } from "@/lib/team-preview/rules";
 import { useTeamPreview } from "@/lib/team-preview/store";
-import { type Access, allows, may, type Page, ROLES, type Role } from "@/lib/team-preview/types";
+import { type Access, allows, type Page, ROLES, type Role } from "@/lib/team-preview/types";
 
 /** A map's display name: `dust2` → `Dust2`. */
 export const mapLabel = (map: string) => map.charAt(0).toUpperCase() + map.slice(1);
@@ -24,8 +25,8 @@ export function useRights(page: Page) {
     role: viewAs,
     canAdd: allows(level, "edit"),
     canManage: allows(level, "manage"),
-    sees: (access: Access) => may(access, viewAs, "view"),
-    edits: (access: Access) => allows(level, "edit") && may(access, viewAs, "edit"),
+    sees: (access: Access) => canSee(level, access, viewAs),
+    edits: (access: Access) => canEdit(level, access, viewAs),
   };
 }
 

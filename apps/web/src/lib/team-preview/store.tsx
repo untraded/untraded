@@ -3,32 +3,12 @@
 "use client";
 
 import { createContext, type ReactNode, useContext, useEffect, useState } from "react";
-import { deleteClip } from "./clips";
-import { EXECS, LINEUPS, MATRIX, STRATS } from "./data";
+import { clearClips, deleteClip } from "./clips";
+import { EXECS, LINEUPS, STRATS } from "./data";
+import { EMPTY, ownAccess, readSaved, type Saved } from "./rules";
 import type { Access, Exec, Level, Lineup, Matrix, Page, Role, Strat } from "./types";
 
-/** What a visitor changed, kept in their browser only. */
-interface Saved {
-  version: 1;
-  viewAs: Role;
-  matrix: Matrix;
-  lineups: Lineup[];
-  execs: Exec[];
-  strats: Strat[];
-  /** The access a visitor set on an invented item, by id. */
-  access: Record<string, Access>;
-}
-
 const KEY = "untraded_team_preview";
-const EMPTY: Saved = {
-  version: 1,
-  viewAs: "owner",
-  matrix: MATRIX,
-  lineups: [],
-  execs: [],
-  strats: [],
-  access: {},
-};
 
 type Kind = "lineups" | "execs" | "strats";
 
@@ -53,9 +33,7 @@ const Context = createContext<Store | null>(null);
 
 function read(): Saved {
   try {
-    const raw = window.localStorage.getItem(KEY);
-    const parsed = raw ? (JSON.parse(raw) as Partial<Saved>) : null;
-    return parsed?.version === 1 ? { ...EMPTY, ...parsed } : EMPTY;
+    return readSaved(window.localStorage.getItem(KEY));
   } catch {
     return EMPTY;
   }
@@ -95,8 +73,15 @@ export function TeamPreviewProvider({ children }: { children: ReactNode }) {
     lineups: withAccess([...saved.lineups, ...LINEUPS]),
     execs: withAccess([...saved.execs, ...EXECS]),
     strats: withAccess([...saved.strats, ...STRATS]),
+    // What one adds stays visible and editable to the role one adds it as.
     add: (kind, item) =>
-      update((s) => ({ ...s, [kind]: [{ ...item, local: true }, ...(s[kind] as unknown[])] })),
+      update((s) => ({
+        ...s,
+        [kind]: [
+          { ...item, access: ownAccess(item.access, s.viewAs), local: true },
+          ...(s[kind] as unknown[]),
+        ],
+      })),
     remove: (kind, id) => {
       const lineup = saved.lineups.find((l) => l.id === id);
       if (kind === "lineups" && lineup?.clip) void deleteClip(lineup.clip);
@@ -114,7 +99,7 @@ export function TeamPreviewProvider({ children }: { children: ReactNode }) {
           : { ...s, access: { ...s.access, [id]: access } },
       ),
     reset: () => {
-      for (const lineup of saved.lineups) if (lineup.clip) void deleteClip(lineup.clip);
+      void clearClips();
       update(() => EMPTY);
     },
   };

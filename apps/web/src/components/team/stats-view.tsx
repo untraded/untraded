@@ -2,17 +2,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 "use client";
 
-import { useLocale, useTranslations } from "next-intl";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
 import type { ReactNode } from "react";
-import { EXECS, MEMBERS, STATS } from "@/lib/team-preview/data";
+import { MEMBERS, STATS } from "@/lib/team-preview/data";
+import { useTeamPreview } from "@/lib/team-preview/store";
 import { text } from "@/lib/team-preview/types";
-import { mapLabel } from "./parts";
+import { mapLabel, useRights } from "./parts";
 
 const STARTERS = MEMBERS.filter((m) => m.roster === "starter");
 
 /** One line of a success table: a name, "won of tried", and a bar of the rate. */
 function Rate({ name, won, tried }: { name: ReactNode; won: number; tried: number }) {
   const t = useTranslations("team");
+  const format = useFormatter();
   const rate = tried === 0 ? 0 : won / tried;
   return (
     <li className="grid grid-cols-[minmax(0,1fr)_5.5rem_3rem] items-center gap-x-3 border-t border-line-soft py-1.5 text-sm first:border-t-0 sm:grid-cols-[minmax(0,1fr)_6rem_8rem_3rem]">
@@ -26,7 +28,9 @@ function Rate({ name, won, tried }: { name: ReactNode; won: number; tried: numbe
       >
         <span className="block h-full bg-foreground/70" style={{ width: `${rate * 100}%` }} />
       </span>
-      <span className="text-right font-semibold tabular-nums">{Math.round(rate * 100)} %</span>
+      <span className="text-right font-semibold tabular-nums">
+        {format.number(rate, { style: "percent", maximumFractionDigits: 0 })}
+      </span>
     </li>
   );
 }
@@ -45,6 +49,9 @@ function Box({ title, hint, children }: { title: string; hint?: string; children
 export function StatsView() {
   const t = useTranslations("team");
   const locale = useLocale();
+  // An exec the role may not see keeps its numbers but not its name.
+  const execRights = useRights("execs");
+  const { execs } = useTeamPreview();
   const most = Math.max(...Object.values(STATS.trades).flatMap((row) => Object.values(row)));
   return (
     <div className="flex flex-col gap-4">
@@ -66,12 +73,16 @@ export function StatsView() {
         </Box>
         <Box title={t("stats.execs")}>
           <ul>
-            {STATS.execs.map((e) => {
-              const exec = EXECS.find((x) => x.id === e.exec);
+            {STATS.execs.map((e, i) => {
+              const exec = execs.find((x) => x.id === e.exec && execRights.sees(x.access));
               return (
                 <Rate
                   key={e.exec}
-                  name={exec ? `${mapLabel(exec.map)} · ${text(exec.title, locale)}` : e.exec}
+                  name={
+                    exec
+                      ? `${mapLabel(exec.map)} · ${text(exec.title, locale)}`
+                      : t("stats.hiddenExec", { n: i + 1 })
+                  }
                   won={e.won}
                   tried={e.run}
                 />

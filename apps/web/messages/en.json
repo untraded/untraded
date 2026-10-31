@@ -237,7 +237,7 @@
       "matrixHint": "What each role may do on each page. The owner manages everything.",
       "matrixReadOnly": "What each role may do on each page. Only a role that manages this page can change it.",
       "page": "Page",
-      "levelsHint": "View: read. Edit: add, and change what one may change. Manage: also set permissions. Each item can narrow further who sees it and who edits it."
+      "levelsHint": "View: read. Edit: add, remove one's own additions, and set the access of the items one may edit. Manage: also set the matrix. Each item can narrow further who sees it and who edits it. In this preview, an item's content cannot be rewritten yet."
     },
     "lineups": {
       "lead": "The team's lineups, by map and side, each with a short in-game clip.",
@@ -255,7 +255,7 @@
       "clipHint": "mp4 or webm, a few seconds, 30 MB at most. It stays in this browser.",
       "clipType": "The clip must be an mp4 or a webm.",
       "clipTooBig": "Clip too large: 30 MB at most.",
-      "clipFailed": "The clip could not be kept in this browser."
+      "clipFailed": "The clip could not be kept in this browser. Save without a clip, or try another file."
     },
     "execs": {
       "lead": "The executes, by map and site: who does what, with which grenades, when.",
@@ -268,7 +268,10 @@
       "task": "Task",
       "lineup": "Lineup",
       "noLineup": "No lineup",
-      "stepsHint": "One step per line."
+      "stepsHint": "One step per line.",
+      "playerN": "Player {n}",
+      "taskN": "Task {n}",
+      "lineupN": "Lineup {n}"
     },
     "strats": {
       "lead": "The stratbook: by map and kind of round, each player's steps, notes and tags.",
@@ -285,7 +288,8 @@
       "steps": "Steps per player",
       "step": "Step",
       "tags": "Tags",
-      "tagsHint": "Separated by commas."
+      "tagsHint": "Separated by commas.",
+      "stepN": "Step {n}"
     },
     "stats": {
       "lead": "{matches} matches and {rounds} rounds over 30 days. Numbers invented for the mock-up.",
@@ -304,8 +308,10 @@
         "eco": "Eco",
         "force": "Force buy",
         "full": "Full buy"
-      }
-    }
+      },
+      "hiddenExec": "Restricted exec ({n})"
+    },
+    "loading": "Loading the preview"
   },
   "settings": {
     "title": "Settings",

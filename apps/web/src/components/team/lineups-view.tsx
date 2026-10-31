@@ -3,8 +3,9 @@
 "use client";
 
 import { Plus } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useRef, useState } from "react";
 import { CopyCommand } from "@/components/copy-command";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -45,11 +46,18 @@ export function LineupsView() {
   const locale = useLocale();
   const { lineups, setAccess, remove } = useTeamPreview();
   const rights = useRights("lineups");
-  const [map, setMap] = useState<MapId | "all">("mirage");
+  // A link from an exec opens its lineup on its map: `?map=inferno&open=l-inferno-ct`.
+  const query = useSearchParams();
+  const asked = query.get("map");
+  const [map, setMap] = useState<MapId | "all">(
+    MAPS.includes(asked as MapId) ? (asked as MapId) : "all",
+  );
   const [side, setSide] = useState<Side | "all">("all");
   const [grenade, setGrenade] = useState<Grenade | "all">("all");
   const [site, setSite] = useState<Site | "all">("all");
-  const [open, setOpen] = useState<Lineup | null>(null);
+  const [open, setOpen] = useState<Lineup | null>(
+    () => lineups.find((l) => l.id === query.get("open") && rights.sees(l.access)) ?? null,
+  );
   const [adding, setAdding] = useState(false);
   const shown = lineups.filter(
     (l) =>
@@ -202,7 +210,16 @@ export function LineupsView() {
             <SheetTitle className="text-lg font-semibold">{t("lineups.new")}</SheetTitle>
             <AddLineup
               defaultMap={map === "all" ? "mirage" : map}
-              onDone={() => setAdding(false)}
+              onDone={(added) => {
+                setAdding(false);
+                // Show what was just added, whatever map the filters were on.
+                if (added) {
+                  setMap(added);
+                  setSide("all");
+                  setGrenade("all");
+                  setSite("all");
+                }
+              }}
             />
           </div>
         </SheetContent>
@@ -211,13 +228,21 @@ export function LineupsView() {
   );
 }
 
-function AddLineup({ defaultMap, onDone }: { defaultMap: MapId; onDone: () => void }) {
+function AddLineup({
+  defaultMap,
+  onDone,
+}: {
+  defaultMap: MapId;
+  /** With the map of the lineup added, or nothing when cancelled. */
+  onDone: (added?: MapId) => void;
+}) {
   const t = useTranslations("team");
   const { add } = useTeamPreview();
   const [access, setAccessValue] = useState<Access>({ view: ["coach", "player"], edit: ["coach"] });
   const [file, setFile] = useState<File | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   function pick(chosen: File | undefined) {
     setProblem(null);
@@ -239,7 +264,12 @@ function AddLineup({ defaultMap, onDone }: { defaultMap: MapId; onDone: () => vo
         await saveClip(id, file);
         clip = id;
       } catch {
+        // The form stays open: the visitor saves without the clip, or tries another file.
+        setFile(null);
+        if (fileInput.current) fileInput.current.value = "";
         setProblem(t("lineups.clipFailed"));
+        setBusy(false);
+        return;
       }
     }
     add("lineups", {
@@ -258,7 +288,7 @@ function AddLineup({ defaultMap, onDone }: { defaultMap: MapId; onDone: () => vo
       access,
     });
     setBusy(false);
-    onDone();
+    onDone(value("map") as MapId);
   }
 
   return (
@@ -327,6 +357,7 @@ function AddLineup({ defaultMap, onDone }: { defaultMap: MapId; onDone: () => vo
       </Field>
       <Field label={t("lineups.clip")} hint={t("lineups.clipHint")}>
         <input
+          ref={fileInput}
           type="file"
           accept="video/mp4,video/webm"
           onChange={(event) => pick(event.target.files?.[0])}
@@ -342,7 +373,7 @@ function AddLineup({ defaultMap, onDone }: { defaultMap: MapId; onDone: () => vo
         <AccessEditor value={access} onChange={setAccessValue} />
       </div>
       <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" onClick={onDone}>
+        <Button type="button" variant="outline" onClick={() => onDone()}>
           {t("cancel")}
         </Button>
         <Button type="submit" disabled={busy}>

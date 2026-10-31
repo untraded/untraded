@@ -51,10 +51,10 @@ export function ExecsView() {
       (site === "all" || e.site === site),
   );
   const current = editing ? (execs.find((e) => e.id === editing.id) ?? null) : null;
-  const lineupName = (id: string) => {
-    const found = lineups.find((l) => l.id === id);
-    return found ? text(found.title, locale) : null;
-  };
+  // A lineup the role may not see stays unnamed here too.
+  const lineupRights = useRights("lineups");
+  const lineupOf = (id: string) =>
+    lineups.find((l) => l.id === id && lineupRights.sees(l.access)) ?? null;
 
   return (
     <div className="flex flex-col gap-4">
@@ -107,22 +107,26 @@ export function ExecsView() {
               <div className="flex flex-col gap-1">
                 <h3 className="text-xs font-medium text-muted-foreground">{t("execs.tasks")}</h3>
                 <ul className="flex flex-col">
-                  {exec.tasks.map((task) => (
+                  {exec.tasks.map((task, i) => (
                     <li
-                      key={task.member}
+                      // biome-ignore lint/suspicious/noArrayIndexKey: one player can have two tasks
+                      key={i}
                       className="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-x-2 border-t border-line-soft py-1.5 text-sm first:border-t-0"
                     >
                       <span className="font-semibold">{memberName(task.member)}</span>
                       <span>
                         {text(task.task, locale)}
-                        {task.lineup && lineupName(task.lineup) && (
-                          <Link
-                            href="/team/lineups"
-                            className="ml-1.5 text-xs text-link underline underline-offset-3"
-                          >
-                            {lineupName(task.lineup)}
-                          </Link>
-                        )}
+                        {(() => {
+                          const lineup = task.lineup ? lineupOf(task.lineup) : null;
+                          return lineup ? (
+                            <Link
+                              href={`/team/lineups?map=${lineup.map}&open=${lineup.id}`}
+                              className="ml-1.5 text-xs text-link underline underline-offset-3"
+                            >
+                              {text(lineup.title, locale)}
+                            </Link>
+                          ) : null;
+                        })()}
                       </span>
                     </li>
                   ))}
@@ -132,8 +136,9 @@ export function ExecsView() {
                 <div className="flex flex-col gap-1">
                   <h3 className="text-xs font-medium text-muted-foreground">{t("execs.steps")}</h3>
                   <ol className="flex list-decimal flex-col gap-1 pl-5 text-sm">
-                    {exec.steps.map((step) => (
-                      <li key={text(step, "en")}>{text(step, locale)}</li>
+                    {exec.steps.map((step, i) => (
+                      // biome-ignore lint/suspicious/noArrayIndexKey: steps can repeat
+                      <li key={i}>{text(step, locale)}</li>
                     ))}
                   </ol>
                 </div>
@@ -200,7 +205,8 @@ function AddExec({ defaultMap, onDone }: { defaultMap: MapId; onDone: () => void
   const [map, setMap] = useState<MapId>(defaultMap);
   const [access, setAccessValue] = useState<Access>({ view: ["coach", "player"], edit: ["coach"] });
   const starters = PLAYERS.filter((m) => m.roster === "starter");
-  const options = lineups.filter((l) => l.map === map);
+  const lineupRights = useRights("lineups");
+  const options = lineups.filter((l) => l.map === map && lineupRights.sees(l.access));
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -233,7 +239,7 @@ function AddExec({ defaultMap, onDone }: { defaultMap: MapId; onDone: () => void
       <Field label={t("execs.name")}>
         <input name="title" required maxLength={80} className={inputClass} />
       </Field>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <Field label={t("map")}>
           <select
             value={map}
@@ -275,7 +281,7 @@ function AddExec({ defaultMap, onDone }: { defaultMap: MapId; onDone: () => void
             <select
               name={`member-${i}`}
               defaultValue={member.id}
-              aria-label={t("execs.player")}
+              aria-label={t("execs.playerN", { n: i + 1 })}
               className={inputClass}
             >
               {PLAYERS.map((m) => (
@@ -286,13 +292,13 @@ function AddExec({ defaultMap, onDone }: { defaultMap: MapId; onDone: () => void
             </select>
             <input
               name={`task-${i}`}
-              aria-label={t("execs.task")}
+              aria-label={t("execs.taskN", { n: i + 1 })}
               placeholder={t("execs.task")}
               className={inputClass}
             />
             <select
               name={`lineup-${i}`}
-              aria-label={t("execs.lineup")}
+              aria-label={t("execs.lineupN", { n: i + 1 })}
               className={`${inputClass} col-span-2 sm:col-span-1`}
             >
               <option value="">{t("execs.noLineup")}</option>
