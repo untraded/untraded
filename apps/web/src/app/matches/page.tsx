@@ -217,8 +217,8 @@ async function MatchRow({ match, period }: { match: MatchSummary; period: Period
             <span className="col-start-2 row-start-2 text-right text-xs whitespace-nowrap text-muted-foreground tabular-nums lg:hidden">
               <span className="sr-only">{t("kd")} </span>
               {number(line.kills, locale)}–{number(line.deaths, locale)} ·{" "}
-              <span className="sr-only">{t(line.untraded === null ? "rating" : "urating")} </span>
-              {number(line.untraded ?? line.hltv1, locale, 2)}
+              <span className="sr-only">{t("urating")} </span>
+              {number(line.untraded, locale, 2)}
             </span>
             <span className="hidden text-right whitespace-nowrap tabular-nums lg:block">
               <span className={label}>{t("kd")} </span>
@@ -238,8 +238,8 @@ async function MatchRow({ match, period }: { match: MatchSummary; period: Period
               {number(line.untraded_deaths, locale)}
             </span>
             <span className="hidden text-right font-semibold tabular-nums lg:block">
-              <span className={label}>{t(line.untraded === null ? "rating" : "urating")} </span>
-              {number(line.untraded ?? line.hltv1, locale, 2)}
+              <span className={label}>{t("urating")} </span>
+              {number(line.untraded, locale, 2)}
             </span>
           </>
         )}

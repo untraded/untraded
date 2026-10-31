@@ -26,8 +26,10 @@ export async function RatingCard({
   const m = await getTranslations("matches");
   const parts = ORDER.flatMap((part) => rating?.parts.filter((p) => p.part === part) ?? []);
   const widest = Math.max(0.01, ...parts.map((p) => Math.abs(p.points)));
-  const signed = (value: number) =>
-    `${value > 0 ? "+" : value < 0 ? "−" : ""}${number(Math.abs(value), locale, 2)}`;
+  const signed = (value: number) => {
+    const shown = Math.round(value * 100) / 100;
+    return `${shown > 0 ? "+" : shown < 0 ? "−" : ""}${number(Math.abs(shown), locale, 2)}`;
+  };
   return (
     <section aria-labelledby="match-rating" className="flex flex-col gap-2">
       <h2

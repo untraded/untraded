@@ -96,6 +96,7 @@ export function UploadForm({
   }, []);
 
   function pick(file: File | undefined) {
+    asked.current = null;
     if (!file || disabled) return;
     if (!isDemoName(file.name)) return setPhase({ kind: "error", file: null, error: "not_a_demo" });
     if (file.size > maxBytes) return setPhase({ kind: "error", file: null, error: "too_large" });
@@ -128,6 +129,7 @@ export function UploadForm({
   }
 
   function send(file: File) {
+    asked.current = null;
     const playedAt = fromLocalInput(date);
     if (!playedAt) return setPhase({ kind: "error", file, error: "date" });
     const query = new URLSearchParams({ name: file.name, mode, played_at: playedAt });
@@ -242,7 +244,10 @@ export function UploadForm({
                 size="icon-sm"
                 aria-label={labels.remove}
                 title={labels.remove}
-                onClick={() => setPhase({ kind: "idle" })}
+                onClick={() => {
+                  asked.current = null;
+                  setPhase({ kind: "idle" });
+                }}
               >
                 <X aria-hidden="true" />
               </Button>
@@ -268,7 +273,12 @@ export function UploadForm({
                       name={`${ids}-mode`}
                       value={m}
                       checked={mode === m}
-                      onChange={() => setMode(m)}
+                      onChange={() => {
+                        setMode(m);
+                        // Not a FACEIT match after all: its date no longer holds.
+                        asked.current = null;
+                        if (m !== "faceit") setDateFrom("file");
+                      }}
                       className="sr-only"
                     />
                     {labels.modes[m]}
@@ -292,6 +302,7 @@ export function UploadForm({
                 onChange={(event) => {
                   setDate(event.target.value);
                   asked.current = null;
+                  setDateFrom("file");
                 }}
                 className="h-8 rounded-md border border-input bg-card px-2 text-sm tabular-nums"
               />

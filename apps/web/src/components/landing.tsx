@@ -46,23 +46,28 @@ function Feature({ title, text, children }: { title: string; text: string; child
 export async function Landing({
   status,
   discord,
+  demo,
 }: {
   /** Sign-in notices and errors, and the invitation request when it applies. */
   status: ReactNode;
   discord: string | null;
+  /** Whether this instance opens a demo (`UNTRADED_DEMO_STEAM_ID`): its button, else none. */
+  demo: boolean;
 }) {
   const t = await getTranslations("landing");
   const home = await getTranslations("home");
   const settings = await getTranslations("settings");
   const actions = (
     <div className="flex flex-wrap items-center gap-2.5">
-      <a href={`${PUBLIC_API_PATH}/auth/demo`} className={cn(buttonVariants(), "gap-1.5")}>
-        <Play aria-hidden="true" />
-        {t("demo")}
-      </a>
+      {demo && (
+        <a href={`${PUBLIC_API_PATH}/auth/demo`} className={cn(buttonVariants(), "gap-1.5")}>
+          <Play aria-hidden="true" />
+          {t("demo")}
+        </a>
+      )}
       <a
         href={`${PUBLIC_API_PATH}/auth/steam`}
-        className={cn(buttonVariants({ variant: "outline" }), "gap-1.5")}
+        className={cn(buttonVariants({ variant: demo ? "outline" : "default" }), "gap-1.5")}
       >
         <LogIn aria-hidden="true" />
         {home("signIn")}
@@ -103,7 +108,7 @@ export async function Landing({
           <p className="max-w-prose text-muted-foreground">{t("lead")}</p>
           {status}
           {actions}
-          <p className="text-xs text-muted-foreground">{t("betaNote")}</p>
+          <p className="text-xs text-muted-foreground">{t(demo ? "betaNote" : "betaOnly")}</p>
         </div>
         <Shot src="/showcase/viewer.png" alt={t("shots.viewer")} />
       </section>
@@ -186,7 +191,7 @@ export async function Landing({
 
       <section className="flex flex-col items-start gap-4 rounded-lg border border-border bg-card p-6">
         <h2 className="text-xl font-semibold">{t("end.title")}</h2>
-        <p className="text-sm text-muted-foreground">{t("end.text")}</p>
+        {demo && <p className="text-sm text-muted-foreground">{t("end.text")}</p>}
         {actions}
       </section>
 

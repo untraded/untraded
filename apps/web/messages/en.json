@@ -1136,6 +1136,7 @@
     "lead": "After each session, Untraded gives you 1 to 3 things to work on, each proven by the rounds it cost you, then measures whether it improves. Every number has a public formula.",
     "demo": "See the demo",
     "betaNote": "The demo is read-only, on anonymized matches. The beta is invitation only.",
+    "betaOnly": "The beta is invitation only.",
     "shots": {
       "viewer": "The 2D viewer of a round, with the win-probability curve and the actions that weighed most",
       "priorities": "A session's priorities, each with the rounds it cost",

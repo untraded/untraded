@@ -10,7 +10,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { pickTone, TONE_COOKIE } from "@/i18n/locale";
 import { getMe, PUBLIC_API_PATH } from "@/lib/api";
 import { onboardingStep } from "@/lib/onboarding";
-import { discordUrl } from "@/lib/site";
+import { demoEnabled, discordUrl } from "@/lib/site";
 
 export default async function Home({
   searchParams,
@@ -62,5 +62,5 @@ export default async function Home({
       )}
     </>
   );
-  return <Landing status={status} discord={discord} />;
+  return <Landing status={status} discord={discord} demo={demoEnabled()} />;
 }

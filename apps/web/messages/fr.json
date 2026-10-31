@@ -1136,6 +1136,7 @@
     "lead": "Après chaque session, Untraded te donne 1 à 3 choses à travailler, chacune prouvée par les rounds où elle t'a coûté, puis mesure si ça s'améliore. Chaque chiffre a une formule publique.",
     "demo": "Voir la démo",
     "betaNote": "La démo est en lecture seule, sur des matchs anonymisés. La bêta est sur invitation.",
+    "betaOnly": "La bêta est sur invitation.",
     "shots": {
       "viewer": "Le viewer 2D d'un round, avec la courbe de probabilité de victoire et les actions qui ont le plus pesé",
       "priorities": "Les priorités d'une session, chacune avec les rounds où elle a coûté",
