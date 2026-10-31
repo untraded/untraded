@@ -30,7 +30,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /** The short names the lists use for the key figures (`matches`). */
 const NAMES: Record<(typeof KEY_FIGURES)[number], string> = {
-  "rating.hltv1": "rating",
+  "rating.untraded": "urating",
   "base.adr": "adr",
   "base.kast": "kast",
   "trade.untraded_deaths": "untraded",

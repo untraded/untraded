@@ -18,6 +18,14 @@ export function isDemoName(name: string): boolean {
   return DEMO_SUFFIXES.some((suffix) => lower.endsWith(suffix));
 }
 
+/** A FACEIT match id, as FACEIT names its demo files (`1-<uuid>-1-1.dem.zst`). */
+const FACEIT_ID = /1-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+
+/** The FACEIT match a demo file comes from, read from its name; `null` when it says none. */
+export function faceitMatchId(name: string): string | null {
+  return FACEIT_ID.exec(name)?.[0].toLowerCase() ?? null;
+}
+
 /** When the match started, guessed from when its file was written, never in the future. */
 export function guessPlayedAt(lastModified: number, now: number): Date {
   return new Date(Math.min(lastModified, now) - MATCH_MINUTES * 60_000);

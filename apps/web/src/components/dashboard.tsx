@@ -317,7 +317,7 @@ async function Recent({ items, locale }: { items: SessionSummary[]; locale: Loca
               </span>
               <span className="flex gap-4 text-[0.8125rem] text-muted-foreground">
                 {session.headlines
-                  .filter((c) => c.metric_id === "base.adr" || c.metric_id === "base.kast")
+                  .filter((c) => c.metric_id === "rating.untraded" || c.metric_id === "base.adr")
                   .map((c) => {
                     const moved = gapTrend(gap(c));
                     return (

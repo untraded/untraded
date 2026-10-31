@@ -78,7 +78,8 @@
       "premier": "Premier"
     },
     "date": "Début du match",
-    "dateHint": "Préremplie d'après le fichier. Elle range le match dans la bonne session : corrige-la si besoin.",
+    "dateHint": "Préremplie d'après le fichier : c'est souvent la date du téléchargement, pas celle du match. Elle range le match dans la bonne session : corrige-la si besoin.",
+    "dateFaceit": "Date reprise de FACEIT. Elle range le match dans la bonne session.",
     "send": "Envoyer",
     "cancel": "Annuler l'envoi",
     "progress": "Envoi : {sent} sur {total}",
@@ -468,11 +469,14 @@
     "kd": "K–D",
     "adr": "ADR",
     "kast": "KAST",
-    "rating": "Rating 1.0",
+    "rating": "HLTV 1.0",
     "untraded": "Morts non tradées",
     "status": "État",
     "older": "Matchs plus anciens",
-    "newer": "Matchs plus récents"
+    "newer": "Matchs plus récents",
+    "urating": "Untraded Rating",
+    "uratingShort": "UR",
+    "beta": "bêta"
   },
   "result": {
     "win": "Victoire",
@@ -526,7 +530,22 @@
     "kd": "K–D",
     "openings": "Duels d'ouverture gagnés",
     "ofTried": "{won} sur {tried}",
-    "sideMissing": "Le détail par côté n'est pas disponible pour ce match."
+    "sideMissing": "Le détail par côté n'est pas disponible pour ce match.",
+    "rating": {
+      "title": "Ton Untraded Rating",
+      "margin": "± {margin}",
+      "rounds": "sur {rounds} rounds",
+      "parts": {
+        "kills": "Kills",
+        "deaths": "Morts",
+        "plants": "Poses",
+        "defuses": "Désamorçages",
+        "baseline": "Base"
+      },
+      "hint": "Chaque action rapporte ou coûte des points de probabilité de victoire du round. La base ramène l'échelle à 1,00 pour le joueur moyen. La marge donne l'intervalle à 95 %.",
+      "formula": "Formule",
+      "none": "Pas encore d'Untraded Rating pour ce match : il a été analysé avant son arrivée."
+    }
   },
   "sessions": {
     "title": "Sessions",
@@ -1105,5 +1124,72 @@
       "seek": "{what}, à {time} : aller à ce moment",
       "none": "Pas de courbe de probabilité pour ce round : le modèle ne couvre pas sa fin."
     }
+  },
+  "demo": {
+    "banner": "Démo : données anonymisées, en lecture seule.",
+    "invite": "Demander une invitation",
+    "settings": "Dans la démo, le consentement, les codes et l'effacement sont désactivés : les données sont en lecture seule.",
+    "upload": "Dans la démo, l'envoi de démos est désactivé : les données sont en lecture seule. Avec une invitation, tu envoies tes démos FACEIT, ESEA et de scrims ici."
+  },
+  "landing": {
+    "title": "Le coach CS2 qui prouve ce qu'il dit.",
+    "lead": "Après chaque session, Untraded te donne 1 à 3 choses à travailler, chacune prouvée par les rounds où elle t'a coûté, puis mesure si ça s'améliore. Chaque chiffre a une formule publique.",
+    "demo": "Voir la démo",
+    "betaNote": "La démo est en lecture seule, sur des matchs anonymisés. La bêta est sur invitation.",
+    "shots": {
+      "viewer": "Le viewer 2D d'un round, avec la courbe de probabilité de victoire et les actions qui ont le plus pesé",
+      "priorities": "Les priorités d'une session, chacune avec les rounds où elle a coûté",
+      "rating": "Un Untraded Rating décomposé par action : kills, morts, poses, désamorçages"
+    },
+    "what": {
+      "title": "Ce que fait Untraded",
+      "priorities": "Des priorités prouvées par des rounds",
+      "prioritiesText": "Pas une liste de 80 chiffres : les 1 à 3 points qui te coûtent le plus de rounds, avec les rounds en question, la commande pour les revoir dans CS2 et des exercices.",
+      "rating": "Un rating que tu peux décomposer",
+      "ratingText": "L'Untraded Rating (bêta) mesure ce que chaque action a changé à la probabilité de gagner le round, avec sa marge. Tu vois d'où vient ta note.",
+      "viewer": "Chaque round rejoué en 2D",
+      "viewerText": "Sur nos propres radars, avec la courbe de probabilité de victoire sous la frise et les actions qui ont fait basculer le round.",
+      "formulas": "Des formules ouvertes",
+      "formulasText": "Chaque métrique a sa définition, ses paramètres, un exemple sur un vrai match, ses limites et son code. Rien de caché.",
+      "formulasLink": "Voir les formules"
+    },
+    "how": {
+      "title": "Comment ça marche",
+      "premier": "Premier, tout seul",
+      "premierText": "Tu donnes tes codes de partage Steam une fois : tes matchs Premier arrivent seuls après chaque partie.",
+      "upload": "FACEIT, ESEA et scrims",
+      "uploadText": "Tu envoies la démo depuis le site. Pour FACEIT, la date du match est reprise automatiquement.",
+      "session": "Après chaque session",
+      "sessionText": "Un rapport : tes priorités, les rounds à revoir, ton Untraded Rating et ta progression face à ta propre référence."
+    },
+    "data": {
+      "title": "Tes données",
+      "private": "Privées",
+      "privateText": "Tes matchs et tes rapports ne sont visibles que par toi.",
+      "erase": "Effaçables",
+      "eraseText": "Depuis les Réglages, tu supprimes ton compte et tes données, quand tu veux.",
+      "open": "Ouvertes",
+      "openText": "Le code est ouvert (AGPL) et chaque formule est publique. Tu peux aussi l'héberger toi-même."
+    },
+    "faq": {
+      "title": "Questions fréquentes",
+      "free": "C'est payant ?",
+      "freeAnswer": "La bêta est sur invitation et gratuite. Une version hébergée payante viendra plus tard ; le code restera ouvert.",
+      "modes": "Quels modes ?",
+      "modesAnswer": "Premier, FACEIT, ESEA et les scrims. Pas le Compétitif ni le Wingman.",
+      "faceit": "Comment ça marche avec FACEIT ?",
+      "faceitAnswer": "Tu télécharges la démo depuis la page du match FACEIT et tu l'envoies sur le site. La date du match est reprise de FACEIT.",
+      "cheat": "Est-ce que ça touche au jeu ?",
+      "cheatAnswer": "Non. Untraded ne lit que les démos, après coup. Il ne touche ni au jeu ni à ton ordinateur.",
+      "rating": "Comment est calculé l'Untraded Rating ?",
+      "ratingAnswer": "Un modèle ouvert estime la probabilité de gagner le round à chaque instant ; chaque kill, mort, pose ou désamorçage la fait bouger, et ces écarts font ta note, sur une échelle où 1,00 est le joueur moyen. La formule est publique.",
+      "selfhost": "Je peux l'héberger moi-même ?",
+      "selfhostAnswer": "Oui : tout le code est sur GitHub, avec un fichier Docker Compose et un guide."
+    },
+    "end": {
+      "title": "Essaie sur des vrais matchs",
+      "text": "La démo montre un compte complet, sans inscription : rapports, matchs, viewer, progression et formules."
+    },
+    "footer": "Untraded, analyseur et coach CS2 open source."
   }
 }

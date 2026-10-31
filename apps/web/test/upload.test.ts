@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { describe, expect, it } from "vitest";
 import {
+  faceitMatchId,
   fromLocalInput,
   guessPlayedAt,
   isDemoName,
@@ -17,6 +18,17 @@ describe("upload", () => {
     expect(isDemoName("scrim.dem.gz")).toBe(true);
     expect(isDemoName("demo.zip")).toBe(false);
     expect(isDemoName("notes.zst")).toBe(false);
+  });
+
+  it("reads the FACEIT match id from a file name", () => {
+    expect(faceitMatchId("1-0a1b2c3d-4e5f-6a7b-8c9d-0e1f2a3b4c5d-1-1.dem.zst")).toBe(
+      "1-0a1b2c3d-4e5f-6a7b-8c9d-0e1f2a3b4c5d",
+    );
+    expect(faceitMatchId("1-0A1B2C3D-4E5F-6A7B-8C9D-0E1F2A3B4C5D.dem")).toBe(
+      "1-0a1b2c3d-4e5f-6a7b-8c9d-0e1f2a3b4c5d",
+    );
+    expect(faceitMatchId("match730_003700.dem.bz2")).toBeNull();
+    expect(faceitMatchId("1-abc-de_mirage.dem.zst")).toBeNull();
   });
 
   it("guesses when the match started, never in the future", () => {

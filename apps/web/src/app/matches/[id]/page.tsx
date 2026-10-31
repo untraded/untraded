@@ -6,11 +6,19 @@ import { redirect } from "next/navigation";
 import { getLocale, getTimeZone, getTranslations } from "next-intl/server";
 import { MatchPriorities } from "@/components/match/match-priorities";
 import { MatchRounds } from "@/components/match/match-rounds";
+import { RatingCard } from "@/components/match/rating-card";
 import { SideSplit } from "@/components/match/side-split";
 import { TeamTable } from "@/components/match/team-table";
 import { ResultBadge } from "@/components/result-badge";
 import type { Locale } from "@/i18n/locale";
-import { findPlayerMetrics, findSession, findSessionOf, getMatch, getMe } from "@/lib/api";
+import {
+  findPlayerMetrics,
+  findRating,
+  findSession,
+  findSessionOf,
+  getMatch,
+  getMe,
+} from "@/lib/api";
 import { dateTime, mapName, shortDay } from "@/lib/format";
 import { minutes, prioritiesIn, roundsBySide } from "@/lib/match";
 
@@ -36,12 +44,13 @@ export default async function MatchPage({ params }: Params) {
   const played = match.players.some((p) => p.steam_id === me.steam_id);
 
   // The session and the player's metrics are extras: the page stands without them.
-  const [summary, metrics] = ready
+  const [summary, metrics, rating] = ready
     ? await Promise.all([
         findSessionOf(match.id, match.played_at),
         played ? findPlayerMetrics(match.id, me.steam_id) : null,
+        played ? findRating(match.id, me.steam_id) : null,
       ])
-    : [null, null];
+    : [null, null, null];
   const report = summary ? await findSession(summary.id) : null;
   const priorities = report ? prioritiesIn(report.advice, match.id) : [];
   const flagged = new Map<number, number>();
@@ -103,6 +112,7 @@ export default async function MatchPage({ params }: Params) {
                 }
               />
             )}
+            {played && <RatingCard rating={rating} locale={locale} />}
             {played && (
               <SideSplit
                 metrics={metrics?.metrics ?? null}

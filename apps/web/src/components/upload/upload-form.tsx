@@ -12,6 +12,7 @@ import { cn } from "@/lib/cn";
 import { bytes } from "@/lib/format";
 import {
   ACCEPT,
+  faceitMatchId,
   fromLocalInput,
   guessPlayedAt,
   isDemoName,
@@ -34,7 +35,10 @@ export interface UploadLabels {
   mode: string;
   modes: Record<Mode, string>;
   date: string;
+  /** The date comes from the file: when it was written, often the download. */
   dateHint: string;
+  /** The date comes from FACEIT, read from the match id in the file name. */
+  dateFaceit: string;
   send: string;
   cancel: string;
   /** With `{sent}` and `{total}`. */
@@ -75,6 +79,10 @@ export function UploadForm({
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
   const [mode, setMode] = useState<Mode>("faceit");
   const [date, setDate] = useState("");
+  /** Where the suggested date comes from: FACEIT when the file name gives its match. */
+  const [dateFrom, setDateFrom] = useState<"file" | "faceit">("file");
+  /** The file the FACEIT date is asked for: an answer for an earlier file is dropped. */
+  const asked = useRef<File | null>(null);
   const [dragging, setDragging] = useState(false);
 
   useEffect(() => {
@@ -92,7 +100,31 @@ export function UploadForm({
     if (!isDemoName(file.name)) return setPhase({ kind: "error", file: null, error: "not_a_demo" });
     if (file.size > maxBytes) return setPhase({ kind: "error", file: null, error: "too_large" });
     setDate(toLocalInput(guessPlayedAt(file.lastModified, Date.now())));
+    setDateFrom("file");
     setPhase({ kind: "chosen", file });
+    const match = faceitMatchId(file.name);
+    asked.current = match ? file : null;
+    if (match) {
+      setMode("faceit");
+      void faceitDate(file, match);
+    }
+  }
+
+  /** The start of a FACEIT match, from FACEIT: the file's own date is when it was downloaded. */
+  async function faceitDate(file: File, match: string) {
+    try {
+      const response = await fetch(
+        `${PUBLIC_API_PATH}/uploads/faceit/${encodeURIComponent(match)}`,
+      );
+      if (!response.ok) return;
+      const { played_at } = (await response.json()) as { played_at: string | null };
+      const start = played_at ? new Date(played_at) : null;
+      if (asked.current !== file || !start || Number.isNaN(start.getTime())) return;
+      setDate(toLocalInput(start));
+      setDateFrom("faceit");
+    } catch {
+      // FACEIT out of reach: the file's date stays, with its warning.
+    }
   }
 
   function send(file: File) {
@@ -257,12 +289,15 @@ export function UploadForm({
                 value={date}
                 disabled={sending}
                 aria-describedby={`${ids}-date-hint`}
-                onChange={(event) => setDate(event.target.value)}
+                onChange={(event) => {
+                  setDate(event.target.value);
+                  asked.current = null;
+                }}
                 className="h-8 rounded-md border border-input bg-card px-2 text-sm tabular-nums"
               />
             </div>
             <p id={`${ids}-date-hint`} className="max-w-sm text-xs text-muted-foreground">
-              {labels.dateHint}
+              {dateFrom === "faceit" ? labels.dateFaceit : labels.dateHint}
             </p>
           </div>
 

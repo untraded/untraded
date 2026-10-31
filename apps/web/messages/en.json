@@ -78,7 +78,8 @@
       "premier": "Premier"
     },
     "date": "Match start",
-    "dateHint": "Filled in from the file. It puts the match in the right session: correct it if needed.",
+    "dateHint": "Filled in from the file: often the download date, not the match's. It puts the match in the right session: fix it if needed.",
+    "dateFaceit": "Date taken from FACEIT. It puts the match in the right session.",
     "send": "Send",
     "cancel": "Cancel the upload",
     "progress": "Sending: {sent} of {total}",
@@ -468,11 +469,14 @@
     "kd": "K–D",
     "adr": "ADR",
     "kast": "KAST",
-    "rating": "Rating 1.0",
+    "rating": "HLTV 1.0",
     "untraded": "Untraded deaths",
     "status": "Status",
     "older": "Older matches",
-    "newer": "Newer matches"
+    "newer": "Newer matches",
+    "urating": "Untraded Rating",
+    "uratingShort": "UR",
+    "beta": "beta"
   },
   "result": {
     "win": "Win",
@@ -526,7 +530,22 @@
     "kd": "K–D",
     "openings": "Opening duels won",
     "ofTried": "{won} of {tried}",
-    "sideMissing": "The split by side is not available for this match."
+    "sideMissing": "The split by side is not available for this match.",
+    "rating": {
+      "title": "Your Untraded Rating",
+      "margin": "± {margin}",
+      "rounds": "over {rounds} rounds",
+      "parts": {
+        "kills": "Kills",
+        "deaths": "Deaths",
+        "plants": "Plants",
+        "defuses": "Defuses",
+        "baseline": "Baseline"
+      },
+      "hint": "Each action earns or costs points of round win probability. The baseline brings the scale to 1.00 for the average player. The margin gives the 95 % interval.",
+      "formula": "Formula",
+      "none": "No Untraded Rating for this match yet: it was analysed before the rating existed."
+    }
   },
   "sessions": {
     "title": "Sessions",
@@ -1105,5 +1124,72 @@
       "seek": "{what}, at {time}: go to this moment",
       "none": "No win-probability curve for this round: the model does not cover how it ended."
     }
+  },
+  "demo": {
+    "banner": "Demo: anonymized data, read-only.",
+    "invite": "Ask for an invitation",
+    "settings": "In the demo, consent, codes and erasure are off: the data is read-only.",
+    "upload": "In the demo, sending demos is off: the data is read-only. With an invitation, you send your FACEIT, ESEA and scrim demos here."
+  },
+  "landing": {
+    "title": "The CS2 coach that proves what it says.",
+    "lead": "After each session, Untraded gives you 1 to 3 things to work on, each proven by the rounds it cost you, then measures whether it improves. Every number has a public formula.",
+    "demo": "See the demo",
+    "betaNote": "The demo is read-only, on anonymized matches. The beta is invitation only.",
+    "shots": {
+      "viewer": "The 2D viewer of a round, with the win-probability curve and the actions that weighed most",
+      "priorities": "A session's priorities, each with the rounds it cost",
+      "rating": "An Untraded Rating broken down by action: kills, deaths, plants, defuses"
+    },
+    "what": {
+      "title": "What Untraded does",
+      "priorities": "Priorities proven by rounds",
+      "prioritiesText": "Not a list of 80 numbers: the 1 to 3 things that cost you the most rounds, with those rounds, the command to review them in CS2, and drills.",
+      "rating": "A rating you can break down",
+      "ratingText": "The Untraded Rating (beta) measures what each action changed in the chance of winning the round, with its margin. You see where your rating comes from.",
+      "viewer": "Every round replayed in 2D",
+      "viewerText": "On our own radars, with the win-probability curve under the timeline and the actions that swung the round.",
+      "formulas": "Open formulas",
+      "formulasText": "Every metric has its definition, parameters, an example on a real match, its limits and its code. Nothing hidden.",
+      "formulasLink": "See the formulas"
+    },
+    "how": {
+      "title": "How it works",
+      "premier": "Premier, on its own",
+      "premierText": "You give your Steam share codes once: your Premier matches arrive on their own after each game.",
+      "upload": "FACEIT, ESEA and scrims",
+      "uploadText": "You send the demo from the site. For FACEIT, the match date is picked up automatically.",
+      "session": "After each session",
+      "sessionText": "A report: your priorities, the rounds to review, your Untraded Rating and your progress against your own reference."
+    },
+    "data": {
+      "title": "Your data",
+      "private": "Private",
+      "privateText": "Your matches and reports are visible to you only.",
+      "erase": "Erasable",
+      "eraseText": "From the Settings, you delete your account and your data, whenever you want.",
+      "open": "Open",
+      "openText": "The code is open (AGPL) and every formula is public. You can also host it yourself."
+    },
+    "faq": {
+      "title": "Questions",
+      "free": "Does it cost anything?",
+      "freeAnswer": "The beta is invitation only and free. A paid hosted version will come later; the code stays open.",
+      "modes": "Which modes?",
+      "modesAnswer": "Premier, FACEIT, ESEA and scrims. Not Competitive nor Wingman.",
+      "faceit": "How does it work with FACEIT?",
+      "faceitAnswer": "You download the demo from the FACEIT match page and send it on the site. The match date is taken from FACEIT.",
+      "cheat": "Does it touch the game?",
+      "cheatAnswer": "No. Untraded only reads demos, afterwards. It touches neither the game nor your computer.",
+      "rating": "How is the Untraded Rating computed?",
+      "ratingAnswer": "An open model estimates the chance of winning the round at every moment; each kill, death, plant or defuse moves it, and those moves make your rating, on a scale where 1.00 is the average player. The formula is public.",
+      "selfhost": "Can I host it myself?",
+      "selfhostAnswer": "Yes: all the code is on GitHub, with a Docker Compose file and a guide."
+    },
+    "end": {
+      "title": "Try it on real matches",
+      "text": "The demo shows a full account, no sign-up: reports, matches, viewer, progress and formulas."
+    },
+    "footer": "Untraded, an open-source CS2 analyzer and coach."
   }
 }

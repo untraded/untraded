@@ -47,6 +47,12 @@ export async function SideSplit({
   const of = (w: number | null | undefined, n: number | null | undefined) =>
     t("ofTried", { won: number(w, locale), tried: number(n, locale) });
   rows.push({ name: t("openings"), ct: of(won.ct, tried.ct), t: of(won.t, tried.t) });
+  const urating = pair("rating.untraded");
+  rows.push({
+    name: m("urating"),
+    ct: number(urating.ct, locale, 2),
+    t: number(urating.t, locale, 2),
+  });
   const rating = pair("rating.hltv1");
   rows.push({
     name: m("rating"),
