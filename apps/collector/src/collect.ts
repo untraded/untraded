@@ -39,12 +39,12 @@ export interface SourceReport {
 /**
  * Whether the Game Coordinator's answer is about `matchId`: by its matchid, or, when the GC left
  * it out (null), by the demo URL, which names the match (`/730/<matchid>_<n>.dem.bz2`). An answer
- * with neither cannot be told apart, and is taken (it brings no demo).
+ * with neither cannot be told apart, and is taken.
  */
 export function answersMatch(info: MatchInfo, matchId: string): boolean {
   if (info.matchid != null) return String(info.matchid) === matchId;
-  const url = info.roundstatsall?.at(-1)?.map;
-  return !url || url.includes(`/${matchId}_`);
+  const named = info.roundstatsall?.at(-1)?.map?.match(/\/730\/(\d+)_\d+\.dem/)?.[1];
+  return named === undefined || named === matchId;
 }
 
 /** What the Game Coordinator tells about a match. Throws if it answered about another one. */
