@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 //
 // The app's sections: where they live and which pages belong to them. Only sections whose page
-// exists are listed; Import joins when it is built. Admin shows to admins only
-// (`me.admin`).
+// exists are listed; Import joins when it is built. Admin and the team mode
+// preview show to admins only (`me.admin`).
 
 import {
   CalendarDays,
@@ -15,6 +15,7 @@ import {
   SlidersHorizontal,
   TrendingUp,
   Upload,
+  Users,
 } from "lucide-react";
 
 export type Section =
@@ -24,6 +25,7 @@ export type Section =
   | "progress"
   | "upload"
   | "formulas"
+  | "team"
   | "admin"
   | "settings";
 
@@ -34,6 +36,7 @@ export const SECTIONS: Record<Section, { href: string; icon: LucideIcon }> = {
   progress: { href: "/progress", icon: TrendingUp },
   upload: { href: "/upload", icon: Upload },
   formulas: { href: "/formulas", icon: Sigma },
+  team: { href: "/team", icon: Users },
   admin: { href: "/admin", icon: ShieldCheck },
   settings: { href: "/settings", icon: SlidersHorizontal },
 };
@@ -47,6 +50,7 @@ export function sectionOf(pathname: string): Section | null {
     "progress",
     "upload",
     "formulas",
+    "team",
     "admin",
     "settings",
   ] as const) {
