@@ -25,6 +25,7 @@ and trusts the reverse proxy's `X-Forwarded-*` headers.
 | `UNTRADED_SESSION_DAYS` | `30` | how long a sign-in lasts |
 | `UNTRADED_ADMIN_STEAM_IDS` | unset (no admin) | SteamID64s of the admins, comma-separated: only they reach the `/admin` routes (403 otherwise) |
 | `UNTRADED_DEMO_STEAM_ID` | unset (no demo) | the demo account loaded by `untraded-worker import-demo` (`76561190000100001`): `/auth/demo` opens it to anyone, read-only. A real SteamID64 is refused at start |
+| `FACEIT_API_KEY` | unset | a FACEIT Data API key (server side): a FACEIT demo sent takes the date of its match, read from its file name (`1-<uuid>…`); unset, the date the player gives stays |
 | `UNTRADED_CONSENT_VERSION` | `2` | the version of the consent text the site shows: a player agrees to this one, and again when it changes |
 | `UNTRADED_SECRET_KEY` | unset | the collector's key (32 bytes, base64): encrypts the authentication code a player gives on the site. Unset, players cannot give their codes (503) |
 | `STEAM_WEB_API_KEY` | unset | checks a player's codes with Steam before keeping them; unset, they are kept unchecked |
@@ -58,6 +59,7 @@ and trusts the reverse proxy's `X-Forwarded-*` headers.
 | `GET /sessions/{id}` | a session's report: its reference (own days, level or none), matches, up to three priorities with their evidence, the previous priorities' indicators since (follow-up), and every metric against the reference |
 | `POST /advice/{id}/feedback` | useful (`{"vote": 1}`), not useful (`-1`) or take the vote back (`0`) on one of the user's priorities |
 | `POST /uploads?name=&mode=&played_at=` | a demo the player sends, as the request body (`.dem`, `.dem.bz2`, `.dem.gz` or `.dem.zst`), streamed to the uploads directory and checked as it arrives. `mode` is `faceit`, `esea` or `scrim`; the worker recognises a demo from Valve's servers as Premier whatever the choice. 202 with its id, then the worker's `ingest_upload`. Refusals name their reason: `not_a_demo` (422), `too_large` (413), `disk_full` (507), `consent` (409), `quota` or `busy` (429); 503 when uploads are off |
+| `GET /uploads/faceit/{match_id}` | when a FACEIT match started (`played_at`, null when FACEIT cannot say or no key is set), for the upload form |
 | `GET /uploads` | the player's uploads of the last 30 days, newest first (`processing`, `ready`, `refused` or `failed`, with the reason), the largest file accepted, and why a new one would be refused, if it would |
 | `GET /admin/players` | every player, newest first, with their state (`invited`, `joined`, `consented`, `followed`, `paused`, `withdrawn`), consent, source and matches |
 | `POST /admin/invitations` | invites a Steam account (`steam_id`, `display_name`): its first sign-in creates the user |
