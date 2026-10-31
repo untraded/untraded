@@ -113,6 +113,8 @@ def test_a_visitor_leaves_the_demo_to_ask_for_an_invitation(
         opened = db.execute("SELECT count(*) FROM auth_session").fetchone()
         refused = visitor.get("/auth/steam/callback", params=steam_answer(PLAYER))
         assert refused.headers["location"] == "http://web/?signin=not_invited"
+        cookies = refused.headers.get_list("set-cookie")
+        assert any(c.startswith(f"{COOKIE}=") and "Max-Age=0" in c for c in cookies)
         assert visitor.get("/me").status_code == 401  # the request form shows, not the demo
     closed = db.execute("SELECT count(*) FROM auth_session").fetchone()
     assert opened is not None
