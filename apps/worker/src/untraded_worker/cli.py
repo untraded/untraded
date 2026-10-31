@@ -42,7 +42,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     run = actions.add_parser("run", help="process jobs until stopped")
     run.add_argument("--kinds", help="comma-separated job kinds (default: all)")
     run.add_argument("--once", action="store_true", help="stop when no job is ready")
-    run.add_argument("--name", help="worker name recorded on its jobs (default: host name)")
+    run.add_argument(
+        "--name",
+        help="worker name recorded on its jobs, unique per worker: a worker that starts takes back "
+        "the jobs left running under its name (default: host name)",
+    )
     again = actions.add_parser("replays", help="write the round replays of parsed matches")
     again.add_argument("--force", action="store_true", help="rewrite existing replays too")
     swing = actions.add_parser("swings", help="write the swing table of parsed matches")

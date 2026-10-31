@@ -92,12 +92,13 @@ def test_a_failed_job_comes_back_later_then_dies(conn: psycopg.Connection[Any]) 
 
 
 @pytest.mark.db
-def test_abandoned_jobs_are_requeued(conn: psycopg.Connection[Any]) -> None:
+def test_abandoned_jobs_are_found(conn: psycopg.Connection[Any]) -> None:
     old = queue.enqueue(conn, "parse")
     recent = queue.enqueue(conn, "parse")
     for _ in range(2):
         assert queue.claim(conn, ["parse"], "w1") is not None
     conn.execute("UPDATE job SET locked_at = now() - interval '1 hour' WHERE id = %s", (old,))
-    assert queue.requeue_stale(conn) == 1
-    assert _status(conn, old)[:4] == ("queued", 1, None, "abandoned by its worker")
-    assert _status(conn, recent)[0] == "running"
+    with conn.transaction():
+        assert [j.id for j in queue.abandoned(conn)] == [old]  # gone for 30 minutes
+        assert [j.id for j in queue.abandoned(conn, worker="w1")] == [old, recent]
+        assert queue.abandoned(conn, worker="w2") == []

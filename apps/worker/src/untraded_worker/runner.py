@@ -3,11 +3,12 @@
 """The worker loop: claim a job, run its handler, record the outcome, wait for the next one.
 
 The claim commits on its own: the job is `running` and the attempt counts, even if the worker
-dies during the job (it is then put back in the queue after `queue.STALE_AFTER`, and ends `dead`
-once its attempts are used up, instead of crashing workers forever). The handler's writes and
-the job's completion then commit together; a failure rolls them back and is recorded. Between
-jobs, the worker sleeps on `LISTEN job_<kind>` (the queue's insert trigger, ADR 0004), with a
-timeout as a fallback.
+dies during the job: it counts as a failed attempt (with its backoff) when the worker starts
+again, or after `queue.STALE_AFTER` for any worker, which looks every `queue.STALE_EVERY`; it
+ends `dead` once its attempts are used up, instead of crashing workers forever. The handler's
+writes and the job's completion then commit together; a failure rolls them back and is
+recorded. Between jobs, the worker sleeps on `LISTEN job_<kind>` (the queue's insert trigger,
+ADR 0004), with a timeout as a fallback.
 """
 
 from __future__ import annotations
@@ -62,6 +63,7 @@ class Worker:
     name: str = field(default_factory=socket.gethostname)
     poll_seconds: float = POLL_SECONDS
     stopping: bool = False
+    recovered_at: float = field(default_factory=time.monotonic)
 
     def run(self, *, once: bool = False) -> int:
         """Processes jobs until stopped (SIGINT, SIGTERM); with `once`, until no job is ready.
@@ -81,9 +83,11 @@ class Worker:
         ):
             for kind in self.handlers:
                 listener.execute(sql.SQL("LISTEN {}").format(sql.Identifier(f"job_{kind}")))
-            stale = queue.requeue_stale(conn)
-            if stale:
-                log.warning("%s abandoned job(s) put back in the queue", stale)
+            for mine in (True, False):
+                try:
+                    self.recover(conn, mine=mine)
+                except Exception:  # a failing dead handler must not stop the worker for good
+                    log.exception("taking back abandoned jobs failed")
             while not self.stopping:
                 if self.step(conn):
                     processed += 1
@@ -95,8 +99,28 @@ class Worker:
                     pass
         return processed
 
+    def recover(self, conn: psycopg.Connection[Any], *, mine: bool) -> int:
+        """Records the jobs abandoned by this worker (`mine`, as it starts: they were cut by its
+        restart) or by a worker that is gone as failed attempts; returns how many."""
+        error = "cut by a restart of its worker" if mine else "abandoned by its worker"
+        with conn.transaction():
+            jobs = queue.abandoned(conn, worker=self.name if mine else None)
+            for job in jobs:
+                if queue.fail(conn, job, error) and job.kind in self.on_dead:
+                    self.on_dead[job.kind](conn, job, error)
+        if jobs:
+            log.warning("%s abandoned job(s): %s", len(jobs), error)
+        return len(jobs)
+
     def idle(self, conn: psycopg.Connection[Any]) -> None:
         """Runs the periodic tasks that are due; a failing one is logged, not fatal."""
+        now = time.monotonic()
+        if now - self.recovered_at >= queue.STALE_EVERY.total_seconds():
+            self.recovered_at = now
+            try:
+                self.recover(conn, mine=False)
+            except Exception:
+                log.exception("looking for abandoned jobs failed")
         for task in self.periodic:
             now = time.monotonic()
             if not task.due(now):
