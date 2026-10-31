@@ -40,6 +40,14 @@ def test_sign_in_goes_to_steam_with_our_callback(client: TestClient) -> None:
     assert "openid.realm=https%3A%2F%2Fapp.example%2F" in location
 
 
+def test_over_https_the_sign_in_cookie_is_host_only(client: TestClient) -> None:
+    cookie = client.get("/auth/steam").headers["set-cookie"]
+    assert cookie.startswith("__Host-untraded_signin=")
+    assert "Secure" in cookie
+    assert "Path=/" in cookie
+    assert "Domain" not in cookie
+
+
 def test_a_refused_answer_goes_back_to_the_web(client: TestClient) -> None:
     response = client.get("/auth/steam/callback", params={"openid.mode": "cancel"})
     assert response.headers["location"] == "https://app.example/?signin=failed"

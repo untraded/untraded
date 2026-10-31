@@ -16,9 +16,10 @@ import psycopg
 import pytest
 from fastapi.testclient import TestClient
 from helpers import add_user
-from test_app import steam_answer
+from test_app import STATE, steam_answer
 
 from untraded_api.app import COOKIE, create_app
+from untraded_api.auth import SIGNIN_COOKIE
 from untraded_api.settings import Settings
 
 URL = os.environ.get("UNTRADED_TEST_DATABASE_URL", "").replace(
@@ -111,6 +112,7 @@ def test_a_visitor_leaves_the_demo_to_ask_for_an_invitation(
         visitor.get("/auth/demo")
         assert visitor.get("/me").json()["demo"] is True
         opened = db.execute("SELECT count(*) FROM auth_session").fetchone()
+        visitor.cookies.set(SIGNIN_COOKIE, STATE)
         refused = visitor.get("/auth/steam/callback", params=steam_answer(PLAYER))
         assert refused.headers["location"] == "http://web/?signin=not_invited"
         cookies = refused.headers.get_list("set-cookie")
