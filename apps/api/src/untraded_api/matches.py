@@ -165,7 +165,7 @@ def summary_fields(row: tuple[Any, ...]) -> dict[str, Any]:
         "rounds_played": rounds,
         "my_team": team,
         "my_result": _result(team, score_a, score_b) if status_ == "ready" else None,
-        "my_line": _line(row[11:17]) if has_line else None,
+        "my_line": _line(row[11:18]) if has_line else None,
     }
 
 
@@ -246,7 +246,7 @@ def get_match(match_id: uuid.UUID, conn: ConnDep, user: UserDep) -> MatchDetail:
                 team=p[2],
                 rank=p[3],
                 rounds_on_team=p[4],
-                line=_line(p[5:11]),
+                line=_line(p[5:12]),
             )
             for p in players
         ],
