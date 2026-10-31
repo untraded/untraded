@@ -5,15 +5,18 @@ nothing. Against PostgreSQL with the migrations applied (UNTRADED_TEST_DATABASE_
 
 from __future__ import annotations
 
+import dataclasses
 import os
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
+import httpx
 import psycopg
 import pytest
 from fastapi.testclient import TestClient
 from helpers import add_user
+from test_app import steam_answer
 
 from untraded_api.app import COOKIE, create_app
 from untraded_api.settings import Settings
@@ -36,7 +39,11 @@ def db() -> Iterator[psycopg.Connection[Any]]:
 
 
 def app(tmp_path: Path, demo: int | None = DEMO) -> TestClient:
-    settings = Settings(
+    return TestClient(create_app(app_settings(tmp_path, demo)), follow_redirects=False)
+
+
+def app_settings(tmp_path: Path, demo: int | None = DEMO) -> Settings:
+    return Settings(
         database_url=URL,
         public_url="http://testserver",
         web_url="http://web",
@@ -45,7 +52,6 @@ def app(tmp_path: Path, demo: int | None = DEMO) -> TestClient:
         demo_steam_id=demo,
         uploads_dir=str(tmp_path),
     )
-    return TestClient(create_app(settings), follow_redirects=False)
 
 
 def test_anyone_opens_the_demo_read_only(db: psycopg.Connection[Any], tmp_path: Path) -> None:
@@ -73,6 +79,44 @@ def test_anyone_opens_the_demo_read_only(db: psycopg.Connection[Any], tmp_path: 
     assert db.execute(
         "SELECT deleted_at FROM app_user WHERE steam_id = %s", (DEMO,)
     ).fetchone() == (None,)
+
+
+def test_the_demo_does_not_ask_faceit(db: psycopg.Connection[Any], tmp_path: Path) -> None:
+    add_user(db, DEMO)
+    asked: list[httpx.Request] = []
+
+    def answer(request: httpx.Request) -> httpx.Response:
+        asked.append(request)
+        return httpx.Response(200, json={"started_at": 1761000000})
+
+    settings = dataclasses.replace(app_settings(tmp_path), faceit_api_key="key")
+    client = httpx.Client(transport=httpx.MockTransport(answer))
+    with TestClient(create_app(settings, steam_client=client), follow_redirects=False) as demo:
+        demo.get("/auth/demo")
+        found = demo.get("/uploads/faceit/1-0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d")
+    assert found.json() == {"played_at": None}
+    assert asked == []  # the server's key is not spent for an anonymous visitor
+
+
+def test_a_visitor_leaves_the_demo_to_ask_for_an_invitation(
+    db: psycopg.Connection[Any], tmp_path: Path
+) -> None:
+    add_user(db, DEMO)
+    steam = httpx.Client(
+        transport=httpx.MockTransport(lambda _: httpx.Response(200, text="is_valid:true\n"))
+    )
+    with TestClient(
+        create_app(app_settings(tmp_path), steam_client=steam), follow_redirects=False
+    ) as visitor:
+        visitor.get("/auth/demo")
+        assert visitor.get("/me").json()["demo"] is True
+        opened = db.execute("SELECT count(*) FROM auth_session").fetchone()
+        refused = visitor.get("/auth/steam/callback", params=steam_answer(PLAYER))
+        assert refused.headers["location"] == "http://web/?signin=not_invited"
+        assert visitor.get("/me").status_code == 401  # the request form shows, not the demo
+    closed = db.execute("SELECT count(*) FROM auth_session").fetchone()
+    assert opened is not None
+    assert closed == (opened[0] - 1,)
 
 
 def test_a_player_still_writes(db: psycopg.Connection[Any], tmp_path: Path) -> None:

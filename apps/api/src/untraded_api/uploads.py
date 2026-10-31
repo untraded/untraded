@@ -30,7 +30,7 @@ from starlette.requests import ClientDisconnect
 
 from untraded_api import faceit
 from untraded_api.db import Database
-from untraded_api.deps import ConnDep, DatabaseDep, SettingsDep, UserDep
+from untraded_api.deps import ConnDep, DatabaseDep, SettingsDep, UserDep, is_demo
 from untraded_api.settings import Settings
 
 router = APIRouter(prefix="/uploads", tags=["uploads"])
@@ -124,12 +124,15 @@ class FaceitDate(BaseModel):
 
 @router.get("/faceit/{faceit_id}")
 def faceit_date(
-    faceit_id: str, request: Request, user: UserDep, settings: SettingsDep
+    faceit_id: str, request: Request, db: DatabaseDep, user: UserDep, settings: SettingsDep
 ) -> FaceitDate:
     """When a FACEIT match was played, for the upload form to fill in (the id is in the demo's
-    file name). The upload itself takes the same date."""
+    file name). The upload itself takes the same date. Not for the public demo: anyone opens
+    it without signing in, and the server's key is not theirs to spend."""
     found = faceit.match_id(faceit_id)
     if not settings.faceit_api_key or found is None or len(found) != len(faceit_id):
+        return FaceitDate(played_at=None)
+    if is_demo(db, settings, user):
         return FaceitDate(played_at=None)
     client: httpx.Client = request.app.state.steam_client
     return FaceitDate(played_at=faceit.started_at(client, settings.faceit_api_key, found))
