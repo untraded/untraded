@@ -35,6 +35,7 @@ from untraded_api.deps import (
     SettingsDep,
     UserDep,
     current_user,
+    is_demo,
     token_hash,
 )
 from untraded_api.settings import Settings
@@ -139,6 +140,15 @@ def sign_in_callback(request: Request, db: DatabaseDep, settings: SettingsDep) -
             samesite="lax",
             path="/",
         )
+        # From the public demo, a visitor not invited yet signs in to ask for an invitation: the
+        # demo's session ends, or the web would show the demo again instead of the request form.
+        user = current_user(request, db)
+        if user is not None and is_demo(db, settings, user):
+            with db.transaction(None) as conn:
+                conn.execute(
+                    "SELECT close_auth_session(%s)", (token_hash(request.cookies[COOKIE]),)
+                )
+            refused.delete_cookie(COOKIE, path="/", secure=settings.cookie_secure, httponly=True)
         return refused
     response = back_to_web(settings)
     response.set_cookie(

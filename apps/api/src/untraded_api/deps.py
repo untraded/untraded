@@ -95,7 +95,14 @@ def refuse_demo_writes(
         return
     if request.url.path in DEMO_MAY_POST or user is None:
         return
+    if is_demo(db, settings, user):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "demo")
+
+
+def is_demo(db: Database, settings: Settings, user: uuid.UUID) -> bool:
+    """Whether `user` is the public demo account."""
+    if settings.demo_steam_id is None:
+        return False
     with db.transaction(user) as conn:
         row = conn.execute("SELECT steam_id FROM app_user WHERE id = %s", (user,)).fetchone()
-    if row is not None and row[0] == settings.demo_steam_id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "demo")
+    return row is not None and row[0] == settings.demo_steam_id
