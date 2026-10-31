@@ -33,6 +33,10 @@ describe("onboardingStep", () => {
     expect(onboardingStep({ ...me, source: null, can_add_source: false })).toBe("operator");
   });
 
+  it("asks nothing of the public demo, which can give nothing", () => {
+    expect(onboardingStep({ ...me, demo: true, consent: null, source: null })).toBeNull();
+  });
+
   it("has nothing left once the player is followed, even with an error to fix", () => {
     expect(onboardingStep(me)).toBeNull();
     const error = { enabled: true, last_success_at: null, last_error: "403" };
