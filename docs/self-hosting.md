@@ -66,6 +66,7 @@ stack variables.
 | `UNTRADED_SITE_URL` | for the site | the site's address as browsers see it, e.g. `https://untraded.example.com` (default `http://localhost:3000`). Steam sends users back there after signing in, `https` makes the session cookie `Secure`, and the share image of links is served from it |
 | `UNTRADED_BIND`, `UNTRADED_WEB_PORT`, `UNTRADED_API_PORT` | no | where the web and the API are published for the reverse proxy (`127.0.0.1`, ports 3000 and 8000); `172.17.0.1` lets a reverse proxy running in Docker reach them |
 | `UNTRADED_UPLOAD_MAX_MB`, `UNTRADED_UPLOAD_MAX_DEMO_GB` | no | the largest demo a player may send from the site (400 MB), and once decompressed (1.5 GB) |
+| `UNTRADED_PARSE_TIMEOUT_SECONDS`, `UNTRADED_WORKER_MEMORY` | no | a parse still running after 600 s is stopped; the worker's memory limit (`6g`): a demo that eats all the memory kills its parse, not the database |
 | `UNTRADED_UPLOADS_PER_DAY`, `UNTRADED_UPLOADS_IN_FLIGHT` | no | uploads per player in 24 hours (20) and still being analysed (3); `0` lifts a limit |
 | `UNTRADED_UPLOAD_MIN_FREE_GB` | no | uploads are refused while the disk has less free space (5) |
 | `UNTRADED_DISCORD_URL` | no | an invitation link to your Discord server (`https://discord.gg/...`), shown on the sign-in page, next to the invitation request |
