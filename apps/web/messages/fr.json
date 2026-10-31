@@ -3,7 +3,7 @@
     "team": "Équipe",
     "progress": "Progression",
     "upload": "Envoyer une démo",
-    "formulas": "Formules",
+    "formulas": "Comment c'est calculé",
     "matches": "Matchs",
     "signOut": "Se déconnecter",
     "language": "Langue",
@@ -12,11 +12,11 @@
     "more": "Plus",
     "collapse": "Replier la barre",
     "expand": "Déplier la barre",
-    "workspace": "Espace : {name}, perso",
-    "personal": "Perso",
     "main": "Navigation principale",
     "home": "Accueil",
-    "admin": "Admin"
+    "admin": "Admin",
+    "account": "Compte : {name}",
+    "preview": "Aperçu"
   },
   "dashboard": {
     "title": "Accueil",
@@ -312,7 +312,8 @@
       },
       "hiddenExec": "Exec réservé ({n})"
     },
-    "loading": "Chargement de l'aperçu"
+    "loading": "Chargement de l'aperçu",
+    "badge": "Aperçu"
   },
   "settings": {
     "title": "Réglages",
@@ -390,7 +391,7 @@
     "discordLink": "Rejoindre le Discord"
   },
   "formulas": {
-    "title": "Formules",
+    "title": "Comment c'est calculé",
     "lead": "Chaque chiffre d'Untraded vient d'une formule publique : sa définition, ses paramètres, un exemple sur un vrai match, ses limites et son code. Une formule qui change change de version.",
     "source": "Ces fiches sont les pages docs/metrics du dépôt public, générées depuis le code des métriques.",
     "search": "Chercher une métrique",
@@ -1129,7 +1130,9 @@
     "banner": "Démo : données anonymisées, en lecture seule.",
     "invite": "Demander une invitation",
     "settings": "Dans la démo, le consentement, les codes et l'effacement sont désactivés : les données sont en lecture seule.",
-    "upload": "Dans la démo, l'envoi de démos est désactivé : les données sont en lecture seule. Avec une invitation, tu envoies tes démos FACEIT, ESEA et de scrims ici."
+    "uploadPreview": "Disponible une fois inscrit.",
+    "uploadText": "Avec un compte, tu envoies ici tes démos FACEIT, ESEA et de scrims ; elles sont analysées comme tes matchs Premier.",
+    "uploadAvailable": "Disponible une fois inscrit"
   },
   "landing": {
     "title": "Le coach CS2 qui prouve ce qu'il dit.",

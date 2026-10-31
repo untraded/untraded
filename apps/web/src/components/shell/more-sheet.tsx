@@ -8,6 +8,7 @@ import { useState, useTransition } from "react";
 import { signOut } from "@/app/actions";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { SECTIONS } from "./nav";
+import { PreviewBadge } from "./preview-badge";
 
 /** The phone's fourth tab: a panel with what does not fit in the tab bar. */
 export function MoreSheet({
@@ -18,12 +19,12 @@ export function MoreSheet({
     more: string;
     settings: string;
     progress: string;
-    /** Null for the read-only demo: no entry then. */
-    upload: string | null;
+    upload: string;
     formulas: string;
     admin: string | null;
-    /** The team mode preview, admins only too. */
+    /** The team mode preview, admins only too, with its badge. */
     team: string | null;
+    preview: string;
     signOut: string;
   };
 }) {
@@ -54,32 +55,32 @@ export function MoreSheet({
           <Trend aria-hidden="true" />
           {labels.progress}
         </Link>
-        {labels.upload && (
-          <Link href={SECTIONS.upload.href} className={row} onClick={() => setOpen(false)}>
-            <Send aria-hidden="true" />
-            {labels.upload}
-          </Link>
-        )}
-        <Link href={SECTIONS.formulas.href} className={row} onClick={() => setOpen(false)}>
-          <Formulas aria-hidden="true" />
-          {labels.formulas}
+        <Link href={SECTIONS.upload.href} className={row} onClick={() => setOpen(false)}>
+          <Send aria-hidden="true" />
+          {labels.upload}
         </Link>
         {labels.team && (
           <Link href={SECTIONS.team.href} className={row} onClick={() => setOpen(false)}>
             <Team aria-hidden="true" />
             {labels.team}
+            <PreviewBadge label={labels.preview} />
           </Link>
         )}
+        <div aria-hidden="true" className="mx-3 my-1 border-t border-border" />
+        <Link href={SECTIONS.formulas.href} className={row} onClick={() => setOpen(false)}>
+          <Formulas aria-hidden="true" />
+          {labels.formulas}
+        </Link>
+        <Link href={SECTIONS.settings.href} className={row} onClick={() => setOpen(false)}>
+          <Settings aria-hidden="true" />
+          {labels.settings}
+        </Link>
         {labels.admin && (
           <Link href={SECTIONS.admin.href} className={row} onClick={() => setOpen(false)}>
             <Admin aria-hidden="true" />
             {labels.admin}
           </Link>
         )}
-        <Link href={SECTIONS.settings.href} className={row} onClick={() => setOpen(false)}>
-          <Settings aria-hidden="true" />
-          {labels.settings}
-        </Link>
         <button type="button" className={row} onClick={() => startTransition(() => signOut())}>
           <LogOut aria-hidden="true" />
           {labels.signOut}

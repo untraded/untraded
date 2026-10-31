@@ -8,6 +8,7 @@ import { RefreshWhile } from "@/components/upload/refresh-while";
 import { UploadForm } from "@/components/upload/upload-form";
 import type { Locale } from "@/i18n/locale";
 import { getMe, getUploads, type UploadLine } from "@/lib/api";
+import { PUBLIC_API_PATH } from "@/lib/api-path";
 import { cn } from "@/lib/cn";
 import { bytes, dateTime, mapName } from "@/lib/format";
 
@@ -36,30 +37,77 @@ const SEND_ERRORS = [
 export default async function UploadPage() {
   const [list, me] = await Promise.all([getUploads(), getMe()]);
   if (!list) redirect("/");
-  if (me?.demo) {
-    const t = await getTranslations("upload");
-    const demo = await getTranslations("demo");
-    return (
-      <section className="flex max-w-3xl flex-col gap-5">
-        <h1 className="text-2xl font-semibold md:text-[1.75rem]">{t("title")}</h1>
-        <p className="rounded-md border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
-          {demo("upload")}
-        </p>
-      </section>
-    );
-  }
   const t = await getTranslations("upload");
   const locale = (await getLocale()) as Locale;
   const max = bytes(list.max_bytes, locale, 1024);
   const refusal = list.refusal;
   const processing = list.items.some((item) => item.state === "processing");
+  const header = (
+    <header className="flex flex-col gap-1.5">
+      <h1 className="text-2xl font-semibold md:text-[1.75rem]">{t("title")}</h1>
+      <p className="max-w-prose text-sm text-muted-foreground">{t("lead")}</p>
+    </header>
+  );
+  const form = (disabled: boolean) => (
+    <UploadForm
+      maxBytes={list.max_bytes}
+      disabled={disabled}
+      locale={locale}
+      labels={{
+        dropTitle: t("dropTitle"),
+        dropHint: t("dropHint", { max }),
+        choose: t("choose"),
+        remove: t("remove"),
+        file: t("file"),
+        mode: t("mode"),
+        modes: { faceit: t("modes.faceit"), esea: t("modes.esea"), scrim: t("modes.scrim") },
+        date: t("date"),
+        dateHint: t("dateHint"),
+        dateFaceit: t("dateFaceit"),
+        send: t("send"),
+        cancel: t("cancel"),
+        progress: t.raw("progress") as string,
+        done: t("done"),
+        aborted: t("aborted"),
+        errors: Object.fromEntries(
+          SEND_ERRORS.map((key) => [
+            key,
+            key === "too_large" ? t("errors.too_large", { max }) : t(`errors.${key}`),
+          ]),
+        ) as Record<(typeof SEND_ERRORS)[number], string>,
+      }}
+    />
+  );
+
+  // The read-only demo: the page as an account has it, disabled, so the feature can be found.
+  if (me?.demo) {
+    const demo = await getTranslations("demo");
+    return (
+      <section className="flex max-w-3xl flex-col gap-5">
+        {header}
+        <div
+          role="note"
+          className="rounded-md border border-dashed border-border bg-card px-3.5 py-2.5 text-sm"
+        >
+          <p className="font-semibold">{demo("uploadPreview")}</p>
+          <p className="text-muted-foreground">
+            {demo("uploadText")}{" "}
+            <a
+              href={`${PUBLIC_API_PATH}/auth/steam`}
+              className="text-link underline underline-offset-3"
+            >
+              {demo("invite")}
+            </a>
+          </p>
+        </div>
+        {form(true)}
+      </section>
+    );
+  }
 
   return (
     <section className="flex max-w-3xl flex-col gap-5">
-      <header className="flex flex-col gap-1.5">
-        <h1 className="text-2xl font-semibold md:text-[1.75rem]">{t("title")}</h1>
-        <p className="max-w-prose text-sm text-muted-foreground">{t("lead")}</p>
-      </header>
+      {header}
 
       {refusal && (
         <div
@@ -78,34 +126,7 @@ export default async function UploadPage() {
         </div>
       )}
 
-      <UploadForm
-        maxBytes={list.max_bytes}
-        disabled={refusal !== null}
-        locale={locale}
-        labels={{
-          dropTitle: t("dropTitle"),
-          dropHint: t("dropHint", { max }),
-          choose: t("choose"),
-          remove: t("remove"),
-          file: t("file"),
-          mode: t("mode"),
-          modes: { faceit: t("modes.faceit"), esea: t("modes.esea"), scrim: t("modes.scrim") },
-          date: t("date"),
-          dateHint: t("dateHint"),
-          dateFaceit: t("dateFaceit"),
-          send: t("send"),
-          cancel: t("cancel"),
-          progress: t.raw("progress") as string,
-          done: t("done"),
-          aborted: t("aborted"),
-          errors: Object.fromEntries(
-            SEND_ERRORS.map((key) => [
-              key,
-              key === "too_large" ? t("errors.too_large", { max }) : t(`errors.${key}`),
-            ]),
-          ) as Record<(typeof SEND_ERRORS)[number], string>,
-        }}
-      />
+      {form(refusal !== null)}
 
       <section aria-labelledby="uploads" className="flex flex-col gap-2">
         <h2

@@ -3,6 +3,7 @@
 "use client";
 
 import { ChevronsUpDown, LogOut } from "lucide-react";
+import Link from "next/link";
 import { useTransition } from "react";
 import { signOut } from "@/app/actions";
 import {
@@ -11,23 +12,25 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { SIDEBAR_LABEL } from "./nav";
+import { SECTIONS, SIDEBAR_LABEL } from "./nav";
 
-/** The workspace at the top of the sidebar: the player's own today, their teams later. */
+/** The account at the top of the sidebar: who is signed in, the settings, signing out. A team
+ * workspace switch belongs here once teams exist. */
 export function AccountMenu({
   name,
   labels,
 }: {
   name: string;
-  /** `workspace` is the trigger's accessible name, e.g. "Workspace: name, personal". */
-  labels: { workspace: string; personal: string; signOut: string };
+  /** `account` is the trigger's accessible name, e.g. "Account: name". */
+  labels: { account: string; settings: string; signOut: string };
 }) {
   const [, startTransition] = useTransition();
+  const Settings = SECTIONS.settings.icon;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        aria-label={labels.workspace}
-        className="flex w-full items-center gap-2.5 rounded-md border border-border p-1.5 text-left hover:bg-muted lg:group-data-[collapsed=true]/shell:border-transparent max-lg:border-transparent max-lg:justify-center lg:group-data-[collapsed=true]/shell:justify-center"
+        aria-label={labels.account}
+        className="flex w-full items-center gap-2.5 rounded-md border border-border p-1.5 text-left hover:bg-muted md:group-data-[collapsed=true]/shell:border-transparent md:group-data-[collapsed=true]/shell:justify-center"
       >
         <span
           aria-hidden="true"
@@ -35,16 +38,17 @@ export function AccountMenu({
         >
           {name.slice(0, 1)}
         </span>
-        <span className={`${SIDEBAR_LABEL} min-w-0 leading-tight`}>
-          <span className="block truncate text-sm font-semibold">{name}</span>
-          <span className="block text-xs text-muted-foreground">{labels.personal}</span>
-        </span>
+        <span className={`${SIDEBAR_LABEL} min-w-0 truncate text-sm font-semibold`}>{name}</span>
         <ChevronsUpDown
           aria-hidden="true"
-          className="ml-auto hidden size-4 text-muted-foreground lg:block lg:group-data-[collapsed=true]/shell:hidden"
+          className="ml-auto hidden size-4 text-muted-foreground md:block md:group-data-[collapsed=true]/shell:hidden"
         />
       </DropdownMenuTrigger>
       <DropdownMenuContent className="min-w-48">
+        <DropdownMenuItem render={<Link href={SECTIONS.settings.href} />}>
+          <Settings aria-hidden="true" />
+          {labels.settings}
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={() => startTransition(() => signOut())}>
           <LogOut aria-hidden="true" />
           {labels.signOut}

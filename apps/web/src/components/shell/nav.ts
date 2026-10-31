@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 //
 // The app's sections: where they live and which pages belong to them. Admin and the team mode
-// preview show to admins only (`me.admin`); Upload is hidden from the read-only demo (`me.demo`).
+// preview show to admins only (`me.admin`); the read-only demo (`me.demo`) shows Upload as a
+// preview of what an account gets.
 
 import {
   CalendarDays,
@@ -60,7 +61,7 @@ export function sectionOf(pathname: string): Section | null {
 }
 
 /**
- * Sidebar labels: visible on wide screens unless the sidebar is folded (`data-collapsed` on the
- * shell), screen-reader only otherwise. Between 768 and 1024 px the sidebar is always folded.
+ * Sidebar labels: visible from 768 px unless the sidebar is folded (`data-collapsed` on the
+ * shell), screen-reader only otherwise. Tablets get them too: icons alone were not understood.
  */
-export const SIDEBAR_LABEL = "sr-only lg:not-sr-only lg:group-data-[collapsed=true]/shell:sr-only";
+export const SIDEBAR_LABEL = "sr-only md:not-sr-only md:group-data-[collapsed=true]/shell:sr-only";
