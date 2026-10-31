@@ -36,14 +36,29 @@ export interface SourceReport {
   error?: string;
 }
 
-/** What the Game Coordinator tells about a match. */
+/**
+ * Whether the Game Coordinator's answer is about `matchId`: by its matchid, or, when the GC left
+ * it out (null), by the demo URL, which names the match (`/730/<matchid>_<n>.dem.bz2`). An answer
+ * with neither cannot be told apart, and is taken.
+ */
+export function answersMatch(info: MatchInfo, matchId: string): boolean {
+  if (info.matchid != null) return String(info.matchid) === matchId;
+  const named = info.roundstatsall?.at(-1)?.map?.match(/\/730\/(\d+)_\d+\.dem/)?.[1];
+  return named === undefined || named === matchId;
+}
+
+/** What the Game Coordinator tells about a match. Throws if it answered about another one. */
 export function foundMatch(shareCode: string, info: MatchInfo): FoundMatch {
+  const matchId = decodeMatchShareCode(shareCode).matchId.toString();
+  if (!answersMatch(info, matchId)) {
+    throw new Error(`the Game Coordinator answered about another match, not ${matchId}`);
+  }
   const lastRound = info.roundstatsall?.at(-1);
   const playedAt = info.matchtime ? new Date(info.matchtime * 1000) : undefined;
   const duration = lastRound?.match_duration;
   return {
     shareCode,
-    matchId: decodeMatchShareCode(shareCode).matchId.toString(),
+    matchId,
     url: lastRound?.map || undefined,
     playedAt,
     // The last round's match_duration (seconds) runs from the match start to its end.

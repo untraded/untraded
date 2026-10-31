@@ -14,7 +14,8 @@ declare module "globaloffensive" {
   }
 
   export interface MatchInfo {
-    matchid?: string | number;
+    /** A string (decoded with `longs: String`); null when the GC leaves it out. */
+    matchid?: string | number | null;
     matchtime?: number;
     roundstatsall?: RoundStats[];
   }
