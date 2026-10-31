@@ -3,7 +3,7 @@
     "team": "Team",
     "progress": "Progress",
     "upload": "Send a demo",
-    "formulas": "Formulas",
+    "formulas": "How it's calculated",
     "matches": "Matches",
     "signOut": "Sign out",
     "language": "Language",
@@ -12,11 +12,11 @@
     "more": "More",
     "collapse": "Collapse the sidebar",
     "expand": "Expand the sidebar",
-    "workspace": "Workspace: {name}, personal",
-    "personal": "Personal",
     "main": "Main navigation",
     "home": "Home",
-    "admin": "Admin"
+    "admin": "Admin",
+    "account": "Account: {name}",
+    "preview": "Preview"
   },
   "dashboard": {
     "title": "Home",
@@ -312,7 +312,8 @@
       },
       "hiddenExec": "Restricted exec ({n})"
     },
-    "loading": "Loading the preview"
+    "loading": "Loading the preview",
+    "badge": "Preview"
   },
   "settings": {
     "title": "Settings",
@@ -390,7 +391,7 @@
     "discordLink": "Join the Discord"
   },
   "formulas": {
-    "title": "Formulas",
+    "title": "How it's calculated",
     "lead": "Every number in Untraded comes from a public formula: its definition, its parameters, an example on a real match, its limits and its code. A formula that changes gets a new version.",
     "source": "These pages are docs/metrics from the public repository, generated from the metrics' code.",
     "search": "Search a metric",
@@ -1129,7 +1130,8 @@
     "banner": "Demo: anonymized data, read-only.",
     "invite": "Ask for an invitation",
     "settings": "In the demo, consent, codes and erasure are off: the data is read-only.",
-    "upload": "In the demo, sending demos is off: the data is read-only. With an invitation, you send your FACEIT, ESEA and scrim demos here."
+    "uploadText": "With an account, you send your FACEIT, ESEA and scrim demos here; they are analysed like your Premier matches.",
+    "uploadAvailable": "Available once you have an account"
   },
   "landing": {
     "title": "The CS2 coach that proves what it says.",
