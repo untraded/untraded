@@ -22,7 +22,6 @@ from untraded_worker import (
     conninfo,
     demo,
     levels,
-    queue,
     reanalyze,
     replays,
     retention,
@@ -99,7 +98,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     periodic = [
         Periodic(levels.EVERY, levels.compute_levels),
         Periodic(RETENTION_EVERY, retention.purge_sessions),
-        Periodic(queue.STALE_EVERY, queue.requeue_stale),
     ]
     if keep is not None:
         periodic.append(Periodic(RETENTION_EVERY, retention.Sweep(store, keep)))

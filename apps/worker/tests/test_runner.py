@@ -94,3 +94,27 @@ def test_a_failing_periodic_task_does_not_stop_the_worker() -> None:
 
     worker = Worker("", {}, periodic=[Periodic(dt.timedelta(0), boom)])
     worker.idle(cast("psycopg.Connection[Any]", object()))
+
+
+@pytest.mark.db
+def test_a_job_that_kills_its_worker_ends_dead(
+    conn: psycopg.Connection[Any], conninfo: str
+) -> None:
+    dead: list[int] = []
+    worker = Worker(
+        conninfo,
+        {"parse": _record},
+        on_dead={"parse": lambda _conn, job, _error: dead.append(job.id)},
+        name="test",
+    )
+    job_id = queue.enqueue(conn, "parse", max_attempts=2)
+    for attempt in (1, 2):
+        conn.execute("UPDATE job SET run_at = now() WHERE id = %s", (job_id,))
+        assert queue.claim(conn, ["parse"], "test") is not None  # then the worker is killed
+        assert worker.recover(conn, mine=True) == 1  # as it starts again
+        row = conn.execute(
+            "SELECT status::text, attempts, run_at > now() FROM job WHERE id = %s", (job_id,)
+        ).fetchone()
+        assert row == (("queued", 1, True) if attempt == 1 else ("dead", 2, True))
+    assert dead == [job_id]
+    assert worker.recover(conn, mine=True) == 0
