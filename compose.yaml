@@ -161,6 +161,8 @@ services:
       # The consent text players agree to on the site (its version).
       UNTRADED_CONSENT_VERSION: ${UNTRADED_CONSENT_VERSION:-2}
       UNTRADED_DEMO_STEAM_ID: ${UNTRADED_DEMO_STEAM_ID:-}
+      # FACEIT Data API key: a FACEIT demo sent takes its match's date.
+      FACEIT_API_KEY: ${FACEIT_API_KEY:-}
       # Encrypts the codes players give on the site, and checks them with Steam.
       UNTRADED_SECRET_KEY: ${UNTRADED_SECRET_KEY:?set UNTRADED_SECRET_KEY}
       STEAM_WEB_API_KEY: ${STEAM_WEB_API_KEY:?set STEAM_WEB_API_KEY}

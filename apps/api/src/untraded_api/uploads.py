@@ -22,11 +22,13 @@ import uuid
 from pathlib import Path
 from typing import Annotated, Any, Literal
 
+import httpx
 from fastapi import APIRouter, HTTPException, Query, Request, status
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 from starlette.requests import ClientDisconnect
 
+from untraded_api import faceit
 from untraded_api.db import Database
 from untraded_api.deps import ConnDep, DatabaseDep, SettingsDep, UserDep
 from untraded_api.settings import Settings
@@ -115,6 +117,24 @@ def _record(
     return str(row[0]) if row and row[0] is not None else None
 
 
+class FaceitDate(BaseModel):
+    played_at: dt.datetime | None
+    """When the FACEIT match started; null when FACEIT cannot say (or no key is set)."""
+
+
+@router.get("/faceit/{faceit_id}")
+def faceit_date(
+    faceit_id: str, request: Request, user: UserDep, settings: SettingsDep
+) -> FaceitDate:
+    """When a FACEIT match was played, for the upload form to fill in (the id is in the demo's
+    file name). The upload itself takes the same date."""
+    found = faceit.match_id(faceit_id)
+    if not settings.faceit_api_key or found is None or len(found) != len(faceit_id):
+        return FaceitDate(played_at=None)
+    client: httpx.Client = request.app.state.steam_client
+    return FaceitDate(played_at=faceit.started_at(client, settings.faceit_api_key, found))
+
+
 @router.post("", status_code=status.HTTP_202_ACCEPTED)
 async def send_demo(
     request: Request,
@@ -150,6 +170,14 @@ async def send_demo(
     try:
         await _receive(request, partial, MAGIC[suffix], settings.upload_max_bytes)
         partial.replace(target)
+        if mode == "faceit" and settings.faceit_api_key and (faceit_id := faceit.match_id(name)):
+            # The demo carries no date and its file's is the download's: FACEIT's is the
+            # match's. Asked once the demo is received, so a junk upload costs no call.
+            client: httpx.Client = request.app.state.steam_client
+            started = await run_in_threadpool(
+                faceit.started_at, client, settings.faceit_api_key, faceit_id
+            )
+            played_at = started or played_at
         refusal = await run_in_threadpool(
             _record, db, user, settings, upload, target.name, mode, played_at
         )

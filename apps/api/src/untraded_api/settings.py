@@ -34,6 +34,9 @@ class Settings:
     cannot add their matches on the site."""
     steam_api_key: str | None = None
     """`STEAM_WEB_API_KEY`: checks a player's codes with Steam before keeping them."""
+    faceit_api_key: str | None = None
+    """`FACEIT_API_KEY` (FACEIT Data API, server side): the date of a FACEIT demo sent, from its
+    match. Without it, the date the player gives stays."""
     backups_dir: str | None = None
     """`UNTRADED_BACKUPS_DIR`: where the `backup` service writes its dumps, for `/admin/health`."""
     store_dir: str | None = None
@@ -73,6 +76,7 @@ class Settings:
             consent_version=os.environ.get("UNTRADED_CONSENT_VERSION", "2"),
             secret_key=secret_key(key) if (key := os.environ.get("UNTRADED_SECRET_KEY")) else None,
             steam_api_key=os.environ.get("STEAM_WEB_API_KEY") or None,
+            faceit_api_key=os.environ.get("FACEIT_API_KEY") or None,
             backups_dir=os.environ.get("UNTRADED_BACKUPS_DIR") or None,
             store_dir=os.environ.get("UNTRADED_STORE_DIR") or None,
             uploads_dir=os.environ.get("UNTRADED_UPLOADS_DIR") or None,
