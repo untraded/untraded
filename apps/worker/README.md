@@ -30,6 +30,7 @@ after a new replay format or a new win-probability model. Both log and skip a ma
 | `UNTRADED_DEMO_RETENTION_DAYS` | unset (kept) | raw demo retention after the parse (ADR 0009) |
 | `UNTRADED_UPLOADS_DIR` | `uploads` | where the API writes the demos players send (shared with the API) |
 | `UNTRADED_UPLOAD_MAX_DEMO_GB` | `1.5` | the largest decompressed demo a player may send |
+| `UNTRADED_PARSE_TIMEOUT_SECONDS` | `600` | a parse (in a child process) still running after this is stopped, and its job fails |
 | `UNTRADED_ALLOW_PRIVATE_DEMO_URLS` | unset | `1` lets `download` reach private addresses (a server on your own network); otherwise a demo URL never reaches a private, loopback, link-local (cloud metadata) or reserved address, redirects included |
 
 - `queue.py`: claim with `FOR UPDATE SKIP LOCKED`, exponential backoff, `dead` after
