@@ -33,10 +33,11 @@ from typing import Any
 import psycopg
 
 from untraded.demofile import CorruptDemoError, NotADemoError, demo_suffix, digest
-from untraded.parsing import CanonicalMatch, UnsupportedModeError, parse_demo
+from untraded.parsing import CanonicalMatch, UnsupportedModeError
 from untraded_worker import erase, load, queue, replays, sessions, uploads
 from untraded_worker.analysis import analyze
 from untraded_worker.download import BlockedAddressError, DemoGone, fetch
+from untraded_worker.isolated import IsolatedParse
 from untraded_worker.queue import Job
 from untraded_worker.runner import DeadHandler, Handler
 from untraded_worker.store import LocalStore
@@ -53,8 +54,8 @@ class JobError(ValueError):
 @dataclass(frozen=True)
 class ParseJob:
     store: LocalStore
-    parse: Parse = field(default=parse_demo)
-    """`untraded.parsing.parse_demo`; tests replace it."""
+    parse: Parse = field(default_factory=IsolatedParse)
+    """`untraded.parsing.parse_demo` in a child process, with a deadline; tests replace it."""
 
     def __call__(self, conn: psycopg.Connection[Any], job: Job) -> None:
         match_id = uuid.UUID(str(job.payload["match_id"]))
