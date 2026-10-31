@@ -14,6 +14,7 @@ uv run untraded-worker run         # until SIGINT or SIGTERM
 uv run untraded-worker replays     # the 2D viewer's round replays of matches parsed before
 uv run untraded-worker swings      # the swing table of matches parsed before
 uv run untraded-worker reanalyze   # metrics added since: analyse the matches parsed before again
+uv run untraded-worker retry-failed  # after a fix: the failed matches back in the queue
 uv run untraded-worker import-demo demo/   # the demo account (`untraded demo build`)
 ```
 
@@ -59,6 +60,7 @@ after a new replay format or a new win-probability model. Both log and skip a ma
   per round under `matches/{id}/replay/{round}.json.gz`, with the round's win-probability curve
   and swings. Written by the parse (a failure there leaves the analysis standing), and by
   `untraded-worker replays`.
+- `retry.py`: `untraded-worker retry-failed`, the failed matches put back in the queue from their last dead download or parse, attempts reset. A parse needs its raw demo: once the retention deleted it, the match stays failed (logged).
 - `reanalyze.py`: `untraded-worker reanalyze [--force]`, the matches parsed before analysed again from their Parquet tables (derived tables, metrics, replays, SQL rows), and their players' sessions queued again: after an update that adds metrics or versions. Without `--force`, only the matches missing the current `rating.untraded`.
 - `demo.py`: `untraded-worker import-demo <dir> [--name] [--consent-version]`, the demo account (`76561190000100001`, out of the references by level): its user (created as an invited account signing in once, with a consent to analysis only and no source) and the anonymized matches of `untraded demo build`, loaded as the parse job would; again, it skips the loaded ones.
 - `swings.py`: `untraded-worker swings`, the `swing` table of matches parsed before it existed,
