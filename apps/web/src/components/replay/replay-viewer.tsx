@@ -11,6 +11,7 @@ import {
   clock,
   clockText,
   hasLevels,
+  killStory,
   killWeapon,
   type Level,
   levelAt,
@@ -65,6 +66,12 @@ export interface ViewerLabels {
   momentKilled: string;
   momentKills: string;
   momentOther: string;
+  /** A death with no attacker (`{victim}`, `{cause}`), and its causes; a suicide. */
+  momentDies: string;
+  causeBomb: string;
+  causeWorld: string;
+  momentSuicideGrenade: string;
+  momentSuicide: string;
   /** `{attacker}`, `{victim}` and `{time}` are replaced by the viewer. */
   markKill: string;
   winprob: WinProbLabels;
@@ -120,6 +127,7 @@ export function ReplayViewer({
   matchId,
   round,
   start,
+  moment,
   focus,
   labels,
   locale,
@@ -127,6 +135,8 @@ export function ReplayViewer({
   matchId: string;
   round: number;
   start: number | null;
+  /** The moment to review's event, when the link has it; else 5 s after `start`. */
+  moment: number | null;
   focus: string | null;
   labels: ViewerLabels;
   locale: string;
@@ -249,6 +259,8 @@ export function ReplayViewer({
 
   function seek(next: number) {
     if (!replay) return;
+    // Moving the playback by hand cancels the stop planned by "Play the moment".
+    stopRef.current = null;
     tickRef.current = Math.min(replay.end_tick, Math.max(replay.start_tick, next));
     setTick(tickRef.current);
     placeHead(replay, tickRef.current, headRef.current, doneRef.current);
@@ -271,7 +283,13 @@ export function ReplayViewer({
         )
       : 0;
   const byId = useMemo(() => new Map(replay?.players.map((p) => [p.steamid, p]) ?? []), [replay]);
-  const focusTick = replay && start !== null ? start + 5 * replay.tickrate : null;
+  // The event of the moment to review: from the link, else 5 s after the opening (reports open
+  // 5 s before, unless the demo starts later). Only within the round.
+  const eventTick = replay && start !== null ? (moment ?? start + 5 * replay.tickrate) : null;
+  const focusTick =
+    replay && eventTick !== null && eventTick >= replay.start_tick && eventTick <= replay.end_tick
+      ? eventTick
+      : null;
   const focusKill = replay && focusTick !== null ? momentKill(replay, focusTick, focus) : null;
 
   /** From where the viewer opened (5 s before) to a little after the moment, then pause. */
@@ -279,7 +297,10 @@ export function ReplayViewer({
     if (!replay || start === null || focusTick === null) return;
     const opened = startTick(replay, start);
     if (tickRef.current < opened || tickRef.current >= focusTick) seek(opened);
-    stopRef.current = (focusKill?.tick ?? focusTick) + 2 * replay.tickrate;
+    stopRef.current = Math.min(
+      replay.end_tick,
+      (focusKill?.tick ?? focusTick) + 2 * replay.tickrate,
+    );
     setPlaying(true);
   }
 
@@ -300,6 +321,23 @@ export function ReplayViewer({
   };
   const name = (steamid: string | null) =>
     steamid === null ? labels.world : (byId.get(steamid)?.name ?? "?");
+  /** A kill in words: who killed whom with what, or how the player died. */
+  const killText = (kill: NonNullable<typeof focusKill>) => {
+    const story = killStory(kill, focus);
+    const values = {
+      attacker: name(kill.attacker),
+      victim: name(kill.victim),
+      weapon: killWeapon(kill.weapon) ?? labels.knife,
+    };
+    if (story.kind === "dies")
+      return fill(labels.momentDies, {
+        ...values,
+        cause: story.cause === "bomb" ? labels.causeBomb : labels.causeWorld,
+      });
+    if (story.kind === "suicide")
+      return fill(story.grenade ? labels.momentSuicideGrenade : labels.momentSuicide, values);
+    return fill(story.kind === "kills" ? labels.momentKills : labels.momentKilled, values);
+  };
   // The moment to review, said at the timeline: what happens, and in how long.
   const momentText = (() => {
     if (!replay || focusTick === null) return null;
@@ -309,13 +347,7 @@ export function ReplayViewer({
       left > 0
         ? fill(labels.momentSoon, { seconds: String(left) })
         : fill(labels.momentAt, { time: roundTime(at) });
-    const event = focusKill
-      ? fill(focusKill.attacker === focus ? labels.momentKills : labels.momentKilled, {
-          attacker: name(focusKill.attacker),
-          victim: name(focusKill.victim),
-          weapon: killWeapon(focusKill.weapon) ?? labels.knife,
-        })
-      : labels.momentOther;
+    const event = focusKill ? killText(focusKill) : labels.momentOther;
     return fill(labels.momentLine, { when, event });
   })();
   const sideClass = (steamid: string | null) =>

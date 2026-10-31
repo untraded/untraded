@@ -4,6 +4,7 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import type { MatchDetail, Round } from "@/lib/api";
 import { cn } from "@/lib/cn";
+import { momentHref } from "@/lib/match";
 
 /**
  * Every round of the match, each a link to the 2D viewer: filled = won, the bottom line = the side
@@ -15,8 +16,8 @@ export async function MatchRounds({
   flagged,
 }: {
   match: MatchDetail;
-  /** Rounds to review (any priority), with the tick the viewer opens on. */
-  flagged: Map<number, number>;
+  /** Rounds to review (any priority), with the moment the viewer opens on. */
+  flagged: Map<number, { tick: number; event: number; rule: string }>;
 }) {
   const t = await getTranslations("match");
   const reasons = (await getTranslations("viewer")).raw("reasons") as Record<string, string>;
@@ -36,9 +37,9 @@ export async function MatchRounds({
     const played = side(round);
     const won = me && round.winner_team ? round.winner_team === me : null;
     const result = t(won === null ? "unknown" : won ? "won" : "lost");
-    const tick = flagged.get(round.round);
+    const moment = flagged.get(round.round);
     const label =
-      tick === undefined
+      moment === undefined
         ? t("roundLink", {
             round: round.round,
             side: played ?? "",
@@ -49,7 +50,11 @@ export async function MatchRounds({
     return (
       <Link
         key={round.round}
-        href={`/matches/${match.id}/rounds/${round.round}${tick === undefined ? "" : `?t=${tick}`}`}
+        href={
+          moment === undefined
+            ? `/matches/${match.id}/rounds/${round.round}`
+            : momentHref(match.id, round.round, moment)
+        }
         aria-label={label}
         title={label}
         className={cn(
@@ -57,7 +62,7 @@ export async function MatchRounds({
           won && "bg-muted text-foreground",
           played === "CT" && "border-b-[3px] border-b-side-ct",
           played === "T" && "border-b-[3px] border-b-side-t",
-          tick !== undefined &&
+          moment !== undefined &&
             "font-semibold text-foreground shadow-[inset_0_0_0_2px_var(--foreground)]",
           gap && "ml-1.5",
         )}

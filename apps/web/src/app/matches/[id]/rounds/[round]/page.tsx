@@ -15,7 +15,7 @@ import { mapName, score, shortDay } from "@/lib/format";
 
 type Params = {
   params: Promise<{ id: string; round: string }>;
-  searchParams: Promise<{ t?: string; player?: string; p?: string }>;
+  searchParams: Promise<{ t?: string; e?: string; player?: string; p?: string }>;
 };
 
 const STEAM_ID = /^\d{1,20}$/;
@@ -28,7 +28,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 /**
  * One round, replayed from above (`?t=` the tick it opens on, `?player=` the player highlighted,
  * by default the signed-in one). The rounds to review of a report open it 5 s before their event,
- * with `?p=` the rule of the priority they are evidence for.
+ * with `?e=` the event's tick and `?p=` the rule of the priority they are evidence for.
  */
 export default async function RoundPage({ params, searchParams }: Params) {
   const { id, round: roundParam } = await params;
@@ -48,6 +48,7 @@ export default async function RoundPage({ params, searchParams }: Params) {
   const previous = index > 0 ? rounds[index - 1] : undefined;
   const next = index >= 0 && index < rounds.length - 1 ? rounds[index + 1] : undefined;
   const start = query.t !== undefined && /^\d+$/.test(query.t) ? Number(query.t) : null;
+  const event = start !== null && query.e && /^\d+$/.test(query.e) ? Number(query.e) : null;
   const focus = query.player && STEAM_ID.test(query.player) ? query.player : me.steam_id;
   const focusName =
     match.players.find((p) => p.steam_id === focus)?.name ??
@@ -149,6 +150,7 @@ export default async function RoundPage({ params, searchParams }: Params) {
         matchId={match.id}
         round={number}
         start={start}
+        moment={event}
         focus={focus}
         labels={labels}
         locale={locale}
@@ -207,6 +209,11 @@ async function viewerLabels(round: number): Promise<ViewerLabels> {
       weapon: keep("weapon"),
     }),
     momentOther: t("momentOther"),
+    momentDies: t("momentDies", { victim: keep("victim"), cause: keep("cause") }),
+    causeBomb: t("causeBomb"),
+    causeWorld: t("causeWorld"),
+    momentSuicideGrenade: t("momentSuicideGrenade", { victim: keep("victim") }),
+    momentSuicide: t("momentSuicide", { victim: keep("victim") }),
     markKill: t("markKill", {
       attacker: keep("attacker"),
       victim: keep("victim"),

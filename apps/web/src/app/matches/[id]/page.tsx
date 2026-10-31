@@ -53,9 +53,14 @@ export default async function MatchPage({ params }: Params) {
     : [null, null, null];
   const report = summary ? await findSession(summary.id) : null;
   const priorities = report ? prioritiesIn(report.advice, match.id) : [];
-  const flagged = new Map<number, number>();
-  for (const { rounds } of priorities) {
-    for (const r of rounds) flagged.set(r.round, Math.min(flagged.get(r.round) ?? r.tick, r.tick));
+  // Each flagged round's first moment, with the priority it is evidence for.
+  const flagged = new Map<number, { tick: number; event: number; rule: string }>();
+  for (const { advice, rounds } of priorities) {
+    for (const r of rounds) {
+      const known = flagged.get(r.round);
+      if (!known || r.tick < known.tick)
+        flagged.set(r.round, { tick: r.tick, event: r.event, rule: advice.rule_id });
+    }
   }
   const length = minutes(match.played_at, match.ended_at);
   const mode = `modes.${match.mode}`;

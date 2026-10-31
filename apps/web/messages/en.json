@@ -1131,7 +1131,12 @@
     "momentKilled": "{victim} is killed by {attacker} ({weapon})",
     "momentKills": "{attacker} kills {victim} ({weapon})",
     "momentOther": "the moment to review",
-    "proofFor": "Evidence for the priority “{label}”."
+    "proofFor": "Evidence for the priority “{label}”.",
+    "momentDies": "{victim} dies ({cause})",
+    "causeBomb": "the bomb",
+    "causeWorld": "fall or map",
+    "momentSuicideGrenade": "{victim} dies by their own grenade",
+    "momentSuicide": "{victim} kills themself"
   },
   "demo": {
     "banner": "Demo: anonymized data, read-only.",

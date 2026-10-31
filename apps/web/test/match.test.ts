@@ -2,7 +2,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { describe, expect, it } from "vitest";
 import type { Advice, MatchDetail, MetricValue, Round } from "../src/lib/api";
-import { bySide, minutes, prioritiesIn, roundsBySide, sideOf, wonRound } from "../src/lib/match";
+import {
+  bySide,
+  minutes,
+  momentHref,
+  prioritiesIn,
+  roundsBySide,
+  sideOf,
+  wonRound,
+} from "../src/lib/match";
 
 const round = (n: number, ct: "A" | "B", winner: "A" | "B" | null): Round => ({
   round: n,
@@ -52,9 +60,15 @@ describe("match", () => {
     );
     expect(found.map((p) => p.advice.priority)).toEqual([1, 2]);
     expect(found[1]?.rounds).toEqual([
-      { round: 3, tick: 400, moments: 2 },
-      { round: 7, tick: 900, moments: 1 },
+      { round: 3, tick: 400, event: 720, moments: 2 },
+      { round: 7, tick: 900, event: 1220, moments: 1 },
     ]);
+  });
+
+  it("links a moment with its event and its priority", () => {
+    expect(momentHref("m1", 3, { tick: 0, event: 120, rule: "util.team_flash" })).toBe(
+      "/matches/m1/rounds/3?t=0&e=120&p=util.team_flash",
+    );
   });
 
   it("reads sides and results from the player's team", () => {

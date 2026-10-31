@@ -316,9 +316,9 @@ export function startTick(
 }
 
 /**
- * The kill at a moment to review, if it is one: a report opens the viewer 5 s before its event, so
- * the kill within a second of `moment`, the highlighted player's first, else the nearest. Null
- * when the moment is not a kill (a flash on a teammate, a position).
+ * The kill at a moment to review, if it is one: the highlighted player's kill or death within a
+ * second of `moment`. Null otherwise: the moment is something else (a flash on a teammate, a
+ * position), and a nearby kill of others would read as the wrong proof.
  */
 export function momentKill(
   replay: Pick<Replay, "kills" | "tickrate">,
@@ -328,7 +328,28 @@ export function momentKill(
   const near = replay.kills
     .filter((kill) => Math.abs(kill.tick - moment) <= replay.tickrate)
     .sort((a, b) => Math.abs(a.tick - moment) - Math.abs(b.tick - moment));
-  return near.find((kill) => kill.victim === focus || kill.attacker === focus) ?? near[0] ?? null;
+  return near.find((kill) => kill.victim === focus || kill.attacker === focus) ?? null;
+}
+
+/** How a kill reads: the player killed someone, was killed by someone, died of the bomb or the
+ * map (no attacker), or by their own hand (their grenade, a fall). */
+export type KillStory =
+  | { kind: "kills" | "killed" }
+  | { kind: "dies"; cause: "bomb" | "world" }
+  | { kind: "suicide"; grenade: boolean };
+
+export function killStory(
+  kill: Pick<ReplayKill, "attacker" | "victim" | "weapon">,
+  focus: string | null,
+): KillStory {
+  if (kill.attacker !== null && kill.attacker === kill.victim) {
+    return { kind: "suicide", grenade: /grenade|inferno|molotov/.test(kill.weapon) };
+  }
+  const bomb = kill.weapon === "planted_c4" || weaponKind(kill.weapon) === "c4";
+  if (kill.attacker === null || kill.weapon === "world" || bomb) {
+    return { kind: "dies", cause: bomb ? "bomb" : "world" };
+  }
+  return { kind: kill.attacker === focus ? "kills" : "killed" };
 }
 
 /** A weapon as the viewer names it: every knife is a knife, the bomb is C4. */

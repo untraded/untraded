@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { type Locale, TONES, type Tone } from "@/i18n/locale";
 import type { Advice, AdviceEvent, MatchDetail } from "@/lib/api";
 import { mapName, metric, score } from "@/lib/format";
+import { momentHref } from "@/lib/match";
 
 /**
  * The session's priorities, the first one open: the finding in the chosen tone and its cost, then
@@ -197,7 +198,7 @@ async function Evidence({
   // The 2D viewer opens on the moment (5 s before the event), when the match can be loaded.
   const viewer = (event: AdviceEvent, round: number) =>
     match
-      ? `/matches/${event.match_id}/rounds/${round}?t=${event.goto_tick}&p=${encodeURIComponent(rule)}`
+      ? momentHref(event.match_id, round, { tick: event.goto_tick, event: event.tick, rule })
       : undefined;
   const mark = (moments: AdviceEvent[], round: number, side: string, won: boolean | null) => ({
     label:
