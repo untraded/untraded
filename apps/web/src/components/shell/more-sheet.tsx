@@ -21,6 +21,8 @@ export function MoreSheet({
     upload: string;
     formulas: string;
     admin: string | null;
+    /** The team mode preview, admins only too. */
+    team: string | null;
     signOut: string;
   };
 }) {
@@ -28,6 +30,7 @@ export function MoreSheet({
   const [, startTransition] = useTransition();
   const Settings = SECTIONS.settings.icon;
   const Admin = SECTIONS.admin.icon;
+  const Team = SECTIONS.team.icon;
   const Formulas = SECTIONS.formulas.icon;
   const Send = SECTIONS.upload.icon;
   const Trend = SECTIONS.progress.icon;
@@ -58,6 +61,12 @@ export function MoreSheet({
           <Formulas aria-hidden="true" />
           {labels.formulas}
         </Link>
+        {labels.team && (
+          <Link href={SECTIONS.team.href} className={row} onClick={() => setOpen(false)}>
+            <Team aria-hidden="true" />
+            {labels.team}
+          </Link>
+        )}
         {labels.admin && (
           <Link href={SECTIONS.admin.href} className={row} onClick={() => setOpen(false)}>
             <Admin aria-hidden="true" />

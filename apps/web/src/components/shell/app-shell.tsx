@@ -59,6 +59,7 @@ export async function AppShell({
           <NavLink section="progress" label={t("progress")} place="sidebar" />
           <NavLink section="upload" label={t("upload")} place="sidebar" />
           <NavLink section="formulas" label={t("formulas")} place="sidebar" />
+          {me.admin && <NavLink section="team" label={t("team")} place="sidebar" />}
           <div className="mt-auto flex flex-col gap-0.5">
             {me.admin && <NavLink section="admin" label={t("admin")} place="sidebar" />}
             <NavLink section="settings" label={t("settings")} place="sidebar" />
@@ -92,6 +93,7 @@ export async function AppShell({
             upload: t("upload"),
             formulas: t("formulas"),
             admin: me.admin ? t("admin") : null,
+            team: me.admin ? t("team") : null,
             signOut: t("signOut"),
           }}
         />

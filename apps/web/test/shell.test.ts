@@ -13,6 +13,7 @@ describe("shell", () => {
     expect(sectionOf("/settings")).toBe("settings");
     expect(sectionOf("/formulas/base.adr")).toBe("formulas");
     expect(sectionOf("/upload")).toBe("upload");
+    expect(sectionOf("/team/lineups")).toBe("team");
     expect(sectionOf("/progress")).toBe("progress");
     expect(sectionOf("/admin")).toBe("admin");
     expect(sectionOf("/admin/health")).toBe("admin");
