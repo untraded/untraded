@@ -143,18 +143,9 @@ def extract(tables: Mapping[str, pl.DataFrame], first: int, last: int) -> Tables
     return {name: out[name] for name in TABLES}
 
 
-def anonymize(tables: Mapping[str, pl.DataFrame], name: str) -> Tables:
-    """Replaces steamids, names, knives and identifying match fields. Raises if a steamid of an
-    event is not a player of the extract, so nothing personal can slip through."""
-    players = tables["player"].sort("team", "steamid")
-    ids = players["steamid"].to_list()
-    mapping = {old: new for new, old in enumerate(ids, start=1)}
-    counters = {"A": 0, "B": 0}
-    names = []
-    for team in players["team"].to_list():
-        counters[team] += 1
-        names.append(f"{team}{counters[team]}")
-
+def replace_players(tables: Mapping[str, pl.DataFrame], mapping: Mapping[int, int]) -> Tables:
+    """Every steamid of every table replaced through `mapping`. Raises if a steamid of an event
+    is not in it (0, the world, stays), so nothing personal can slip through."""
     out: Tables = {}
     for table, frame in tables.items():
         replaced = frame
@@ -172,7 +163,22 @@ def anonymize(tables: Mapping[str, pl.DataFrame], name: str) -> Tables:
                 mapped = expr.replace(mapping)
             replaced = replaced.with_columns(mapped.cast(frame[column].dtype))
         out[table] = replaced
-    out = generic_knives(out)
+    return out
+
+
+def anonymize(tables: Mapping[str, pl.DataFrame], name: str) -> Tables:
+    """Replaces steamids, names, knives and identifying match fields. Raises if a steamid of an
+    event is not a player of the extract, so nothing personal can slip through."""
+    players = tables["player"].sort("team", "steamid")
+    ids = players["steamid"].to_list()
+    mapping = {old: new for new, old in enumerate(ids, start=1)}
+    counters = {"A": 0, "B": 0}
+    names = []
+    for team in players["team"].to_list():
+        counters[team] += 1
+        names.append(f"{team}{counters[team]}")
+
+    out = generic_knives(replace_players(tables, mapping))
     out["player"] = (
         out["player"]
         .sort("steamid")

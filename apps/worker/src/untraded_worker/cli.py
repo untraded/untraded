@@ -4,7 +4,8 @@
 UNTRADED_UPLOADS_DIR, UNTRADED_UPLOAD_MAX_DEMO_GB, UNTRADED_DEMO_RETENTION_DAYS).
 `untraded-worker replays`: write the 2D viewer's round replays of the matches parsed before.
 `untraded-worker swings`: write the `swing` table of the matches parsed before.
-`untraded-worker reanalyze`: analyse the matches parsed before again (new metrics or versions)."""
+`untraded-worker reanalyze`: analyse the matches parsed before again (new metrics or versions).
+`untraded-worker import-demo <dir>`: load the demo account (`untraded demo build`)."""
 
 from __future__ import annotations
 
@@ -16,8 +17,10 @@ from pathlib import Path
 
 import psycopg
 
+from untraded.demo import PROTAGONIST
 from untraded_worker import (
     conninfo,
+    demo,
     levels,
     reanalyze,
     replays,
@@ -46,6 +49,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     swing.add_argument("--force", action="store_true", help="rewrite existing swing tables too")
     again_all = actions.add_parser("reanalyze", help="analyse the matches parsed before again")
     again_all.add_argument("--force", action="store_true", help="every match, not only stale ones")
+    demo_parser = actions.add_parser("import-demo", help="load the demo account's matches")
+    demo_parser.add_argument("directory", type=Path, help="written by `untraded demo build`")
+    demo_parser.add_argument("--name", default="Demo")
+    demo_parser.add_argument("--consent-version", default="2", help="the site's consent text")
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -60,6 +67,18 @@ def main(argv: Sequence[str] | None = None) -> int:
             done = reanalyze.backfill(conn, store, force=args.force)
         logging.info("%s match(es) analysed again", done)
         return 0
+    if args.action == "import-demo":
+        with psycopg.connect(conninfo(), autocommit=True) as conn:
+            done = demo.import_demo(
+                conn,
+                store,
+                args.directory,
+                steam_id=PROTAGONIST,
+                name=args.name,
+                consent_version=args.consent_version,
+            )
+        logging.info("%s demo match(es) loaded", done)
+        return 0
     if args.action == "swings":
         with psycopg.connect(conninfo(), autocommit=True) as conn:
             done = swings.backfill(conn, store, force=args.force)
@@ -72,7 +91,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     if unknown:
         parser.error(f"unknown job kinds: {sorted(unknown)} (known: {sorted(known)})")
     keep = retention.configured()
-    periodic = [Periodic(levels.EVERY, levels.compute_levels)]
+    periodic = [
+        Periodic(levels.EVERY, levels.compute_levels),
+        Periodic(RETENTION_EVERY, retention.purge_sessions),
+    ]
     if keep is not None:
         periodic.append(Periodic(RETENTION_EVERY, retention.Sweep(store, keep)))
     worker = Worker(

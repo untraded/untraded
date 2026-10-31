@@ -24,6 +24,7 @@ and trusts the reverse proxy's `X-Forwarded-*` headers.
 | `UNTRADED_WEB_URL` | `http://localhost:3000` | where users land after signing in or out |
 | `UNTRADED_SESSION_DAYS` | `30` | how long a sign-in lasts |
 | `UNTRADED_ADMIN_STEAM_IDS` | unset (no admin) | SteamID64s of the admins, comma-separated: only they reach the `/admin` routes (403 otherwise) |
+| `UNTRADED_DEMO_STEAM_ID` | unset (no demo) | the demo account loaded by `untraded-worker import-demo` (`76561190000100001`): `/auth/demo` opens it to anyone, read-only. A real SteamID64 is refused at start |
 | `UNTRADED_CONSENT_VERSION` | `2` | the version of the consent text the site shows: a player agrees to this one, and again when it changes |
 | `UNTRADED_SECRET_KEY` | unset | the collector's key (32 bytes, base64): encrypts the authentication code a player gives on the site. Unset, players cannot give their codes (503) |
 | `STEAM_WEB_API_KEY` | unset | checks a player's codes with Steam before keeping them; unset, they are kept unchecked |
@@ -40,6 +41,7 @@ and trusts the reverse proxy's `X-Forwarded-*` headers.
 | Route | |
 |---|---|
 | `GET /auth/steam` | redirects to Steam |
+| `GET /auth/demo` | opens a 2-hour session on the demo account for anyone, without Steam, and redirects to the web (a visitor already signed in keeps their session); 404 without `UNTRADED_DEMO_STEAM_ID` or before the import. The demo account reads only: every request of it other than a read or `POST /auth/logout` gets 403 `demo` (one check on the whole app), and it is never an admin |
 | `GET /auth/steam/callback` | checks Steam's answer with Steam (`check_authentication`), opens a session for a registered or invited account (an invitation becomes an account at its first sign-in), sets the cookie, redirects to the web (`?signin=not_invited` or `?signin=failed` otherwise) |
 | `POST /auth/invitation-request` | a visitor whose sign-in was refused asks for an invitation (the web's form): the callback gave them a signed cookie, valid 30 minutes, naming the Steam account it proved; the request is recorded with the public Steam name when `STEAM_WEB_API_KEY` is set. Back to the web with `?signin=requested` (or `request_expired`) |
 | `POST /auth/logout` | ends the session |

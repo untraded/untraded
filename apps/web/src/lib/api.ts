@@ -46,6 +46,8 @@ export interface Me {
   source: MySource | null;
   /** Whether this server can keep the codes. */
   can_add_source: boolean;
+  /** The public demo account: anonymized matches, read-only (`/auth/demo`). */
+  demo?: boolean;
 }
 
 export type PlayerState = "invited" | "joined" | "consented" | "followed" | "paused" | "withdrawn";

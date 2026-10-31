@@ -9,11 +9,12 @@ import type { Me } from "./api";
  * - `consent`: no consent yet, a consent to an older text, or a withdrawn one;
  * - `codes`: consented, but no codes yet, and this server can keep them;
  * - `operator`: consented, but this server cannot keep codes (the operator follows them);
- * - `null`: nothing left to give.
+ * - `null`: nothing left to give, or the public demo (read-only: it gives nothing).
  */
 export type OnboardingStep = "consent" | "codes" | "operator" | null;
 
 export function onboardingStep(me: Me): OnboardingStep {
+  if (me.demo) return null;
   const { consent } = me;
   if (!consent?.analysis || consent.text_version !== me.consent_version) {
     return "consent";
