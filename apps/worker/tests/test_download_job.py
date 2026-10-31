@@ -170,12 +170,11 @@ def test_retention_keeps_a_demo_another_match_still_needs(
     assert store.exists("demos/shared.dem.bz2")
 
 
-def test_slow_kinds_are_not_requeued_early(conn: psycopg.Connection[Any]) -> None:
-    download = queue.enqueue(conn, "download")
+def test_slow_kinds_are_not_taken_back_early(conn: psycopg.Connection[Any]) -> None:
+    queue.enqueue(conn, "download")
     parse = queue.enqueue(conn, "parse")
     for _ in range(2):
         assert queue.claim(conn, ["download", "parse"], "w1") is not None
     conn.execute("UPDATE job SET locked_at = now() - interval '1 hour'")
-    assert queue.requeue_stale(conn) == 1
-    status = dict(conn.execute("SELECT id, status::text FROM job").fetchall())
-    assert status == {download: "running", parse: "queued"}
+    with conn.transaction():
+        assert [job.id for job in queue.abandoned(conn)] == [parse]

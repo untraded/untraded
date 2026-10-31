@@ -24,6 +24,9 @@ STALE_AFTER = dt.timedelta(minutes=30)
 """A running job not finished after this long is considered abandoned (a parse takes < 1 min)."""
 STALE_AFTER_BY_KIND: Mapping[str, dt.timedelta] = {"download": dt.timedelta(hours=3)}
 """Slower kinds: a Valve download can take 20 minutes or more (throttled servers)."""
+STALE_EVERY = dt.timedelta(minutes=5)
+"""How often a running worker looks for jobs abandoned by another one (a container replaced by
+a deployment has a new name: its jobs are only found this way)."""
 
 
 @dataclass(frozen=True)
@@ -109,24 +112,35 @@ def fail(conn: psycopg.Connection[Any], job: Job, error: str) -> bool:
     return dead
 
 
-def requeue_stale(
+def abandoned(
     conn: psycopg.Connection[Any],
+    *,
+    worker: str | None = None,
     older_than: dt.timedelta = STALE_AFTER,
     by_kind: Mapping[str, dt.timedelta] = STALE_AFTER_BY_KIND,
-) -> int:
-    """Puts back in the queue the jobs left running by a worker that died; returns how many."""
-    cursor = conn.execute(
+) -> list[Job]:
+    """The running jobs nobody runs any more, locked: those of `worker` (it runs none, as it
+    starts), or else those running for too long (their worker is gone). The caller records each
+    as a failed attempt (`fail`), so a job that kills its worker every time ends `dead` after
+    its attempts, with a backoff in between, instead of a restart loop."""
+    mine = worker is not None
+    rows = conn.execute(
         """
-        UPDATE job SET status = 'queued', locked_by = NULL,
-                       last_error = coalesce(last_error, 'abandoned by its worker')
+        SELECT id, kind, payload, attempts, max_attempts FROM job
         WHERE status = 'running'
-          AND locked_at < now() - coalesce(
-              (%(by_kind)s::jsonb ->> kind)::double precision * interval '1 second',
-              %(default)s)
+          AND CASE WHEN %(mine)s THEN locked_by = %(worker)s
+                   ELSE locked_at < now() - coalesce(
+                       (%(by_kind)s::jsonb ->> kind)::double precision * interval '1 second',
+                       %(default)s)
+              END
+        ORDER BY id
+        FOR UPDATE SKIP LOCKED
         """,
         {
+            "mine": mine,
+            "worker": worker,
             "by_kind": Jsonb({k: v.total_seconds() for k, v in by_kind.items()}),
             "default": older_than,
         },
-    )
-    return cursor.rowcount
+    ).fetchall()
+    return [Job(id=r[0], kind=r[1], payload=r[2], attempts=r[3], max_attempts=r[4]) for r in rows]
