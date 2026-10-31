@@ -23,7 +23,9 @@ export async function TeamTable({
   const m = await getTranslations("matches");
   const players = match.players
     .filter((p) => p.team === team)
-    .sort((x, y) => (y.line.hltv1 ?? -1) - (x.line.hltv1 ?? -1));
+    .sort(
+      (x, y) => (y.line.untraded ?? y.line.hltv1 ?? -1) - (x.line.untraded ?? x.line.hltv1 ?? -1),
+    );
   const fallback = match.my_team
     ? t(team === match.my_team ? "yourTeam" : "opponents")
     : t(team === "A" ? "teamA" : "teamB");
@@ -56,6 +58,11 @@ export async function TeamTable({
             <th scope="col" className="px-2 py-1.5 text-right font-medium">
               {m("adr")}
             </th>
+            <th scope="col" className="px-2 py-1.5 text-right font-medium">
+              <abbr title={m("urating")} className="no-underline">
+                {m("uratingShort")}
+              </abbr>
+            </th>
             <th scope="col" className="px-3 py-1.5 text-right font-medium">
               {m("rating")}
             </th>
@@ -87,7 +94,12 @@ export async function TeamTable({
                   {number(player.line.kills, locale)}–{number(player.line.deaths, locale)}
                 </td>
                 <td className="px-2 py-1.5 text-right">{number(player.line.adr, locale)}</td>
-                <td className="px-3 py-1.5 text-right">{number(player.line.hltv1, locale, 2)}</td>
+                <td className="px-2 py-1.5 text-right font-semibold">
+                  {number(player.line.untraded, locale, 2)}
+                </td>
+                <td className="px-3 py-1.5 text-right text-muted-foreground">
+                  {number(player.line.hltv1, locale, 2)}
+                </td>
               </tr>
             );
           })}

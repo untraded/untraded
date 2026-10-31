@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 The Untraded Authors
 // SPDX-License-Identifier: AGPL-3.0-only
 import { describe, expect, it } from "vitest";
-import { discordUrl, operator } from "../src/lib/site";
+import { demoEnabled, discordUrl, operator } from "../src/lib/site";
 
 describe("operator", () => {
   it("reads the instance's settings, empty ones as unset", () => {
@@ -29,5 +29,13 @@ describe("discordUrl", () => {
     expect(discordUrl({ UNTRADED_DISCORD_URL: "http://discord.gg/abc" })).toBeNull();
     expect(discordUrl({ UNTRADED_DISCORD_URL: "https://evil.test/discord" })).toBeNull();
     expect(discordUrl({ UNTRADED_DISCORD_URL: "not a url" })).toBeNull();
+  });
+});
+
+describe("demoEnabled", () => {
+  it("follows the API's demo account", () => {
+    expect(demoEnabled({ UNTRADED_DEMO_STEAM_ID: "76561190000100001" })).toBe(true);
+    expect(demoEnabled({ UNTRADED_DEMO_STEAM_ID: " " })).toBe(false);
+    expect(demoEnabled({})).toBe(false);
   });
 });

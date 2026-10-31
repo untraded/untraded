@@ -78,6 +78,7 @@ def metrics() -> list[dict[str, str]]:
         ]
     except ImportError:  # outside the uv workspace: a few metrics are enough
         return [
+            {"id": "rating.untraded", "version": "1.0.0", "name": "Untraded Rating", "unit": "ratio", "better": "higher", "cases": ["rounds"], "signed": False},
             {"id": "rating.hltv1", "version": "1.0.0", "name": "HLTV Rating 1.0", "unit": "ratio", "better": "higher", "cases": ["rounds"], "signed": False},
             {"id": "base.adr", "version": "1.0.0", "name": "ADR", "unit": "damage_per_round", "better": "higher", "cases": ["rounds"], "signed": False},
             {"id": "base.kast", "version": "1.1.0", "name": "KAST", "unit": "pct", "better": "higher", "cases": ["rounds"], "signed": False},
@@ -97,8 +98,9 @@ def line() -> dict[str, float]:
         "deaths": deaths,
         "adr": round(rand.uniform(55, 112), 1),
         "kast": round(rand.uniform(55, 86), 1),
-        "hltv1": round(rand.uniform(0.7, 1.45), 2),
+        "hltv1": (hltv1 := round(rand.uniform(0.7, 1.45), 2)),
         "untraded_deaths": rand.randint(1, 9),
+        "untraded": round(hltv1 * rand.uniform(0.85, 1.15), 2),
     }
 
 
@@ -228,7 +230,7 @@ def with_cases(values: list[dict[str, Any]], rounds: int) -> list[dict[str, Any]
     return values
 
 
-HEADLINES = ["rating.hltv1", "base.adr", "base.kast", "trade.untraded_deaths"]
+HEADLINES = ["rating.untraded", "rating.hltv1", "base.adr", "base.kast", "trade.untraded_deaths"]
 
 
 # Round replays (2D viewer): the five rounds of the `premier-half` fixture (de_cache, rounds 11 to
@@ -422,6 +424,7 @@ KINDS = ["level", "self", "self", "none", "self", "self"] + ["self"] * 17
 # The key figures follow a slow improvement (the newest session first), so the progress page
 # draws something readable: (newest value, oldest value, noise, newest reference, oldest one).
 HEADLINE_TREND = {
+    "rating.untraded": (1.07, 0.93, 0.07, 1.02, 0.97),
     "rating.hltv1": (1.09, 0.92, 0.06, 1.04, 0.96),
     "base.adr": (83.0, 72.0, 5.0, 81.0, 76.0),
     "base.kast": (74.0, 66.0, 3.0, 72.0, 69.0),
@@ -581,6 +584,33 @@ SIDE_VALUES = {
     "trade.untraded_deaths": (0, 5), "duel.opening_kills": (0, 3), "duel.opening_attempts": (3, 6),
     "rating.hltv1": (0.55, 1.45),
 }  # fmt: skip
+
+
+def player_rating(match_id: str, steam_id: str) -> dict[str, Any] | None:
+    """`GET /matches/{id}/players/{steam_id}/rating`, as in `apps/api` (#137): the parts add up
+    to the rating."""
+    match = next((m for m in MATCHES if m["id"] == match_id), None)
+    if match is None or match["status"] != "ready":
+        return None
+    value = match["my_line"]["untraded"] if steam_id == ME else round(rand.uniform(0.7, 1.4), 2)
+    kills = round(value * rand.uniform(0.55, 0.75), 2)
+    deaths = -round(rand.uniform(0.15, 0.3), 2)
+    plants = round(rand.uniform(0.0, 0.06), 2)
+    defuses = round(rand.uniform(0.0, 0.04), 2)
+    baseline = round(value - kills - deaths - plants - defuses, 2)
+    parts = {
+        "kills": kills,
+        "deaths": deaths,
+        "plants": plants,
+        "defuses": defuses,
+        "baseline": baseline,
+    }
+    return {
+        "value": value,
+        "margin": round(rand.uniform(0.11, 0.19), 2),
+        "rounds": match["rounds_played"],
+        "parts": [{"part": k, "points": v} for k, v in parts.items()],
+    }
 
 
 def player_metrics(match_id: str, steam_id: str) -> dict[str, Any]:
@@ -875,6 +905,10 @@ class Handler(BaseHTTPRequestHandler):
     def signed_in(self) -> bool:
         return f"{COOKIE}=" in (self.headers.get("cookie") or "")
 
+    def demo(self) -> bool:
+        """The public demo's session (`/auth/demo`): read-only, as in `apps/api` (#138)."""
+        return f"{COOKIE}=demo" in (self.headers.get("cookie") or "")
+
     def send_raw(self, gzipped: bytes) -> None:
         """A replay, as the API sends it: gzipped JSON that never changes."""
         self.send_response(200)
@@ -900,6 +934,9 @@ class Handler(BaseHTTPRequestHandler):
         path, _, query = self.path.partition("?")
         if path == "/health":
             return self.reply(200, {"status": "ok"})
+        if path == "/auth/demo":
+            cookie = f"{COOKIE}=demo; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400"
+            return self.reply(303, headers={"location": f"{WEB}/", "set-cookie": cookie})
         if path == "/auth/steam":
             cookie = f"{COOKIE}=mock; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000"
             return self.reply(303, headers={"location": f"{WEB}/", "set-cookie": cookie})
@@ -910,7 +947,14 @@ class Handler(BaseHTTPRequestHandler):
                 return self.reply(404, {"detail": f"states: {', '.join(STATES)}"})
             return self.reply(303, headers={"location": f"{WEB}/"})
         if path == "/me":
-            return self.reply(200, me())
+            if self.demo():
+                demo = me() | STATES["followed"] | {"admin": False, "can_add_source": False}
+                return self.reply(200, demo | {"display_name": "demo", "demo": True})
+            return self.reply(200, me() | {"demo": False})
+        if found := re.fullmatch(r"/uploads/faceit/(1-[0-9a-f-]{36})", path):
+            # The match's start, as FACEIT's Data API gives it (#139): two hours ago here.
+            played = dt.datetime.now(dt.UTC).replace(microsecond=0) - dt.timedelta(hours=2)
+            return self.reply(200, {"played_at": played.isoformat().replace("+00:00", "Z")})
         if found := re.fullmatch(r"/mock/uploads/(\w+)", path):
             choice = None if found[1] == "none" else found[1]
             if choice is not None and choice not in UPLOAD_STATUS:
@@ -954,6 +998,9 @@ class Handler(BaseHTTPRequestHandler):
                     if data is not None:
                         return self.send_raw(data)
             return self.reply(404, {"detail": "no such replay"})
+        if found := re.fullmatch(r"/matches/([0-9a-f-]+)/players/(\d+)/rating", path):
+            rating = player_rating(found[1], found[2])
+            return self.reply(200 if rating else 404, rating or {"detail": "no such player"})
         if found := re.fullmatch(r"/matches/([0-9a-f-]+)/players/(\d+)", path):
             return self.reply(200, player_metrics(found[1], found[2]))
         if found := re.fullmatch(r"/matches/([0-9a-f-]+)", path):
@@ -965,6 +1012,8 @@ class Handler(BaseHTTPRequestHandler):
         return self.reply(404, {"detail": "not found"})
 
     def do_POST(self) -> None:
+        if self.demo() and not self.path.startswith("/auth/logout"):
+            return self.reply(403, {"detail": "demo"})
         path, _, query = self.path.partition("?")
         if path == "/uploads":
             if not self.signed_in():
@@ -1031,6 +1080,8 @@ class Handler(BaseHTTPRequestHandler):
         return self.reply(404, {"detail": "not found"})
 
     def do_PUT(self) -> None:
+        if self.demo() and not self.path.startswith("/auth/logout"):
+            return self.reply(403, {"detail": "demo"})
         body = read_body(self)
         if not self.signed_in():
             return self.reply(401, {"detail": "not signed in"})
@@ -1057,6 +1108,8 @@ class Handler(BaseHTTPRequestHandler):
         return self.reply(204)
 
     def do_DELETE(self) -> None:
+        if self.demo() and not self.path.startswith("/auth/logout"):
+            return self.reply(403, {"detail": "demo"})
         if not self.signed_in():
             return self.reply(401, {"detail": "not signed in"})
         if not ME_STATE["admin"]:

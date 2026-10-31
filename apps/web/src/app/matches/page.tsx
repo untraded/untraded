@@ -7,7 +7,7 @@ import { redirect } from "next/navigation";
 import { getLocale, getTimeZone, getTranslations } from "next-intl/server";
 import { buttonVariants } from "@/components/ui/button";
 import type { Locale } from "@/i18n/locale";
-import { getMatches, type MatchSummary } from "@/lib/api";
+import { getMatches, getMe, type MatchSummary } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import {
   byPeriod,
@@ -41,7 +41,7 @@ export default async function Matches({
   searchParams: Promise<{ offset?: string }>;
 }) {
   const offset = Math.max(0, Number((await searchParams).offset ?? 0) || 0);
-  const list = await getMatches(offset);
+  const [list, me] = await Promise.all([getMatches(offset), getMe()]);
   if (!list) redirect("/");
   const t = await getTranslations("matches");
   const s = await getTranslations("sessions");
@@ -53,10 +53,12 @@ export default async function Matches({
     <section className="flex flex-col gap-5">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold md:text-[1.75rem]">{t("title")}</h1>
-        <Link href="/upload" className={cn(buttonVariants({ variant: "outline" }), "gap-1.5")}>
-          <Upload aria-hidden="true" />
-          {u("cta")}
-        </Link>
+        {!me?.demo && (
+          <Link href="/upload" className={cn(buttonVariants({ variant: "outline" }), "gap-1.5")}>
+            <Upload aria-hidden="true" />
+            {u("cta")}
+          </Link>
+        )}
       </header>
       {list.items.length === 0 && <p className="text-muted-foreground">{t("empty")}</p>}
       {byPeriod(list.items, now, timeZone).map((group, index) => {
@@ -146,7 +148,7 @@ async function ColumnHeads() {
       <span className="text-right" title={t("untraded")}>
         {t("untradedShort")}
       </span>
-      <span className="text-right">{t("rating")}</span>
+      <span className="text-right">{t("urating")}</span>
       <span />
     </div>
   );
@@ -215,8 +217,8 @@ async function MatchRow({ match, period }: { match: MatchSummary; period: Period
             <span className="col-start-2 row-start-2 text-right text-xs whitespace-nowrap text-muted-foreground tabular-nums lg:hidden">
               <span className="sr-only">{t("kd")} </span>
               {number(line.kills, locale)}–{number(line.deaths, locale)} ·{" "}
-              <span className="sr-only">{t("rating")} </span>
-              {number(line.hltv1, locale, 2)}
+              <span className="sr-only">{t("urating")} </span>
+              {number(line.untraded, locale, 2)}
             </span>
             <span className="hidden text-right whitespace-nowrap tabular-nums lg:block">
               <span className={label}>{t("kd")} </span>
@@ -236,8 +238,8 @@ async function MatchRow({ match, period }: { match: MatchSummary; period: Period
               {number(line.untraded_deaths, locale)}
             </span>
             <span className="hidden text-right font-semibold tabular-nums lg:block">
-              <span className={label}>{t("rating")} </span>
-              {number(line.hltv1, locale, 2)}
+              <span className={label}>{t("urating")} </span>
+              {number(line.untraded, locale, 2)}
             </span>
           </>
         )}

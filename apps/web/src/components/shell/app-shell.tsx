@@ -4,6 +4,7 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { LogoHorizontal, LogoSymbol16 } from "@/components/brand/logo";
+import { DemoBanner } from "@/components/demo-banner";
 import type { Me } from "@/lib/api";
 import { AccountMenu } from "./account-menu";
 import { MoreSheet } from "./more-sheet";
@@ -57,7 +58,7 @@ export async function AppShell({
           <NavLink section="sessions" label={t("sessions")} place="sidebar" />
           <NavLink section="matches" label={t("matches")} place="sidebar" />
           <NavLink section="progress" label={t("progress")} place="sidebar" />
-          <NavLink section="upload" label={t("upload")} place="sidebar" />
+          {!me.demo && <NavLink section="upload" label={t("upload")} place="sidebar" />}
           <NavLink section="formulas" label={t("formulas")} place="sidebar" />
           {me.admin && <NavLink section="team" label={t("team")} place="sidebar" />}
           <div className="mt-auto flex flex-col gap-0.5">
@@ -74,6 +75,7 @@ export async function AppShell({
           </Link>
         </header>
         <main className="mx-auto max-w-6xl px-4 pt-6 pb-24 md:px-8 md:pt-8 md:pb-12">
+          {me.demo && <DemoBanner />}
           {children}
         </main>
       </div>
@@ -90,7 +92,7 @@ export async function AppShell({
             more: t("more"),
             settings: t("settings"),
             progress: t("progress"),
-            upload: t("upload"),
+            upload: me.demo ? null : t("upload"),
             formulas: t("formulas"),
             admin: me.admin ? t("admin") : null,
             team: me.admin ? t("team") : null,

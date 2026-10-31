@@ -48,6 +48,7 @@ export default async function Settings({
   if (!me) redirect("/");
   const t = await getTranslations("settings");
   const advice = await getTranslations("advice");
+  const demo = await getTranslations("demo");
   const store = await cookies();
   return (
     <section className="max-w-2xl">
@@ -82,8 +83,16 @@ export default async function Settings({
           />
         </Row>
       </div>
-      <ConsentSection me={me} />
-      <FollowSection me={me} />
+      {me.demo ? (
+        <p className="mt-6 rounded-md border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+          {demo("settings")}
+        </p>
+      ) : (
+        <>
+          <ConsentSection me={me} />
+          <FollowSection me={me} />
+        </>
+      )}
       <div className="border-t border-line-soft">
         <Row title={t("account")} hint={t("signedInAs", { name: me.display_name })}>
           <form action={signOut}>
@@ -94,7 +103,7 @@ export default async function Settings({
           </form>
         </Row>
       </div>
-      <EraseSection failed={(await searchParams).erase === "failed"} />
+      {!me.demo && <EraseSection failed={(await searchParams).erase === "failed"} />}
     </section>
   );
 }

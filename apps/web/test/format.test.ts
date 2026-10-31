@@ -31,7 +31,15 @@ import {
   weekdayDay,
 } from "../src/lib/format";
 
-const line = { kills: 20, deaths: 14, adr: 81.4, kast: 72.2, hltv1: 1.18, untraded_deaths: 3 };
+const line = {
+  kills: 20,
+  deaths: 14,
+  adr: 81.4,
+  kast: 72.2,
+  hltv1: 1.18,
+  untraded: 1.05,
+  untraded_deaths: 3,
+};
 
 describe("format", () => {
   it("formats numbers per language, with a dash when undefined", () => {

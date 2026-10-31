@@ -8,7 +8,7 @@ import type { Comparison, SessionSummary } from "./api";
 
 /** The key figures every session summary carries (`headlines`), in the order shown. */
 export const KEY_FIGURES = [
-  "rating.hltv1",
+  "rating.untraded",
   "base.adr",
   "base.kast",
   "trade.untraded_deaths",

@@ -17,6 +17,7 @@ pnpm --filter @untraded/web dev    # http://localhost:3000, with the API on http
 | `UNTRADED_API_INTERNAL_URL` | `http://localhost:8000` | how the web server reaches the API |
 | `UNTRADED_SITE_URL` | unset | the site's address as browsers see it: the share image and the icons are linked from it |
 | `UNTRADED_DISCORD_URL` | unset | an invitation link to the instance's Discord server (`https://discord.gg/...`), shown on the sign-in page; unset hides it |
+| `UNTRADED_DEMO_STEAM_ID` | unset | the API's demo account (same value): set, the signed-out landing page offers the read-only demo (`/api/auth/demo`); unset hides the button |
 | `UNTRADED_OPERATOR_NAME`, `UNTRADED_OPERATOR_EMAIL` | unset | the data controller and their contact, named in the consent text invited players agree to |
 | `UNTRADED_HOSTING` | unset | where the data lives, as the consent text states it |
 | `UNTRADED_DEMO_RETENTION_DAYS` | unset | the worker's raw demo retention, stated in the consent text (unset: kept; `0`: deleted once parsed) |
@@ -26,7 +27,7 @@ pnpm --filter @untraded/web dev    # http://localhost:3000, with the API on http
 
 | Page | |
 |---|---|
-| `/` | signed out: sign-in with Steam (and why it failed, `?signin=`). Signed in: the home page (the latest session and its priorities, what to work on before playing again, the previous priorities' progress, the matches still being analysed), or `/welcome` while something is missing |
+| `/` | signed out: the landing page, with sign-in with Steam (and why it failed, `?signin=`) and the demo when the instance has one. Signed in: the home page (the latest session and its priorities, what to work on before playing again, the previous priorities' progress, the matches still being analysed), or `/welcome` while something is missing |
 | `/welcome` | an invited player's first steps: the consent text (box 1, box 2), then their two codes |
 | `/sessions`, `/sessions/{id}` | the play sessions, and a session's report (the product's central screen): reference, priorities with their evidence and rounds to review, follow-up, every metric against the reference |
 | `/matches`, `/matches/{id}` | the matches, and a match seen from the player: rounds, the rounds the priorities flag, their numbers on each side, both teams |
