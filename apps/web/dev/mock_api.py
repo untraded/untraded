@@ -177,7 +177,13 @@ def match_detail(match: dict[str, Any]) -> dict[str, Any]:
         "team_a_name": None,
         "team_b_name": None,
         "tickrate": 64.0,
-        "unavailable": [],
+        # The parser's notes, as it writes them (the first match has two, as seen in production).
+        "unavailable": [
+            "kill: 1 disconnections dropped (not deaths)",
+            "kill: 4 kills of bots (no death counted)",
+        ]
+        if match["id"].endswith("000000000001")
+        else [],
         "error": errors.get(match["status"]),
         "rounds": rounds if ready else [],
         "players": players if ready else [],

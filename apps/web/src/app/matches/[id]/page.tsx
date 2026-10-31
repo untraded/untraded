@@ -21,6 +21,7 @@ import {
 } from "@/lib/api";
 import { dateTime, mapName, shortDay } from "@/lib/format";
 import { minutes, prioritiesIn, roundsBySide } from "@/lib/match";
+import { demoNote } from "@/lib/notes";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -90,9 +91,35 @@ export default async function MatchPage({ params }: Params) {
         </header>
         {!ready && <p className="text-muted-foreground">{match.error ?? t("notReady")}</p>}
         {match.unavailable.length > 0 && (
-          <p className="text-xs text-muted-foreground">
-            {t("missing", { items: match.unavailable.join(", ") })}
-          </p>
+          <details className="text-xs text-muted-foreground">
+            <summary className="cursor-pointer">
+              {t("notes.title", { count: match.unavailable.length })}
+            </summary>
+            <ul className="mt-1 flex list-disc flex-col gap-0.5 pl-5">
+              {match.unavailable.map((raw) => {
+                const note = demoNote(raw);
+                return (
+                  <li key={raw}>
+                    {note.kind === "other" ? (
+                      <span translate="no" className="font-mono">
+                        {note.text}
+                      </span>
+                    ) : note.kind === "surrender" ? (
+                      t("notes.surrender", {
+                        after: note.after,
+                        loser: note.winner === "CT" ? "T" : "CT",
+                        winner: note.winner,
+                      })
+                    ) : "count" in note ? (
+                      t(`notes.${note.kind}`, { count: note.count })
+                    ) : (
+                      t(`notes.${note.kind}`)
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </details>
         )}
       </div>
 
