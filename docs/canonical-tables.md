@@ -132,7 +132,7 @@ Sources were checked on Premier, FACEIT, LAN and online tournament demos (spikes
 
 | Column | Type | Source | Why |
 |---|---|---|---|
-| `tick`, `round`, `victim`, `flasher`, `grenade_id` | Int32, Int16, UInt64, UInt64?, Int32? | `player_blind`; **fallback**: rises of `flash_duration` at the `flashbang_detonate` tick, attributed to its thrower (ADR 0008). On a matchmaking demo with both, the fallback finds 156 of 161 blinds with the same tick, duration and flasher, and no false positive (the missed ones were already blinded). `grenade_id` is the flasher's flash detonating on that tick | `util.enemies_flashed`, blind time |
+| `tick`, `round`, `victim`, `flasher`, `grenade_id` | Int32, Int16, UInt64?, UInt64?, Int32? | `player_blind`; **fallback**: rises of `flash_duration` at the `flashbang_detonate` tick, attributed to its thrower (ADR 0008). `victim` is null for a bot nobody controls, as in `kill`. On a matchmaking demo with both, the fallback finds 156 of 161 blinds with the same tick, duration and flasher, and no false positive (the missed ones were already blinded). `grenade_id` is the flasher's flash detonating on that tick | `util.enemies_flashed`, blind time |
 | `duration` | Float32 (s) | `blind_duration`, or `flash_duration` | |
 | `is_teammate`, `is_self` | Boolean | sides at the tick | team and self flashes |
 | `from_fallback` | Boolean | adapter | traceability |
