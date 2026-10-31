@@ -22,7 +22,7 @@ export function SidebarToggle({
     <Button
       variant="ghost"
       size="icon-sm"
-      className="hidden text-muted-foreground md:inline-flex"
+      className="hidden text-muted-foreground lg:inline-flex"
       aria-label={label}
       title={label}
       aria-expanded={!collapsed}

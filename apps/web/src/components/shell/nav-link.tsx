@@ -5,7 +5,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
-import { SECTIONS, type Section, SIDEBAR_LABEL, sectionOf } from "./nav";
+import { RAIL_LABEL, SECTIONS, type Section, SIDEBAR_LABEL, sectionOf } from "./nav";
 import { PreviewBadge } from "./preview-badge";
 
 /** A section link, marked when the current page belongs to it: in the sidebar or a phone tab. */
@@ -43,13 +43,19 @@ export function NavLink({
       className={cn(
         "flex h-9 items-center gap-2.5 rounded-md text-[0.9375rem] whitespace-nowrap text-muted-foreground hover:bg-muted hover:text-foreground",
         "aria-[current=page]:bg-highlight-soft aria-[current=page]:font-semibold aria-[current=page]:text-foreground",
-        "justify-center md:justify-start md:px-2.5 md:group-data-[collapsed=true]/shell:justify-center md:group-data-[collapsed=true]/shell:px-0",
+        "justify-center lg:justify-start lg:px-2.5 lg:group-data-[collapsed=true]/shell:justify-center lg:group-data-[collapsed=true]/shell:px-0",
+        "max-lg:h-auto max-lg:flex-col max-lg:gap-1 max-lg:px-1 max-lg:py-2",
       )}
     >
       <Icon aria-hidden="true" className="size-[18px] shrink-0" />
-      <span className={SIDEBAR_LABEL}>
+      <span className={cn(SIDEBAR_LABEL, RAIL_LABEL)}>
         {label}
-        {badge && <PreviewBadge label={badge} className="ml-2" />}
+        {badge && (
+          <PreviewBadge
+            label={badge}
+            className="ml-2 max-lg:mx-auto max-lg:mt-1 max-lg:block max-lg:w-fit"
+          />
+        )}
       </span>
     </Link>
   );

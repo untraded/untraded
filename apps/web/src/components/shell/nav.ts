@@ -61,7 +61,12 @@ export function sectionOf(pathname: string): Section | null {
 }
 
 /**
- * Sidebar labels: visible from 768 px unless the sidebar is folded (`data-collapsed` on the
- * shell), screen-reader only otherwise. Tablets get them too: icons alone were not understood.
+ * Sidebar labels: visible on wide screens unless the sidebar is folded (`data-collapsed` on the
+ * shell), screen-reader only otherwise. Between 768 and 1024 px the sidebar is a rail of icons.
  */
-export const SIDEBAR_LABEL = "sr-only md:not-sr-only md:group-data-[collapsed=true]/shell:sr-only";
+export const SIDEBAR_LABEL = "sr-only lg:not-sr-only lg:group-data-[collapsed=true]/shell:sr-only";
+
+/** On the rail (768 to 1024 px), a section's label under its icon, small: icons alone were not
+ * understood. */
+export const RAIL_LABEL =
+  "max-lg:not-sr-only max-lg:text-center max-lg:text-[0.6875rem] max-lg:leading-tight max-lg:whitespace-normal";

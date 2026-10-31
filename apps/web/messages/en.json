@@ -1130,7 +1130,6 @@
     "banner": "Demo: anonymized data, read-only.",
     "invite": "Ask for an invitation",
     "settings": "In the demo, consent, codes and erasure are off: the data is read-only.",
-    "uploadPreview": "Available once you have an account.",
     "uploadText": "With an account, you send your FACEIT, ESEA and scrim demos here; they are analysed like your Premier matches.",
     "uploadAvailable": "Available once you have an account"
   },

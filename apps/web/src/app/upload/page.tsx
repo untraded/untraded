@@ -89,7 +89,7 @@ export default async function UploadPage() {
           role="note"
           className="rounded-md border border-dashed border-border bg-card px-3.5 py-2.5 text-sm"
         >
-          <p className="font-semibold">{demo("uploadPreview")}</p>
+          <p className="font-semibold">{demo("uploadAvailable")}</p>
           <p className="text-muted-foreground">
             {demo("uploadText")}{" "}
             <a

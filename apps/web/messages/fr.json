@@ -1130,7 +1130,6 @@
     "banner": "Démo : données anonymisées, en lecture seule.",
     "invite": "Demander une invitation",
     "settings": "Dans la démo, le consentement, les codes et l'effacement sont désactivés : les données sont en lecture seule.",
-    "uploadPreview": "Disponible une fois inscrit.",
     "uploadText": "Avec un compte, tu envoies ici tes démos FACEIT, ESEA et de scrims ; elles sont analysées comme tes matchs Premier.",
     "uploadAvailable": "Disponible une fois inscrit"
   },

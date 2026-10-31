@@ -12,8 +12,9 @@ import { NavLink } from "./nav-link";
 import { SidebarToggle } from "./sidebar-toggle";
 
 /**
- * The frame of every signed-in page. From 768 px: a sidebar (240 px, foldable to its icons). Below:
- * a slim top bar and four tabs at the bottom of the screen. The sections a player uses come first;
+ * The frame of every signed-in page. From 1024 px: a sidebar (240 px, foldable to its icons); from
+ * 768 px, a rail of icons with their labels under them (88 px). Below: a slim top bar and four tabs
+ * at the bottom of the screen. The sections a player uses come first;
  * how the numbers are calculated, the settings and the admin sit at the bottom.
  */
 export async function AppShell({
@@ -29,15 +30,15 @@ export async function AppShell({
   return (
     <div
       data-collapsed={collapsed}
-      className="group/shell min-h-dvh md:grid md:grid-cols-[240px_minmax(0,1fr)] md:data-[collapsed=true]:grid-cols-[60px_minmax(0,1fr)]"
+      className="group/shell min-h-dvh md:grid md:grid-cols-[88px_minmax(0,1fr)] lg:grid-cols-[240px_minmax(0,1fr)] lg:data-[collapsed=true]:grid-cols-[60px_minmax(0,1fr)]"
     >
-      <aside className="sticky top-0 hidden h-dvh flex-col gap-0.5 border-r border-border bg-card px-2.5 py-3 md:flex">
-        <div className="flex items-center justify-center gap-2 px-1 pb-3 md:justify-between md:group-data-[collapsed=true]/shell:flex-col md:group-data-[collapsed=true]/shell:justify-center">
+      <aside className="sticky top-0 hidden h-dvh flex-col gap-0.5 border-r border-border bg-card px-1.5 py-3 md:flex lg:px-2.5">
+        <div className="flex items-center justify-center gap-2 px-1 pb-3 lg:justify-between lg:group-data-[collapsed=true]/shell:flex-col lg:group-data-[collapsed=true]/shell:justify-center">
           <Link href="/" aria-label="Untraded" className="flex h-8 items-center rounded-md px-1">
             {/* The logo when the sidebar is wide; folded, the compact sign alone, in its version
                 drawn for small sizes. */}
-            <LogoHorizontal className="hidden h-5 w-auto md:block md:group-data-[collapsed=true]/shell:hidden" />
-            <LogoSymbol16 className="size-4 md:hidden md:group-data-[collapsed=true]/shell:block" />
+            <LogoHorizontal className="hidden h-5 w-auto lg:block lg:group-data-[collapsed=true]/shell:hidden" />
+            <LogoSymbol16 className="size-4 lg:hidden lg:group-data-[collapsed=true]/shell:block" />
           </Link>
           <SidebarToggle
             collapsed={collapsed}

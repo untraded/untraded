@@ -30,7 +30,7 @@ export function AccountMenu({
     <DropdownMenu>
       <DropdownMenuTrigger
         aria-label={labels.account}
-        className="flex w-full items-center gap-2.5 rounded-md border border-border p-1.5 text-left hover:bg-muted md:group-data-[collapsed=true]/shell:border-transparent md:group-data-[collapsed=true]/shell:justify-center"
+        className="flex w-full items-center gap-2.5 rounded-md border border-border p-1.5 text-left hover:bg-muted lg:group-data-[collapsed=true]/shell:border-transparent max-lg:border-transparent max-lg:justify-center lg:group-data-[collapsed=true]/shell:justify-center"
       >
         <span
           aria-hidden="true"
@@ -41,7 +41,7 @@ export function AccountMenu({
         <span className={`${SIDEBAR_LABEL} min-w-0 truncate text-sm font-semibold`}>{name}</span>
         <ChevronsUpDown
           aria-hidden="true"
-          className="ml-auto hidden size-4 text-muted-foreground md:block md:group-data-[collapsed=true]/shell:hidden"
+          className="ml-auto hidden size-4 text-muted-foreground lg:block lg:group-data-[collapsed=true]/shell:hidden"
         />
       </DropdownMenuTrigger>
       <DropdownMenuContent className="min-w-48">
