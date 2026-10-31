@@ -9,6 +9,9 @@
 export type DemoNote =
   | { kind: "bomb" | "damage" | "blind" | "kills" | "grenades" | "shots" }
   | { kind: "disconnections" | "bots"; count: number }
+  /** A side surrendered in the freeze time after round `after`: one more round, not played,
+   * counts for `winner` in the official score. */
+  | { kind: "surrender"; after: number; winner: "CT" | "T" }
   | { kind: "other"; text: string };
 
 const MISSING: [RegExp, DemoNote["kind"]][] = [
@@ -21,6 +24,13 @@ const MISSING: [RegExp, DemoNote["kind"]][] = [
 ];
 
 export function demoNote(note: string): DemoNote {
+  const surrender =
+    /^round: the (?:CT|T) side surrendered during the freeze time after round (\d+);.* for the (CT|T) side/.exec(
+      note,
+    );
+  if (surrender) {
+    return { kind: "surrender", after: Number(surrender[1]), winner: surrender[2] as "CT" | "T" };
+  }
   const counted = /^kill: (\d+) (disconnections dropped|kills of bots)/.exec(note);
   if (counted) {
     const kind = counted[2] === "kills of bots" ? "bots" : "disconnections";

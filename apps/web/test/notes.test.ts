@@ -17,9 +17,21 @@ describe("demoNote", () => {
 
   it("reads what the demo lacks", () => {
     expect(demoNote("bomb: no bomb event")).toEqual({ kind: "bomb" });
+    expect(demoNote("damage: no player_hurt event")).toEqual({ kind: "damage" });
+    expect(demoNote("blind: no player_blind nor flashbang_detonate event")).toEqual({
+      kind: "blind",
+    });
     expect(demoNote("kill: no player_death event")).toEqual({ kind: "kills" });
     expect(demoNote("grenade: no projectile in the demo")).toEqual({ kind: "grenades" });
     expect(demoNote("shot: no weapon_fire event")).toEqual({ kind: "shots" });
+  });
+
+  it("reads a surrender in the freeze time", () => {
+    expect(
+      demoNote(
+        "round: the T side surrendered during the freeze time after round 17; that round was not played, and the official score counts it for the CT side",
+      ),
+    ).toEqual({ kind: "surrender", after: 17, winner: "CT" });
   });
 
   it("keeps a note it does not know as written", () => {

@@ -554,7 +554,8 @@
       "grenades": "Les trajectoires des grenades n'apparaissent pas dans la démo.",
       "shots": "Les tirs n'apparaissent pas dans la démo : la précision n'est pas calculée.",
       "disconnections": "{count, plural, one {# déconnexion, que le jeu note comme une mort, n'est pas comptée comme une mort.} other {# déconnexions, que le jeu note comme des morts, ne sont pas comptées comme des morts.}}",
-      "bots": "{count, plural, one {# kill sur un bot compte pour le tueur, sans mort pour personne.} other {# kills sur des bots comptent pour le tueur, sans mort pour personne.}}"
+      "bots": "{count, plural, one {# kill sur un bot compte pour le tueur, sans mort pour personne.} other {# kills sur des bots comptent pour le tueur, sans mort pour personne.}}",
+      "surrender": "Les {loser} ont abandonné pendant le temps d'achat après le round {after} : le round suivant n'a pas été joué, et le score officiel le compte pour les {winner}."
     }
   },
   "sessions": {

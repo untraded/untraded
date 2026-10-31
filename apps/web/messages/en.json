@@ -554,7 +554,8 @@
       "grenades": "Grenade paths are missing from the demo.",
       "shots": "Shots are missing from the demo: accuracy is not calculated.",
       "disconnections": "{count, plural, one {# disconnection, which the game records as a death, is not counted as a death.} other {# disconnections, which the game records as deaths, are not counted as deaths.}}",
-      "bots": "{count, plural, one {# kill on a bot counts for the killer, with no death for anyone.} other {# kills on bots count for the killer, with no death for anyone.}}"
+      "bots": "{count, plural, one {# kill on a bot counts for the killer, with no death for anyone.} other {# kills on bots count for the killer, with no death for anyone.}}",
+      "surrender": "The {loser} side surrendered during the freeze time after round {after}: the next round was not played, and the official score counts it for the {winner} side."
     }
   },
   "sessions": {

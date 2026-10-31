@@ -104,6 +104,12 @@ export default async function MatchPage({ params }: Params) {
                       <span translate="no" className="font-mono">
                         {note.text}
                       </span>
+                    ) : note.kind === "surrender" ? (
+                      t("notes.surrender", {
+                        after: note.after,
+                        loser: note.winner === "CT" ? "T" : "CT",
+                        winner: note.winner,
+                      })
                     ) : "count" in note ? (
                       t(`notes.${note.kind}`, { count: note.count })
                     ) : (
