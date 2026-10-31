@@ -3,7 +3,8 @@
 """`untraded-worker run`: process the job queue (UNTRADED_DATABASE_URL, UNTRADED_STORE_DIR,
 UNTRADED_UPLOADS_DIR, UNTRADED_UPLOAD_MAX_DEMO_GB, UNTRADED_DEMO_RETENTION_DAYS).
 `untraded-worker replays`: write the 2D viewer's round replays of the matches parsed before.
-`untraded-worker swings`: write the `swing` table of the matches parsed before."""
+`untraded-worker swings`: write the `swing` table of the matches parsed before.
+`untraded-worker reanalyze`: analyse the matches parsed before again (new metrics or versions)."""
 
 from __future__ import annotations
 
@@ -15,7 +16,16 @@ from pathlib import Path
 
 import psycopg
 
-from untraded_worker import conninfo, levels, replays, retention, store_dir, swings, uploads_dir
+from untraded_worker import (
+    conninfo,
+    levels,
+    reanalyze,
+    replays,
+    retention,
+    store_dir,
+    swings,
+    uploads_dir,
+)
 from untraded_worker.jobs import dead_handlers, handlers
 from untraded_worker.runner import Periodic, Worker
 from untraded_worker.store import LocalStore
@@ -34,6 +44,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     again.add_argument("--force", action="store_true", help="rewrite existing replays too")
     swing = actions.add_parser("swings", help="write the swing table of parsed matches")
     swing.add_argument("--force", action="store_true", help="rewrite existing swing tables too")
+    again_all = actions.add_parser("reanalyze", help="analyse the matches parsed before again")
+    again_all.add_argument("--force", action="store_true", help="every match, not only stale ones")
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -42,6 +54,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         with psycopg.connect(conninfo(), autocommit=True) as conn:
             done = replays.backfill(conn, store, force=args.force)
         logging.info("replays written for %s match(es)", done)
+        return 0
+    if args.action == "reanalyze":
+        with psycopg.connect(conninfo(), autocommit=True) as conn:
+            done = reanalyze.backfill(conn, store, force=args.force)
+        logging.info("%s match(es) analysed again", done)
         return 0
     if args.action == "swings":
         with psycopg.connect(conninfo(), autocommit=True) as conn:

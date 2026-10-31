@@ -13,6 +13,7 @@ just db-up && just db-migrate      # PostgreSQL 16 from compose.dev.yaml, with t
 uv run untraded-worker run         # until SIGINT or SIGTERM
 uv run untraded-worker replays     # the 2D viewer's round replays of matches parsed before
 uv run untraded-worker swings      # the swing table of matches parsed before
+uv run untraded-worker reanalyze   # metrics added since: analyse the matches parsed before again
 ```
 
 `run` takes `--once` (stop when no job is ready), `--kinds parse,session` (only those job kinds;
@@ -57,6 +58,7 @@ after a new replay format or a new win-probability model. Both log and skip a ma
   per round under `matches/{id}/replay/{round}.json.gz`, with the round's win-probability curve
   and swings. Written by the parse (a failure there leaves the analysis standing), and by
   `untraded-worker replays`.
+- `reanalyze.py`: `untraded-worker reanalyze [--force]`, the matches parsed before analysed again from their Parquet tables (derived tables, metrics, replays, SQL rows), and their players' sessions queued again: after an update that adds metrics or versions. Without `--force`, only the matches missing the current `rating.untraded`.
 - `swings.py`: `untraded-worker swings`, the `swing` table of matches parsed before it existed,
   or again after a new win-probability model.
 - `sessions.py`: the `session` job (`{"steam_id": ..., "match_id": ...}`). Matches with at most

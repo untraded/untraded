@@ -64,6 +64,9 @@
     "rating.hltv1": "HLTV Rating 1.0",
     "rating.hltv2_approx": "HLTV 2.0 (approx.)",
     "rating.swing": "Swing de probabilité de victoire",
+    "rating.untraded": "Untraded Rating",
+    "rating.untraded_margin": "Marge de l'Untraded Rating",
+    "rating.untraded_parts": "Untraded Rating par action",
     "trade.death_opportunities": "Morts tradables",
     "trade.kill_conversion_pct": "Conversion des occasions",
     "trade.kill_opportunities": "Occasions de trade",
@@ -259,6 +262,13 @@
     "The model is trained on a small corpus of high-level matches (docs/winprob.md): its numbers move with each new model version, which bumps this metric's version.": "Le modèle est entraîné sur un petit corpus de matchs de haut niveau (docs/winprob.md) : ses chiffres bougent à chaque nouvelle version du modèle, qui fait monter la version de cette métrique.",
     "The death of a bot is not credited.": "La mort d'un bot n'est pas comptée.",
     "First version, with the win-probability model 1.0 (#125).": "Première version, avec le modèle de probabilité de victoire 1.0 (#125).",
-    "Nothing is credited once the round is decided: a death to the bomb's explosion debited its victim (#126).": "Plus rien n'est compté une fois le round décidé : une mort due à l'explosion de la bombe était débitée à sa victime (#126)."
+    "Nothing is credited once the round is decided: a death to the bomb's explosion debited its victim (#126).": "Plus rien n'est compté une fois le round décidé : une mort due à l'explosion de la bombe était débitée à sa victime (#126).",
+    "1 + (swing per round - m) / k, the swing per round being `rating.swing`. m is the corpus's swing per round (all rounds pooled): the average player rates 1.00. k is the swing worth 1.00, chosen so that the rating spreads over the corpus's player-matches as HLTV 1.0 does. Both are published with the win-probability model (`rating-v1.json`, docs/winprob.md). Beta: measured on a small corpus of high-level matches.": "1 + (swing par round - m) / k, le swing par round étant `rating.swing`. m est le swing par round du corpus (tous les rounds réunis) : le joueur moyen vaut 1,00. k est le swing qui vaut 1,00, choisi pour que le rating s'étale sur les joueurs-matchs du corpus comme HLTV 1.0. Les deux sont publiés avec le modèle de probabilité de victoire (`rating-v1.json`, docs/winprob.md). Bêta : mesuré sur un petit corpus de matchs de haut niveau.",
+    "Beta: the scale is measured on a small corpus of high-level matches (docs/winprob.md). A new model or a larger corpus gives a new scale, which bumps this metric's version.": "Bêta : l'échelle est mesurée sur un petit corpus de matchs de haut niveau (docs/winprob.md). Un nouveau modèle ou un corpus plus grand donne une nouvelle échelle, qui fait monter la version de cette métrique.",
+    "Read it with its margin (`rating.untraded_margin`): over one match, it is wide.": "À lire avec sa marge (`rating.untraded_margin`) : sur un seul match, elle est large.",
+    "First version, the beta of the open rating (#137).": "Première version, la bêta du rating ouvert (#137).",
+    "It only counts the spread of the player's own rounds, not the model's uncertainty.": "Elle ne compte que la dispersion des rounds du joueur, pas l'incertitude du modèle.",
+    "Half-width of the 95 % interval of `rating.untraded`: 1.96 x the standard deviation of the player's swing per round / sqrt(rounds) / k. A rating over few rounds is a rough one. Columns: `steamid`, `rounds`, `margin` (null under 2 rounds).": "Demi-largeur de l'intervalle à 95 % de `rating.untraded` : 1,96 x l'écart-type du swing par round du joueur / sqrt(rounds) / k. Un rating sur peu de rounds reste approximatif. Colonnes : `steamid`, `rounds`, `margin` (nulle sous 2 rounds).",
+    "Where `rating.untraded` comes from, in rating points: `kills` (the kill credits that helped the player's side: the shares of the kills they made or helped, by damage and flash), `deaths` (the kill credits that hurt it: their deaths, and team kills), `plants`, `defuses`, and `baseline` (1 - m / k), so that the parts add up to the rating. Columns: `steamid`, `part`, `points`.": "D'où vient `rating.untraded`, en points de rating : `kills` (les crédits de kills qui ont aidé le camp du joueur : les parts des kills qu'il a faits ou aidés, selon les dégâts et la flash), `deaths` (les crédits de kills qui l'ont desservi : ses morts, et les tirs sur coéquipier), `plants`, `defuses`, et `baseline` (1 - m / k), pour que les parts fassent le rating. Colonnes : `steamid`, `part`, `points`."
   }
 }

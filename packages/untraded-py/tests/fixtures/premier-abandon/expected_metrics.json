@@ -54,6 +54,9 @@
   "rating.hltv1": "1.0.0",
   "rating.hltv2_approx": "1.1.0",
   "rating.swing": "1.1.0",
+  "rating.untraded": "1.0.0",
+  "rating.untraded_margin": "1.0.0",
+  "rating.untraded_parts": "1.0.0",
   "trade.death_opportunities": "1.1.0",
   "trade.kill_conversion_pct": "1.2.0",
   "trade.kill_opportunities": "1.1.0",
@@ -130,6 +133,7 @@
    "rating.hltv1": 2.274121,
    "rating.hltv2_approx": 1.749137,
    "rating.swing": 25.355607,
+   "rating.untraded": 2.932374,
    "trade.death_opportunities": 0.0,
    "trade.kill_conversion_pct": 0.0,
    "trade.kill_opportunities": 3.0,
@@ -205,6 +209,7 @@
    "rating.hltv1": 0.272618,
    "rating.hltv2_approx": -0.252219,
    "rating.swing": -26.612943,
+   "rating.untraded": -1.098883,
    "trade.death_opportunities": 2.0,
    "trade.kill_conversion_pct": null,
    "trade.kill_opportunities": 0.0,
@@ -280,6 +285,7 @@
    "rating.hltv1": 0.278499,
    "rating.hltv2_approx": 0.328793,
    "rating.swing": 0.662304,
+   "rating.untraded": 1.016888,
    "trade.death_opportunities": 2.0,
    "trade.kill_conversion_pct": 0.0,
    "trade.kill_opportunities": 1.0,
@@ -355,6 +361,7 @@
    "rating.hltv1": 0.278499,
    "rating.hltv2_approx": 0.189201,
    "rating.swing": -14.5908,
+   "rating.untraded": -0.166312,
    "trade.death_opportunities": 0.0,
    "trade.kill_conversion_pct": 0.0,
    "trade.kill_opportunities": 1.0,
@@ -430,6 +437,7 @@
    "rating.hltv1": 1.301468,
    "rating.hltv2_approx": 1.332384,
    "rating.swing": 3.475868,
+   "rating.untraded": 1.235139,
    "trade.death_opportunities": 1.0,
    "trade.kill_conversion_pct": 0.0,
    "trade.kill_opportunities": 1.0,
@@ -505,6 +513,7 @@
    "rating.hltv1": 0.0,
    "rating.hltv2_approx": -0.435185,
    "rating.swing": -9.362099,
+   "rating.untraded": 0.239284,
    "trade.death_opportunities": 3.0,
    "trade.kill_conversion_pct": 0.0,
    "trade.kill_opportunities": 2.0,
@@ -580,6 +589,7 @@
    "rating.hltv1": 0.835496,
    "rating.hltv2_approx": 1.442884,
    "rating.swing": 16.266974,
+   "rating.untraded": 2.227359,
    "trade.death_opportunities": 3.0,
    "trade.kill_conversion_pct": 0.0,
    "trade.kill_opportunities": 1.0,
@@ -655,6 +665,7 @@
    "rating.hltv1": 1.852584,
    "rating.hltv2_approx": 2.164129,
    "rating.swing": 9.327749,
+   "rating.untraded": 1.689076,
    "trade.death_opportunities": 1.0,
    "trade.kill_conversion_pct": 25.0,
    "trade.kill_opportunities": 4.0,
@@ -730,6 +741,7 @@
    "rating.hltv1": 1.102232,
    "rating.hltv2_approx": 1.496172,
    "rating.swing": -3.409887,
+   "rating.untraded": 0.701003,
    "trade.death_opportunities": 0.0,
    "trade.kill_conversion_pct": 0.0,
    "trade.kill_opportunities": 7.0,
@@ -805,6 +817,7 @@
    "rating.hltv1": 1.102232,
    "rating.hltv2_approx": 1.434447,
    "rating.swing": -3.960232,
+   "rating.untraded": 0.658312,
    "trade.death_opportunities": 0.0,
    "trade.kill_conversion_pct": 0.0,
    "trade.kill_opportunities": 3.0,
@@ -2124,6 +2137,310 @@
     "zone": "Outside",
     "rounds": 2,
     "share_pct": 66.666667
+   }
+  ],
+  "rating.untraded_margin": [
+   {
+    "steamid": "A3",
+    "rounds": 3,
+    "margin": 0.100696
+   },
+   {
+    "steamid": "A2",
+    "rounds": 3,
+    "margin": 0.21852
+   },
+   {
+    "steamid": "B3",
+    "rounds": 3,
+    "margin": 0.509333
+   },
+   {
+    "steamid": "A5",
+    "rounds": 3,
+    "margin": 0.647954
+   },
+   {
+    "steamid": "B5",
+    "rounds": 3,
+    "margin": 0.670898
+   },
+   {
+    "steamid": "B1",
+    "rounds": 3,
+    "margin": 0.995479
+   },
+   {
+    "steamid": "A4",
+    "rounds": 3,
+    "margin": 1.063614
+   },
+   {
+    "steamid": "B2",
+    "rounds": 3,
+    "margin": 1.381242
+   },
+   {
+    "steamid": "B4",
+    "rounds": 3,
+    "margin": 2.949067
+   },
+   {
+    "steamid": "A1",
+    "rounds": 3,
+    "margin": 4.352359
+   }
+  ],
+  "rating.untraded_parts": [
+   {
+    "steamid": "A1",
+    "part": "baseline",
+    "points": 0.965512
+   },
+   {
+    "steamid": "A2",
+    "part": "baseline",
+    "points": 0.965512
+   },
+   {
+    "steamid": "A3",
+    "part": "baseline",
+    "points": 0.965512
+   },
+   {
+    "steamid": "A4",
+    "part": "baseline",
+    "points": 0.965512
+   },
+   {
+    "steamid": "A5",
+    "part": "baseline",
+    "points": 0.965512
+   },
+   {
+    "steamid": "B1",
+    "part": "baseline",
+    "points": 0.965512
+   },
+   {
+    "steamid": "B2",
+    "part": "baseline",
+    "points": 0.965512
+   },
+   {
+    "steamid": "B3",
+    "part": "baseline",
+    "points": 0.965512
+   },
+   {
+    "steamid": "B4",
+    "part": "baseline",
+    "points": 0.965512
+   },
+   {
+    "steamid": "B5",
+    "part": "baseline",
+    "points": 0.965512
+   },
+   {
+    "steamid": "A5",
+    "part": "deaths",
+    "points": -0.039904
+   },
+   {
+    "steamid": "A1",
+    "part": "deaths",
+    "points": -0.245096
+   },
+   {
+    "steamid": "B2",
+    "part": "deaths",
+    "points": -0.412611
+   },
+   {
+    "steamid": "B3",
+    "part": "deaths",
+    "points": -0.481331
+   },
+   {
+    "steamid": "A3",
+    "part": "deaths",
+    "points": -0.580904
+   },
+   {
+    "steamid": "B5",
+    "part": "deaths",
+    "points": -0.632279
+   },
+   {
+    "steamid": "B1",
+    "part": "deaths",
+    "points": -0.726228
+   },
+   {
+    "steamid": "B4",
+    "part": "deaths",
+    "points": -1.033142
+   },
+   {
+    "steamid": "A4",
+    "part": "deaths",
+    "points": -1.180496
+   },
+   {
+    "steamid": "A2",
+    "part": "deaths",
+    "points": -2.147547
+   },
+   {
+    "steamid": "A1",
+    "part": "defuses",
+    "points": 0.0
+   },
+   {
+    "steamid": "A2",
+    "part": "defuses",
+    "points": 0.0
+   },
+   {
+    "steamid": "A3",
+    "part": "defuses",
+    "points": 0.0
+   },
+   {
+    "steamid": "A4",
+    "part": "defuses",
+    "points": 0.0
+   },
+   {
+    "steamid": "A5",
+    "part": "defuses",
+    "points": 0.0
+   },
+   {
+    "steamid": "B1",
+    "part": "defuses",
+    "points": 0.0
+   },
+   {
+    "steamid": "B2",
+    "part": "defuses",
+    "points": 0.0
+   },
+   {
+    "steamid": "B3",
+    "part": "defuses",
+    "points": 0.0
+   },
+   {
+    "steamid": "B4",
+    "part": "defuses",
+    "points": 0.0
+   },
+   {
+    "steamid": "B5",
+    "part": "defuses",
+    "points": 0.0
+   },
+   {
+    "steamid": "B1",
+    "part": "kills",
+    "points": 0.0
+   },
+   {
+    "steamid": "A4",
+    "part": "kills",
+    "points": 0.048671
+   },
+   {
+    "steamid": "A2",
+    "part": "kills",
+    "points": 0.083152
+   },
+   {
+    "steamid": "A5",
+    "part": "kills",
+    "points": 0.309531
+   },
+   {
+    "steamid": "B5",
+    "part": "kills",
+    "points": 0.32508
+   },
+   {
+    "steamid": "B4",
+    "part": "kills",
+    "points": 0.573262
+   },
+   {
+    "steamid": "A3",
+    "part": "kills",
+    "points": 0.632279
+   },
+   {
+    "steamid": "B3",
+    "part": "kills",
+    "points": 1.095081
+   },
+   {
+    "steamid": "B2",
+    "part": "kills",
+    "points": 1.57827
+   },
+   {
+    "steamid": "A1",
+    "part": "kills",
+    "points": 2.211959
+   },
+   {
+    "steamid": "A1",
+    "part": "plants",
+    "points": 0.0
+   },
+   {
+    "steamid": "A2",
+    "part": "plants",
+    "points": 0.0
+   },
+   {
+    "steamid": "A3",
+    "part": "plants",
+    "points": 0.0
+   },
+   {
+    "steamid": "A4",
+    "part": "plants",
+    "points": 0.0
+   },
+   {
+    "steamid": "A5",
+    "part": "plants",
+    "points": 0.0
+   },
+   {
+    "steamid": "B1",
+    "part": "plants",
+    "points": 0.0
+   },
+   {
+    "steamid": "B5",
+    "part": "plants",
+    "points": 0.0
+   },
+   {
+    "steamid": "B2",
+    "part": "plants",
+    "points": 0.096188
+   },
+   {
+    "steamid": "B3",
+    "part": "plants",
+    "points": 0.109813
+   },
+   {
+    "steamid": "B4",
+    "part": "plants",
+    "points": 0.195371
    }
   ]
  }

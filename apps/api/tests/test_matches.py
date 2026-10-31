@@ -89,6 +89,23 @@ def test_match_detail(client: TestClient, match_id: uuid.UUID) -> None:
     assert {p["team"] for p in detail["players"]} == {"A", "B"}
     assert all(p["line"]["kills"] is not None for p in detail["players"])
     assert all(isinstance(p["steam_id"], str) for p in detail["players"])
+    # The Untraded Rating is each player's headline, and sorts the players of a team.
+    ratings = [p["line"]["untraded"] for p in detail["players"] if p["team"] == "A"]
+    assert all(r is not None for r in ratings)
+    assert ratings == sorted(ratings, reverse=True)
+
+
+def test_player_rating_adds_up_from_its_parts(client: TestClient, match_id: uuid.UUID) -> None:
+    body = as_player(client, ME).get(f"/matches/{match_id}/players/1/rating").json()
+    assert body["value"] is not None
+    assert body["margin"] > 0
+    assert body["rounds"] > 0
+    parts = {p["part"]: p["points"] for p in body["parts"]}
+    assert set(parts) == {"kills", "deaths", "plants", "defuses", "baseline"}
+    assert sum(parts.values()) == pytest.approx(body["value"], abs=1e-6)
+    assert parts["deaths"] <= 0 <= parts["kills"]
+    stranger = as_player(client, STRANGER)
+    assert stranger.get(f"/matches/{match_id}/players/1/rating").status_code == 404
 
 
 def test_player_metrics(client: TestClient, match_id: uuid.UUID) -> None:

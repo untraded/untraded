@@ -16,7 +16,7 @@ import psycopg
 import pytest
 
 from untraded.parsing import CanonicalMatch, UnsupportedModeError
-from untraded_worker import queue, replays, swings
+from untraded_worker import queue, reanalyze, replays, swings
 from untraded_worker.analysis import Analysis
 from untraded_worker.jobs import ON_DEAD, JobError, ParseJob
 from untraded_worker.load import load_match, refresh_access, sql_frames
@@ -174,6 +174,30 @@ def test_parse_job_end_to_end(
     assert swings.backfill(db, store) == 1
     assert store.read_table(f"matches/{match_id}", "swing").height > 0
     assert swings.backfill(db, store) == 0
+
+    # A match parsed before a metric existed gets it from `untraded-worker reanalyze`, which
+    # also queues its sessions again.
+    db.execute(
+        "DELETE FROM metric_value WHERE match_id = %s AND metric_id = 'rating.untraded'",
+        (match_id,),
+    )
+    db.execute("DELETE FROM job WHERE kind = 'session'")
+    assert reanalyze.backfill(db, store) == 1
+    queued = db.execute("SELECT count(*) FROM job WHERE kind = 'session'").fetchone()
+    invited = db.execute(
+        "SELECT count(*) FROM match_player mp JOIN app_user u ON u.steam_id = mp.steam_id "
+        "WHERE mp.match_id = %s",
+        (match_id,),
+    ).fetchone()
+    assert queued == invited
+    rating = db.execute(
+        "SELECT count(*) FROM metric_value WHERE match_id = %s AND metric_id = 'rating.untraded'",
+        (match_id,),
+    ).fetchone()
+    assert rating is not None
+    assert rating[0] > 0
+    assert reanalyze.backfill(db, store) == 0  # nothing stale left
+    assert reanalyze.backfill(db, store, force=True) == 1
 
 
 def test_a_known_demo_is_merged_into_its_match(

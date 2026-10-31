@@ -10,7 +10,7 @@ import io
 import json
 import os
 import sys
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -212,6 +212,13 @@ def _parser() -> argparse.ArgumentParser:
     swing.add_argument("match", type=Path, help="a match directory written by `untraded parse`")
     swing.add_argument("--model", type=Path, help="a model file (default: the published model)")
     swing.set_defaults(run=_winprob_swings)
+    scale = wp_actions.add_parser(
+        "rating-scale", help="measure the Untraded Rating's scale on parsed matches"
+    )
+    scale.add_argument("matches", type=Path, nargs="+", help="match directories")
+    scale.add_argument("--out", type=Path, required=True, help="where to write the scale (JSON)")
+    scale.add_argument("--version", required=True, help="the scale's version, e.g. 1.0")
+    scale.set_defaults(run=_winprob_rating_scale)
 
     corpus_parser = commands.add_parser("corpus", help="manage the reference demo corpus")
     corpus_parser.add_argument(
@@ -289,6 +296,24 @@ def _winprob_train(args: argparse.Namespace) -> int:
     for name in ("model", "baseline_alive_only", "baseline_ct_rate", "before_plant", "after_plant"):
         if report_.get(name):
             print(f"  {name:20} {json.dumps(report_[name])}")
+    return 0
+
+
+def _winprob_rating_scale(args: argparse.Namespace) -> int:
+    def matches() -> Iterator[dict[str, pl.DataFrame]]:
+        for directory in args.matches:
+            tables = CanonicalMatch.read(directory).tables()
+            if tables["match"]["mode"][0] == "pro":
+                print(f"{directory}: a pro match, left out", file=sys.stderr)  # ADR 0010
+                continue
+            yield {**tables, **derive(tables).tables()}
+
+    scale = winprob.rating.fit_scale(
+        matches(), version=args.version, model=winprob.default_model().version
+    )
+    scale.save(args.out)
+    print(f"mean {scale.mean} points per round, scale {scale.scale} -> {args.out}")
+    print(json.dumps(scale.trained_on, indent=2))
     return 0
 
 

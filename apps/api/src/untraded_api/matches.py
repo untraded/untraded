@@ -36,6 +36,8 @@ class PlayerLine(BaseModel):
     kast: float | None
     hltv1: float | None
     untraded_deaths: float | None
+    untraded: float | None
+    """The Untraded Rating (beta); null for a match analysed before it existed."""
 
 
 class MatchSummary(BaseModel):
@@ -113,7 +115,7 @@ class PlayerMetrics(BaseModel):
     metrics: list[MetricValue]
 
 
-LINE = "w.kills, w.deaths, w.adr, w.kast, w.hltv1, w.untraded_deaths"
+LINE = "w.kills, w.deaths, w.adr, w.kast, w.hltv1, w.untraded_deaths, w.untraded"
 
 SUMMARY = f"""
 SELECT m.id, m.played_at, m.ended_at, m.mode::text, m.status::text, m.map, m.score_a,
@@ -128,9 +130,15 @@ LEFT JOIN metric_wide_current w
 
 
 def _line(values: tuple[Any, ...]) -> PlayerLine:
-    kills, deaths, adr, kast, hltv1, untraded = values
+    kills, deaths, adr, kast, hltv1, untraded_deaths, untraded = values
     return PlayerLine(
-        kills=kills, deaths=deaths, adr=adr, kast=kast, hltv1=hltv1, untraded_deaths=untraded
+        kills=kills,
+        deaths=deaths,
+        adr=adr,
+        kast=kast,
+        hltv1=hltv1,
+        untraded_deaths=untraded_deaths,
+        untraded=untraded,
     )
 
 
@@ -157,7 +165,7 @@ def summary_fields(row: tuple[Any, ...]) -> dict[str, Any]:
         "rounds_played": rounds,
         "my_team": team,
         "my_result": _result(team, score_a, score_b) if status_ == "ready" else None,
-        "my_line": _line(row[11:17]) if has_line else None,
+        "my_line": _line(row[11:18]) if has_line else None,
     }
 
 
@@ -205,7 +213,7 @@ def get_match(match_id: uuid.UUID, conn: ConnDep, user: UserDep) -> MatchDetail:
         LEFT JOIN metric_wide_current w
                ON w.match_id = mp.match_id AND w.steam_id = mp.steam_id AND w.scope = 'match'
         WHERE mp.match_id = %s
-        ORDER BY mp.team, w.hltv1 DESC NULLS LAST, mp.name
+        ORDER BY mp.team, coalesce(w.untraded, w.hltv1) DESC NULLS LAST, mp.name
         """,
         (match_id,),
     ).fetchall()
@@ -238,7 +246,7 @@ def get_match(match_id: uuid.UUID, conn: ConnDep, user: UserDep) -> MatchDetail:
                 team=p[2],
                 rank=p[3],
                 rounds_on_team=p[4],
-                line=_line(p[5:11]),
+                line=_line(p[5:12]),
             )
             for p in players
         ],
@@ -328,3 +336,75 @@ def get_player_metrics(match_id: uuid.UUID, steam_id: SteamId, conn: ConnDep) ->
             for r in rows
         ],
     )
+
+
+class RatingPart(BaseModel):
+    part: str
+    """`kills`, `deaths`, `plants`, `defuses`, or `baseline` (1 - m / k): the parts add up to
+    the rating."""
+    points: float
+
+
+class RatingDetail(BaseModel):
+    """The Untraded Rating of one player in one match (scope `match`), and where it comes from."""
+
+    value: float | None
+    margin: float | None
+    """Half-width of its 95 % interval."""
+    rounds: int | None
+    parts: list[RatingPart]
+
+
+@router.get("/{match_id}/players/{steam_id}/rating")
+def get_player_rating(match_id: uuid.UUID, steam_id: SteamId, conn: ConnDep) -> RatingDetail:
+    """The Untraded Rating of a player in a match, its margin and its parts by action. Its
+    values are null for a match analysed before the rating existed."""
+    played = conn.execute(
+        "SELECT rounds_on_team FROM match_player WHERE match_id = %s AND steam_id = %s",
+        (match_id, int(steam_id)),
+    ).fetchone()
+    if played is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "no such player in a visible match")
+    values = dict(
+        conn.execute(
+            """
+            SELECT v.metric_id, v.value
+            FROM metric_value v JOIN metric_current c USING (metric_id, version)
+            WHERE v.match_id = %s AND v.steam_id = %s AND v.params_hash = 'default'
+              AND v.scope = 'match'
+              AND v.metric_id = 'rating.untraded'
+            """,
+            (match_id, int(steam_id)),
+        ).fetchall()
+    )
+    tables = dict(
+        conn.execute(
+            """
+            SELECT t.metric_id, t.rows
+            FROM metric_table_value t JOIN metric_current c USING (metric_id, version)
+            WHERE t.match_id = %s AND t.steam_id = %s AND t.params_hash = 'default'
+              AND t.metric_id IN ('rating.untraded_parts', 'rating.untraded_margin')
+            """,
+            (match_id, int(steam_id)),
+        ).fetchall()
+    )
+    margin_rows: list[dict[str, Any]] = tables.get("rating.untraded_margin") or []
+    margin = margin_rows[0] if margin_rows else {}
+    parts: list[dict[str, Any]] = tables.get("rating.untraded_parts") or []
+    return RatingDetail(
+        value=values.get("rating.untraded"),
+        margin=_number(margin.get("margin")),
+        rounds=margin.get("rounds") if isinstance(margin.get("rounds"), int) else played[0],
+        parts=[
+            RatingPart(part=str(r["part"]), points=points)
+            for r in parts
+            if isinstance(r, dict)
+            and "part" in r
+            and (points := _number(r.get("points"))) is not None
+        ],
+    )
+
+
+def _number(value: Any) -> float | None:
+    """A stored number, or None for a null (the worker stores NaN and infinity as null)."""
+    return float(value) if isinstance(value, int | float) else None

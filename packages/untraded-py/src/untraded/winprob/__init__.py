@@ -5,7 +5,8 @@
 - `features`: the round's state, sampled every second (counter-terrorists' point of view);
 - `model`: a logistic regression on that state, published as coefficients (`Model`);
 - `validation`: scores on the newest matches, held out, against two baselines;
-- `swing`: the probability before and after each kill, plant and defuse, credited to players.
+- `swing`: the probability before and after each kill, plant and defuse, credited to players;
+- `rating`: the Untraded Rating's scale, where 1.00 is the average player (`default_scale()`).
 
 The published model (`default_model()`) is trained on demos of consenting players only (ADR 0010);
 docs/winprob.md describes the method and its scores.
@@ -16,6 +17,7 @@ from __future__ import annotations
 from functools import cache
 from importlib import resources
 
+from untraded.winprob import rating
 from untraded.winprob.features import BOMB_SECONDS, NUMERIC, ROUND_SECONDS, samples, state_at
 from untraded.winprob.model import Model, fit
 from untraded.winprob.swing import swings
@@ -29,6 +31,7 @@ __all__ = [
     "default_model",
     "evaluate",
     "fit",
+    "rating",
     "samples",
     "split_by_time",
     "state_at",
