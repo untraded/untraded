@@ -15,7 +15,7 @@ import { mapName, score, shortDay } from "@/lib/format";
 
 type Params = {
   params: Promise<{ id: string; round: string }>;
-  searchParams: Promise<{ t?: string; player?: string }>;
+  searchParams: Promise<{ t?: string; player?: string; p?: string }>;
 };
 
 const STEAM_ID = /^\d{1,20}$/;
@@ -27,7 +27,8 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 
 /**
  * One round, replayed from above (`?t=` the tick it opens on, `?player=` the player highlighted,
- * by default the signed-in one). The rounds to review of a report open it 5 s before their event.
+ * by default the signed-in one). The rounds to review of a report open it 5 s before their event,
+ * with `?p=` the rule of the priority they are evidence for.
  */
 export default async function RoundPage({ params, searchParams }: Params) {
   const { id, round: roundParam } = await params;
@@ -57,6 +58,9 @@ export default async function RoundPage({ params, searchParams }: Params) {
   const reason = round ? reasons[round.reason] : undefined;
   const labels = await viewerLabels(number);
   const command = start !== null ? `demo_gototick ${start}` : null;
+  const advice = await getTranslations("advice");
+  const rule = query.p && /^[a-z0-9_.]{1,64}$/.test(query.p) ? `rules.${query.p}.label` : null;
+  const proof = start !== null && rule && advice.has(rule) ? advice(rule) : null;
 
   return (
     <article className="flex flex-col gap-3.5">
@@ -131,6 +135,7 @@ export default async function RoundPage({ params, searchParams }: Params) {
       {command && (
         <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1.5 rounded-lg bg-highlight-soft px-3.5 py-2 text-sm">
           <span>
+            {proof && `${t("proofFor", { label: proof })} `}
             {t("focus")} {focusName && t("focusPlayer", { name: focusName })}
           </span>
           <span className="flex flex-wrap items-center gap-2 sm:ml-auto">
@@ -187,6 +192,21 @@ async function viewerLabels(round: number): Promise<ViewerLabels> {
     legendFocus: t("legendFocus"),
     markPlant: t("markPlant", { time: keep("time") }),
     markFocus: t("markFocus"),
+    playMoment: t("playMoment"),
+    momentSoon: t("momentSoon", { seconds: keep("seconds") }),
+    momentAt: t("momentAt", { time: keep("time") }),
+    momentLine: t("momentLine", { when: keep("when"), event: keep("event") }),
+    momentKilled: t("momentKilled", {
+      victim: keep("victim"),
+      attacker: keep("attacker"),
+      weapon: keep("weapon"),
+    }),
+    momentKills: t("momentKills", {
+      attacker: keep("attacker"),
+      victim: keep("victim"),
+      weapon: keep("weapon"),
+    }),
+    momentOther: t("momentOther"),
     markKill: t("markKill", {
       attacker: keep("attacker"),
       victim: keep("victim"),

@@ -315,6 +315,22 @@ export function startTick(
   return Math.min(replay.end_tick, Math.max(replay.start_tick, asked));
 }
 
+/**
+ * The kill at a moment to review, if it is one: a report opens the viewer 5 s before its event, so
+ * the kill within a second of `moment`, the highlighted player's first, else the nearest. Null
+ * when the moment is not a kill (a flash on a teammate, a position).
+ */
+export function momentKill(
+  replay: Pick<Replay, "kills" | "tickrate">,
+  moment: number,
+  focus: string | null,
+): ReplayKill | null {
+  const near = replay.kills
+    .filter((kill) => Math.abs(kill.tick - moment) <= replay.tickrate)
+    .sort((a, b) => Math.abs(a.tick - moment) - Math.abs(b.tick - moment));
+  return near.find((kill) => kill.victim === focus || kill.attacker === focus) ?? near[0] ?? null;
+}
+
 /** A weapon as the viewer names it: every knife is a knife, the bomb is C4. */
 export function weaponKind(name: string | null | undefined): "knife" | "c4" | null {
   if (!name) return null;

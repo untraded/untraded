@@ -72,7 +72,7 @@ export async function MatchPriorities({
                       return (
                         <li key={flagged.round}>
                           <Link
-                            href={`/matches/${match.id}/rounds/${flagged.round}?t=${flagged.tick}`}
+                            href={`/matches/${match.id}/rounds/${flagged.round}?t=${flagged.tick}&p=${encodeURIComponent(advice.rule_id)}`}
                             aria-label={t("flagged", {
                               round: flagged.round,
                               side: side ?? "",

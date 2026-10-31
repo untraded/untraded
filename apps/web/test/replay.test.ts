@@ -11,6 +11,7 @@ import {
   hasLevels,
   levelAt,
   levelOf,
+  momentKill,
   sampleAt,
   startTick,
   weaponKind,
@@ -126,5 +127,29 @@ describe("replay", () => {
     expect(levelAt(replay, "up", 12)).toBe("upper");
     expect(levelAt(replay, "nobody", 6)).toBe("upper");
     expect(levelAt({ ...replay, radar: { ...NUKE, lower_below: null } }, "down", 6)).toBe("upper");
+  });
+});
+
+describe("momentKill", () => {
+  const kill = (tick: number, attacker: string | null, victim: string) =>
+    ({ tick, attacker, victim }) as never;
+  const replay = {
+    tickrate: 64,
+    kills: [
+      kill(1000, "a", "b"),
+      kill(7000, "c", "d"),
+      kill(7030, "e", "me"),
+      kill(9000, "me", "f"),
+    ],
+  };
+
+  it("finds the kill at the moment, the highlighted player's first", () => {
+    expect(momentKill(replay, 7026, "me")).toMatchObject({ tick: 7030, victim: "me" });
+    expect(momentKill(replay, 7026, "nobody")).toMatchObject({ tick: 7030 });
+    expect(momentKill(replay, 7000, "nobody")).toMatchObject({ tick: 7000 });
+  });
+
+  it("is null when no kill is within a second of the moment", () => {
+    expect(momentKill(replay, 5000, "me")).toBeNull();
   });
 });

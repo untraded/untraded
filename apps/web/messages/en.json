@@ -1123,7 +1123,15 @@
       "forSide": "{points} points for the {side}",
       "seek": "{what}, at {time}: go to this moment",
       "none": "No win-probability curve for this round: the model does not cover how it ended."
-    }
+    },
+    "playMoment": "Play the moment",
+    "momentSoon": "In {seconds} s",
+    "momentAt": "At {time}",
+    "momentLine": "{when}: {event}",
+    "momentKilled": "{victim} is killed by {attacker} ({weapon})",
+    "momentKills": "{attacker} kills {victim} ({weapon})",
+    "momentOther": "the moment to review",
+    "proofFor": "Evidence for the priority “{label}”."
   },
   "demo": {
     "banner": "Demo: anonymized data, read-only.",

@@ -14,6 +14,7 @@ import {
   killWeapon,
   type Level,
   levelAt,
+  momentKill,
   nearest,
   REPLAY_VERSION,
   type Replay,
@@ -56,6 +57,14 @@ export interface ViewerLabels {
   legendFocus: string;
   markPlant: string;
   markFocus: string;
+  playMoment: string;
+  /** `{seconds}`; `{time}`; `{when}` and `{event}`; then the event: a kill, else the moment. */
+  momentSoon: string;
+  momentAt: string;
+  momentLine: string;
+  momentKilled: string;
+  momentKills: string;
+  momentOther: string;
   /** `{attacker}`, `{victim}` and `{time}` are replaced by the viewer. */
   markKill: string;
   winprob: WinProbLabels;
@@ -136,6 +145,8 @@ export function ReplayViewer({
   const viewRef = useRef<{ focus: string | null; level: Level }>({ focus, level: "upper" });
   const headRef = useRef<HTMLSpanElement>(null);
   const doneRef = useRef<HTMLSpanElement>(null);
+  /** Where "Play the moment" pauses: a little after the moment, so it is seen, then still. */
+  const stopRef = useRef<number | null>(null);
 
   // The replay, from the API (gzipped, and cached by the browser: it never changes). The format
   // version is in the address, so a new viewer never reads a replay cached for the old one.
@@ -193,6 +204,10 @@ export function ReplayViewer({
             const next =
               tickRef.current + ((now - last) / 1000) * replay.tickrate * playRef.current.speed;
             tickRef.current = Math.min(replay.end_tick, next);
+            if (stopRef.current !== null && tickRef.current >= stopRef.current) {
+              stopRef.current = null;
+              setPlaying(false);
+            }
             if (tickRef.current >= replay.end_tick) setPlaying(false);
             placeHead(replay, tickRef.current, headRef.current, doneRef.current);
             if (now - shown > PANEL_EVERY) {
@@ -241,6 +256,7 @@ export function ReplayViewer({
 
   function toggle() {
     if (!replay) return;
+    stopRef.current = null;
     if (!playing && tickRef.current >= replay.end_tick) seek(replay.start_tick);
     setPlaying(!playing);
   }
@@ -256,6 +272,16 @@ export function ReplayViewer({
       : 0;
   const byId = useMemo(() => new Map(replay?.players.map((p) => [p.steamid, p]) ?? []), [replay]);
   const focusTick = replay && start !== null ? start + 5 * replay.tickrate : null;
+  const focusKill = replay && focusTick !== null ? momentKill(replay, focusTick, focus) : null;
+
+  /** From where the viewer opened (5 s before) to a little after the moment, then pause. */
+  function playMoment() {
+    if (!replay || start === null || focusTick === null) return;
+    const opened = startTick(replay, start);
+    if (tickRef.current < opened || tickRef.current >= focusTick) seek(opened);
+    stopRef.current = (focusKill?.tick ?? focusTick) + 2 * replay.tickrate;
+    setPlaying(true);
+  }
 
   if (problem) {
     return (
@@ -274,6 +300,24 @@ export function ReplayViewer({
   };
   const name = (steamid: string | null) =>
     steamid === null ? labels.world : (byId.get(steamid)?.name ?? "?");
+  // The moment to review, said at the timeline: what happens, and in how long.
+  const momentText = (() => {
+    if (!replay || focusTick === null) return null;
+    const at = focusKill?.tick ?? focusTick;
+    const left = Math.ceil((at - tick) / replay.tickrate);
+    const when =
+      left > 0
+        ? fill(labels.momentSoon, { seconds: String(left) })
+        : fill(labels.momentAt, { time: roundTime(at) });
+    const event = focusKill
+      ? fill(focusKill.attacker === focus ? labels.momentKills : labels.momentKilled, {
+          attacker: name(focusKill.attacker),
+          victim: name(focusKill.victim),
+          weapon: killWeapon(focusKill.weapon) ?? labels.knife,
+        })
+      : labels.momentOther;
+    return fill(labels.momentLine, { when, event });
+  })();
   const sideClass = (steamid: string | null) =>
     byId.get(steamid ?? "")?.side === "CT" ? "text-side-ct" : "text-side-t";
 
@@ -355,6 +399,18 @@ export function ReplayViewer({
         </div>
         {replay && (
           <>
+            {momentText && (
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-border bg-highlight-soft px-3 py-2 text-sm">
+                <Button size="sm" className="gap-1.5" onClick={playMoment}>
+                  <Play aria-hidden="true" />
+                  {labels.playMoment}
+                </Button>
+                <span className="inline-flex items-center gap-2">
+                  <i aria-hidden="true" className="size-2 shrink-0 rounded-full bg-highlight" />
+                  <span className="tabular-nums">{momentText}</span>
+                </span>
+              </div>
+            )}
             <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3.5 gap-y-2 border-t border-border px-3 py-2.5 sm:grid-cols-[auto_minmax(0,1fr)_auto]">
               <div className="flex items-center gap-1.5">
                 <Button
