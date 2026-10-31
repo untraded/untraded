@@ -101,6 +101,14 @@ class Me(BaseModel):
 
 
 SIGNIN_COOKIE = "untraded_signin"
+
+
+def signin_cookie(settings: Settings) -> str:
+    """Over https, `__Host-`: the browser takes it only from this exact host, so a subdomain or
+    a forged plain-http answer cannot plant its own nonce (cookie tossing)."""
+    return f"__Host-{SIGNIN_COOKIE}" if settings.cookie_secure else SIGNIN_COOKIE
+
+
 SIGNIN_SECONDS = 10 * 60
 """How long a sign-in started here may take at Steam."""
 
@@ -125,7 +133,7 @@ def sign_in(settings: SettingsDep) -> RedirectResponse:
     url = steam.login_url(callback_url(settings, state), realm)
     response = RedirectResponse(url, status.HTTP_303_SEE_OTHER)
     response.set_cookie(
-        SIGNIN_COOKIE,
+        signin_cookie(settings),
         state,
         max_age=SIGNIN_SECONDS,
         httponly=True,
@@ -139,13 +147,15 @@ def sign_in(settings: SettingsDep) -> RedirectResponse:
 @router.get("/auth/steam/callback")
 def sign_in_callback(request: Request, db: DatabaseDep, settings: SettingsDep) -> RedirectResponse:
     response = _callback(request, db, settings)
-    response.delete_cookie(SIGNIN_COOKIE, path="/", secure=settings.cookie_secure, httponly=True)
+    response.delete_cookie(
+        signin_cookie(settings), path="/", secure=settings.cookie_secure, httponly=True
+    )
     return response
 
 
 def _callback(request: Request, db: Database, settings: Settings) -> RedirectResponse:
     client: httpx.Client = request.app.state.steam_client
-    state = request.cookies.get(SIGNIN_COOKIE, "")
+    state = request.cookies.get(signin_cookie(settings), "")
     if not state or not hmac.compare_digest(state, request.query_params.get("state", "")):
         return back_to_web(settings, "failed")  # not started in this browser, or too long ago
     try:
