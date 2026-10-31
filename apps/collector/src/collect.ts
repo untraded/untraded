@@ -36,14 +36,18 @@ export interface SourceReport {
   error?: string;
 }
 
-/** What the Game Coordinator tells about a match. */
+/** What the Game Coordinator tells about a match. Throws if it answered about another one. */
 export function foundMatch(shareCode: string, info: MatchInfo): FoundMatch {
+  const matchId = decodeMatchShareCode(shareCode).matchId.toString();
+  if (info.matchid !== undefined && String(info.matchid) !== matchId) {
+    throw new Error(`the Game Coordinator answered about match ${info.matchid}, not ${matchId}`);
+  }
   const lastRound = info.roundstatsall?.at(-1);
   const playedAt = info.matchtime ? new Date(info.matchtime * 1000) : undefined;
   const duration = lastRound?.match_duration;
   return {
     shareCode,
-    matchId: decodeMatchShareCode(shareCode).matchId.toString(),
+    matchId,
     url: lastRound?.map || undefined,
     playedAt,
     // The last round's match_duration (seconds) runs from the match start to its end.

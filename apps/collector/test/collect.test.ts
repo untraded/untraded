@@ -152,4 +152,9 @@ describe("foundMatch", () => {
       endedAt: undefined,
     });
   });
+
+  it("refuses an answer about another match", () => {
+    expect(foundMatch(code(7), { matchid: matchId(7) }).matchId).toBe(matchId(7));
+    expect(() => foundMatch(code(7), { matchid: matchId(8) })).toThrow(/not /);
+  });
 });
