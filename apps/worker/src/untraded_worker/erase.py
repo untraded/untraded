@@ -6,7 +6,8 @@ Afterwards the player is what any non-registered player of a match is:
 - their account goes with everything tied to it: sources and their encrypted codes, consents,
   sign-in sessions, votes, invitation (or request for one) and personal workspace;
 - their play sessions, advice and aggregates go too;
-- the matches no other user played in are deleted whole: rows, Parquet and raw demo;
+- the matches no other user played in are deleted whole: rows, Parquet and raw demo, and so
+  are the matches their sources brought that were never parsed (waiting, or failed);
 - the matches other users played in stay, since they are those users' matches too. The player
   remains one of the ten players there, never shown outside the match, and is left out of the
   level references from now on (`benchmark_opt_out`).
@@ -41,8 +42,26 @@ WHERE NOT EXISTS (
     JOIN app_user u ON u.steam_id = o.steam_id AND u.deleted_at IS NULL
     WHERE o.match_id = m.id AND o.steam_id <> %(steam)s
 )
+UNION
+SELECT m.id, m.demo_key, m.parquet_prefix
+FROM match m
+WHERE NOT EXISTS (SELECT 1 FROM match_player mp WHERE mp.match_id = m.id)
+  AND EXISTS (
+    SELECT 1 FROM match_source ms
+    JOIN ingest_source s ON s.id = ms.source_id
+    JOIN app_user u ON u.id = s.user_id
+    WHERE ms.match_id = m.id AND u.steam_id = %(steam)s
+  )
+  AND NOT EXISTS (
+    SELECT 1 FROM match_source ms
+    JOIN ingest_source s ON s.id = ms.source_id
+    JOIN app_user u ON u.id = s.user_id AND u.deleted_at IS NULL
+    WHERE ms.match_id = m.id AND u.steam_id <> %(steam)s
+  )
 """
-"""The player's matches that no other (live) user played in."""
+"""The player's matches that no other (live) user played in, and the matches their sources
+brought that were never parsed (pending, failed: no players known yet) and no other live
+user's source brought too."""
 
 
 class EraseError(ValueError):
