@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import { createInterface } from "node:readline/promises";
+import { decodeMatchShareCode } from "csgo-sharecode";
 import GlobalOffensive, { type MatchInfo } from "globaloffensive";
 import SteamUser from "steam-user";
+import { answersMatch } from "./collect.js";
 
 const CS2_APP_ID = 730;
 const GC_CONNECT_TIMEOUT_MS = 60_000;
@@ -107,15 +109,27 @@ export async function openBotSession(
 
   return {
     async requestMatch(shareCode: string): Promise<MatchInfo> {
+      const wanted = decodeMatchShareCode(shareCode).matchId.toString();
+      let listener: ((matches: MatchInfo[]) => void) | undefined;
       const response = new Promise<MatchInfo>((resolve, reject) => {
-        csgo.once("matchList", (matches) => {
+        listener = (matches) => {
           const match = matches[0];
-          if (match) resolve(match);
-          else reject(new Error("empty matchList (see node-globaloffensive issue #121)"));
-        });
+          if (!match) {
+            reject(new Error("empty matchList (see node-globaloffensive issue #121)"));
+          } else if (answersMatch(match, wanted)) {
+            resolve(match);
+          }
+          // Else the late answer to an earlier request that timed out: not this match's.
+        };
+        csgo.on("matchList", listener);
       });
       csgo.requestGame(shareCode);
-      return withTimeout(response, MATCH_REQUEST_TIMEOUT_MS, `match info for ${shareCode}`);
+      try {
+        return await withTimeout(response, MATCH_REQUEST_TIMEOUT_MS, `match info for ${shareCode}`);
+      } finally {
+        // Also after a timeout: a listener left behind would take the next request's answer.
+        if (listener) csgo.removeListener("matchList", listener);
+      }
     },
     close(): void {
       user.gamesPlayed([]);

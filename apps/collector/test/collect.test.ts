@@ -152,4 +152,17 @@ describe("foundMatch", () => {
       endedAt: undefined,
     });
   });
+
+  it("refuses an answer about another match", () => {
+    expect(foundMatch(code(7), { matchid: matchId(7) }).matchId).toBe(matchId(7));
+    expect(foundMatch(code(7), { matchid: null }).matchId).toBe(matchId(7));
+    const url = (n: number) => `http://replay1.valve.net/730/${matchId(n)}_1.dem.bz2`;
+    expect(foundMatch(code(7), { matchid: null, roundstatsall: [{ map: url(7) }] }).url).toBe(
+      url(7),
+    );
+    expect(() => foundMatch(code(7), { matchid: null, roundstatsall: [{ map: url(8) }] })).toThrow(
+      /another match/,
+    );
+    expect(() => foundMatch(code(7), { matchid: matchId(8) })).toThrow(/not /);
+  });
 });
