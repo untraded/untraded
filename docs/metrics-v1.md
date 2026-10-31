@@ -1,6 +1,6 @@
 # Metric catalog v1 (phase 1)
 
-*Version 1, 2026-10-13, updated 2026-10-26. This catalog is **closed** for phase 1: new metrics go to v2. Two entries were added since, `base.assist_score` (settled with the CS Demo Manager comparison) and `rating.swing` (the first step of the open rating). Each entry is a registered metric (`packages/untraded-py/src/untraded/metrics/`, 82 in all: 73 values and 9 tables) with a generated documentation page ([metrics/](metrics/README.md)), which also gives its version and history.*
+*Version 1, 2026-10-13, updated 2026-10-26. This catalog is **closed** for phase 1: new metrics go to v2. Entries added since: `base.assist_score` (settled with the CS Demo Manager comparison), then the open rating: `rating.swing`, `rating.untraded`, `rating.untraded_margin` and `rating.untraded_parts`. Each entry is a registered metric (`packages/untraded-py/src/untraded/metrics/`, 85 in all: 74 values and 11 tables) with a generated documentation page ([metrics/](metrics/README.md)), which also gives its version and history.*
 
 **Legend**
 - **ID**: stable registry identifier. It never changes, even when the formula's version does.
@@ -141,12 +141,15 @@ These metrics are distributions per map and side, not one number per player: the
 | `rating.hltv1` | HLTV Rating 1.0 | (KillRating + 0.7 × SurvivalRating + MultiKillRating) / 2.7, with reference averages 0.679, 0.317 and 1.277 (public formula); a round of N kills is worth N² multi-kill points. Kills are enemy kills, deaths any death. Same formula as `rating_hltv_1`, published in `untraded` 0.0.1. | ✅ |
 | `rating.hltv2_approx` | HLTV 2.0 (approx.) | 0.0073 × KAST + 0.3591 × KPR − 0.5329 × DPR + 0.2372 × Impact + 0.0032 × ADR + 0.1587, with Impact = 2.13 × KPR + 0.42 × APR − 0.41 and KAST in % (`base.kast`, same parameters). Can be negative (CS Demo Manager floors it at 0). **Always labeled "approx."** | ≈ |
 | `rating.swing` | Win-probability swing | The player's swings (derived table `swing`: how much each of their kills, deaths, plants and defuses moved their team's chance of winning the round, by the open win-probability model 1.0, [winprob](winprob.md)), summed and divided by the rounds played, in percentage points. 0 is a player whose actions moved nothing on balance. Can be negative. Matches derived before the `swing` table existed are left out | — |
+| `rating.untraded` | **Untraded Rating** (beta) | 1 + (swing per round − m) / k, the swing per round being `rating.swing`. m is the corpus's swing per round, all rounds pooled, so the average player rates 1.00; k is the swing worth 1.00, chosen so that the rating spreads over the corpus's player-matches as HLTV 1.0 does. Version 1.0 of the scale (`rating-v1.json`): m = 0.4446, k = 12.8914 percentage points per round ([winprob](winprob.md)) | — |
+| `rating.untraded_margin` | Untraded Rating margin | Half-width of its 95 % interval: 1.96 × the standard deviation of the player's swing per round ÷ √rounds ÷ k, with the rounds it stands on. Table metric (a margin is neither a total nor a rate: it is not compared with a reference) | — |
+| `rating.untraded_parts` | Untraded Rating by action | Its parts in rating points: `kills`, `deaths` (and team kills), `plants`, `defuses`, and `baseline` (1 − m / k); they add up to the rating. Table metric | — |
 
 **Validation.**
 - HLTV 1.0: the demos of the 1.0 era are CS:GO demos, which the CS2 parser does not read, so it is checked against independent calculations. The reference average player rates exactly 1.00. Over 18 Premier matches, the mean of each lobby is 0.99, ranging from 0.91 to 1.04. Against CS Demo Manager on 30 matches (E8), every gap comes from the rounds counted or from bots ([validation-csdm.md](validation-csdm.md)).
 - HLTV 2.0 (approx.): HLTV does not publish the formula, and no published error margin was found for this community approximation. Over the same matches, its lobby mean is 1.10 and it correlates at 0.95 with the 1.0. Against CS Demo Manager, the formula is the same and every gap comes from its inputs (KAST, ADR, assists) or its floor at 0.
 
-The **open Untraded rating** will be built on `rating.swing`, on a scale where 1.00 is the average player. Its model is trained on demos from consenting high-level players only ([ADR 0010](adr/0010-reference-data-and-corpus.md), [winprob](winprob.md)).
+The **Untraded Rating** (`rating.untraded`, beta) is built on `rating.swing`, on a scale where 1.00 is the average player of the corpus. Its model and its scale are measured on demos from consenting high-level players only ([ADR 0010](adr/0010-reference-data-and-corpus.md), [winprob](winprob.md)). On the 30 matches of version 1.0, it correlates at 0.76 with HLTV 1.0 and 0.77 with HLTV 2.0 (approx.).
 
 ## 7. Splits available in v1
 
@@ -175,7 +178,7 @@ A session is compared with the player's own reference ([ADR 0010](adr/0010-refer
 | Topic | Phase |
 |---|---|
 | Aim level 1: accuracy by weapon, distance and movement; counter-strafing; time to damage | 2 |
-| Open rating on the 1.00 scale, built on `rating.swing` (§ 6) | 2 |
+| Untraded Rating on the 1.00 scale (§ 6): done in beta | 2 |
 | Typical positions by clustering, arrival timings, team spacing at first contact | 2-3 |
 | Team stats: executes, setups, trade network, retakes and post-plants | 3 |
 | True line of sight, crossfire exposure, aim level 2 | 5 |

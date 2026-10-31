@@ -30,6 +30,7 @@ The connection comes from `UNTRADED_DATABASE_URL`, for example `postgresql+psyco
 | 0009 | erasing a player: the account marked deleted, the `erase_player` job queued |
 | 0010 | demos sent by players: why an upload was refused, and the functions the API records and lists them with |
 | 0011 | invitation requests from Steam accounts that are not invited (`invitation_request`, `request_invitation`) |
+| 0012 | the Untraded Rating in the wide view of the current values (`metric_wide_current.untraded`) |
 
 - **Migration 0001** is the reference schema validated in ADR 0011, frozen: `docs/db/schema.sql` must stay identical to it, which a test checks.
 - **Later changes** are new migrations, never edits of an applied one. They form one line from 0001, and each one goes down and up again (`db/tests`).

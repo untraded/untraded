@@ -1,0 +1,28 @@
+{
+  "format": 1,
+  "version": "1.0",
+  "model": "1.0",
+  "mean": 0.4446,
+  "scale": 12.8914,
+  "trained_on": {
+    "matches": 30,
+    "player_matches": 300,
+    "maps": {
+      "de_ancient": 6,
+      "de_anubis": 5,
+      "de_cache": 5,
+      "de_dust2": 5,
+      "de_inferno": 3,
+      "de_mirage": 4,
+      "de_nuke": 2
+    },
+    "modes": {
+      "faceit": 1,
+      "premier": 29
+    },
+    "measured": "2026-10-31",
+    "correlation_hltv1": 0.761,
+    "correlation_hltv2_approx": 0.77,
+    "hltv1_std": 0.373
+  }
+}

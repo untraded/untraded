@@ -98,7 +98,30 @@ Every parsed match keeps its swings in the derived table `swing` ([round model](
 
 The 2D viewer's round replays carry the curve and the swings ([replay format](replay-format.md), version 2).
 
-The **open rating** built on these swings comes next. On its scale, 1.00 is the average player of the corpus.
+## The Untraded Rating
+
+`rating.swing` is the win probability a player's actions moved per round, in percentage points. Its average is about 0, so a rating cannot be a ratio to it. The **Untraded Rating** (`rating.untraded`, beta) maps it onto a scale where **1.00 is the average player of the corpus** (`untraded.winprob.rating`):
+
+```
+rating = 1 + (swing per round − m) / k
+```
+
+- **m** is the corpus's swing per round, all rounds pooled: the average player rates 1.00.
+- **k** is the swing worth 1.00 of rating, chosen so that the rating spreads over the corpus's player-matches as HLTV 1.0 does on the same matches: the gaps read about as at HLTV, though one player's two ratings can differ (they correlate at 0.76).
+
+| Scale 1.0 (`rating-v1.json`) | |
+|---|---|
+| Measured on | the 30 matches of the model 1.0, 300 player-matches |
+| m | 0.4446 percentage points per round |
+| k | 12.8914 percentage points per round for 1.00 |
+| Correlation with HLTV 1.0, 2.0 (approx.) | 0.76, 0.77 |
+
+The rating moves with HLTV without copying it: it credits what a kill was worth in its round (a kill in a 5v5 is worth less than the last kill of a clutch), the plant and the defuse, and debits each death by what it cost.
+
+- **Its margin** (`rating.untraded_margin`): half-width of the 95 % interval, 1.96 × the standard deviation of the player's swing per round ÷ √rounds ÷ k. Over one match it is wide; over a session it narrows.
+- **Its parts** (`rating.untraded_parts`): the points from kills (the shares the player earned, by damage and flash), deaths, plants and defuses, plus the baseline 1 − m / k. They add up to the rating, so every point can be traced to the actions behind it.
+
+`untraded winprob rating-scale <match directories> --version 1.0 --out rating-v1.json` measures the scale (pro matches are left out). A new model or a larger corpus gives a new scale, and a new version of the metric.
 
 ## Reproducing it
 

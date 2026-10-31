@@ -1,6 +1,6 @@
 # Phase 2 database: entity-relationship diagram
 
-The decisions behind the schema are in [ADR 0011](../adr/0011-phase-2-database-schema.md). The migrations in [`db/`](../../db/src/untraded_db/migrations/versions/) are the source of truth (ADR 0006); this page shows the schema **after the last one, 0011**. [schema.sql](schema.sql) is the reference schema of ADR 0011, kept identical to migration 0001, which a test checks (`db/tests/test_migrations.py`): it does not hold the later migrations.
+The decisions behind the schema are in [ADR 0011](../adr/0011-phase-2-database-schema.md). The migrations in [`db/`](../../db/src/untraded_db/migrations/versions/) are the source of truth (ADR 0006); this page shows the schema **after the last one, 0012**. [schema.sql](schema.sql) is the reference schema of ADR 0011, kept identical to migration 0001, which a test checks (`db/tests/test_migrations.py`): it does not hold the later migrations.
 
 Every table and column is shown. Solid lines are foreign keys; dotted lines are links by Steam id that have no foreign key constraint (event and metric rows keep the Steam ids of every player of a match). Types: `char1` is `char(1)`, `char64` is `char(64)`, `text_array` is `text[]`, `double` is `double precision`.
 
@@ -17,6 +17,7 @@ Every table and column is shown. Solid lines are foreign keys; dotted lines are 
 | 0009 erasure | `request_erasure`, `request_my_erasure` |
 | 0010 uploads | `match_source.rejected`; the upload functions |
 | 0011 invitation requests | `invitation_request`; `request_invitation(steam, persona)` for the API role |
+| 0012 Untraded Rating | `metric_wide_current.untraded` |
 
 ## Tenancy and players
 
@@ -488,7 +489,7 @@ erDiagram
     }
 ```
 
-- `metric_wide_current` is a view of the current values (`metric_current`, default parameters), one row per match, player and scope: `kills`, `deaths`, `adr`, `kast`, `hltv1`, `untraded_deaths`. It runs with the caller's rights (`security_invoker`).
+- `metric_wide_current` is a view of the current values (`metric_current`, default parameters), one row per match, player and scope: `kills`, `deaths`, `adr`, `kast`, `hltv1`, `untraded_deaths`, `untraded` (0012). It runs with the caller's rights (`security_invoker`).
 - A **play session** groups a player's matches while there is at most one hour between the end of one and the start of the next. Its report compares it with the player's own 30 days before (`reference_kind` `self`), else with a level (`level`, from `level_reference`: anonymous aggregates of a rating band), else nothing (`none`).
 
 ## Job queue
