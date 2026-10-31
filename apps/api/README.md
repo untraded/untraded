@@ -50,6 +50,7 @@ and trusts the reverse proxy's `X-Forwarded-*` headers.
 | `GET /matches?limit=&offset=` | the matches the user may see, most recent first, with the user's team, result and headline numbers (20 by default, at most 100) |
 | `GET /matches/{id}` | a match: score, rounds, players and their headline numbers (404 when not visible) |
 | `GET /matches/{id}/players/{steam_id}` | every value metric of a player in that match, on the scopes `match`, `ct` and `t` |
+| `GET /matches/{id}/players/{steam_id}/rating` | the player's Untraded Rating in that match, its margin, the rounds, and its parts by action (`kills`, `deaths`, `plants`, `defuses`, `baseline`), which add up to it |
 | `GET /matches/{id}/rounds/{n}/replay?v=` | a round as the 2D viewer replays it (`docs/replay-format.md`), gzipped JSON the browser keeps for a day. `v` is the format the viewer reads: a replay in another version is a 404 that is not cached |
 | `GET /sessions?limit=&offset=` | the user's play sessions, most recent first, with their record, maps, headline comparisons and first priority |
 | `GET /sessions/{id}` | a session's report: its reference (own days, level or none), matches, up to three priorities with their evidence, the previous priorities' indicators since (follow-up), and every metric against the reference |

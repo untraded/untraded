@@ -146,6 +146,14 @@ LIMITS: dict[str, tuple[str, ...]] = {
         "numbers move with each new model version, which bumps this metric's version.",
         "The death of a bot is not credited.",
     ),
+    "rating.untraded": (
+        "Beta: the scale is measured on a small corpus of high-level matches (docs/winprob.md). "
+        "A new model or a larger corpus gives a new scale, which bumps this metric's version.",
+        "Read it with its margin (`rating.untraded_margin`): over one match, it is wide.",
+    ),
+    "rating.untraded_margin": (
+        "It only counts the spread of the player's own rounds, not the model's uncertainty.",
+    ),
 }
 
 FIRST_PR: dict[str, int] = {
@@ -177,6 +185,9 @@ _RECURRING = (
 
 CHANGES: dict[str, dict[str, str]] = {
     "base.assist_score": {"1.0.0": "First version (#43)."},
+    "rating.untraded": {"1.0.0": "First version, the beta of the open rating (#137)."},
+    "rating.untraded_margin": {"1.0.0": "First version, the beta of the open rating (#137)."},
+    "rating.untraded_parts": {"1.0.0": "First version, the beta of the open rating (#137)."},
     "rating.swing": {
         "1.0.0": "First version, with the win-probability model 1.0 (#125).",
         "1.1.0": "Nothing is credited once the round is decided: a death to the bomb's explosion "

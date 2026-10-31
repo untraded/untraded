@@ -2,7 +2,7 @@
 
 *Generated from the metric registry by `python -m untraded.metrics.docs`: do not edit by hand. The specification is [metrics-v1.md](../metrics-v1.md).*
 
-82 metrics, each with its own page. Parameters, their defaults and the calibrated thresholds are on [parameters.md](parameters.md).
+85 metrics, each with its own page. Parameters, their defaults and the calibrated thresholds are on [parameters.md](parameters.md).
 
 ## Shared conventions
 
@@ -130,3 +130,6 @@
 | [`rating.hltv1`](rating.hltv1.md) | HLTV Rating 1.0 | 1.0.0 | ratio | higher | compared (1 %) |
 | [`rating.hltv2_approx`](rating.hltv2_approx.md) | HLTV 2.0 (approx.) | 1.1.0 | ratio | higher | compared (1 %) |
 | [`rating.swing`](rating.swing.md) | Win-probability swing | 1.1.0 | pct | higher | — |
+| [`rating.untraded`](rating.untraded.md) | Untraded Rating | 1.0.0 | ratio | higher | — |
+| [`rating.untraded_margin`](rating.untraded_margin.md) | Untraded Rating margin | 1.0.0 | table | neutral | — |
+| [`rating.untraded_parts`](rating.untraded_parts.md) | Untraded Rating by action | 1.0.0 | table | neutral | — |
