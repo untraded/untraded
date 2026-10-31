@@ -13,6 +13,7 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
+import httpx
 import psycopg
 import pytest
 from fastapi.testclient import TestClient
@@ -180,3 +181,27 @@ def test_what_became_of_each_upload(
         sent[3]: ("processing", None),
     }
     assert me.get("/uploads").json()["items"][-1]["upload_id"] == str(sent[0])  # newest first
+
+
+def test_a_faceit_demo_takes_the_date_of_its_match(
+    db: psycopg.Connection[Any], settings: Settings
+) -> None:
+    started = dt.datetime(2026, 10, 20, 12, 10, tzinfo=dt.UTC)
+    faceit_id = "1-0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"
+    steam = httpx.Client(
+        transport=httpx.MockTransport(
+            lambda _: httpx.Response(200, json={"started_at": int(started.timestamp())})
+        )
+    )
+    keyed = dataclasses.replace(settings, faceit_api_key="key")
+    token = add_user(db, PLAYER)
+    with TestClient(create_app(keyed, steam_client=steam)) as me:
+        me.cookies.set(COOKIE, token)
+        assert me.post("/me/consent", json=CONSENT).status_code == 204
+        assert me.get(f"/uploads/faceit/{faceit_id}").json() == {
+            "played_at": started.isoformat().replace("+00:00", "Z")
+        }
+        named = {**PARAMS, "name": f"{faceit_id}-1-1.dem.zst"}  # the date typed is the download's
+        upload = me.post("/uploads", params=named, content=ZSTD).json()["upload_id"]
+    played = db.execute("SELECT played_at FROM match WHERE id = %s", (upload,)).fetchone()
+    assert played == (started,)
