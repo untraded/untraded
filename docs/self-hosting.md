@@ -56,6 +56,7 @@ stack variables.
 | `BOT_REFRESH_TOKEN` | first start | the bot's refresh token, if you have one (see below) |
 | `UNTRADED_DEMO_RETENTION_DAYS` | no | days to keep raw demos after parsing; unset keeps them, `0` deletes them once parsed |
 | `UNTRADED_ADMIN_STEAM_IDS` | for invitations | SteamID64s of the admins, comma-separated. From the site's admin pages (API: `/admin`) they invite players, pause, resume or remove a followed player, erase a player, and follow the jobs, the collector, the backups and the disk |
+| `UNTRADED_DEMO_STEAM_ID` | no | the demo account's SteamID64 (`76561190000100001`), once loaded (`untraded-worker import-demo`, below): `/api/auth/demo` opens it to anyone, read-only. Only a fake id (below `76561197960265728`) is accepted |
 | `UNTRADED_CONSENT_VERSION` | no | the version of the consent text invited players agree to on the site (`2`, which covers the demos players send). Change it when the text changes: players then agree again |
 | `UNTRADED_ALLOW_PRIVATE_DEMO_URLS` | no | `1` lets the worker download demos from private addresses (a server on your own network). Off by default: a demo URL never reaches a private, loopback or cloud metadata address |
 | `UNTRADED_BACKUP_HOUR`, `UNTRADED_BACKUP_KEEP_DAYS`, `UNTRADED_BACKUP_KEEP_WEEKS` | no | when the daily database dump runs (3, UTC) and how many are kept: 7 daily, plus 4 weekly (Sunday's) |
@@ -249,3 +250,30 @@ The replays carry the swings, read from the `swing` table: after a new model, ru
 Without `--force`, `replays` only fills in the matches that have no replay (parsed before the
 viewer existed, or whose replays failed), and `swings` those that have no `swing` table. A
 viewer newer than the replays shows a round as missing until they are rewritten.
+
+## A public demo
+
+A demo account lets visitors see the site without an invitation, on real matches with every
+player anonymized. From matches you parsed (`untraded parse`), all played by one player:
+
+```bash
+untraded demo build parsed/matches/* --protagonist <their SteamID64> --out demo/
+```
+
+Every steamid becomes a fake one (the same in every match), every name an invented one, and the
+matches are dated in sessions ending yesterday. Copy `demo/` into the worker's store volume, then:
+
+```bash
+docker compose exec worker untraded-worker import-demo /data/store/demo
+```
+
+It creates the demo user (`76561190000100001`, "Demo"), loads the matches and queues their
+sessions; running it again skips what is loaded (to rebuild the demo with other matches, erase
+the demo user first). Set `UNTRADED_DEMO_STEAM_ID=76561190000100001` for the API: the demo then
+opens at `/api/auth/demo`, read-only, for 2 hours (the worker purges expired sessions). Rate-limit
+that path at your reverse proxy.
+
+The names, ids, server, game build and dates are changed, but the maps, scores and rounds are
+real: someone who knows whose matches they are could find them in public match histories. Use
+the matches of a player who agrees, and parse them with their dates (`--dates-from`) so the
+order is kept.

@@ -14,6 +14,7 @@ uv run untraded-worker run         # until SIGINT or SIGTERM
 uv run untraded-worker replays     # the 2D viewer's round replays of matches parsed before
 uv run untraded-worker swings      # the swing table of matches parsed before
 uv run untraded-worker reanalyze   # metrics added since: analyse the matches parsed before again
+uv run untraded-worker import-demo demo/   # the demo account (`untraded demo build`)
 ```
 
 `run` takes `--once` (stop when no job is ready), `--kinds parse,session` (only those job kinds;
@@ -34,7 +35,7 @@ after a new replay format or a new win-probability model. Both log and skip a ma
   `max_attempts`, abandoned jobs put back after 30 minutes (3 hours for `download`).
 - `runner.py`: the loop. The claim commits first; the handler's writes and the completion then
   commit together, and a failure (Rust panics included) is rolled back and recorded. When the
-  queue is empty, it runs the periodic tasks (level references, retention).
+  queue is empty, it runs the periodic tasks (level references, retention, the purge of expired sign-in sessions).
 - `store.py`: the local object store; an S3-compatible one implements the same methods later.
 - `jobs.py`: the handlers by kind. `parse` (`{"match_id": ...}`): demo from the store, canonical
   and derived tables (the `swing` table included), round model and metrics (scopes `match`, `ct`,
@@ -59,6 +60,7 @@ after a new replay format or a new win-probability model. Both log and skip a ma
   and swings. Written by the parse (a failure there leaves the analysis standing), and by
   `untraded-worker replays`.
 - `reanalyze.py`: `untraded-worker reanalyze [--force]`, the matches parsed before analysed again from their Parquet tables (derived tables, metrics, replays, SQL rows), and their players' sessions queued again: after an update that adds metrics or versions. Without `--force`, only the matches missing the current `rating.untraded`.
+- `demo.py`: `untraded-worker import-demo <dir> [--name] [--consent-version]`, the demo account (`76561190000100001`, out of the references by level): its user (created as an invited account signing in once, with a consent to analysis only and no source) and the anonymized matches of `untraded demo build`, loaded as the parse job would; again, it skips the loaded ones.
 - `swings.py`: `untraded-worker swings`, the `swing` table of matches parsed before it existed,
   or again after a new win-probability model.
 - `sessions.py`: the `session` job (`{"steam_id": ..., "match_id": ...}`). Matches with at most

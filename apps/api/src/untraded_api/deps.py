@@ -71,10 +71,31 @@ def admin(
     """A transaction over every player, for an admin only (403 otherwise)."""
     with db.transaction(user) as conn:
         row = conn.execute("SELECT steam_id FROM app_user WHERE id = %s", (user,)).fetchone()
-    if row is None or row[0] not in settings.admins:
+    if row is None or row[0] not in settings.admins or row[0] == settings.demo_steam_id:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "admins only")
     with db.admin() as conn:
         yield conn
 
 
 AdminDep = Annotated[psycopg.Connection[Any], Depends(admin)]
+
+READS = frozenset({"GET", "HEAD", "OPTIONS"})
+DEMO_MAY_POST = frozenset({"/auth/logout"})
+
+
+def refuse_demo_writes(
+    request: Request,
+    db: DatabaseDep,
+    settings: SettingsDep,
+    user: Annotated[uuid.UUID | None, Depends(current_user)],
+) -> None:
+    """The demo account reads only: every other request of it is refused (403 `demo`), whatever
+    the route, so a new write route cannot forget it. Applied to the whole app."""
+    if settings.demo_steam_id is None or request.method in READS:
+        return
+    if request.url.path in DEMO_MAY_POST or user is None:
+        return
+    with db.transaction(user) as conn:
+        row = conn.execute("SELECT steam_id FROM app_user WHERE id = %s", (user,)).fetchone()
+    if row is not None and row[0] == settings.demo_steam_id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "demo")

@@ -63,6 +63,12 @@ def sweep(conn: psycopg.Connection[Any], store: LocalStore, keep: dt.timedelta) 
     return deleted
 
 
+def purge_sessions(conn: psycopg.Connection[Any]) -> int:
+    """Deletes the expired sign-in sessions (the public demo opens one per visit): returns how
+    many."""
+    return conn.execute("DELETE FROM auth_session WHERE expires_at < now()").rowcount
+
+
 @dataclass(frozen=True)
 class Sweep:
     """`sweep` as a periodic task of the worker."""

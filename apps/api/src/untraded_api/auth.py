@@ -28,7 +28,15 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
 from untraded_api import steam
-from untraded_api.deps import COOKIE, ConnDep, DatabaseDep, SettingsDep, UserDep, token_hash
+from untraded_api.deps import (
+    COOKIE,
+    ConnDep,
+    DatabaseDep,
+    SettingsDep,
+    UserDep,
+    current_user,
+    token_hash,
+)
 from untraded_api.settings import Settings
 
 router = APIRouter()
@@ -86,6 +94,8 @@ class Me(BaseModel):
     """How the collector follows their Valve matches; null before they give their codes."""
     can_add_source: bool
     """Whether this server can keep the codes (it has UNTRADED_SECRET_KEY)."""
+    demo: bool = False
+    """The public demo account (`/auth/demo`): anonymized matches, read-only."""
 
 
 def callback_url(settings: Settings) -> str:
@@ -163,6 +173,40 @@ def request_invitation(
     return response
 
 
+DEMO_SESSION = dt.timedelta(hours=2)
+"""Short: the worker purges expired sessions, so the public demo cannot pile rows up."""
+
+
+@router.get("/auth/demo")
+def demo_sign_in(request: Request, db: DatabaseDep, settings: SettingsDep) -> RedirectResponse:
+    """Opens a read-only session on the demo account (`UNTRADED_DEMO_STEAM_ID`), for anyone: no
+    Steam sign-in. 404 when this server has no demo. A visitor already signed in (a player, or
+    the demo) keeps their session: a link elsewhere cannot sign a player out."""
+    if settings.demo_steam_id is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "no demo here")
+    if current_user(request, db) is not None:
+        return back_to_web(settings)
+    token = secrets.token_urlsafe(32)
+    with db.transaction(None) as conn:
+        row = conn.execute(
+            "SELECT open_auth_session(%s, %s, %s)",
+            (settings.demo_steam_id, token_hash(token), DEMO_SESSION),
+        ).fetchone()
+    if row is None or row[0] is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "no demo here")
+    response = back_to_web(settings)
+    response.set_cookie(
+        COOKIE,
+        token,
+        max_age=int(DEMO_SESSION.total_seconds()),
+        httponly=True,
+        secure=settings.cookie_secure,
+        samesite="lax",
+        path="/",
+    )
+    return response
+
+
 @router.post("/auth/logout", status_code=status.HTTP_204_NO_CONTENT)
 def sign_out(request: Request, response: Response, db: DatabaseDep, settings: SettingsDep) -> None:
     token = request.cookies.get(COOKIE)
@@ -189,7 +233,8 @@ def me(conn: ConnDep, user: UserDep, settings: SettingsDep) -> Me:
         id=row[0],
         steam_id=str(row[1]),
         display_name=row[2],
-        admin=row[1] in settings.admins,
+        admin=row[1] in settings.admins and row[1] != settings.demo_steam_id,
+        demo=row[1] == settings.demo_steam_id,
         consent=Consent(
             text_version=consent[0],
             analysis=consent[1],

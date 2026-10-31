@@ -15,11 +15,11 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 import httpx
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 
 from untraded_api import admin, auth, feedback, matches, onboarding, sessions, uploads
 from untraded_api.db import Database
-from untraded_api.deps import COOKIE
+from untraded_api.deps import COOKIE, refuse_demo_writes
 from untraded_api.settings import Settings
 
 __all__ = ["COOKIE", "create_app"]
@@ -38,7 +38,12 @@ def create_app(settings: Settings, *, steam_client: httpx.Client | None = None) 
             db.close()
             client.close()
 
-    app = FastAPI(title="Untraded API", version="0.0.0", lifespan=lifespan)
+    app = FastAPI(
+        title="Untraded API",
+        version="0.0.0",
+        lifespan=lifespan,
+        dependencies=[Depends(refuse_demo_writes)],
+    )
     app.state.db = db
     app.state.settings = settings
     app.state.steam_client = client

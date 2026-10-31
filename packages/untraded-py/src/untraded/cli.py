@@ -17,7 +17,19 @@ from tempfile import TemporaryDirectory
 
 import polars as pl
 
-from untraded import calibration, corpus, fixtures, radars, reference, report, resources, winprob
+from untraded import (
+    calibration,
+    corpus,
+    fixtures,
+    radars,
+    reference,
+    report,
+    resources,
+    winprob,
+)
+from untraded import (
+    demo as demo_account,
+)
 from untraded.corpus.sync import SftpRemote, SyncError, SyncReport, pull, push
 from untraded.demofile import CorruptDemoError, NotADemoError
 from untraded.derive import derive
@@ -220,6 +232,20 @@ def _parser() -> argparse.ArgumentParser:
     scale.add_argument("--version", required=True, help="the scale's version, e.g. 1.0")
     scale.set_defaults(run=_winprob_rating_scale)
 
+    demo_parser = commands.add_parser("demo", help="a demo account from real matches, anonymized")
+    demo_actions = demo_parser.add_subparsers(dest="demo_action", required=True)
+    build = demo_actions.add_parser("build", help="anonymize and date parsed matches")
+    build.add_argument("matches", type=Path, nargs="+", help="match directories (one player's)")
+    build.add_argument("--protagonist", type=int, required=True, help="the player's SteamID64")
+    build.add_argument("--out", type=Path, required=True, help="where to write the demo")
+    build.add_argument(
+        "--end",
+        type=dt.date.fromisoformat,
+        default=dt.datetime.now(dt.UTC).date(),
+        help="the demo's last session ends the day before (default: today)",
+    )
+    build.set_defaults(run=_demo_build)
+
     corpus_parser = commands.add_parser("corpus", help="manage the reference demo corpus")
     corpus_parser.add_argument(
         "--manifest",
@@ -314,6 +340,17 @@ def _winprob_rating_scale(args: argparse.Namespace) -> int:
     scale.save(args.out)
     print(f"mean {scale.mean} points per round, scale {scale.scale} -> {args.out}")
     print(json.dumps(scale.trained_on, indent=2))
+    return 0
+
+
+def _demo_build(args: argparse.Namespace) -> int:
+    matches = [CanonicalMatch.read(directory).tables() for directory in args.matches]
+    end = dt.datetime.combine(args.end, dt.time(12), tzinfo=dt.UTC)
+    built = demo_account.build(matches, args.protagonist, end)
+    manifest = demo_account.write(built, args.out)
+    print(f"{len(built)} matches -> {manifest}")
+    for match in built:
+        print(f"  {match.played_at:%Y-%m-%d %H:%M} {match.mode} {match.tables['match']['map'][0]}")
     return 0
 
 

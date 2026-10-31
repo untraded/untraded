@@ -49,6 +49,9 @@ class Settings:
     """`UNTRADED_UPLOADS_IN_FLIGHT`: a player's uploads not yet analysed; 0 for no limit."""
     upload_min_free_bytes: int = 5_000_000_000
     """`UNTRADED_UPLOAD_MIN_FREE_GB`: uploads are refused when the disk has less free space."""
+    demo_steam_id: int | None = None
+    """`UNTRADED_DEMO_STEAM_ID`: the demo account (`untraded-worker import-demo`), open to anyone
+    in read-only through `/auth/demo`; unset, there is no public demo."""
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -76,7 +79,23 @@ class Settings:
             upload_max_bytes=int(float(os.environ.get("UNTRADED_UPLOAD_MAX_MB", "400")) * 1e6),
             uploads_per_day=int(os.environ.get("UNTRADED_UPLOADS_PER_DAY", "20")),
             uploads_in_flight=int(os.environ.get("UNTRADED_UPLOADS_IN_FLIGHT", "3")),
+            demo_steam_id=demo_account(os.environ.get("UNTRADED_DEMO_STEAM_ID")),
             upload_min_free_bytes=int(
                 float(os.environ.get("UNTRADED_UPLOAD_MIN_FREE_GB", "5")) * 1e9
             ),
         )
+
+
+FIRST_REAL_STEAM_ID = 76561197960265728
+"""The first SteamID64 of an individual account: a demo account's id is below it."""
+
+
+def demo_account(value: str | None) -> int | None:
+    """`UNTRADED_DEMO_STEAM_ID`, refused unless it is a fake id: set to a real player's by
+    mistake, it would open their account to anyone."""
+    if not value or not value.strip():
+        return None
+    steam_id = int(value)
+    if steam_id >= FIRST_REAL_STEAM_ID:
+        raise ValueError("UNTRADED_DEMO_STEAM_ID must be a fake id (untraded-worker import-demo)")
+    return steam_id
