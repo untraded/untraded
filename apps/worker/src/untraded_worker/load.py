@@ -25,6 +25,8 @@ from untraded_worker.analysis import Analysis
 
 DEFAULT_PARAMS = "default"
 """`params_hash` of the values computed with every parameter at its default."""
+REGISTER_LOCK = 0x756E74726164  # "untrad"
+"""Advisory lock key held while the registry is written (`register_metrics`)."""
 
 MATCH_TABLES = (
     "kill", "damage", "blind", "grenade", "economy", "round_player", "round",
@@ -194,7 +196,24 @@ def register_metrics(conn: psycopg.Connection[Any]) -> None:
 
     Until matches are recomputed after a version change, older matches only hold the previous
     version and show no value for that metric: the recompute job comes later.
+
+    It runs inside every match load and every session report, so it writes only when the
+    registry differs from what is recorded (after an update). Rewriting identical rows would
+    lock them until the end of a long transaction, and two loads at once (a reanalysis and a
+    parse job) deadlocked on them. The writes themselves take a lock of their own, so two
+    workers after an update register one after the other.
     """
+    recorded = {
+        (metric_id, version, better, tuple(cases), signed)
+        for metric_id, version, better, cases, signed in conn.execute(
+            "SELECT d.metric_id, d.version, d.better, d.cases, d.signed "
+            "FROM metric_current c JOIN metric_definition d USING (metric_id, version)"
+        )
+    }
+    deployed = {(m.id, m.version, m.better, tuple(m.cases), m.signed) for m in REGISTRY.values()}
+    if deployed <= recorded:
+        return
+    conn.execute("SELECT pg_advisory_xact_lock(%s)", (REGISTER_LOCK,))
     for m in REGISTRY.values():
         conn.execute(
             "INSERT INTO metric_definition (metric_id, version, name, unit, kind, params, doc, "
@@ -230,7 +249,9 @@ def load_match(conn: psycopg.Connection[Any], match_id: uuid.UUID, analysis: Ana
             (match_id,),
         )
     frames = sql_frames(analysis)
-    players = frames["match_player"].select("steam_id", "name").iter_rows()
+    # In steam_id order: two matches of the same players, loaded at once, lock their rows in the
+    # same order and cannot deadlock.
+    players = frames["match_player"].select("steam_id", "name").sort("steam_id").iter_rows()
     conn.cursor().executemany(
         "INSERT INTO player (steam_id, last_name) VALUES (%s, %s) "
         "ON CONFLICT (steam_id) DO UPDATE SET last_name = EXCLUDED.last_name",
