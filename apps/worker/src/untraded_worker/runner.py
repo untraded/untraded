@@ -83,8 +83,11 @@ class Worker:
         ):
             for kind in self.handlers:
                 listener.execute(sql.SQL("LISTEN {}").format(sql.Identifier(f"job_{kind}")))
-            self.recover(conn, mine=True)
-            self.recover(conn, mine=False)
+            for mine in (True, False):
+                try:
+                    self.recover(conn, mine=mine)
+                except Exception:  # a failing dead handler must not stop the worker for good
+                    log.exception("taking back abandoned jobs failed")
             while not self.stopping:
                 if self.step(conn):
                     processed += 1
