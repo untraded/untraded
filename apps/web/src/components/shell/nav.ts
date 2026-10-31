@@ -1,9 +1,8 @@
 // SPDX-FileCopyrightText: 2026 The Untraded Authors
 // SPDX-License-Identifier: AGPL-3.0-only
 //
-// The app's sections: where they live and which pages belong to them. Only sections whose page
-// exists are listed; Import joins when it is built. Admin and the team mode
-// preview show to admins only (`me.admin`).
+// The app's sections: where they live and which pages belong to them. Admin and the team mode
+// preview show to admins only (`me.admin`); Upload is hidden from the read-only demo (`me.demo`).
 
 import {
   CalendarDays,

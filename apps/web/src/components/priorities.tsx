@@ -21,6 +21,7 @@ export async function Priorities({
   tone,
   hasReference,
   matches,
+  readOnly = false,
 }: {
   advice: Advice[];
   sessionId: string;
@@ -29,6 +30,8 @@ export async function Priorities({
   hasReference: boolean;
   /** The matches the evidence comes from, to draw their rounds. */
   matches: Map<string, MatchDetail>;
+  /** The read-only demo: no vote. */
+  readOnly?: boolean;
 }) {
   const t = await getTranslations("advice");
   return (
@@ -58,6 +61,7 @@ export async function Priorities({
               locale={locale}
               tone={tone}
               matches={matches}
+              readOnly={readOnly}
             />
           ))}
         </ol>
@@ -73,7 +77,9 @@ async function Priority({
   locale,
   tone,
   matches,
+  readOnly,
 }: {
+  readOnly: boolean;
   item: Advice;
   open: boolean;
   sessionId: string;
@@ -125,39 +131,41 @@ async function Priority({
             ))}
           </div>
           <Actions ids={args.actions} title={t("actionsTitle")} />
-          <form
-            action={vote}
-            className="flex items-center justify-end gap-1 border-t border-line-soft pt-2.5 text-[0.8125rem] text-muted-foreground"
-          >
-            <input type="hidden" name="advice" value={item.id} />
-            <input type="hidden" name="session" value={sessionId} />
-            <input type="hidden" name="current" value={item.my_vote ?? 0} />
-            <span className="mr-1">{t("helpful")}</span>
-            <Button
-              type="submit"
-              name="vote"
-              value={1}
-              variant="ghost"
-              size="icon-sm"
-              aria-pressed={item.my_vote === 1}
-              aria-label={t("useful")}
-              title={t("useful")}
+          {!readOnly && (
+            <form
+              action={vote}
+              className="flex items-center justify-end gap-1 border-t border-line-soft pt-2.5 text-[0.8125rem] text-muted-foreground"
             >
-              <ThumbsUp aria-hidden="true" />
-            </Button>
-            <Button
-              type="submit"
-              name="vote"
-              value={-1}
-              variant="ghost"
-              size="icon-sm"
-              aria-pressed={item.my_vote === -1}
-              aria-label={t("notUseful")}
-              title={t("notUseful")}
-            >
-              <ThumbsDown aria-hidden="true" />
-            </Button>
-          </form>
+              <input type="hidden" name="advice" value={item.id} />
+              <input type="hidden" name="session" value={sessionId} />
+              <input type="hidden" name="current" value={item.my_vote ?? 0} />
+              <span className="mr-1">{t("helpful")}</span>
+              <Button
+                type="submit"
+                name="vote"
+                value={1}
+                variant="ghost"
+                size="icon-sm"
+                aria-pressed={item.my_vote === 1}
+                aria-label={t("useful")}
+                title={t("useful")}
+              >
+                <ThumbsUp aria-hidden="true" />
+              </Button>
+              <Button
+                type="submit"
+                name="vote"
+                value={-1}
+                variant="ghost"
+                size="icon-sm"
+                aria-pressed={item.my_vote === -1}
+                aria-label={t("notUseful")}
+                title={t("notUseful")}
+              >
+                <ThumbsDown aria-hidden="true" />
+              </Button>
+            </form>
+          )}
         </div>
       </details>
     </li>

@@ -43,7 +43,16 @@ const ARROW: Record<Trend, string> = { better: "▲", worse: "▼", same: "=" };
  * reference, follow-up of the previous priorities, matches), then every metric as its gap to the
  * reference. `back` adds the link to the session list.
  */
-export async function Report({ report, back }: { report: SessionReport; back: boolean }) {
+export async function Report({
+  report,
+  back,
+  readOnly = false,
+}: {
+  report: SessionReport;
+  back: boolean;
+  /** The read-only demo: the priorities take no vote. */
+  readOnly?: boolean;
+}) {
   const t = await getTranslations("sessions");
   const families = await getTranslations("families");
   const formulas = await getTranslations("formulas");
@@ -158,6 +167,7 @@ export async function Report({ report, back }: { report: SessionReport; back: bo
           tone={tone}
           hasReference={reference.enough}
           matches={matches}
+          readOnly={readOnly}
         />
         <aside className="flex flex-col gap-3.5">
           <Box title={t("keyFigures")}>
@@ -219,8 +229,9 @@ export async function Report({ report, back }: { report: SessionReport; back: bo
                     </span>
                     <ResultBadge result={match.my_result} status={match.status} />
                     <span className="col-span-2 text-xs text-muted-foreground">
-                      {columns("kd")} {killDiff(match.my_line)}, {columns("rating")}{" "}
-                      {number(match.my_line?.hltv1, locale, 2)}
+                      {columns("kd")} {killDiff(match.my_line)},{" "}
+                      {columns(match.my_line?.untraded == null ? "rating" : "urating")}{" "}
+                      {number(match.my_line?.untraded ?? match.my_line?.hltv1, locale, 2)}
                     </span>
                   </Link>
                 </li>

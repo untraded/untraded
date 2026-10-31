@@ -33,7 +33,7 @@ const TREND_WORD: Record<Trend, "better" | "worse" | "stable"> = {
 };
 /** The two key figures of a row, with their short names in `matches`. */
 const FIGURES = [
-  ["rating.hltv1", "rating"],
+  ["rating.untraded", "urating"],
   ["base.adr", "adr"],
 ] as const;
 

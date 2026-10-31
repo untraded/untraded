@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { Report } from "@/components/report";
-import { getSession } from "@/lib/api";
+import { getMe, getSession } from "@/lib/api";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -13,7 +13,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function SessionPage({ params }: Params) {
-  const report = await getSession((await params).id);
+  const [report, me] = await Promise.all([getSession((await params).id), getMe()]);
   if (!report) redirect("/");
-  return <Report report={report} back />;
+  return <Report report={report} back readOnly={Boolean(me?.demo)} />;
 }

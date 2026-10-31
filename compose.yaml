@@ -211,6 +211,8 @@ services:
       # where they write to use their rights, where the data is hosted. Never in the code.
       UNTRADED_OPERATOR_NAME: ${UNTRADED_OPERATOR_NAME:-}
       UNTRADED_DISCORD_URL: ${UNTRADED_DISCORD_URL:-}
+      # The demo account, as the API has it: set, the landing page offers the read-only demo.
+      UNTRADED_DEMO_STEAM_ID: ${UNTRADED_DEMO_STEAM_ID:-}
       UNTRADED_OPERATOR_EMAIL: ${UNTRADED_OPERATOR_EMAIL:-}
       UNTRADED_HOSTING: ${UNTRADED_HOSTING:-}
       # The worker's retention, which the consent text states.

@@ -7,7 +7,7 @@ import { getLocale, getTimeZone, getTranslations } from "next-intl/server";
 import { RefreshWhile } from "@/components/upload/refresh-while";
 import { UploadForm } from "@/components/upload/upload-form";
 import type { Locale } from "@/i18n/locale";
-import { getUploads, type UploadLine } from "@/lib/api";
+import { getMe, getUploads, type UploadLine } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { bytes, dateTime, mapName } from "@/lib/format";
 
@@ -34,8 +34,20 @@ const SEND_ERRORS = [
  * refreshed while one is being analysed.
  */
 export default async function UploadPage() {
-  const list = await getUploads();
+  const [list, me] = await Promise.all([getUploads(), getMe()]);
   if (!list) redirect("/");
+  if (me?.demo) {
+    const t = await getTranslations("upload");
+    const demo = await getTranslations("demo");
+    return (
+      <section className="flex max-w-3xl flex-col gap-5">
+        <h1 className="text-2xl font-semibold md:text-[1.75rem]">{t("title")}</h1>
+        <p className="rounded-md border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+          {demo("upload")}
+        </p>
+      </section>
+    );
+  }
   const t = await getTranslations("upload");
   const locale = (await getLocale()) as Locale;
   const max = bytes(list.max_bytes, locale, 1024);
@@ -80,6 +92,7 @@ export default async function UploadPage() {
           modes: { faceit: t("modes.faceit"), esea: t("modes.esea"), scrim: t("modes.scrim") },
           date: t("date"),
           dateHint: t("dateHint"),
+          dateFaceit: t("dateFaceit"),
           send: t("send"),
           cancel: t("cancel"),
           progress: t.raw("progress") as string,

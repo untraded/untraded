@@ -99,6 +99,8 @@ export interface PlayerLine {
   kast: number | null;
   hltv1: number | null;
   untraded_deaths: number | null;
+  /** The Untraded Rating (beta): 1.00 = an average player of the corpus. */
+  untraded: number | null;
 }
 
 export type MatchStatus =
@@ -510,3 +512,18 @@ export async function sessionsBack(
   }
   return found;
 }
+
+/** The Untraded Rating of a player in a match: its margin (half its 95 % interval) and the parts
+ * it adds up from (`GET /matches/{id}/players/{steam_id}/rating`). */
+export interface RatingDetail {
+  value: number | null;
+  margin: number | null;
+  rounds: number | null;
+  parts: { part: "kills" | "deaths" | "plants" | "defuses" | "baseline"; points: number }[];
+}
+
+/** A player's rating detail, an extra the match page stands without. */
+export const findRating = (matchId: string, steamId: string) =>
+  apiGetOptional<RatingDetail>(
+    `/matches/${encodeURIComponent(matchId)}/players/${encodeURIComponent(steamId)}/rating`,
+  );

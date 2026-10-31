@@ -38,6 +38,12 @@ export function operator(env: Record<string, string | undefined> = process.env):
 export const STEAM_CODES_HELP =
   "https://help.steampowered.com/wizard/HelpWithGameIssue/?appid=730&issueid=128";
 
+/** `UNTRADED_DEMO_STEAM_ID`, as the API reads it: set, `/api/auth/demo` opens the demo account
+ * read-only and the landing page offers it; unset (the default), no demo. */
+export function demoEnabled(env: Record<string, string | undefined> = process.env): boolean {
+  return text(env.UNTRADED_DEMO_STEAM_ID) !== null;
+}
+
 /** `UNTRADED_DISCORD_URL`: an invitation link to the instance's Discord server, shown to
  * visitors (where to ask for an invitation, follow the news); null hides it. Only `https` links
  * to Discord are kept. */

@@ -56,7 +56,7 @@ stack variables.
 | `BOT_REFRESH_TOKEN` | first start | the bot's refresh token, if you have one (see below) |
 | `UNTRADED_DEMO_RETENTION_DAYS` | no | days to keep raw demos after parsing; unset keeps them, `0` deletes them once parsed |
 | `UNTRADED_ADMIN_STEAM_IDS` | for invitations | SteamID64s of the admins, comma-separated. From the site's admin pages (API: `/admin`) they invite players, pause, resume or remove a followed player, erase a player, and follow the jobs, the collector, the backups and the disk |
-| `UNTRADED_DEMO_STEAM_ID` | no | the demo account's SteamID64 (`76561190000100001`), once loaded (`untraded-worker import-demo`, below): `/api/auth/demo` opens it to anyone, read-only. Only a fake id (below `76561197960265728`) is accepted |
+| `UNTRADED_DEMO_STEAM_ID` | no | the demo account's SteamID64 (`76561190000100001`), once loaded (`untraded-worker import-demo`, below): `/api/auth/demo` opens it to anyone, read-only, and the landing page offers it (give the web service the same value; `compose.yaml` does). Only a fake id (below `76561197960265728`) is accepted |
 | `FACEIT_API_KEY` | no | a FACEIT Data API key (server side, from FACEIT's developer portal): FACEIT demos sent from the site take the date of their match instead of the file's (the download's) |
 | `UNTRADED_CONSENT_VERSION` | no | the version of the consent text invited players agree to on the site (`2`, which covers the demos players send). Change it when the text changes: players then agree again |
 | `UNTRADED_ALLOW_PRIVATE_DEMO_URLS` | no | `1` lets the worker download demos from private addresses (a server on your own network). Off by default: a demo URL never reaches a private, loopback or cloud metadata address |

@@ -18,7 +18,8 @@ export function MoreSheet({
     more: string;
     settings: string;
     progress: string;
-    upload: string;
+    /** Null for the read-only demo: no entry then. */
+    upload: string | null;
     formulas: string;
     admin: string | null;
     /** The team mode preview, admins only too. */
@@ -53,10 +54,12 @@ export function MoreSheet({
           <Trend aria-hidden="true" />
           {labels.progress}
         </Link>
-        <Link href={SECTIONS.upload.href} className={row} onClick={() => setOpen(false)}>
-          <Send aria-hidden="true" />
-          {labels.upload}
-        </Link>
+        {labels.upload && (
+          <Link href={SECTIONS.upload.href} className={row} onClick={() => setOpen(false)}>
+            <Send aria-hidden="true" />
+            {labels.upload}
+          </Link>
+        )}
         <Link href={SECTIONS.formulas.href} className={row} onClick={() => setOpen(false)}>
           <Formulas aria-hidden="true" />
           {labels.formulas}
