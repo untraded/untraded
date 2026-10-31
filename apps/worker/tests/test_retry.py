@@ -17,14 +17,25 @@ from untraded_worker.retry import retry_failed
 pytestmark = pytest.mark.db
 
 
+PLAYER = 76561198000000021
+
+
 @pytest.fixture
 def db(conn: psycopg.Connection[Any]) -> psycopg.Connection[Any]:
-    conn.execute("TRUNCATE match CASCADE")
+    conn.execute("TRUNCATE match, app_user CASCADE")
+    row = conn.execute(
+        "INSERT INTO app_user (steam_id, display_name) VALUES (%s, 'p') RETURNING id", (PLAYER,)
+    ).fetchone()
+    assert row is not None
+    conn.execute(
+        "INSERT INTO ingest_source (user_id, kind, secret) VALUES (%s, 'valve_bot', 'x')",
+        (row[0],),
+    )
     return conn
 
 
 def _failed(db: psycopg.Connection[Any], kind: str, demo: str | None) -> tuple[uuid.UUID, int]:
-    """A match whose `kind` job died."""
+    """A match whose `kind` job died, brought by the player's source."""
     row = db.execute(
         "INSERT INTO match (mode, played_at, status, demo_key, error) "
         "VALUES ('premier', now(), 'failed', %s, 'x') "
@@ -33,6 +44,11 @@ def _failed(db: psycopg.Connection[Any], kind: str, demo: str | None) -> tuple[u
     ).fetchone()
     assert row is not None
     match_id = uuid.UUID(str(row[0]))
+    db.execute(
+        "INSERT INTO match_source (match_id, kind, external_id, source_id) "
+        "SELECT %s, 'valve_bot', %s, id FROM ingest_source",
+        (match_id, str(match_id)),
+    )
     job = queue.enqueue(db, kind, {"match_id": str(match_id), "url": "https://x/a.dem.bz2"})
     db.execute(
         "UPDATE job SET status = 'dead', attempts = 5, finished_at = now() WHERE id = %s", (job,)
@@ -61,3 +77,10 @@ def test_failed_matches_go_back_in_the_queue(db: psycopg.Connection[Any]) -> Non
     assert _state(db, *download) == ("downloading", None, "queued", 0)
     assert _state(db, *gone) == ("failed", "x", "dead", 5)
     assert retry_failed(db).queued == 0  # nothing failed any more
+
+
+def test_the_match_of_an_erased_player_is_not_retried(db: psycopg.Connection[Any]) -> None:
+    match_id, job = _failed(db, "parse", "demos/a.dem")
+    db.execute("SELECT request_erasure(%s)", (PLAYER,))  # the account is marked deleted
+    assert retry_failed(db).queued == 0
+    assert _state(db, match_id, job)[0] == "failed"

@@ -46,6 +46,13 @@ def retry_failed(conn: psycopg.Connection[Any]) -> Retried:
                 ORDER BY id DESC LIMIT 1
             ) j ON true
             WHERE m.status = 'failed' AND j.status = 'dead'
+              -- Brought by a player who is still here (an erased one's match is not parsed).
+              AND EXISTS (
+                  SELECT 1 FROM match_source ms
+                  JOIN ingest_source s ON s.id = ms.source_id
+                  JOIN app_user u ON u.id = s.user_id AND u.deleted_at IS NULL
+                  WHERE ms.match_id = m.id
+              )
             FOR UPDATE OF m
             """,
             (list(RETRIED),),
