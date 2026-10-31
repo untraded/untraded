@@ -7,6 +7,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
+import { PreviewBadge } from "@/components/shell/preview-badge";
 import { cn } from "@/lib/cn";
 import { TEAM } from "@/lib/team-preview/data";
 import { useTeamPreview } from "@/lib/team-preview/store";
@@ -52,7 +53,9 @@ export function TeamShell({ children }: { children: ReactNode }) {
       </p>
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-[0.8125rem] text-muted-foreground">{t("title")}</p>
+          <p className="flex items-center gap-2 text-[0.8125rem] text-muted-foreground">
+            {t("title")} <PreviewBadge label={t("badge")} />
+          </p>
           <h1 className="text-2xl font-semibold md:text-[1.75rem]">
             {TEAM.name}{" "}
             <span className="text-base font-medium text-muted-foreground">[{TEAM.tag}]</span>

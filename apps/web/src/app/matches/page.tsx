@@ -46,6 +46,7 @@ export default async function Matches({
   const t = await getTranslations("matches");
   const s = await getTranslations("sessions");
   const u = await getTranslations("upload");
+  const d = await getTranslations("demo");
   const timeZone = await getTimeZone();
   const now = new Date().toISOString();
   const pager = "h-8 gap-1.5 text-[0.8125rem]";
@@ -53,12 +54,23 @@ export default async function Matches({
     <section className="flex flex-col gap-5">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold md:text-[1.75rem]">{t("title")}</h1>
-        {!me?.demo && (
-          <Link href="/upload" className={cn(buttonVariants({ variant: "outline" }), "gap-1.5")}>
+        {/* In the read-only demo, dimmed with why: it opens the page's preview. */}
+        <div className="flex items-center gap-2.5">
+          {me?.demo && (
+            <span className="text-xs text-muted-foreground">{d("uploadAvailable")}</span>
+          )}
+          <Link
+            href="/upload"
+            className={cn(
+              buttonVariants({ variant: "outline" }),
+              "gap-1.5",
+              me?.demo && "text-muted-foreground",
+            )}
+          >
             <Upload aria-hidden="true" />
             {u("cta")}
           </Link>
-        )}
+        </div>
       </header>
       {list.items.length === 0 && <p className="text-muted-foreground">{t("empty")}</p>}
       {byPeriod(list.items, now, timeZone).map((group, index) => {

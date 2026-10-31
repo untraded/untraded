@@ -12,8 +12,10 @@ import { NavLink } from "./nav-link";
 import { SidebarToggle } from "./sidebar-toggle";
 
 /**
- * The frame of every signed-in page. From 768 px: a sidebar (240 px, foldable to its icons, always
- * folded below 1024 px). Below: a slim top bar and four tabs at the bottom of the screen.
+ * The frame of every signed-in page. From 1024 px: a sidebar (240 px, foldable to its icons); from
+ * 768 px, a rail of icons with their labels under them (88 px). Below: a slim top bar and four tabs
+ * at the bottom of the screen. The sections a player uses come first;
+ * how the numbers are calculated, the settings and the admin sit at the bottom.
  */
 export async function AppShell({
   me,
@@ -28,9 +30,9 @@ export async function AppShell({
   return (
     <div
       data-collapsed={collapsed}
-      className="group/shell min-h-dvh md:grid md:grid-cols-[60px_minmax(0,1fr)] lg:grid-cols-[240px_minmax(0,1fr)] lg:data-[collapsed=true]:grid-cols-[60px_minmax(0,1fr)]"
+      className="group/shell min-h-dvh md:grid md:grid-cols-[88px_minmax(0,1fr)] lg:grid-cols-[240px_minmax(0,1fr)] lg:data-[collapsed=true]:grid-cols-[60px_minmax(0,1fr)]"
     >
-      <aside className="sticky top-0 hidden h-dvh flex-col gap-0.5 border-r border-border bg-card px-2.5 py-3 md:flex">
+      <aside className="sticky top-0 hidden h-dvh flex-col gap-0.5 border-r border-border bg-card px-1.5 py-3 md:flex lg:px-2.5">
         <div className="flex items-center justify-center gap-2 px-1 pb-3 lg:justify-between lg:group-data-[collapsed=true]/shell:flex-col lg:group-data-[collapsed=true]/shell:justify-center">
           <Link href="/" aria-label="Untraded" className="flex h-8 items-center rounded-md px-1">
             {/* The logo when the sidebar is wide; folded, the compact sign alone, in its version
@@ -47,8 +49,8 @@ export async function AppShell({
           <AccountMenu
             name={me.display_name}
             labels={{
-              workspace: t("workspace", { name: me.display_name }),
-              personal: t("personal"),
+              account: t("account", { name: me.display_name }),
+              settings: t("settings"),
               signOut: t("signOut"),
             }}
           />
@@ -58,12 +60,14 @@ export async function AppShell({
           <NavLink section="sessions" label={t("sessions")} place="sidebar" />
           <NavLink section="matches" label={t("matches")} place="sidebar" />
           <NavLink section="progress" label={t("progress")} place="sidebar" />
-          {!me.demo && <NavLink section="upload" label={t("upload")} place="sidebar" />}
-          <NavLink section="formulas" label={t("formulas")} place="sidebar" />
-          {me.admin && <NavLink section="team" label={t("team")} place="sidebar" />}
+          <NavLink section="upload" label={t("upload")} place="sidebar" />
+          {me.admin && (
+            <NavLink section="team" label={t("team")} badge={t("preview")} place="sidebar" />
+          )}
           <div className="mt-auto flex flex-col gap-0.5">
-            {me.admin && <NavLink section="admin" label={t("admin")} place="sidebar" />}
+            <NavLink section="formulas" label={t("formulas")} place="sidebar" />
             <NavLink section="settings" label={t("settings")} place="sidebar" />
+            {me.admin && <NavLink section="admin" label={t("admin")} place="sidebar" />}
           </div>
         </nav>
       </aside>
@@ -92,10 +96,11 @@ export async function AppShell({
             more: t("more"),
             settings: t("settings"),
             progress: t("progress"),
-            upload: me.demo ? null : t("upload"),
+            upload: t("upload"),
             formulas: t("formulas"),
             admin: me.admin ? t("admin") : null,
             team: me.admin ? t("team") : null,
+            preview: t("preview"),
             signOut: t("signOut"),
           }}
         />
