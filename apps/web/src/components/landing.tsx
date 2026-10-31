@@ -15,15 +15,33 @@ import { cn } from "@/lib/cn";
 const GITHUB = "https://github.com/untraded/untraded";
 const FAQ = ["free", "modes", "faceit", "cheat", "rating", "selfhost"] as const;
 
-/** A screenshot of the site, rendered on invented data (no Valve image). */
-function Shot({ src, alt, className }: { src: string; alt: string; className?: string }) {
+/** Screenshots of the site, rendered on invented data (no Valve image): captured at twice a
+ * 600 px wide column (with a little of the page around), sharp on high-density screens. Their size keeps the layout still. */
+const SHOTS = {
+  viewer: { width: 1232, height: 1722 },
+  priorities: { width: 1232, height: 732 },
+  rating: { width: 1232, height: 578 },
+} as const;
+
+function Shot({
+  name,
+  alt,
+  first = false,
+}: {
+  name: keyof typeof SHOTS;
+  alt: string;
+  first?: boolean;
+}) {
   return (
     // biome-ignore lint/performance/noImgElement: a static screenshot, already the right size
     <img
-      src={src}
+      src={`/showcase/${name}.webp`}
       alt={alt}
-      loading="lazy"
-      className={cn("w-full rounded-md border border-border bg-card", className)}
+      width={SHOTS[name].width}
+      height={SHOTS[name].height}
+      loading={first ? "eager" : "lazy"}
+      fetchPriority={first ? "high" : "auto"}
+      className="h-auto w-full rounded-md border border-border bg-card"
     />
   );
 }
@@ -110,7 +128,7 @@ export async function Landing({
           {actions}
           <p className="text-xs text-muted-foreground">{t(demo ? "betaNote" : "betaOnly")}</p>
         </div>
-        <Shot src="/showcase/viewer.png" alt={t("shots.viewer")} />
+        <Shot name="viewer" alt={t("shots.viewer")} first />
       </section>
 
       <section aria-labelledby="what" className="flex flex-col gap-5">
@@ -119,10 +137,10 @@ export async function Landing({
         </h2>
         <div className="grid gap-4 md:grid-cols-2">
           <Feature title={t("what.priorities")} text={t("what.prioritiesText")}>
-            <Shot src="/showcase/priorities.png" alt={t("shots.priorities")} />
+            <Shot name="priorities" alt={t("shots.priorities")} />
           </Feature>
           <Feature title={t("what.rating")} text={t("what.ratingText")}>
-            <Shot src="/showcase/rating.png" alt={t("shots.rating")} />
+            <Shot name="rating" alt={t("shots.rating")} />
           </Feature>
           <Feature title={t("what.viewer")} text={t("what.viewerText")} />
           <Feature title={t("what.formulas")} text={t("what.formulasText")}>
