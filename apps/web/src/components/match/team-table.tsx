@@ -84,8 +84,10 @@ export async function TeamTable({
                   )}
                 >
                   {player.name}
+                  {/* A real space, so the page's text reads "name you", not "nameyou". */}
+                  {mine && " "}
                   {mine && (
-                    <span className="ml-1.5 text-[0.6875rem] font-medium text-muted-foreground">
+                    <span className="ml-0.5 text-[0.6875rem] font-medium text-muted-foreground">
                       {t("you")}
                     </span>
                   )}
