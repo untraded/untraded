@@ -497,12 +497,11 @@
     "teamB": "Équipe B",
     "yourTeam": "Ton équipe",
     "opponents": "Adversaires",
-    "startedCt": "a commencé CT",
-    "startedT": "a commencé T",
+    "startedCt": "CT en première mi-temps",
+    "startedT": "T en première mi-temps",
     "player": "Joueur",
     "you": "toi",
     "notReady": "Ce match n'est pas encore analysé.",
-    "missing": "Absent de cette démo : {items}",
     "modes": {
       "premier": "Premier",
       "faceit": "FACEIT",
@@ -545,6 +544,17 @@
       "hint": "Chaque action rapporte ou coûte des points de probabilité de victoire du round. La base ramène l'échelle à 1,00 pour le joueur moyen. La marge donne l'intervalle à 95 %.",
       "formula": "Formule",
       "none": "Pas encore d'Untraded Rating pour ce match : il a été analysé avant son arrivée."
+    },
+    "notes": {
+      "title": "{count, plural, one {# remarque sur l'analyse de cette démo} other {# remarques sur l'analyse de cette démo}}",
+      "bomb": "La bombe n'apparaît pas dans la démo : les métriques de la bombe ne sont pas calculées.",
+      "damage": "Les dégâts n'apparaissent pas dans la démo : les métriques de dégâts ne sont pas calculées.",
+      "blind": "Les flashs n'apparaissent pas dans la démo : les métriques d'aveuglement ne sont pas calculées.",
+      "kills": "Les kills n'apparaissent pas dans la démo : la plupart des métriques ne sont pas calculées.",
+      "grenades": "Les trajectoires des grenades n'apparaissent pas dans la démo.",
+      "shots": "Les tirs n'apparaissent pas dans la démo : la précision n'est pas calculée.",
+      "disconnections": "{count, plural, one {# déconnexion, que le jeu note comme une mort, n'est pas comptée comme une mort.} other {# déconnexions, que le jeu note comme des morts, ne sont pas comptées comme des morts.}}",
+      "bots": "{count, plural, one {# kill sur un bot compte pour le tueur, sans mort pour personne.} other {# kills sur des bots comptent pour le tueur, sans mort pour personne.}}"
     }
   },
   "sessions": {
@@ -573,8 +583,8 @@
     "keyFigures": "Chiffres clés",
     "vsReference": "réf. {value}",
     "sessionMatches": "Matchs de la session",
-    "metricsLead": "{count} métriques. Référence : {reference}. Écart en % de la référence.",
-    "metricsLeadNone": "{count} métriques. Pas encore de référence.",
+    "metricsLead": "{count, plural, one {# métrique chiffrée} other {# métriques chiffrées}} (les tableaux ne sont pas comptés). Référence : {reference}. Écart en % de la référence.",
+    "metricsLeadNone": "{count, plural, one {# métrique chiffrée} other {# métriques chiffrées}} (les tableaux ne sont pas comptés). Pas encore de référence.",
     "standout": "Ce qui ressort",
     "worseThan": "Moins bien que ta référence",
     "betterThan": "Mieux que ta référence",

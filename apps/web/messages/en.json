@@ -497,12 +497,11 @@
     "teamB": "Team B",
     "yourTeam": "Your team",
     "opponents": "Opponents",
-    "startedCt": "started CT",
-    "startedT": "started T",
+    "startedCt": "CT in the first half",
+    "startedT": "T in the first half",
     "player": "Player",
     "you": "you",
     "notReady": "This match is not analysed yet.",
-    "missing": "Missing from this demo: {items}",
     "modes": {
       "premier": "Premier",
       "faceit": "FACEIT",
@@ -545,6 +544,17 @@
       "hint": "Each action earns or costs points of round win probability. The baseline brings the scale to 1.00 for the average player. The margin gives the 95 % interval.",
       "formula": "Formula",
       "none": "No Untraded Rating for this match yet: it was analysed before the rating existed."
+    },
+    "notes": {
+      "title": "{count, plural, one {# note on how this demo was analysed} other {# notes on how this demo was analysed}}",
+      "bomb": "The bomb is missing from the demo: the bomb metrics are not calculated.",
+      "damage": "Damage is missing from the demo: the damage metrics are not calculated.",
+      "blind": "Flashes are missing from the demo: the blinding metrics are not calculated.",
+      "kills": "Kills are missing from the demo: most metrics are not calculated.",
+      "grenades": "Grenade paths are missing from the demo.",
+      "shots": "Shots are missing from the demo: accuracy is not calculated.",
+      "disconnections": "{count, plural, one {# disconnection, which the game records as a death, is not counted as a death.} other {# disconnections, which the game records as deaths, are not counted as deaths.}}",
+      "bots": "{count, plural, one {# kill on a bot counts for the killer, with no death for anyone.} other {# kills on bots count for the killer, with no death for anyone.}}"
     }
   },
   "sessions": {
@@ -573,8 +583,8 @@
     "keyFigures": "Key figures",
     "vsReference": "ref. {value}",
     "sessionMatches": "Matches in this session",
-    "metricsLead": "{count} metrics. Reference: {reference}. Gap in % of the reference.",
-    "metricsLeadNone": "{count} metrics. No reference yet.",
+    "metricsLead": "{count, plural, one {# numeric metric} other {# numeric metrics}} (tables are not counted). Reference: {reference}. Gap in % of the reference.",
+    "metricsLeadNone": "{count, plural, one {# numeric metric} other {# numeric metrics}} (tables are not counted). No reference yet.",
     "standout": "What stands out",
     "worseThan": "Worse than your reference",
     "betterThan": "Better than your reference",
