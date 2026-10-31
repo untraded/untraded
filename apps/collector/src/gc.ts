@@ -5,6 +5,7 @@ import { createInterface } from "node:readline/promises";
 import { decodeMatchShareCode } from "csgo-sharecode";
 import GlobalOffensive, { type MatchInfo } from "globaloffensive";
 import SteamUser from "steam-user";
+import { answersMatch } from "./collect.js";
 
 const CS2_APP_ID = 730;
 const GC_CONNECT_TIMEOUT_MS = 60_000;
@@ -115,7 +116,7 @@ export async function openBotSession(
           const match = matches[0];
           if (!match) {
             reject(new Error("empty matchList (see node-globaloffensive issue #121)"));
-          } else if (match.matchid == null || String(match.matchid) === wanted) {
+          } else if (answersMatch(match, wanted)) {
             resolve(match);
           }
           // Else the late answer to an earlier request that timed out: not this match's.
