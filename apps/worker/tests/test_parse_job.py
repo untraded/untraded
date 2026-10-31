@@ -78,6 +78,23 @@ def test_load_is_complete_and_idempotent(db: psycopg.Connection[Any], analysis: 
     assert row == ("de_cache", 5, "demoparser2 0.42.0")
 
 
+def test_a_blinded_bot_is_loaded(db: psycopg.Connection[Any], analysis: Analysis) -> None:
+    # A flash on a bot nobody controls: the parser has no steamid for its victim.
+    blind = analysis.tables["blind"]
+    assert blind.height > 0
+    bot = blind.with_columns(
+        pl.when(pl.int_range(pl.len()) == 0).then(None).otherwise(pl.col("victim")).alias("victim")
+    )
+    match_id = _match(db)
+    load_match(
+        db, match_id, dataclasses.replace(analysis, tables={**analysis.tables, "blind": bot})
+    )
+    rows = db.execute(
+        "SELECT count(*), count(victim) FROM blind WHERE match_id = %s", (match_id,)
+    ).fetchone()
+    assert rows == (blind.height, blind.height - 1)
+
+
 def _workspace(db: psycopg.Connection[Any], kind: str, steam_id: int) -> uuid.UUID:
     user = db.execute(
         "INSERT INTO app_user (steam_id, display_name) VALUES (%s, 'u') RETURNING id",
