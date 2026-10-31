@@ -39,7 +39,7 @@ export interface SourceReport {
 /** What the Game Coordinator tells about a match. Throws if it answered about another one. */
 export function foundMatch(shareCode: string, info: MatchInfo): FoundMatch {
   const matchId = decodeMatchShareCode(shareCode).matchId.toString();
-  if (info.matchid !== undefined && String(info.matchid) !== matchId) {
+  if (info.matchid != null && String(info.matchid) !== matchId) {
     throw new Error(`the Game Coordinator answered about match ${info.matchid}, not ${matchId}`);
   }
   const lastRound = info.roundstatsall?.at(-1);

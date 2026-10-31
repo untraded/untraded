@@ -115,7 +115,7 @@ export async function openBotSession(
           const match = matches[0];
           if (!match) {
             reject(new Error("empty matchList (see node-globaloffensive issue #121)"));
-          } else if (match.matchid === undefined || String(match.matchid) === wanted) {
+          } else if (match.matchid == null || String(match.matchid) === wanted) {
             resolve(match);
           }
           // Else the late answer to an earlier request that timed out: not this match's.
