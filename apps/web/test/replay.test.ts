@@ -9,8 +9,10 @@ import {
   clockText,
   frameOf,
   hasLevels,
+  killStory,
   levelAt,
   levelOf,
+  momentKill,
   sampleAt,
   startTick,
   weaponKind,
@@ -126,5 +128,62 @@ describe("replay", () => {
     expect(levelAt(replay, "up", 12)).toBe("upper");
     expect(levelAt(replay, "nobody", 6)).toBe("upper");
     expect(levelAt({ ...replay, radar: { ...NUKE, lower_below: null } }, "down", 6)).toBe("upper");
+  });
+});
+
+describe("momentKill", () => {
+  const kill = (tick: number, attacker: string | null, victim: string) =>
+    ({ tick, attacker, victim }) as never;
+  const replay = {
+    tickrate: 64,
+    kills: [
+      kill(1000, "a", "b"),
+      kill(7000, "c", "d"),
+      kill(7030, "e", "me"),
+      kill(9000, "me", "f"),
+    ],
+  };
+
+  it("finds the highlighted player's kill or death at the moment", () => {
+    expect(momentKill(replay, 7026, "me")).toMatchObject({ tick: 7030, victim: "me" });
+    expect(momentKill(replay, 9010, "me")).toMatchObject({ tick: 9000, attacker: "me" });
+  });
+
+  it("is null when the player is not in a kill within a second of the moment", () => {
+    expect(momentKill(replay, 7000, "nobody")).toBeNull();
+    expect(momentKill(replay, 5000, "me")).toBeNull();
+  });
+});
+
+describe("killStory", () => {
+  it("tells a kill from a death", () => {
+    expect(killStory({ attacker: "me", victim: "x", weapon: "ak47" }, "me")).toEqual({
+      kind: "kills",
+    });
+    expect(killStory({ attacker: "x", victim: "me", weapon: "glock" }, "me")).toEqual({
+      kind: "killed",
+    });
+  });
+
+  it("says a death with no attacker: the bomb or the map", () => {
+    expect(killStory({ attacker: null, victim: "me", weapon: "planted_c4" }, "me")).toEqual({
+      kind: "dies",
+      cause: "bomb",
+    });
+    expect(killStory({ attacker: null, victim: "me", weapon: "world" }, "me")).toEqual({
+      kind: "dies",
+      cause: "world",
+    });
+  });
+
+  it("says a suicide, by grenade or not", () => {
+    expect(killStory({ attacker: "me", victim: "me", weapon: "hegrenade" }, "me")).toEqual({
+      kind: "suicide",
+      grenade: true,
+    });
+    expect(killStory({ attacker: "me", victim: "me", weapon: "world" }, "me")).toEqual({
+      kind: "suicide",
+      grenade: false,
+    });
   });
 });

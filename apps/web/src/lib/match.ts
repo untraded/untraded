@@ -10,6 +10,8 @@ export interface FlaggedRound {
   round: number;
   /** The first flagged moment of the round, a few seconds before the event. */
   tick: number;
+  /** That moment's event: `tick` is clamped to the demo's start, the event is not. */
+  event: number;
   /** How many moments the priority flags in the round. */
   moments: number;
 }
@@ -29,10 +31,18 @@ export function prioritiesIn(advice: Advice[], matchId: string): PriorityInMatch
       if (event.match_id !== matchId) continue;
       const known = byRound.get(event.round);
       if (!known)
-        byRound.set(event.round, { round: event.round, tick: event.goto_tick, moments: 1 });
+        byRound.set(event.round, {
+          round: event.round,
+          tick: event.goto_tick,
+          event: event.tick,
+          moments: 1,
+        });
       else {
         known.moments += 1;
-        known.tick = Math.min(known.tick, event.goto_tick);
+        if (event.goto_tick < known.tick) {
+          known.tick = event.goto_tick;
+          known.event = event.tick;
+        }
       }
     }
     if (byRound.size > 0) {
@@ -81,4 +91,15 @@ export function minutes(start: string | null, end: string | null): number | null
   if (!start || !end) return null;
   const span = (Date.parse(end) - Date.parse(start)) / 60_000;
   return Number.isFinite(span) && span > 0 ? Math.round(span) : null;
+}
+
+/** The 2D viewer on a moment to review: opened at `tick` (before the event), the event at `event`,
+ * and the priority's `rule`, which the round's banner names. */
+export function momentHref(
+  matchId: string,
+  round: number,
+  moment: { tick: number; event: number; rule: string },
+): string {
+  const query = `t=${moment.tick}&e=${moment.event}&p=${encodeURIComponent(moment.rule)}`;
+  return `/matches/${matchId}/rounds/${round}?${query}`;
 }

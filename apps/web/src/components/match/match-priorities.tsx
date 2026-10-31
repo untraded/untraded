@@ -4,7 +4,7 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import type { MatchDetail } from "@/lib/api";
 import { cn } from "@/lib/cn";
-import { type PriorityInMatch, sideOf, wonRound } from "@/lib/match";
+import { momentHref, type PriorityInMatch, sideOf, wonRound } from "@/lib/match";
 
 /**
  * The priorities of the match's session that flag rounds of this match: for each, its name, how
@@ -72,7 +72,10 @@ export async function MatchPriorities({
                       return (
                         <li key={flagged.round}>
                           <Link
-                            href={`/matches/${match.id}/rounds/${flagged.round}?t=${flagged.tick}`}
+                            href={momentHref(match.id, flagged.round, {
+                              ...flagged,
+                              rule: advice.rule_id,
+                            })}
                             aria-label={t("flagged", {
                               round: flagged.round,
                               side: side ?? "",

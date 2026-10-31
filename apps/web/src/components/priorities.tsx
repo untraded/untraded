@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { type Locale, TONES, type Tone } from "@/i18n/locale";
 import type { Advice, AdviceEvent, MatchDetail } from "@/lib/api";
 import { mapName, metric, score } from "@/lib/format";
+import { momentHref } from "@/lib/match";
 
 /**
  * The session's priorities, the first one open: the finding in the chosen tone and its cost, then
@@ -127,7 +128,12 @@ async function Priority({
               {t("evidence", { count: item.evidence.length })}
             </p>
             {[...byMatch].map(([matchId, events]) => (
-              <Evidence key={matchId} events={events} match={matches.get(matchId)} />
+              <Evidence
+                key={matchId}
+                events={events}
+                match={matches.get(matchId)}
+                rule={item.rule_id}
+              />
             ))}
           </div>
           <Actions ids={args.actions} title={t("actionsTitle")} />
@@ -176,9 +182,12 @@ async function Priority({
 async function Evidence({
   events,
   match,
+  rule,
 }: {
   events: AdviceEvent[];
   match: MatchDetail | undefined;
+  /** The priority's rule: the viewer says what the moment is evidence for. */
+  rule: string;
 }) {
   const t = await getTranslations("advice");
   // A rule can flag several moments in one round (two teammates untraded, two team flashes):
@@ -188,7 +197,9 @@ async function Evidence({
     byRound.set(event.round, [...(byRound.get(event.round) ?? []), event]);
   // The 2D viewer opens on the moment (5 s before the event), when the match can be loaded.
   const viewer = (event: AdviceEvent, round: number) =>
-    match ? `/matches/${event.match_id}/rounds/${round}?t=${event.goto_tick}` : undefined;
+    match
+      ? momentHref(event.match_id, round, { tick: event.goto_tick, event: event.tick, rule })
+      : undefined;
   const mark = (moments: AdviceEvent[], round: number, side: string, won: boolean | null) => ({
     label:
       won === null
