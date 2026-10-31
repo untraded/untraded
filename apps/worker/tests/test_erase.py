@@ -140,3 +140,38 @@ def test_an_invitation_alone_is_withdrawn(db: psycopg.Connection[Any], tmp_path:
     db.execute("SELECT request_erasure(%s)", (GONE,))
     erase_player(db, LocalStore(tmp_path), GONE)
     assert db.execute("SELECT count(*) FROM invitation").fetchone() == (0,)
+
+
+def _brought(db: psycopg.Connection[Any], steam_id: int, match_id: uuid.UUID) -> None:
+    db.execute(
+        "INSERT INTO match_source (match_id, kind, external_id, source_id) "
+        "SELECT %s, 'valve_bot', %s, s.id FROM ingest_source s "
+        "JOIN app_user u ON u.id = s.user_id WHERE u.steam_id = %s",
+        (match_id, f"{match_id}-{steam_id}", steam_id),
+    )
+
+
+def test_their_matches_never_parsed_go_too(db: psycopg.Connection[Any], tmp_path: Path) -> None:
+    store = LocalStore(tmp_path)
+    user(db, GONE)
+    user(db, OTHER)
+    ids = []
+    for demo in ("demos/f.dem", "demos/g.dem"):
+        row = db.execute(
+            "INSERT INTO match (mode, status, demo_key) VALUES ('premier', 'failed', %s) "
+            "RETURNING id",
+            (demo,),
+        ).fetchone()
+        assert row is not None
+        ids.append(uuid.UUID(str(row[0])))
+        store.path(demo).parent.mkdir(parents=True, exist_ok=True)
+        store.path(demo).write_bytes(b"demo")
+    alone, shared = ids
+    _brought(db, GONE, alone)  # failed: no players known, only their source brought it
+    _brought(db, GONE, shared)
+    _brought(db, OTHER, shared)  # another live user's source brought it too: kept
+    db.execute("SELECT request_erasure(%s)", (GONE,))
+    assert erase_player(db, store, GONE).matches == 1
+    assert db.execute("SELECT id FROM match").fetchall() == [(shared,)]
+    assert not store.exists("demos/f.dem")
+    assert store.exists("demos/g.dem")
