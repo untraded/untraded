@@ -15,7 +15,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from untraded_api.app import COOKIE, create_app
-from untraded_api.auth import REQUEST_COOKIE, request_token
+from untraded_api.auth import REQUEST_COOKIE, SIGNIN_COOKIE, request_token
 from untraded_api.settings import Settings
 from untraded_api.steam import ENDPOINT, NAMESPACE
 
@@ -31,15 +31,20 @@ WEB = "http://web.test"
 INVITED, STRANGER, OTHER = 76561199000000001, 76561199000000002, 76561199000000003
 
 
-def steam_answer(steam_id: int) -> dict[str, str]:
+STATE = "nonce-of-this-browser"
+
+
+def steam_answer(steam_id: int, state: str = STATE) -> dict[str, str]:
+    """Steam's answer to a sign-in started with `state`, and that query parameter."""
     claimed = f"https://steamcommunity.com/openid/id/{steam_id}"
     return {
+        "state": state,
         "openid.ns": NAMESPACE,
         "openid.mode": "id_res",
         "openid.op_endpoint": ENDPOINT,
         "openid.claimed_id": claimed,
         "openid.identity": claimed,
-        "openid.return_to": f"{PUBLIC}/auth/steam/callback",
+        "openid.return_to": f"{PUBLIC}/auth/steam/callback?state={state}",
         "openid.sig": "c2ln",
     }
 
@@ -61,6 +66,8 @@ def client() -> Iterator[TestClient]:
 
 
 def sign_in(client: TestClient, steam_id: int) -> httpx.Response:
+    """The way back from Steam, in the browser that started the sign-in."""
+    client.cookies.set(SIGNIN_COOKIE, STATE)
     response: httpx.Response = client.get("/auth/steam/callback", params=steam_answer(steam_id))
     return response
 
@@ -70,7 +77,9 @@ def test_sign_in_starts_at_steam(client: TestClient) -> None:
     assert response.status_code == 303
     location = urllib.parse.urlsplit(response.headers["location"])
     query = dict(urllib.parse.parse_qsl(location.query))
-    assert query["openid.return_to"] == f"{PUBLIC}/auth/steam/callback"
+    state = response.cookies[SIGNIN_COOKIE]
+    assert len(state) >= 24
+    assert query["openid.return_to"] == f"{PUBLIC}/auth/steam/callback?state={state}"
     assert query["openid.realm"] == f"{PUBLIC}/"
 
 
@@ -130,7 +139,19 @@ def requests() -> list[int]:
         return [r[0] for r in conn.execute("SELECT steam_id FROM invitation_request")]
 
 
+def test_a_sign_in_started_elsewhere_is_refused(client: TestClient) -> None:
+    # Login CSRF: a callback URL from the attacker's own sign-in, opened by a visitor.
+    attacker = steam_answer(INVITED, state="attacker-nonce")
+    response = client.get("/auth/steam/callback", params=attacker)
+    assert response.headers["location"] == f"{WEB}/?signin=failed"
+    client.cookies.set(SIGNIN_COOKIE, STATE)  # the visitor's own sign-in, started meanwhile
+    response = client.get("/auth/steam/callback", params=attacker)
+    assert response.headers["location"] == f"{WEB}/?signin=failed"
+    assert client.get("/me").status_code == 401
+
+
 def test_a_bad_answer_is_refused(client: TestClient) -> None:
+    client.cookies.set(SIGNIN_COOKIE, STATE)
     params = steam_answer(INVITED) | {"openid.return_to": "http://evil.test/callback"}
     response = client.get("/auth/steam/callback", params=params)
     assert response.headers["location"] == f"{WEB}/?signin=failed"

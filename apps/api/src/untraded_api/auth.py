@@ -28,6 +28,7 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
 from untraded_api import steam
+from untraded_api.db import Database
 from untraded_api.deps import (
     COOKIE,
     ConnDep,
@@ -99,8 +100,16 @@ class Me(BaseModel):
     """The public demo account (`/auth/demo`): anonymized matches, read-only."""
 
 
-def callback_url(settings: Settings) -> str:
-    return f"{settings.public_url}/auth/steam/callback"
+SIGNIN_COOKIE = "untraded_signin"
+SIGNIN_SECONDS = 10 * 60
+"""How long a sign-in started here may take at Steam."""
+
+
+def callback_url(settings: Settings, state: str) -> str:
+    """Where Steam sends the user back: `state` is the nonce of the sign-in cookie, so only the
+    browser that started the sign-in can finish it (no login CSRF: another site cannot send a
+    visitor a callback URL that signs them into someone else's account)."""
+    return f"{settings.public_url}/auth/steam/callback?state={state}"
 
 
 def back_to_web(settings: Settings, outcome: str | None = None) -> RedirectResponse:
@@ -112,15 +121,35 @@ def back_to_web(settings: Settings, outcome: str | None = None) -> RedirectRespo
 def sign_in(settings: SettingsDep) -> RedirectResponse:
     parts = urllib.parse.urlsplit(settings.public_url)
     realm = f"{parts.scheme}://{parts.netloc}/"
-    url = steam.login_url(callback_url(settings), realm)
-    return RedirectResponse(url, status.HTTP_303_SEE_OTHER)
+    state = secrets.token_urlsafe(24)
+    url = steam.login_url(callback_url(settings, state), realm)
+    response = RedirectResponse(url, status.HTTP_303_SEE_OTHER)
+    response.set_cookie(
+        SIGNIN_COOKIE,
+        state,
+        max_age=SIGNIN_SECONDS,
+        httponly=True,
+        secure=settings.cookie_secure,
+        samesite="lax",  # sent back on Steam's redirect, a top-level navigation
+        path="/",
+    )
+    return response
 
 
 @router.get("/auth/steam/callback")
 def sign_in_callback(request: Request, db: DatabaseDep, settings: SettingsDep) -> RedirectResponse:
+    response = _callback(request, db, settings)
+    response.delete_cookie(SIGNIN_COOKIE, path="/", secure=settings.cookie_secure, httponly=True)
+    return response
+
+
+def _callback(request: Request, db: Database, settings: Settings) -> RedirectResponse:
     client: httpx.Client = request.app.state.steam_client
+    state = request.cookies.get(SIGNIN_COOKIE, "")
+    if not state or not hmac.compare_digest(state, request.query_params.get("state", "")):
+        return back_to_web(settings, "failed")  # not started in this browser, or too long ago
     try:
-        steam_id = steam.verify(dict(request.query_params), callback_url(settings), client)
+        steam_id = steam.verify(dict(request.query_params), callback_url(settings, state), client)
     except steam.SteamSignInError:
         return back_to_web(settings, "failed")
     token = secrets.token_urlsafe(32)
