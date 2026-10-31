@@ -114,6 +114,7 @@ services:
       UNTRADED_PARSE_TIMEOUT_SECONDS: ${UNTRADED_PARSE_TIMEOUT_SECONDS:-600}
     # A demo that eats all the memory kills the worker's parse, not the database next to it.
     mem_limit: ${UNTRADED_WORKER_MEMORY:-6g}
+    memswap_limit: ${UNTRADED_WORKER_MEMORY:-6g}
     volumes:
       - store:/data/store
       # The demos players send, written by the API.

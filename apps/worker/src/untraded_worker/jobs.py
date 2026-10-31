@@ -37,7 +37,7 @@ from untraded.parsing import CanonicalMatch, UnsupportedModeError
 from untraded_worker import erase, load, queue, replays, sessions, uploads
 from untraded_worker.analysis import analyze
 from untraded_worker.download import BlockedAddressError, DemoGone, fetch
-from untraded_worker.isolated import IsolatedParse
+from untraded_worker.isolated import IsolatedParse, ParseTimeoutError
 from untraded_worker.queue import Job
 from untraded_worker.runner import DeadHandler, Handler
 from untraded_worker.store import LocalStore
@@ -79,6 +79,15 @@ class ParseJob:
                 mode=mode,
                 played_at=played_at.date() if isinstance(played_at, dt.datetime) else None,
             )
+        except ParseTimeoutError as error:
+            # Not retried: each attempt would hold the only worker as long again. Once the parser
+            # is fixed, `untraded-worker retry-failed` brings it back.
+            conn.execute(
+                "UPDATE match SET status = 'failed', error = %s WHERE id = %s",
+                (str(error), match_id),
+            )
+            log.warning("match %s: %s", match_id, error)
+            return
         except UnsupportedModeError as error:
             conn.execute(
                 "UPDATE match_source SET rejected = 'unsupported_mode' "

@@ -8,6 +8,9 @@ queue, or have the kernel kill the worker. In a child process, a parse past its 
 killed and the job fails like any other (retried, then `dead`); a child killed for memory (the
 worker's `mem_limit` in compose.yaml) fails the job the same way, and the worker goes on.
 
+The worker sweeps the temporary directories of children it could not clean up (killed with it)
+when it starts (`sweep_leftovers`).
+
 The child writes the canonical tables as Parquet in a temporary directory, which the worker
 reads back: no large object crosses the pipe.
 """
@@ -16,6 +19,7 @@ from __future__ import annotations
 
 import multiprocessing
 import os
+import shutil
 import tempfile
 import traceback
 from collections.abc import Callable
@@ -32,7 +36,26 @@ DEFAULT_TIMEOUT = 600.0
 
 
 class ParseError(RuntimeError):
-    """The child did not finish: past its deadline, killed (out of memory), or crashed."""
+    """The child did not finish: killed (out of memory), or crashed."""
+
+
+class ParseTimeoutError(ParseError):
+    """The parse went past its deadline: the demo is one the parser gets stuck on, so trying
+    again would only hold the queue as long again."""
+
+
+PREFIX = "untraded-parse-"
+
+
+def sweep_leftovers() -> int:
+    """Deletes the temporary directories of parses that died with their worker; returns how
+    many. Only one worker runs per container: none of them is in use as it starts."""
+    root = Path(tempfile.gettempdir())
+    gone = 0
+    for leftover in root.glob(f"{PREFIX}*"):
+        shutil.rmtree(leftover, ignore_errors=True)
+        gone += 1
+    return gone
 
 
 def configured_timeout() -> float:
@@ -50,6 +73,10 @@ def _child(
     out: Path,
     pipe: Connection,
 ) -> None:
+    # The decompressed demo and every other temporary file go under `out`, which the worker
+    # deletes even when it kills this process (a killed process cleans nothing up).
+    tempfile.tempdir = str(out)
+    os.environ["TMPDIR"] = str(out)
     try:
         parse(path, **kwargs).write(out)
         pipe.send(("ok", ""))
@@ -70,7 +97,7 @@ class IsolatedParse:
 
     def __call__(self, path: Path, **kwargs: Any) -> CanonicalMatch:
         context = multiprocessing.get_context("spawn")  # no state inherited from the worker
-        with tempfile.TemporaryDirectory(prefix="untraded-parse-") as tmp:
+        with tempfile.TemporaryDirectory(prefix=PREFIX) as tmp:
             receive, send = context.Pipe(duplex=False)
             child = context.Process(
                 target=_child,
@@ -82,7 +109,7 @@ class IsolatedParse:
             send.close()  # only the child holds it now: its death ends the pipe
             try:
                 if not receive.poll(self.timeout):
-                    raise ParseError(f"the parse took over {self.timeout:.0f} s: stopped")
+                    raise ParseTimeoutError(f"the parse took over {self.timeout:.0f} s: stopped")
                 try:
                     outcome, detail = receive.recv()
                 except EOFError:

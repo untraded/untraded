@@ -21,6 +21,7 @@ from untraded.demo import PROTAGONIST
 from untraded_worker import (
     conninfo,
     demo,
+    isolated,
     levels,
     reanalyze,
     replays,
@@ -102,6 +103,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     if args.name:
         worker.name = args.name
+    if isolated.sweep_leftovers():
+        logging.info("temporary files of interrupted parses deleted")
     processed = worker.run(once=args.once)
     logging.info("stopped after %s job(s)", processed)
     return 0
