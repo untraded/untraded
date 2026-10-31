@@ -125,7 +125,9 @@ class IsolatedParse:
             if outcome == "unsupported":
                 raise UnsupportedModeError(detail)
             if outcome != "ok":
-                raise ParseError(f"the parser failed:\n{detail}")
+                cause = detail.strip().splitlines()[-1] if detail.strip() else "?"
+                # The cause first: the job's recorded error is cut at 4000 characters.
+                raise ParseError(f"the parser failed: {cause}\n{detail}")
             matches = list((Path(tmp) / "matches").iterdir())
             if len(matches) != 1:
                 raise ParseError(f"the parser wrote {len(matches)} matches, not one")
