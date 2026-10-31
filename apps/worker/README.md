@@ -32,7 +32,9 @@ after a new replay format or a new win-probability model. Both log and skip a ma
 | `UNTRADED_ALLOW_PRIVATE_DEMO_URLS` | unset | `1` lets `download` reach private addresses (a server on your own network); otherwise a demo URL never reaches a private, loopback, link-local (cloud metadata) or reserved address, redirects included |
 
 - `queue.py`: claim with `FOR UPDATE SKIP LOCKED`, exponential backoff, `dead` after
-  `max_attempts`, abandoned jobs put back after 30 minutes (3 hours for `download`).
+  `max_attempts`. A job cut by a restart is put back when its worker starts again (same
+  name); one left by a worker that is gone (a container replaced by a deployment) is put back
+  after 30 minutes (3 hours for `download`) by any worker, which looks every 5 minutes.
 - `runner.py`: the loop. The claim commits first; the handler's writes and the completion then
   commit together, and a failure (Rust panics included) is rolled back and recorded. When the
   queue is empty, it runs the periodic tasks (level references, retention, the purge of expired sign-in sessions).

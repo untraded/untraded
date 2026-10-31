@@ -101,3 +101,14 @@ def test_abandoned_jobs_are_requeued(conn: psycopg.Connection[Any]) -> None:
     assert queue.requeue_stale(conn) == 1
     assert _status(conn, old)[:4] == ("queued", 1, None, "abandoned by its worker")
     assert _status(conn, recent)[0] == "running"
+
+
+@pytest.mark.db
+def test_a_restarted_worker_takes_back_its_jobs(conn: psycopg.Connection[Any]) -> None:
+    mine = queue.enqueue(conn, "parse")
+    other = queue.enqueue(conn, "parse")
+    assert queue.claim(conn, ["parse"], "w1") is not None
+    assert queue.claim(conn, ["parse"], "w2") is not None
+    assert queue.requeue_mine(conn, "w1") == 1  # cut a minute ago, not 30
+    assert _status(conn, mine)[:4] == ("queued", 1, None, "cut by a restart of its worker")
+    assert _status(conn, other)[0] == "running"

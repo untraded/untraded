@@ -3,7 +3,8 @@
 """The worker loop: claim a job, run its handler, record the outcome, wait for the next one.
 
 The claim commits on its own: the job is `running` and the attempt counts, even if the worker
-dies during the job (it is then put back in the queue after `queue.STALE_AFTER`, and ends `dead`
+dies during the job (it is then put back in the queue when the worker starts again, or after
+`queue.STALE_AFTER` by any worker, which looks every `queue.STALE_EVERY`, and ends `dead`
 once its attempts are used up, instead of crashing workers forever). The handler's writes and
 the job's completion then commit together; a failure rolls them back and is recorded. Between
 jobs, the worker sleeps on `LISTEN job_<kind>` (the queue's insert trigger, ADR 0004), with a
@@ -81,7 +82,7 @@ class Worker:
         ):
             for kind in self.handlers:
                 listener.execute(sql.SQL("LISTEN {}").format(sql.Identifier(f"job_{kind}")))
-            stale = queue.requeue_stale(conn)
+            stale = queue.requeue_mine(conn, self.name) + queue.requeue_stale(conn)
             if stale:
                 log.warning("%s abandoned job(s) put back in the queue", stale)
             while not self.stopping:

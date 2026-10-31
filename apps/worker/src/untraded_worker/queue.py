@@ -24,6 +24,9 @@ STALE_AFTER = dt.timedelta(minutes=30)
 """A running job not finished after this long is considered abandoned (a parse takes < 1 min)."""
 STALE_AFTER_BY_KIND: Mapping[str, dt.timedelta] = {"download": dt.timedelta(hours=3)}
 """Slower kinds: a Valve download can take 20 minutes or more (throttled servers)."""
+STALE_EVERY = dt.timedelta(minutes=5)
+"""How often a running worker looks for jobs abandoned by another one (a container replaced by
+a deployment has a new name: its jobs are only found this way)."""
 
 
 @dataclass(frozen=True)
@@ -128,5 +131,17 @@ def requeue_stale(
             "by_kind": Jsonb({k: v.total_seconds() for k, v in by_kind.items()}),
             "default": older_than,
         },
+    )
+    return cursor.rowcount
+
+
+def requeue_mine(conn: psycopg.Connection[Any], worker: str) -> int:
+    """Puts back in the queue the jobs `worker` left running: a worker that starts runs none, so
+    those were cut by its restart (a crash, an out-of-memory kill). Returns how many."""
+    cursor = conn.execute(
+        "UPDATE job SET status = 'queued', locked_by = NULL, "
+        "last_error = coalesce(last_error, 'cut by a restart of its worker') "
+        "WHERE status = 'running' AND locked_by = %s",
+        (worker,),
     )
     return cursor.rowcount
