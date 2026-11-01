@@ -6,6 +6,8 @@
 - `model`: a logistic regression on that state, published as coefficients (`Model`);
 - `validation`: scores on the newest matches, held out, against two baselines;
 - `swing`: the probability before and after each kill, plant and defuse, credited to players;
+- `ledger`: every change of the probability through a round, credited to players so that each
+  round adds up (rating 2.0, in progress);
 - `rating`: the Untraded Rating's scale, where 1.00 is the average player (`default_scale()`).
 
 The published model (`default_model()`) is trained on demos of consenting players only (ADR 0010);
@@ -17,7 +19,7 @@ from __future__ import annotations
 from functools import cache
 from importlib import resources
 
-from untraded.winprob import rating
+from untraded.winprob import ledger, rating
 from untraded.winprob.features import (
     BOMB_SECONDS,
     FEATURE_SETS,
@@ -42,6 +44,7 @@ __all__ = [
     "default_model",
     "evaluate",
     "fit",
+    "ledger",
     "rating",
     "samples",
     "split_by_time",

@@ -231,6 +231,12 @@ def _parser() -> argparse.ArgumentParser:
     swing.add_argument("match", type=Path, help="a match directory written by `untraded parse`")
     swing.add_argument("--model", type=Path, help="a model file (default: the published model)")
     swing.set_defaults(run=_winprob_swings)
+    book = wp_actions.add_parser(
+        "ledger", help="each player's credit in a parsed match, by part (the ledger)"
+    )
+    book.add_argument("match", type=Path, help="a match directory written by `untraded parse`")
+    book.add_argument("--model", type=Path, help="a model file (default: the published model)")
+    book.set_defaults(run=_winprob_ledger)
     scale = wp_actions.add_parser(
         "rating-scale", help="measure the Untraded Rating's scale on parsed matches"
     )
@@ -400,6 +406,25 @@ def _winprob_swings(args: argparse.Namespace) -> int:
     )
     with pl.Config(tbl_rows=20, tbl_hide_dataframe_shape=True):
         print(f"model {model.version}, {rounds} rounds: swing per round, in win-probability points")
+        print(table)
+    return 0
+
+
+def _winprob_ledger(args: argparse.Namespace) -> int:
+    model = winprob.Model.load(args.model) if args.model else winprob.default_model()
+    canonical = CanonicalMatch.read(args.match)
+    tables = canonical.tables()
+    credits = winprob.ledger.ledger(tables, model)
+    played = derive(tables).tables()["round_player"].select("steamid", "round")
+    table = (
+        winprob.ledger.per_player(credits, played)
+        .join(canonical.player.select("steamid", "name"), on="steamid", how="left")
+        .sort("swing", descending=True)
+        .select("name", "rounds", "swing", *winprob.ledger.PARTS)
+        .with_columns(pl.col(pl.Float64).round(2))
+    )
+    with pl.Config(tbl_rows=20, tbl_cols=12, tbl_hide_dataframe_shape=True, tbl_width_chars=160):
+        print(f"model {model.version}: credit per round played, in win-probability points")
         print(table)
     return 0
 
