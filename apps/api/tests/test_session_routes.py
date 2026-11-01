@@ -177,6 +177,32 @@ def test_my_sessions(client: TestClient, session_id: uuid.UUID) -> None:
     assert top["args"]["events"] == 4
 
 
+def test_a_page_of_sessions_counts_its_own_results(
+    client: TestClient, session_id: uuid.UUID
+) -> None:
+    # The second session, alone on its page: the day before, without a match row.
+    body = as_player(client, ME).get("/sessions", params={"limit": 1, "offset": 1}).json()
+    [before] = body["items"]
+    assert before["id"] != str(session_id)
+    assert (before["wins"], before["losses"], before["ties"], before["maps"]) == (0, 0, 0, [])
+    assert before["top_priority"]["rule_id"] == "trade.untraded_deaths"
+    assert as_player(client, ME).get("/sessions", params={"offset": 2}).json()["items"] == []
+
+
+def test_the_report_lists_its_matches_as_the_match_list_does(
+    client: TestClient, session_id: uuid.UUID
+) -> None:
+    # The report reads the player's line per match, not through the wide view: same values.
+    me = as_player(client, ME)
+    report = me.get(f"/sessions/{session_id}").json()
+    listed = {m["id"]: m for m in me.get("/matches").json()["items"]}
+    assert report["match_list"] == [listed[m["id"]] for m in report["match_list"]]
+    line = report["match_list"][0]["my_line"]
+    assert line is not None
+    assert line["kills"] is not None
+    assert line["untraded"] is not None
+
+
 def test_session_report(client: TestClient, session_id: uuid.UUID) -> None:
     report = as_player(client, ME).get(f"/sessions/{session_id}").json()
     assert report["reference"] == {
