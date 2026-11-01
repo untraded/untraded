@@ -255,19 +255,16 @@ export function compare(
   return value === null ? { kind: "none", gap: null } : { kind: "ranked", gap: value };
 }
 
-/** A size in bytes, in the largest unit that keeps it above 1: `412 Mo`, `48 GB`. */
-export function bytes(
-  value: number | null | undefined,
-  locale: Locale,
-  /** 1024 for file sizes, as file managers and the upload limit (400 MB) count them. */
-  base: 1000 | 1024 = 1000,
-): string {
+/** A size in bytes, in the largest unit that keeps it above 1: `412 Mo`, `48 GB`. Decimal units
+ * (1 MB = 1,000,000 bytes), as the API and the proxy count the upload limit: 400 MB is
+ * `400_000_000` bytes, shown as `400 Mo`. */
+export function bytes(value: number | null | undefined, locale: Locale): string {
   if (value === null || value === undefined || !Number.isFinite(value)) return DASH;
   const units = ["byte", "kilobyte", "megabyte", "gigabyte", "terabyte"] as const;
   let size = value;
   let unit = 0;
-  while (size >= base && unit < units.length - 1) {
-    size /= base;
+  while (size >= 1000 && unit < units.length - 1) {
+    size /= 1000;
     unit += 1;
   }
   return numberFormat(locale, {

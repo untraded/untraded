@@ -235,7 +235,7 @@ export function UploadForm({
               <p className="truncate font-mono text-[0.8125rem]" translate="no">
                 {file.name}
               </p>
-              <p className="text-xs text-muted-foreground">{bytes(file.size, locale, 1024)}</p>
+              <p className="text-xs text-muted-foreground">{bytes(file.size, locale)}</p>
             </div>
             {!sending && (
               <Button
@@ -329,8 +329,8 @@ export function UploadForm({
               </div>
               <p className="text-xs text-muted-foreground tabular-nums">
                 {labels.progress
-                  .replace("{sent}", bytes(phase.sent, locale, 1024))
-                  .replace("{total}", bytes(file.size, locale, 1024))}
+                  .replace("{sent}", bytes(phase.sent, locale))
+                  .replace("{total}", bytes(file.size, locale))}
               </p>
             </div>
           )}
