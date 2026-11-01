@@ -173,10 +173,13 @@ def compare(
     return out
 
 
-def evaluate(model: Model, test: pl.DataFrame, train: pl.DataFrame) -> dict[str, Any]:
+def evaluate(
+    model: Model, test: pl.DataFrame, train: pl.DataFrame, **fit_kwargs: Any
+) -> dict[str, Any]:
     """The model's scores on `test`, against the baselines fitted on `train`, with the
     calibration table, the Brier decomposition, and the scores before and after the plant and on
-    contested states."""
+    contested states. `fit_kwargs` are the model's own (`fit`), for the baseline on model 1's
+    features."""
     y = test["ct_won"].cast(pl.Float64).to_numpy()
     w = round_weights(test)
     p = model.predict(test)
@@ -205,7 +208,12 @@ def evaluate(model: Model, test: pl.DataFrame, train: pl.DataFrame) -> dict[str,
     }
     others = {"alive_only": alive_only}
     if model.numeric != FEATURE_SETS["v1"]:
-        v1 = fit(train, version="baseline", numeric=FEATURE_SETS["v1"])
+        # Same penalty and signs as the model: only the features differ.
+        v1 = fit(
+            train,
+            version="baseline",
+            **{**fit_kwargs, "numeric": FEATURE_SETS["v1"], "trained_on": None},
+        )
         report["baseline_v1_features"] = scores(y, v1.predict(test), w)
         others["v1_features"] = v1.predict(test)
     report["gain_over"] = compare(test, p, others)
@@ -322,13 +330,16 @@ def train_and_validate(
 
     With `select`, the features come from `select_features`: on the training matches alone for
     the held-out scores (the test matches never weigh on the choice), then on every match for the
-    published model, whose steps are recorded."""
+    published model, whose steps are recorded. The held-out scores then validate the selection
+    as a procedure: when the two choices differ, `selected_on_train` says so."""
+    if select and "numeric" in kwargs:
+        raise ValueError("select chooses the features: do not pass numeric as well")
     train, test = split_by_time(frame, held_out)
     if select:
         numeric, _ = select_features(train, **kwargs)
         kwargs = {**kwargs, "numeric": numeric}
     checked = fit(train, version=version, **kwargs)
-    report = evaluate(checked, test, train)
+    report = evaluate(checked, test, train, **kwargs)
     report["learning_curve"] = learning_curve(train, test, **kwargs)
     if select:
         kwargs["numeric"], report["selection"] = select_features(

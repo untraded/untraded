@@ -143,22 +143,22 @@ def _carried(ticks: pl.DataFrame, tables: Mapping[str, pl.DataFrame]) -> pl.Data
     changes = tables.get("inventory_change")
     if changes is None or changes.is_empty():
         return ticks.with_columns(pl.lit(0).alias(name) for name in CARRIED)
-    inventory = changes.select(
-        pl.col("tick").cast(pl.Int32), pl.col("steamid"), pl.col("inventory")
+    # Counted on the changes (a small table) before the join, so that no inventory list is
+    # copied onto every sampled tick.
+    counts = changes.select(
+        pl.col("tick").cast(pl.Int32),
+        pl.col("steamid"),
+        *(
+            pl.col("inventory").list.eval(pl.element().is_in(list(items))).list.sum().alias(name)
+            for name, items in CARRIED.items()
+        ),
     ).sort("tick")
     joined = (
         ticks.with_columns(pl.col("tick").cast(pl.Int32))
         .sort("tick")
-        .join_asof(inventory, on="tick", by="steamid", strategy="backward", check_sortedness=False)
+        .join_asof(counts, on="tick", by="steamid", strategy="backward", check_sortedness=False)
     )
-    return joined.with_columns(
-        pl.col("inventory")
-        .list.eval(pl.element().is_in(list(items)))
-        .list.sum()
-        .fill_null(0)
-        .alias(name)
-        for name, items in CARRIED.items()
-    ).drop("inventory")
+    return joined.with_columns(pl.col(name).fill_null(0) for name in CARRIED)
 
 
 def _bomb_spots(tables: Mapping[str, pl.DataFrame]) -> pl.DataFrame:
@@ -201,7 +201,8 @@ def _per_side(ticks: pl.DataFrame, tables: Mapping[str, pl.DataFrame]) -> pl.Dat
         + (pl.col("z") - pl.col("bomb_z")) ** 2
     ).sqrt()
     defuse = pl.when(pl.col("has_defuser")).then(DEFUSE_KIT_SECONDS).otherwise(DEFUSE_SECONDS)
-    need = distance / RUN_SPEED + defuse
+    # A position the demo got wrong (NaN) does not run the race.
+    need = (distance / RUN_SPEED + defuse).fill_nan(None)
     return rows.group_by("round", "tick").agg(
         (alive & ct).sum().alias("alive_ct"),
         (alive & t).sum().alias("alive_t"),
@@ -246,7 +247,7 @@ def _finish(frame: pl.DataFrame, tickrate: float) -> pl.DataFrame:
     return finished.with_columns(
         (pl.col("time_left") - bend).clip(0).alias(f"time_left_over_{int(bend * 10)}s")
         for bend in TIME_BENDS
-    ).with_columns(pl.col(NUMERIC_V2).cast(pl.Float64))
+    ).with_columns(pl.col(NUMERIC_V2).cast(pl.Float64).fill_nan(0.0))
 
 
 def samples(tables: Mapping[str, pl.DataFrame], step: float = 1.0) -> pl.DataFrame:
@@ -301,16 +302,34 @@ def samples(tables: Mapping[str, pl.DataFrame], step: float = 1.0) -> pl.DataFra
     )
 
 
-def state_at(tables: Mapping[str, pl.DataFrame], round_number: int, tick: int) -> pl.DataFrame:
+def state_at(
+    tables: Mapping[str, pl.DataFrame],
+    round_number: int,
+    tick: int,
+    *,
+    without: int | None = None,
+    planted: bool = False,
+) -> pl.DataFrame:
     """The features of one round just before `tick` (the last `player_tick` sample before it):
-    one row, before any change the event at `tick` makes."""
+    one row, before any change the event at `tick` makes.
+
+    For the state just after an event: `without` takes a player out (a kill: their health,
+    armor, equipment, kit and what they carry go with them, and the defuse race is run again
+    without them); `planted` puts the bomb down where its planter stands, with its whole timer
+    to go."""
     match = tables["match"].row(0, named=True)
     rnd = tables["round"].filter(pl.col("round") == round_number)
     ticks = tables["player_tick"].filter(pl.col("round") == round_number, pl.col("tick") < tick)
     if ticks.is_empty() or rnd.is_empty():
         raise ValueError(f"no state before tick {tick} of round {round_number}")
+    if planted:
+        rnd = rnd.with_columns(pl.lit(tick - 1).cast(pl.Int32).alias("bomb_planted_tick"))
     last = ticks.filter(pl.col("tick") == pl.col("tick").max())
+    if without is not None:
+        last = last.with_columns(pl.col("is_alive") & (pl.col("steamid") != without))
+    # This round's rows only: the bomb spot is looked up for every event of a match.
+    scoped = {**tables, "round": rnd, "player_tick": ticks}
     # Timed one tick before the event: a plant at `tick` is not down yet in the state before it.
-    sides = _per_side(last, tables).with_columns(pl.lit(tick - 1).cast(pl.Int32).alias("tick"))
+    sides = _per_side(last, scoped).with_columns(pl.lit(tick - 1).cast(pl.Int32).alias("tick"))
     frame = sides.join(rnd.select("round", "freeze_end_tick", "bomb_planted_tick"), on="round")
     return _finish(frame, float(match["tickrate"])).with_columns(pl.lit(match["map"]).alias("map"))

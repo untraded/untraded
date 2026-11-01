@@ -5,11 +5,12 @@
 An event changes the round's state; the model gives the counter-terrorists' win probability just
 before it and just after it, and the difference is the event's swing:
 
-- **a kill**: the victim's side loses a player (their health, armor, equipment and, for a
-  counter-terrorist, kit). The swing, seen by the killer's side, is shared among the enemies
-  who damaged the victim this round, by damage dealt (the killer at least has the last hit). A
-  flash assist takes `FLASH_SHARE` of it first. The victim is debited the same swing, seen by
-  their side. A team kill debits the killer instead; a death to the world debits the victim.
+- **a kill**: the victim's side loses a player (their health, armor, equipment, what they carry
+  and, for a counter-terrorist, kit; the defuse race runs again without them). The swing, seen
+  by the killer's side, is shared among the enemies who damaged the victim this round, by damage
+  dealt (the killer at least has the last hit). A flash assist takes `FLASH_SHARE` of it first.
+  The victim is debited the same swing, seen by their side. A team kill debits the killer
+  instead; a death to the world debits the victim.
   The death of a bot (`kill.victim` null) is not credited.
 - Nothing is credited once the round is decided: the bomb's victims and exit frags.
 - **the plant**: the bomb goes down with `BOMB_SECONDS` to go; the planter gets the swing.
@@ -23,11 +24,10 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any
 
 import polars as pl
 
-from untraded.winprob.features import BOMB_SECONDS, state_at
+from untraded.winprob.features import state_at
 from untraded.winprob.model import Model
 
 FLASH_SHARE = 0.1
@@ -50,27 +50,6 @@ class _Credit:
     steamid: int
     side: str
     swing: float
-
-
-def _after_kill(before: pl.DataFrame, victim: Mapping[str, Any], side: str) -> pl.DataFrame:
-    """The state once the victim is gone."""
-    s = "ct" if side == "CT" else "t"
-    health = float(victim.get("health") or 0) / 100
-    armor = float(victim.get("armor") or 0) / 100
-    equip = float(victim.get("equip_value") or 0) / 1000
-    changes = [
-        (pl.col(f"alive_{s}") - 1).clip(0).alias(f"alive_{s}"),
-        (pl.col(f"hp_{s}") - health).clip(0).alias(f"hp_{s}"),
-        (pl.col(f"armor_{s}") - armor).clip(0).alias(f"armor_{s}"),
-        (pl.col(f"equip_{s}") - equip).clip(0).alias(f"equip_{s}"),
-    ]
-    if side == "CT" and victim.get("has_defuser"):
-        changes.append((pl.col("kits") - 1).clip(0).alias("kits"))
-    out = before.with_columns(changes)
-    return out.with_columns(
-        (pl.col("alive_ct") * pl.col("planted")).alias("alive_ct_planted"),
-        (pl.col("alive_t") * pl.col("planted")).alias("alive_t_planted"),
-    )
 
 
 def _decided(state: pl.DataFrame) -> float | None:
@@ -141,7 +120,7 @@ def swings(tables: Mapping[str, pl.DataFrame], model: Model) -> pl.DataFrame:
         )
         if not victim or not victim[0]["is_alive"]:
             continue
-        after_state = _after_kill(before, victim[0], victim_side)
+        after_state = state_at(tables, kill["round"], kill["tick"], without=kill["victim"])
         p_before = float(model.predict(before)[0])
         decided = _decided(after_state)
         p_after = decided if decided is not None else float(model.predict(after_state)[0])
@@ -190,13 +169,7 @@ def swings(tables: Mapping[str, pl.DataFrame], model: Model) -> pl.DataFrame:
             except ValueError:
                 planted_before = None
             if planted_before is not None and planted_before["alive_ct"][0] > 0:
-                after = planted_before.with_columns(
-                    pl.lit(1.0).alias("planted"),
-                    pl.lit(0.0).alias("time_left"),
-                    pl.lit(BOMB_SECONDS / 10).alias("time_left_planted"),
-                    pl.col("alive_ct").alias("alive_ct_planted"),
-                    pl.col("alive_t").alias("alive_t_planted"),
-                )
+                after = state_at(tables, number, rnd["bomb_planted_tick"], planted=True)
                 p0, p1 = float(model.predict(planted_before)[0]), float(model.predict(after)[0])
                 add(
                     number,

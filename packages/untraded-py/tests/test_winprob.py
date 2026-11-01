@@ -109,10 +109,52 @@ def test_what_the_living_carry_and_the_defuse_race(tables: dict[str, pl.DataFram
     assert frame.filter(
         pl.col("time_left_over_30s") != (pl.col("time_left") - 3).clip(0)
     ).is_empty()
-    # The state at a tick has the same features as the samples.
-    row = frame.row(len(frame) // 2, named=True)
-    state = state_at(tables, row["round"], row["tick"] + 1)
-    assert set(NUMERIC_V2) <= set(state.columns)
+    # The state just before an event has the features of the sample at the tick before it.
+    for row in (frame.row(len(frame) // 2, named=True), after.row(0, named=True)):
+        state = state_at(tables, row["round"], row["tick"] + 1).row(0, named=True)
+        for name in NUMERIC_V2:
+            assert state[name] == pytest.approx(row[name]), name
+
+
+def test_the_state_after_a_kill_and_a_plant(tables: dict[str, pl.DataFrame]) -> None:
+    kill = tables["kill"].filter(pl.col("victim").is_not_null()).row(0, named=True)
+    side = "ct" if kill["victim_side"] == "CT" else "t"
+    before = state_at(tables, kill["round"], kill["tick"]).row(0, named=True)
+    after = state_at(tables, kill["round"], kill["tick"], without=kill["victim"]).row(0, named=True)
+    assert after[f"alive_{side}"] == before[f"alive_{side}"] - 1
+    assert after[f"hp_{side}"] < before[f"hp_{side}"]
+    # What the victim carried goes with them, and nothing of the other side moves.
+    carried = [f"{name}_{side}" for name in CANDIDATES["weapons"] + CANDIDATES["grenades"]]
+    assert sum(after[c] for c in carried if c in after) <= sum(
+        before[c] for c in carried if c in before
+    )
+    other = "t" if side == "ct" else "ct"
+    assert after[f"alive_{other}"] == before[f"alive_{other}"]
+    assert after[f"equip_{other}"] == before[f"equip_{other}"]
+    # The plant: the bomb's whole timer to go, the round clock and its bends at zero.
+    plants = [
+        state_at(tables, r["round"], r["bomb_planted_tick"], planted=True).row(0, named=True)
+        for r in tables["round"].filter(pl.col("bomb_planted_tick").is_not_null()).to_dicts()
+    ]
+    plant = next(p for p in plants if p["alive_ct"] > 0)  # a counter-terrorist left to defuse
+    assert plant["planted"] == 1
+    assert plant["time_left"] == 0
+    assert plant["time_left_planted"] == BOMB_SECONDS / 10
+    assert plant["time_left_over_30s"] == plant["time_left_over_60s"] == 0
+    assert plant["alive_ct_planted"] == plant["alive_ct"]
+    assert plant["defuse_margin"] != 0
+
+
+def test_swings_with_a_v2_model(tables: dict[str, pl.DataFrame], corpus: pl.DataFrame) -> None:
+    model = fit(corpus, version="test", l2=5.0, numeric=NUMERIC_V2)
+    credits = swings(tables, model)
+    kills = credits.filter(pl.col("event") == "kill")
+    assert not kills.is_empty()
+    attacked = tables["kill"].filter(pl.col("attacker").is_not_null(), ~pl.col("is_team_kill"))
+    by_kill = kills.group_by("round", "tick").agg(pl.col("swing").sum())
+    zero_sum = by_kill.join(attacked.select("round", "tick"), on=["round", "tick"])
+    assert zero_sum.select(pl.col("swing").abs().max()).item() < 1e-9
+    assert credits["swing"].is_finite().all()
 
 
 def test_fit_respects_the_signs_and_round_trips(corpus: pl.DataFrame) -> None:
@@ -179,6 +221,21 @@ def test_the_newest_matches_are_held_out(corpus: pl.DataFrame) -> None:
     v1 = train_and_validate(corpus, version="test", held_out=0.34, l2=5.0, numeric=NUMERIC)
     assert v1.numeric == NUMERIC
     assert "v1_features" not in v1.validation["gain_over"]
+
+
+def test_train_and_validate_with_selection() -> None:
+    frame = _synthetic().with_columns(
+        (pl.lit(dt.date(2026, 10, 1)) + pl.duration(days=pl.col("round") // 12))
+        .cast(pl.Date)
+        .alias("played_at")
+    )
+    model = train_and_validate(frame, version="test", select=True)
+    report = model.validation
+    assert "defuse_margin" in model.numeric
+    assert report["selection"][0]["kept"] == "defuse_race"
+    assert "defuse_margin" in report["selected_on_train"]
+    with pytest.raises(ValueError, match="do not pass numeric"):
+        train_and_validate(frame, version="test", select=True, numeric=NUMERIC)
 
 
 def test_a_v1_model_reads_the_new_samples(tables: dict[str, pl.DataFrame]) -> None:
