@@ -342,7 +342,9 @@ def get_replay(
     viewer newer than the replays never caches an old one under its own version.
 
     The answer carries an `ETag`, and a matching `If-None-Match` is a 304 without a body. It is
-    kept a week but revalidated after (not `immutable`: a reanalysis rewrites the file). The 304
+    kept a day, then revalidated (not `immutable`: a reanalysis rewrites the file); a day, not
+    more, because the site signs out and erases from its server, so the `Clear-Site-Data` of those
+    answers does not reach the browser, and what an erased account left in it must not last. The 304
     comes only after the match is found as the user (row-level security): someone who may not
     see the match gets the same 404 with or without the header, never a hint that it exists."""
     row = conn.execute("SELECT parquet_prefix FROM match WHERE id = %s", (match_id,)).fetchone()
@@ -361,9 +363,9 @@ def get_replay(
     etag = replay_etag(content)
     headers = {
         "ETag": etag,
-        "Cache-Control": "private, max-age=604800",
+        "Cache-Control": "private, max-age=86400",
         # Per account: a browser shared by two players asks again rather than serve one's copy
-        # to the other (sign-out also clears the cache, `CLEAR_CACHE`).
+        # to the other.
         "Vary": "Cookie",
     }
     if none_match(if_none_match, etag):

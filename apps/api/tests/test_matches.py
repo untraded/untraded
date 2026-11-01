@@ -202,7 +202,7 @@ def test_a_round_replay_revalidates_with_its_etag(match_id: uuid.UUID, tmp_path:
         assert etag.startswith('"')
         assert etag.endswith('"')
         assert me.get(url).headers["etag"] == etag  # stable
-        assert first.headers["cache-control"] == "private, max-age=604800"
+        assert first.headers["cache-control"] == "private, max-age=86400"
         assert first.headers["vary"] == "Cookie"
         same = me.get(url, headers={"If-None-Match": etag})
         assert (same.status_code, same.content) == (304, b"")
