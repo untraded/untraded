@@ -18,16 +18,27 @@ from functools import cache
 from importlib import resources
 
 from untraded.winprob import rating
-from untraded.winprob.features import BOMB_SECONDS, NUMERIC, ROUND_SECONDS, samples, state_at
+from untraded.winprob.features import (
+    BOMB_SECONDS,
+    FEATURE_SETS,
+    NUMERIC,
+    NUMERIC_V2,
+    ROUND_SECONDS,
+    samples,
+    state_at,
+)
 from untraded.winprob.model import Model, fit
 from untraded.winprob.swing import swings
-from untraded.winprob.validation import evaluate, split_by_time, train_and_validate
+from untraded.winprob.validation import cross_fit, evaluate, split_by_time, train_and_validate
 
 __all__ = [
     "BOMB_SECONDS",
+    "FEATURE_SETS",
     "NUMERIC",
+    "NUMERIC_V2",
     "ROUND_SECONDS",
     "Model",
+    "cross_fit",
     "default_model",
     "evaluate",
     "fit",

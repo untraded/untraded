@@ -52,7 +52,7 @@ The published model is `packages/untraded-py/src/untraded/winprob/winprob-v1.jso
 - what it was trained on (matches, rounds, dates, maps), with no match ids;
 - the scores below.
 
-A gradient-boosted model (v2) will be tried once the corpus reaches about 300 matches, and kept only if it beats this one on held-out matches.
+A gradient-boosted model will be tried once the corpus reaches about 300 matches, and kept only if it beats the logistic regression on held-out matches by more than 0.01 of log loss, with an interval that excludes zero.
 
 ## How good it is
 
@@ -77,6 +77,62 @@ A gradient-boosted model (v2) will be tried once the corpus reaches about 300 ma
 With 30 matches the numbers move from one corpus to the next: a first fit on 10 matches scored an AUC of 0.80. Each new version is trained on a larger corpus and its scores are published here.
 
 The published model is then refitted on every match, held-out ones included.
+
+## Model 2 (in progress)
+
+Model 2 adds candidate inputs to model 1's. **Each family joins only if it earns its place on the corpus**, so the model grows with the data instead of overfitting it.
+
+| Family | Inputs (per side unless noted) |
+|---|---|
+| `defuse_race` | `defuse_margin`: once the bomb is down, bomb time left minus the time the quickest living counter-terrorist needs to reach it (straight-line distance at 250 units/s) and defuse it (5 s with a kit, 10 s without), clipped to ±20 s, in tens of seconds; 0 before the plant |
+| `clock_bends` | `time_left_over_30s`, `time_left_over_60s`: `max(0, time_left − bend)`, so the clock's weight can change through the round |
+| `weapons` | AWPs, rifles and other primaries carried by the living (`awp_*`, `rifles_*`, `smgs_*`) |
+| `grenades` | smokes, flashes, molotovs and HE grenades carried by the living (`smokes_*`, `flashes_*`, `fires_*`, `hes_*`) |
+
+The counts come from each player's last inventory change (`inventory_change`). Weapons, grenades and the defuse race have common-sense signs, like model 1's inputs.
+
+**How a family earns its place** (`untraded.winprob.validation.select_features`):
+- **Cross-fitting**: every match is predicted by a model fitted without it (5 groups of matches, assigned by a hash of the match id).
+- **Forward selection**: at each step, the family that lowers the cross-fitted log loss most joins, if the 95 % interval of its gain is above zero. The interval comes from resampling **matches** (1,000 draws), because the states of one match are not independent. The selection stops when no family qualifies.
+- **No leak into the scores**: for the held-out scores, the families are chosen on the training matches alone. The published model's choice is then made on every match, and each step is recorded in the model file (`validation.selection`).
+
+**Every model is now scored** on top of the table above:
+- on **contested states**: as many players alive on each side, equipment within $1,500. That is where the alive count alone says nothing;
+- with **Murphy's decomposition** of the Brier score: reliability (calibration), resolution, uncertainty;
+- against **model 1's inputs fitted on the same matches**, with the log loss gain and its 95 % interval (bootstrap by match);
+- with a **learning curve**: the held-out scores of the model fitted on the oldest 25, 50, 75 and 100 % of the training matches. Where it flattens, more matches stop paying.
+
+`untraded.winprob.cross_fit` also serves the swing: the swings of the corpus's own matches must come from a model that did not see them, or its overfitting inflates them.
+
+**First run, on the 30 matches of version 1.0** (2026-11-01):
+
+| Family | Log loss gain, cross-fitted (95 % interval) | Kept |
+|---|---|---|
+| `defuse_race` | +0.0016 (+0.0004 to +0.0029) | yes |
+| `clock_bends` | −0.0001 (−0.0005 to +0.0002) | no |
+| `weapons` | −0.0048 (−0.0105 to +0.0004) | no |
+| `grenades` | −0.0005 (−0.0015 to +0.0006) | no |
+
+- On the 21 training matches alone, no family qualifies, so the held-out scores are model 1's (log loss 0.453).
+- On contested states the model barely beats a coin: AUC 0.62, log loss 0.677. The CS2 literature reports the same, about 0.58 ([CS2_Win_Probability_Model](https://github.com/Henry1145141919810/CS2_Win_Probability_Model)).
+- The learning curve still falls up to 16 training matches (log loss 0.473, 0.462, 0.453, 0.453 for 5, 10, 16, 21).
+- Weapons and grenades are not wrong inputs: 30 matches are too few to tell them apart from the equipment value. The selection is rerun at each step of the corpus.
+
+**Second run, on 54 matches** (2026-11-01: the 30 above, 17 from testers who opted in to research, and 7 more of the maintainer's; 1,175 rounds, 82,044 samples). The 16 newest matches (346 rounds) were held out:
+
+| On held-out matches | AUC | Brier | Log loss |
+|---|---|---|---|
+| **Model 2** (model 1's inputs and the defuse race, chosen on the training matches) | **0.894** | **0.133** | **0.405** |
+| Model 1's inputs, same matches | 0.894 | 0.133 | 0.405 |
+| Players alive only | 0.849 | 0.154 | 0.460 |
+| Model 2, contested states | 0.611 | 0.238 | 0.668 |
+
+- The defuse race joins again (cross-fitted gain +0.0012, from +0.0004 to +0.0020). On the held-out matches it gains +0.0009 of log loss over model 1's inputs, an interval from 0.0000 to +0.0018: a small gain, at the edge of what 16 matches can show.
+- The model now clearly beats the alive count alone (+0.056, from +0.034 to +0.075).
+- The learning curve flattens from about 28 training matches (log loss 0.417, 0.408, 0.404, 0.405 for 10, 19, 28 and 38): for a model this size, more matches mostly serve the families that do not qualify yet.
+- Weapons still lower the log loss slightly (−0.0025, from −0.0054 to +0.0005): they overlap the equipment value. A version where they replace it rather than add to it is to be tried.
+
+Model 1 stays the published model until model 2 is trained on a larger corpus and its swings are ready.
 
 ## Swing: crediting actions
 
@@ -131,4 +187,4 @@ untraded parse <FACEIT demos…> --mode faceit --dates-from corpus/manifest.toml
 untraded winprob train parsed/matches/* --version 1.0 --source valve-premier --source faceit --out winprob-v1.json
 ```
 
-`--l2` (default 1.0) and `--held-out` (default 0.3) set the penalty and the share of the newest matches held out. The corpus demos are private (ADR 0010), but the commands, the code and the model's outputs are not. Anyone can refit the model on their own matches and compare.
+`--l2` (default 1.0) and `--held-out` (default 0.3) set the penalty and the share of the newest matches held out. `--features` picks the inputs: `auto` (default) selects model 2's families as above, `v1` or `v2` take model 1's or all of model 2's. The corpus demos are private (ADR 0010), but the commands, the code and the model's outputs are not. Anyone can refit the model on their own matches and compare.
