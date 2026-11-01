@@ -389,13 +389,47 @@ def ledger(
 ) -> pl.DataFrame:
     """Every credit of a match (columns `SCHEMA`). `credit` is seen by the player's side, in
     probability (1 = a whole round); `p_ct_before` and `p_ct_after` frame the change it shares."""
+    return credit(prepare(tables, model), shares)
+
+
+@dataclass(frozen=True)
+class Prepared:
+    """A match's probabilities and who was where, ready to be credited: `prepare` runs the model
+    once, `credit` shares the changes (cheap, so many `Shares` can be tried on one match)."""
+
+    tickrate: float
+    prob: Mapping[int, float]
+    alive: Mapping[int, Mapping[str, list[int]]]
+    side_of: Mapping[int, Mapping[int, str]]
+    dealt: Mapping[tuple[int, int], list[tuple[int, int, str, int]]]
+    blinds: Mapping[tuple[int, int], list[tuple[int, int, float]]]
+    kills_by: Mapping[tuple[int, int], list[tuple[int, int]]]
+    flash_assist: Mapping[tuple[int, int, int], int]
+    chains: list[tuple[int, bool, list[dict[str, Any]]]]
+    """Each round with a ledger: its number, whether the counter-terrorists won, its events."""
+
+    def rosters(self) -> pl.DataFrame:
+        """Who played each round with a ledger, on which side, as the ledger saw them at the
+        round's start (`steamid`, `round`, `side`)."""
+        rows = [
+            (steamid, number, side)
+            for number, _, events in self.chains
+            for steamid, side in self.side_of.get(events[0]["seq"] * 2, {}).items()
+        ]
+        return pl.DataFrame(
+            rows, schema={"steamid": pl.UInt64, "round": pl.Int16, "side": pl.String}, orient="row"
+        )
+
+
+def prepare(tables: Mapping[str, pl.DataFrame], model: Model) -> Prepared:
+    """The model's probabilities for every state of a match, and the lookups `credit` needs."""
     tickrate = float(tables["match"]["tickrate"][0] or 0)
     if not math.isfinite(tickrate) or tickrate <= 0:
         raise ValueError(f"the match's tickrate must be positive, not {tickrate}")
     rounds = _rounds(tables)
     events = _events(tables, rounds)
     if rounds.is_empty():
-        return pl.DataFrame(schema=SCHEMA)
+        return Prepared(tickrate, {}, {}, {}, {}, {}, {}, {}, [])
     features, players = _views(tables, rounds, events)
     p = model.predict(features)
     prob: dict[int, float] = {}
@@ -449,16 +483,32 @@ def ledger(
         .rows()
     }
 
-    book = _Book()
     won = {r["round"]: r["winner_side"] == "CT" for r in rounds.iter_rows(named=True)}
+    chains = []
     for (number,), chain in events.filter(
         (pl.col("seq") * 2).is_in(features["view"].implode())
     ).group_by(["round"], maintain_order=True):
         rows = chain.to_dicts()
-        start, end, inner = rows[0], rows[-1], rows[1:-1]
-        if start["kind"] != "start" or end["kind"] != "end":
+        if rows[0]["kind"] != "start" or rows[-1]["kind"] != "end":
             continue  # no sample at the round's start or end: no ledger
-        result = 1.0 if won[number] else 0.0
+        chains.append((int(number), won[number], rows))
+    return Prepared(tickrate, prob, alive, side_of, dealt, blinds, kills_by, flash_assist, chains)
+
+
+def credit(prepared: Prepared, shares: Shares = DEFAULT_SHARES) -> pl.DataFrame:
+    """The credits of a prepared match under `shares` (columns `SCHEMA`)."""
+    tickrate, prob, alive, side_of = (
+        prepared.tickrate,
+        prepared.prob,
+        prepared.alive,
+        prepared.side_of,
+    )
+    dealt, blinds = prepared.dealt, prepared.blinds
+    kills_by, flash_assist = prepared.kills_by, prepared.flash_assist
+    book = _Book()
+    for _number, ct_won, rows in prepared.chains:
+        start, end, inner = rows[0], rows[-1], rows[1:-1]
+        result = 1.0 if ct_won else 0.0
         prev = prob[start["seq"] * 2]
         last_view = start["seq"] * 2
         decided = False
