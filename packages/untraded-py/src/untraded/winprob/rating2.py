@@ -38,6 +38,8 @@ import json
 import math
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass, field
+from functools import cache
+from importlib import resources
 from pathlib import Path
 from typing import Any
 
@@ -679,3 +681,14 @@ def _icc(groups: Sequence[np.ndarray]) -> float:
     n0 = (n_total - sum(len(g) ** 2 for g in groups) / n_total) / (k - 1)
     denominator = between + (n0 - 1) * within
     return float((between - within) / denominator) if denominator > 0 else float("nan")
+
+
+DEFAULT = "rating-v2.json"
+
+
+@cache
+def default_rating() -> RatingModel:
+    """The published rating shipped with the package."""
+    return RatingModel.from_json(
+        resources.files(__package__).joinpath(DEFAULT).read_text(encoding="utf-8")
+    )

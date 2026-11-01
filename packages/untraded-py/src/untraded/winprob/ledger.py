@@ -61,6 +61,14 @@ BALANCE = 1e-9
 """How far from zero a round's credits may add up (rounding)."""
 MAX_EVENTS = 2000
 """Events a round may have for a ledger (a real round has a few hundred at most)."""
+MAX_PENDING = 200_000
+"""Pairs of an event and an earlier event it must apply that a whole match may need (a real
+match needs a few thousand); beyond, the match is refused (`LedgerTooLargeError`)."""
+
+
+class LedgerTooLargeError(ValueError):
+    """A match whose events would cost too much to credit: a crafted demo, most likely."""
+
 
 SCHEMA = {
     "round": pl.Int16,
@@ -260,6 +268,9 @@ def _views(
         )
         .filter(pl.col("first").is_not_null(), pl.col("first") < pl.col("seq"))
     )
+    pending = int(firsts.select((pl.col("seq") - pl.col("first")).sum()).item() or 0)
+    if pending > MAX_PENDING:
+        raise LedgerTooLargeError(f"{pending} pending event pairs, more than {MAX_PENDING}")
     columns = ["round", "seq", "snap", "j", "j_tick", "j_kind", "steamid"]
     columns += ["health_after", "armor_after"]
     before = (

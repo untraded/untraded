@@ -536,15 +536,19 @@
       "margin": "± {margin}",
       "rounds": "sur {rounds} rounds",
       "parts": {
-        "kills": "Kills",
-        "deaths": "Morts",
-        "plants": "Poses",
-        "defuses": "Désamorçages",
+        "shooting": "Tir",
+        "utility": "Utilitaires",
+        "trade": "Trades",
+        "objective": "Objectif",
+        "taken": "Dégâts subis",
+        "team": "Propre équipe",
+        "balance": "Équilibre du round",
         "baseline": "Base"
       },
-      "hint": "Chaque action rapporte ou coûte des points de probabilité de victoire du round. La base ramène l'échelle à 1,00 pour le joueur moyen. La marge donne l'intervalle à 95 %.",
+      "hint": "Chaque variation de la probabilité de gagner le round revient à un joueur : le tir, les utilitaires, les trades et l'objectif rapportent, les dégâts subis coûtent. La base place le joueur moyen à 1,00. La marge donne l'intervalle à 95 %.",
       "formula": "Formule",
-      "none": "Pas encore d'Untraded Rating pour ce match : il a été analysé avant son arrivée."
+      "none": "Pas encore d'Untraded Rating pour ce match : il a été analysé avant son arrivée.",
+      "level": "Niveau : <b>{level}</b>, ce que tu vaux sur la même échelle (tes kills, morts et dégâts, calibrés sur la probabilité de gagner le round)"
     },
     "notes": {
       "title": "{count, plural, one {# remarque sur l'analyse de cette démo} other {# remarques sur l'analyse de cette démo}}",
@@ -1166,7 +1170,7 @@
     "shots": {
       "viewer": "Le viewer 2D d'un round, avec la courbe de probabilité de victoire et les actions qui ont le plus pesé",
       "priorities": "Les priorités d'une session, chacune avec les rounds où elle a coûté",
-      "rating": "Un Untraded Rating décomposé par action : kills, morts, poses, désamorçages"
+      "rating": "Un Untraded Rating décomposé par action : tir, utilitaires, trades, objectif"
     },
     "what": {
       "title": "Ce que fait Untraded",

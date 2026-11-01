@@ -340,8 +340,8 @@ def get_player_metrics(match_id: uuid.UUID, steam_id: SteamId, conn: ConnDep) ->
 
 class RatingPart(BaseModel):
     part: str
-    """`kills`, `deaths`, `plants`, `defuses`, or `baseline` (1 - m / k): the parts add up to
-    the rating."""
+    """`shooting`, `utility`, `trade`, `objective`, `taken`, `team`, `balance` (the round
+    recentring) or `baseline` (1.00): the parts add up to the rating."""
     points: float
 
 
@@ -349,10 +349,13 @@ class RatingDetail(BaseModel):
     """The Untraded Rating of one player in one match (scope `match`), and where it comes from."""
 
     value: float | None
+    """The match rating: what the player's actions were worth."""
     margin: float | None
     """Half-width of its 95 % interval."""
     rounds: int | None
     parts: list[RatingPart]
+    level: float | None = None
+    """The level: what the player is worth, on the same scale (closer to 1.00)."""
 
 
 @router.get("/{match_id}/players/{steam_id}/rating")
@@ -372,7 +375,7 @@ def get_player_rating(match_id: uuid.UUID, steam_id: SteamId, conn: ConnDep) -> 
             FROM metric_value v JOIN metric_current c USING (metric_id, version)
             WHERE v.match_id = %s AND v.steam_id = %s AND v.params_hash = 'default'
               AND v.scope = 'match'
-              AND v.metric_id = 'rating.untraded'
+              AND v.metric_id IN ('rating.untraded', 'rating.untraded_level')
             """,
             (match_id, int(steam_id)),
         ).fetchall()
@@ -402,6 +405,7 @@ def get_player_rating(match_id: uuid.UUID, steam_id: SteamId, conn: ConnDep) -> 
             and "part" in r
             and (points := _number(r.get("points"))) is not None
         ],
+        level=_number(values.get("rating.untraded_level")),
     )
 
 

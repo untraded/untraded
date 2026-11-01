@@ -101,9 +101,19 @@ def test_player_rating_adds_up_from_its_parts(client: TestClient, match_id: uuid
     assert body["margin"] > 0
     assert body["rounds"] > 0
     parts = {p["part"]: p["points"] for p in body["parts"]}
-    assert set(parts) == {"kills", "deaths", "plants", "defuses", "baseline"}
+    assert set(parts) == {
+        "shooting",
+        "utility",
+        "trade",
+        "objective",
+        "taken",
+        "team",
+        "balance",
+        "baseline",
+    }
     assert sum(parts.values()) == pytest.approx(body["value"], abs=1e-6)
-    assert parts["deaths"] <= 0 <= parts["kills"]
+    assert parts["taken"] <= 0 <= parts["shooting"]
+    assert body["level"] is not None
     stranger = as_player(client, STRANGER)
     assert stranger.get(f"/matches/{match_id}/players/1/rating").status_code == 404
 
