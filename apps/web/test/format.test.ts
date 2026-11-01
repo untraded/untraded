@@ -325,3 +325,51 @@ describe("weeks", () => {
     ]);
   });
 });
+
+describe("cached formatters", () => {
+  const at = "2026-10-20T21:05:00Z";
+
+  it("write the same as a fresh formatter, called again or with other options", () => {
+    for (const locale of ["en", "fr"] as const) {
+      for (const pass of [1, 2]) {
+        expect(number(1234.567, locale, 2), `pass ${pass}`).toBe(
+          new Intl.NumberFormat(locale, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          }).format(1234.567),
+        );
+        expect(number(1234.567, locale), `pass ${pass}`).toBe(
+          new Intl.NumberFormat(locale, {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
+          }).format(1234.567),
+        );
+        expect(time(at, locale, "Europe/Paris")).toBe(
+          new Intl.DateTimeFormat(locale, { timeStyle: "short", timeZone: "Europe/Paris" }).format(
+            new Date(at),
+          ),
+        );
+        expect(time(at, locale, "America/New_York")).toBe(
+          new Intl.DateTimeFormat(locale, {
+            timeStyle: "short",
+            timeZone: "America/New_York",
+          }).format(new Date(at)),
+        );
+        expect(bytes(412_000_000, locale)).toBe(
+          new Intl.NumberFormat(locale, {
+            style: "unit",
+            unit: "megabyte",
+            unitDisplay: "short",
+            maximumFractionDigits: 0,
+          }).format(412),
+        );
+      }
+    }
+  });
+
+  it("keep the day of an instant per time zone", () => {
+    expect(localDate("2026-10-20T23:30:00Z", "Europe/Paris")).toBe("2026-10-21");
+    expect(localDate("2026-10-20T23:30:00Z", "America/New_York")).toBe("2026-10-20");
+    expect(localDate("2026-10-20T23:30:00Z", "Europe/Paris")).toBe("2026-10-21");
+  });
+});
