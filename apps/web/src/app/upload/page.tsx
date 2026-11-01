@@ -39,7 +39,7 @@ export default async function UploadPage() {
   if (!list) redirect("/");
   const t = await getTranslations("upload");
   const locale = (await getLocale()) as Locale;
-  const max = bytes(list.max_bytes, locale, 1024);
+  const max = bytes(list.max_bytes, locale);
   const refusal = list.refusal;
   const processing = list.items.some((item) => item.state === "processing");
   const header = (
