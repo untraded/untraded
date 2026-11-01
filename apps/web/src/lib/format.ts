@@ -10,31 +10,35 @@ const DASH = "–";
 
 // Building an `Intl` formatter costs far more than using one, and a page formats hundreds of
 // values: each formatter is built once per locale, options and time zone (the options carry the
-// time zone), then reused. They hold no user data, so sharing them across requests is safe, and the
-// keys stay few: two locales, a handful of options, the IANA time zones.
+// time zone), then reused. They hold no user data, so sharing them across requests is safe. The
+// time zone comes from a cookie, and `Intl` accepts many spellings of one zone: past `MAX_SHARED`
+// formatters a cache starts over, so a client cannot grow it without bound.
+const MAX_SHARED = 500;
 const numberFormats = new Map<string, Intl.NumberFormat>();
 const dateFormats = new Map<string, Intl.DateTimeFormat>();
 
-/** The shared number formatter for a locale and options. */
-function numberFormat(locale: string, options: Intl.NumberFormatOptions): Intl.NumberFormat {
-  const key = `${locale}|${JSON.stringify(options)}`;
-  let format = numberFormats.get(key);
+function shared<T>(cache: Map<string, T>, key: string, build: () => T): T {
+  let format = cache.get(key);
   if (!format) {
-    format = new Intl.NumberFormat(locale, options);
-    numberFormats.set(key, format);
+    if (cache.size >= MAX_SHARED) cache.clear();
+    format = build();
+    cache.set(key, format);
   }
   return format;
 }
 
+/** The shared number formatter for a locale and options. */
+function numberFormat(locale: string, options: Intl.NumberFormatOptions): Intl.NumberFormat {
+  return shared(numberFormats, `${locale}|${JSON.stringify(options)}`, () => {
+    return new Intl.NumberFormat(locale, options);
+  });
+}
+
 /** The shared date formatter for a locale and options (time zone included). */
 function dateFormat(locale: string, options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
-  const key = `${locale}|${JSON.stringify(options)}`;
-  let format = dateFormats.get(key);
-  if (!format) {
-    format = new Intl.DateTimeFormat(locale, options);
-    dateFormats.set(key, format);
-  }
-  return format;
+  return shared(dateFormats, `${locale}|${JSON.stringify(options)}`, () => {
+    return new Intl.DateTimeFormat(locale, options);
+  });
 }
 
 /** A number with `digits` decimals in the user's language, or a dash when undefined. */
