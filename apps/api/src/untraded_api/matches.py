@@ -117,16 +117,49 @@ class PlayerMetrics(BaseModel):
 
 LINE = "w.kills, w.deaths, w.adr, w.kast, w.hltv1, w.untraded_deaths, w.untraded"
 
-SUMMARY = f"""
+
+def _wide_line(match: str, steam_id: str) -> str:
+    """The headline numbers of one player in one match, as `metric_wide_current` has them
+    (scope `match`, current versions, default parameters), to `LEFT JOIN LATERAL ... ON true`.
+
+    The view is not joined: it groups the whole `metric_value` table, and a join on an
+    aggregating view is not pushed down before the grouping, so every read aggregated every
+    value of the database. Here the grouping only reads the player's rows, through the primary
+    key (match_id, steam_id, scope, ...), under the same row-level security as the view (which
+    runs with the reader's rights, 0002). An aggregate without GROUP BY always gives one row:
+    `found` tells a player with values from one without, as the view's missing row did."""
+    return f"""
+    SELECT count(*) > 0 AS found,
+           max(v.value) FILTER (WHERE v.metric_id = 'base.kills')  AS kills,
+           max(v.value) FILTER (WHERE v.metric_id = 'base.deaths') AS deaths,
+           max(v.value) FILTER (WHERE v.metric_id = 'base.adr')    AS adr,
+           max(v.value) FILTER (WHERE v.metric_id = 'base.kast')   AS kast,
+           max(v.value) FILTER (WHERE v.metric_id = 'rating.hltv1') AS hltv1,
+           max(v.value) FILTER (WHERE v.metric_id = 'trade.untraded_deaths') AS untraded_deaths,
+           max(v.value) FILTER (WHERE v.metric_id = 'rating.untraded') AS untraded
+    FROM metric_value v
+    JOIN metric_current c USING (metric_id, version)
+    WHERE v.match_id = {match} AND v.steam_id = {steam_id}
+      AND v.scope = 'match' AND v.params_hash = 'default'
+    """
+
+
+def _summary(matches: str) -> str:
+    """The summary of the matches `matches` selects (a table or a subquery, aliased `m`), with
+    the user's team and line."""
+    return f"""
 SELECT m.id, m.played_at, m.ended_at, m.mode::text, m.status::text, m.map, m.score_a,
-       m.score_b, m.rounds_played, mp.team, w.match_id IS NOT NULL, {LINE}
-FROM match m
+       m.score_b, m.rounds_played, mp.team, w.found, {LINE}
+FROM {matches} m
 LEFT JOIN match_player mp
        ON mp.match_id = m.id
       AND mp.steam_id = (SELECT steam_id FROM app_user WHERE id = %(user)s)
-LEFT JOIN metric_wide_current w
-       ON w.match_id = m.id AND w.steam_id = mp.steam_id AND w.scope = 'match'
+LEFT JOIN LATERAL ({_wide_line("m.id", "mp.steam_id")}) w ON true
 """
+
+
+# Every match, to filter with WHERE or JOIN (the sessions use it too).
+SUMMARY = _summary("match")
 
 
 def _line(values: tuple[Any, ...]) -> PlayerLine:
@@ -177,9 +210,13 @@ def list_matches(
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> MatchList:
     """The matches the user may see, most recent first."""
+    # The page is cut first, so that the lines are only read for the matches it shows.
+    # The order is total (the id breaks ties), so the page is the same as when it was cut
+    # after the joins.
+    page = """(SELECT * FROM match ORDER BY played_at DESC NULLS LAST, created_at DESC, id
+               LIMIT %(limit)s OFFSET %(offset)s)"""
     rows = conn.execute(
-        f"{SUMMARY} ORDER BY m.played_at DESC NULLS LAST, m.created_at DESC, m.id "
-        "LIMIT %(limit)s OFFSET %(offset)s",
+        f"{_summary(page)} ORDER BY m.played_at DESC NULLS LAST, m.created_at DESC, m.id",
         {"user": user, "limit": limit, "offset": offset},
     ).fetchall()
     return MatchList(
@@ -210,8 +247,7 @@ def get_match(match_id: uuid.UUID, conn: ConnDep, user: UserDep) -> MatchDetail:
         f"""
         SELECT mp.steam_id::text, mp.name, mp.team::text, mp.rank, mp.rounds_on_team, {LINE}
         FROM match_player mp
-        LEFT JOIN metric_wide_current w
-               ON w.match_id = mp.match_id AND w.steam_id = mp.steam_id AND w.scope = 'match'
+        LEFT JOIN LATERAL ({_wide_line("mp.match_id", "mp.steam_id")}) w ON true
         WHERE mp.match_id = %s
         ORDER BY mp.team, coalesce(w.untraded, w.hltv1) DESC NULLS LAST, mp.name
         """,

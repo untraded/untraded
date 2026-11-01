@@ -177,3 +177,83 @@ def test_a_round_replay_is_served_to_who_may_see_the_match(
         assert me.get(f"/matches/{match_id}/rounds/12/replay").status_code == 404
         stranger = as_player(client, STRANGER)
         assert stranger.get(f"/matches/{match_id}/rounds/11/replay").status_code == 404
+
+
+LINE_KEYS = ("kills", "deaths", "adr", "kast", "hltv1", "untraded_deaths", "untraded")
+
+
+def _wide_view(match_id: uuid.UUID) -> dict[str, dict[str, float | None]]:
+    """The lines `metric_wide_current` gives (read as the owner, past row-level security): the
+    routes read the same values without grouping the whole table, and must agree with it."""
+    with psycopg.connect(URL, autocommit=True) as conn:
+        rows = conn.execute(
+            f"SELECT steam_id::text, {', '.join(LINE_KEYS)} FROM metric_wide_current "
+            "WHERE match_id = %s AND scope = 'match'",
+            (match_id,),
+        ).fetchall()
+    return {r[0]: dict(zip(LINE_KEYS, r[1:], strict=True)) for r in rows}
+
+
+def test_the_lines_are_those_of_the_wide_view(client: TestClient, match_id: uuid.UUID) -> None:
+    view = _wide_view(match_id)
+    assert len(view) == 10
+    me = as_player(client, ME)
+    detail = me.get(f"/matches/{match_id}").json()
+    assert {p["steam_id"]: p["line"] for p in detail["players"]} == view
+    assert detail["my_line"] == view[str(ME)]
+    assert me.get("/matches").json()["items"][0]["my_line"] == view[str(ME)]
+
+
+def test_a_match_without_lines_and_a_hidden_one(client: TestClient, match_id: uuid.UUID) -> None:
+    """A second match the user played, where only player 2 has values (copied from the first),
+    and a third the user may not see, with the same values."""
+    with psycopg.connect(URL, autocommit=True) as conn:
+        added = []
+        for day in (18, 20):  # before and after the first match
+            row = conn.execute(
+                "INSERT INTO match (mode, status, played_at) VALUES ('premier', 'parsing', %s) "
+                "RETURNING id",
+                (dt.datetime(2026, 10, day, tzinfo=dt.UTC),),
+            ).fetchone()
+            assert row is not None
+            added.append(uuid.UUID(str(row[0])))
+        quiet, hidden = added
+        conn.execute(
+            "INSERT INTO match_player (match_id, steam_id, team, name, rounds_on_team) "
+            "VALUES (%s, %s, 'A', 'me', 0), (%s, 2, 'A', 'two', 0), (%s, 2, 'A', 'two', 0)",
+            (quiet, ME, quiet, hidden),
+        )
+        for target in (quiet, hidden):
+            conn.execute(
+                "INSERT INTO metric_value (match_id, steam_id, scope, metric_id, version, "
+                "params_hash, value) SELECT %s, steam_id, scope, metric_id, version, "
+                "params_hash, value FROM metric_value WHERE match_id = %s AND steam_id = 2",
+                (target, match_id),
+            )
+        refresh_access(conn, quiet)
+        refresh_access(conn, hidden)
+    try:
+        me = as_player(client, ME)
+        items = me.get("/matches").json()["items"]
+        assert [m["id"] for m in items] == [str(match_id), str(quiet)]
+        assert (items[1]["my_team"], items[1]["my_result"], items[1]["my_line"]) == (
+            "A",
+            None,
+            None,
+        )
+        page = me.get("/matches", params={"limit": 1, "offset": 1}).json()["items"]
+        assert [m["id"] for m in page] == [str(quiet)]
+        detail = me.get(f"/matches/{quiet}").json()
+        assert detail["my_line"] is None
+        lines = {p["steam_id"]: p["line"] for p in detail["players"]}
+        assert lines == {
+            "2": _wide_view(match_id)["2"],
+            str(ME): dict.fromkeys(LINE_KEYS),
+        }
+        # The player with a rating comes first in the team.
+        assert [p["steam_id"] for p in detail["players"]] == ["2", str(ME)]
+        assert me.get(f"/matches/{hidden}").status_code == 404
+        assert me.get(f"/matches/{hidden}/players/2").status_code == 404
+    finally:
+        with psycopg.connect(URL, autocommit=True) as conn:
+            conn.execute("DELETE FROM match WHERE id = ANY(%s)", (added,))
