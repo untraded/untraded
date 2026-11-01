@@ -24,7 +24,7 @@ export async function TeamTable({
   const players = match.players
     .filter((p) => p.team === team)
     .sort(
-      (x, y) => (y.line.untraded ?? y.line.hltv1 ?? -1) - (x.line.untraded ?? x.line.hltv1 ?? -1),
+      (x, y) => (y.line.untraded ?? y.line.level ?? -1) - (x.line.untraded ?? x.line.level ?? -1),
     );
   const fallback = match.my_team
     ? t(team === match.my_team ? "yourTeam" : "opponents")
@@ -64,7 +64,7 @@ export async function TeamTable({
               </abbr>
             </th>
             <th scope="col" className="px-3 py-1.5 text-right font-medium">
-              {m("rating")}
+              {m("level")}
             </th>
           </tr>
         </thead>
@@ -100,7 +100,7 @@ export async function TeamTable({
                   {number(player.line.untraded, locale, 2)}
                 </td>
                 <td className="px-3 py-1.5 text-right text-muted-foreground">
-                  {number(player.line.hltv1, locale, 2)}
+                  {number(player.line.level, locale, 2)}
                 </td>
               </tr>
             );

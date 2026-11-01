@@ -24,7 +24,13 @@ ROUNDS = "rounds"
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 
-HEADLINES = ("rating.untraded", "rating.hltv1", "base.adr", "base.kast", "trade.untraded_deaths")
+HEADLINES = (
+    "rating.untraded",
+    "rating.untraded_level",
+    "base.adr",
+    "base.kast",
+    "trade.untraded_deaths",
+)
 """The metrics shown first, in this order."""
 
 

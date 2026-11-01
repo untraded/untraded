@@ -102,6 +102,8 @@ export interface PlayerLine {
   untraded_deaths: number | null;
   /** The Untraded Rating (beta): 1.00 = an average player of the corpus. */
   untraded: number | null;
+  /** The Untraded Rating level: what the player is worth, on the same scale. */
+  level?: number | null;
 }
 
 export type MatchStatus =
