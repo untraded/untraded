@@ -295,6 +295,45 @@ export function clockText(seconds: number): string {
   return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, "0")}`;
 }
 
+/** Our radar for a map's level, in `public/radars/` (`docs/replay-format.md`). */
+export function radarSrc(map: string, level: Level): string {
+  return `/radars/${map}${level === "lower" ? "_lower" : ""}.svg`;
+}
+
+/** The longest stretch of wall time one frame of playback covers, in ms: after a pause in the
+ * frames (a hidden tab, a busy page), the playback goes on from where it was instead of leaping. */
+export const MAX_STEP_MS = 100;
+
+/** Where the playback is `elapsed` ms of wall time after `tick`, at `speed`: never past `end`. */
+export function playbackStep(
+  replay: Pick<Replay, "tickrate" | "end_tick">,
+  tick: number,
+  elapsed: number,
+  speed: number,
+): number {
+  const ms = Math.min(MAX_STEP_MS, Math.max(0, elapsed));
+  return Math.min(replay.end_tick, tick + (ms / 1000) * replay.tickrate * speed);
+}
+
+/** Each player's side, by Steam ID (the first entry wins, as a search would find it). */
+export function sidesById(players: readonly Pick<ReplayPlayer, "steamid" | "side">[]) {
+  const sides = new Map<string, Side>();
+  for (const player of players) {
+    if (!sides.has(player.steamid)) sides.set(player.steamid, player.side);
+  }
+  return sides;
+}
+
+/** The players in drawing order: as listed, the highlighted one last (on top). */
+export function focusLast<T extends Pick<ReplayPlayer, "steamid">>(
+  players: readonly T[],
+  focus: string | null,
+): T[] {
+  const others = players.filter((p) => p.steamid !== focus);
+  const focused = players.filter((p) => p.steamid === focus);
+  return others.concat(focused);
+}
+
 /** Who carries the bomb at a tick: `null` once dropped or planted, or when unknown. */
 export function bombCarrier(replay: Pick<Replay, "bomb">, tick: number): string | null {
   let carrier: string | null = null;

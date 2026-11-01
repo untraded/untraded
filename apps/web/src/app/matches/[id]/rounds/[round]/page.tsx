@@ -149,6 +149,7 @@ export default async function RoundPage({ params, searchParams }: Params) {
         key={`${match.id}-${number}`}
         matchId={match.id}
         round={number}
+        map={match.map}
         start={start}
         moment={event}
         focus={focus}
