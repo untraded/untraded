@@ -207,7 +207,7 @@ async function MatchRow({ match, period }: { match: MatchSummary; period: Period
             <span
               aria-hidden="true"
               className={cn(
-                "grid size-5 place-items-center rounded-[3px] text-[0.6875rem] font-bold",
+                "grid size-5 place-items-center rounded-[3px] text-[0.6875rem] font-semibold",
                 match.my_result === "win" && "bg-win/15",
                 match.my_result === "loss" && "bg-loss/15",
                 match.my_result === "tie" && "bg-muted",

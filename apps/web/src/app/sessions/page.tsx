@@ -171,7 +171,7 @@ async function SessionRow({ session }: { session: SessionSummary }) {
                       <span
                         aria-hidden="true"
                         className={cn(
-                          "rounded-sm px-1 text-[0.6875rem] font-bold",
+                          "rounded-sm px-1 text-[0.6875rem] font-semibold",
                           played.result === "win" && "bg-win/15",
                           played.result === "loss" && "bg-loss/15",
                           played.result === "tie" && "bg-muted",
