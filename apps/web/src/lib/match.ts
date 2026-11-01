@@ -52,6 +52,27 @@ export function prioritiesIn(advice: Advice[], matchId: string): PriorityInMatch
   return found;
 }
 
+/** A flagged round's first moment, with the priority it is evidence for. */
+export interface FlaggedMoment {
+  tick: number;
+  event: number;
+  rule: string;
+}
+
+/** Each flagged round's first moment across the priorities, with the priority it comes from (the
+ * first in their order on a tie). */
+export function flaggedRounds(priorities: PriorityInMatch[]): Map<number, FlaggedMoment> {
+  const flagged = new Map<number, FlaggedMoment>();
+  for (const { advice, rounds } of priorities) {
+    for (const r of rounds) {
+      const known = flagged.get(r.round);
+      if (!known || r.tick < known.tick)
+        flagged.set(r.round, { tick: r.tick, event: r.event, rule: advice.rule_id });
+    }
+  }
+  return flagged;
+}
+
 export type Side = "CT" | "T";
 
 /** The side the player's team played in a round. */
