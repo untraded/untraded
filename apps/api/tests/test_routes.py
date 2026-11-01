@@ -30,7 +30,9 @@ def client(monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
 def test_anonymous_requests(client: TestClient) -> None:
     assert client.get("/health").json() == {"status": "ok"}
     assert client.get("/me").status_code == 401
-    assert client.post("/auth/logout").status_code == 204
+    signed_out = client.post("/auth/logout")
+    assert signed_out.status_code == 204
+    assert signed_out.headers["clear-site-data"] == '"cache"'
 
 
 def test_sign_in_goes_to_steam_with_our_callback(client: TestClient) -> None:

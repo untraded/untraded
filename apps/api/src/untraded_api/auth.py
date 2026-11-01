@@ -30,6 +30,7 @@ from pydantic import BaseModel
 from untraded_api import steam
 from untraded_api.db import Database
 from untraded_api.deps import (
+    CLEAR_CACHE,
     COOKIE,
     ConnDep,
     DatabaseDep,
@@ -188,6 +189,7 @@ def _callback(request: Request, db: Database, settings: Settings) -> RedirectRes
                     "SELECT close_auth_session(%s)", (token_hash(request.cookies[COOKIE]),)
                 )
             refused.delete_cookie(COOKIE, path="/", secure=settings.cookie_secure, httponly=True)
+            refused.headers.update(CLEAR_CACHE)
         return refused
     response = back_to_web(settings)
     response.set_cookie(
@@ -263,6 +265,8 @@ def sign_out(request: Request, response: Response, db: DatabaseDep, settings: Se
         with db.transaction(None) as conn:
             conn.execute("SELECT close_auth_session(%s)", (token_hash(token),))
     response.delete_cookie(COOKIE, path="/", secure=settings.cookie_secure, httponly=True)
+    # The demo account signs out here too (`DEMO_MAY_POST`): every session clears the cache.
+    response.headers.update(CLEAR_CACHE)
 
 
 @router.get("/me")

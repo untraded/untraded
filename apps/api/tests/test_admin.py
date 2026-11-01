@@ -213,7 +213,9 @@ def test_a_player_erases_themselves(db: psycopg.Connection[Any], tmp_path: Path)
     with app(tmp_path) as client:
         client.cookies.set(COOKIE, add_user(db, PLAYER))
         assert client.post("/me/erase", json={"confirm": False}).status_code == 422
-        assert client.post("/me/erase", json={"confirm": True}).status_code == 202
+        erased = client.post("/me/erase", json={"confirm": True})
+        assert erased.status_code == 202
+        assert erased.headers["clear-site-data"] == '"cache"'
         assert client.get("/me").status_code == 401  # signed out, for good
     assert sign_in(db, client, PLAYER) is None
     assert db.execute("SELECT kind, payload->>'steam_id' FROM job").fetchall() == [

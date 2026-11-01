@@ -11,13 +11,14 @@ version of each metric (`metric_current`), with the default parameters.
 
 import datetime as dt
 import gzip
+import hashlib
 import io
 import re
 import uuid
 from pathlib import Path as FilePath
 from typing import Annotated, Any
 
-from fastapi import APIRouter, HTTPException, Path, Query, Response, status
+from fastapi import APIRouter, Header, HTTPException, Path, Query, Response, status
 from pydantic import BaseModel
 
 from untraded_api.deps import ConnDep, SettingsDep, UserDep
@@ -303,10 +304,27 @@ def _replay_version(gzipped: bytes) -> int | None:
     return int(found[1]) if found else None
 
 
+def replay_etag(content: bytes) -> str:
+    """A strong validator of a stored replay: a hash of its bytes. The file is read whole anyway
+    (about 40 kB gzipped) to check its version, so hashing it costs little more, and unlike mtime
+    and size it changes exactly when the content does: a reanalysis that rewrites the same replay
+    keeps the browser's copy, and one that changes it is never mistaken for the old one."""
+    return '"' + hashlib.blake2b(content, digest_size=16).hexdigest() + '"'
+
+
+def none_match(if_none_match: str | None, etag: str) -> bool:
+    """Whether `If-None-Match` names `etag` (or is `*`): the weak comparison RFC 9110 asks for, so
+    a proxy that weakened the tag (`W/`, the web's relay) still revalidates."""
+    if if_none_match is None:
+        return False
+    tags = [tag.strip() for tag in if_none_match.split(",")]
+    return "*" in tags or etag in (tag.removeprefix("W/") for tag in tags)
+
+
 @router.get(
     "/{match_id}/rounds/{round_number}/replay",
     response_class=Response,
-    responses={200: {"content": {"application/json": {}}}},
+    responses={200: {"content": {"application/json": {}}}, 304: {}},
 )
 def get_replay(
     match_id: uuid.UUID,
@@ -314,13 +332,21 @@ def get_replay(
     conn: ConnDep,
     settings: SettingsDep,
     v: Annotated[int | None, Query(ge=1)] = None,
+    if_none_match: Annotated[str | None, Header()] = None,
 ) -> Response:
     """A round as the 2D viewer replays it (`untraded.replay`, format `version`), gzipped.
     404 when the match is not one the user may see, or has no replay for that round.
 
     `v` is the format version the viewer reads, and so part of the address the browser caches
     the replay under: a replay written in another version is a 404 that is not kept, so that a
-    viewer newer than the replays never caches an old one under its own version."""
+    viewer newer than the replays never caches an old one under its own version.
+
+    The answer carries an `ETag`, and a matching `If-None-Match` is a 304 without a body. It is
+    kept a day, then revalidated (not `immutable`: a reanalysis rewrites the file); a day, not
+    more, because the site signs out and erases from its server, so the `Clear-Site-Data` of those
+    answers does not reach the browser, and what an erased account left in it must not last. The 304
+    comes only after the match is found as the user (row-level security): someone who may not
+    see the match gets the same 404 with or without the header, never a hint that it exists."""
     row = conn.execute("SELECT parquet_prefix FROM match WHERE id = %s", (match_id,)).fetchone()
     if row is None or row[0] is None or settings.store_dir is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no such replay")
@@ -334,11 +360,20 @@ def get_replay(
             "no replay in this version",
             headers={"Cache-Control": "no-store"},
         )
+    etag = replay_etag(content)
+    headers = {
+        "ETag": etag,
+        "Cache-Control": "private, max-age=86400",
+        # Per account: a browser shared by two players asks again rather than serve one's copy
+        # to the other.
+        "Vary": "Cookie",
+    }
+    if none_match(if_none_match, etag):
+        return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers=headers)
     return Response(
         content=content,
         media_type="application/json",
-        # A replay never changes once written (a new format is a new version, rewritten).
-        headers={"Content-Encoding": "gzip", "Cache-Control": "private, max-age=86400"},
+        headers={"Content-Encoding": "gzip", **headers},
     )
 
 

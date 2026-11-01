@@ -19,7 +19,7 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 from pydantic import BaseModel
 
 from untraded_api import steam
-from untraded_api.deps import COOKIE, ConnDep, SettingsDep, UserDep
+from untraded_api.deps import CLEAR_CACHE, COOKIE, ConnDep, SettingsDep, UserDep
 from untraded_api.secrets_box import encrypt
 
 router = APIRouter(prefix="/me", tags=["onboarding"])
@@ -138,3 +138,4 @@ def erase_me(body: EraseIn, response: Response, conn: ConnDep, settings: Setting
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, {"field": "confirm"})
     conn.execute("SELECT request_my_erasure()")
     response.delete_cookie(COOKIE, path="/", secure=settings.cookie_secure, httponly=True)
+    response.headers.update(CLEAR_CACHE)
