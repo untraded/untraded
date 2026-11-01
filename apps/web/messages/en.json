@@ -816,7 +816,7 @@
     }
   },
   "notFound": {
-    "tag": "404 · died untraded",
+    "tag": "404 · no target",
     "title": "Page not found",
     "lead": "This address does not lead to any Untraded page.",
     "why": "Possible causes",

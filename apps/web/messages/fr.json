@@ -816,7 +816,7 @@
     }
   },
   "notFound": {
-    "tag": "404 · mort sans trade",
+    "tag": "404 · aucune cible",
     "title": "Page introuvable",
     "lead": "Cette adresse ne mène à aucune page d'Untraded.",
     "why": "Causes possibles",

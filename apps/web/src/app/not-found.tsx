@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import { UntradedSign } from "@/components/brand/untraded-sign";
+import { SearchingCrosshair } from "@/components/searching-crosshair";
 import { buttonVariants } from "@/components/ui/button";
 import { getMe } from "@/lib/api";
 import { discordUrl } from "@/lib/site";
@@ -13,7 +13,7 @@ export default async function NotFound() {
   return (
     <section className="mx-auto flex max-w-xl flex-col gap-6 py-12 sm:py-16">
       <div className="flex flex-col gap-3">
-        <UntradedSign className="mb-2 size-16 text-foreground" />
+        <SearchingCrosshair className="mb-2 size-16 text-foreground" />
         <p className="font-mono text-sm text-muted-foreground tabular-nums">{t("tag")}</p>
         <h1 className="text-2xl font-semibold">{t("title")}</h1>
         <p className="text-muted-foreground">{t("lead")}</p>
