@@ -644,7 +644,7 @@ def player_metrics(match_id: str, steam_id: str) -> dict[str, Any]:
 # processed for 20 s, then its file name decides what became of it: `notademo`, `corrupt`,
 # `compet` (Competitive), `notme` (the player is not in it) or `broken` (parsing failed); any
 # other name becomes a match.
-UPLOAD_MAX = 400 * 1024 * 1024
+UPLOAD_MAX = 400_000_000
 UPLOAD_SUFFIXES = (".dem.bz2", ".dem.gz", ".dem.zst", ".dem")
 UPLOAD_STATUS = {"off": 503, "disk_full": 507, "consent": 409, "quota": 429, "busy": 429}
 UPLOAD_OUTCOMES = {
