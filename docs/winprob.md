@@ -218,6 +218,46 @@ The shares cannot change what a side earns in a round (the ledger adds up to its
   No variant is better beyond doubt. The hold comes closest: it shares the clock evenly between the living, which measures survival more than skill within one match. Whether it stays in the rating is decided with the rating itself, on how well it predicts the next matches.
 - A player's relative credit on one match is a rough measure (split-half about 0.3): the rating will steady it with the match's box score and over several matches.
 
+## The Untraded Rating 2.0 (in progress)
+
+Version 2.0 gives **two numbers on one scale**, where 1.00 is the average player of a match (`untraded.winprob.rating2`, `rating-v2.json`). Nothing in production uses them yet.
+
+**Why two numbers.** Over one match, the ledger's credit is noisy: on 54 matches, a player's K-D on half the rounds predicts their credit on the other half (correlation 0.25) better than their credit does (0.20). A rating can answer two questions, and one number cannot answer both well:
+
+| | Match rating | Level |
+|---|---|---|
+| Question | What were the player's actions worth in this match? | What is the player worth? |
+| Formula | `1 + credit / s` | `1 + level / s`, `level = box + n / (n + k) · (credit − box)` |
+| Built on | the ledger, as it happened | a box score calibrated on the ledger, corrected by the ledger as rounds add up |
+| Reads like | Leetify's rating | basketball's BPM |
+
+- **Credit**: the ledger's credit per round, in percentage points, **without the hold** (the clock and the round's end; recentred so that each round's players still average zero). With the hold, the level predicts HLTV 1.0 on the other half less well (0.342 against 0.344), and HLTV 1.0 is the only target the two versions share; the hold stays in the ledger and the 2D viewer but not in the rating.
+- **s = 15.31** points of credit per round for 1.00, so that the **match rating** spreads over the corpus's player-matches as HLTV 1.0 does: a 1.20 match rating reads as at HLTV. The level uses the same unit, so it reads as the match rating to expect: it is closer to 1.00, as an estimate should be (a 1.40 match can come with a 1.10 level).
+- **Margin** of the match rating: 1.96 × the standard deviation of the player's credit per round ÷ √rounds ÷ s (none under 2 rounds; teammates' rounds are treated as independent).
+- **Box**: a ridge regression of the credit on **kills, deaths and damage per round**, fitted on one half of each match (odd or even rounds) against the credit of the **other** half, so it predicts what a player's actions are worth in rounds it has not seen. The penalty (100) is chosen by squared error with matches held out. Standardized coefficients: kills +0.47, deaths −0.81, damage +0.82. With 12 statistics (KAST, openings, trades, utility, multi-kills, survival…) it overfits: 0.22 out of sample against 0.26 in sample, deaths and survival splitting one effect, kills coming out negative.
+- **k**, the rounds after which the ledger weighs as much as the box, is chosen by squared error too: on halves of matches (about 12 rounds), **the box alone predicts best**, and the error falls steadily as `k` grows (56.5 at 12 rounds, 48.8 at 100, 48.45 for the box alone). The simple Bayes value `k = σ² / τ² = 88` (σ² = 461, the variance of a round's credit; τ² = 5.2, of the halves' shared residual) overstates the ledger's weight: the box and the credit come from the same rounds, so their errors are not independent. **So for now the level is the box.** How fast the ledger should take over across several matches needs players with many matches to measure; only 9 have 3 or more in the corpus.
+- **Applied to a whole match**, the box reads averages over about 24 rounds while it was fitted on halves of about 12: its predictions are a little more spread than its training, which the scale absorbs.
+
+**Validation on 54 matches** (52 have a player-match of 12 rounds or more: 518 player-matches, 1,036 halves, the box always fitted without the match): how well each number on one half of a match predicts the other half.
+
+| On one half | Predicts the credit on the other half | Predicts HLTV 1.0 on the other half |
+|---|---|---|
+| **Level** (the box) | **0.255** | **0.344** |
+| K-D | 0.255 | 0.339 |
+| HLTV 2.0 (approx.) | 0.244 | 0.331 |
+| HLTV 1.0 | 0.240 | 0.323 |
+| ADR | 0.218 | 0.290 |
+| **Match rating** | **0.198** | **0.240** |
+| Rating 1 swing | 0.179 | 0.225 |
+
+- The level predicts the other half better than HLTV 1.0, on HLTV 1.0 itself (+0.021, interval +0.001 to +0.039) and on the credit (+0.015, −0.005 to +0.033), and as well as K-D (+0.000 and +0.005, intervals around zero). It beats the match rating (+0.057 and +0.103).
+- Neither target is neutral: the credit is the ledger's own, and HLTV 1.0 is mostly kills and deaths, so it favours K-D and the box.
+- The penalty and `k` are chosen on the same halves that are scored (5 and 8 values tried): the scores are slightly optimistic.
+- Split-half reliability within a match: 0.54 for the level, 0.33 for the match rating. The level's is the box's: it says the level is steadier, not that it measures value better.
+- From one match to the next (ICC, 9 players with 3 matches or more, indicative only): match rating 0.15, level 0.10, HLTV 1.0 0.06, ADR 0.19.
+
+`untraded winprob rating-fit <match directories> --version 2.0 --out rating-v2.json` fits it with and without the hold and keeps the hold only if it helps the level predict HLTV 1.0 on the other half.
+
 ## The Untraded Rating
 
 `rating.swing` is the win probability a player's actions moved per round, in percentage points. Its average is about 0, so a rating cannot be a ratio to it. The **Untraded Rating** (`rating.untraded`, beta) maps it onto a scale where **1.00 is the average player of the corpus** (`untraded.winprob.rating`):

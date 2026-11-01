@@ -247,6 +247,16 @@ def _parser() -> argparse.ArgumentParser:
     study.add_argument("--model", type=Path, help="a model file (default: the published model)")
     study.add_argument("--out", type=Path, help="where to write the study (JSON)")
     study.set_defaults(run=_winprob_shares)
+    fit2 = wp_actions.add_parser(
+        "rating-fit",
+        help="fit and validate the Untraded Rating 2.0 on parsed matches (pass consenting "
+        "players' only, ADR 0010; pro matches are left out)",
+    )
+    fit2.add_argument("matches", type=Path, nargs="+", help="match directories")
+    fit2.add_argument("--model", type=Path, help="a model file (default: the published model)")
+    fit2.add_argument("--out", type=Path, required=True, help="the rating file to write (JSON)")
+    fit2.add_argument("--version", required=True, help="the rating's version, e.g. 2.0")
+    fit2.set_defaults(run=_winprob_rating_fit)
     scale = wp_actions.add_parser(
         "rating-scale", help="measure the Untraded Rating's scale on parsed matches"
     )
@@ -367,6 +377,72 @@ def _winprob_train(args: argparse.Namespace) -> int:
     for step in report_.get("selection", []):
         print(f"  selection: kept {step['kept']}, tried {json.dumps(step['candidates'])}")
     print(f"  features: {', '.join(model.numeric)}")
+    return 0
+
+
+def _winprob_rating_fit(args: argparse.Namespace) -> int:
+    from dataclasses import asdict
+
+    from untraded.winprob import rating2
+
+    model = winprob.Model.load(args.model) if args.model else winprob.default_model()
+    shares = winprob.ledger.DEFAULT_SHARES
+    by_hold: dict[bool, dict[str, pl.DataFrame]] = {True: {}, False: {}}
+    modes: set[str] = set()
+    for directory in args.matches:
+        try:
+            tables = CanonicalMatch.read(directory).tables()
+            mode = str(tables["match"]["mode"][0])
+            if mode == "pro":
+                print(f"{directory}: a pro match, left out", file=sys.stderr)  # ADR 0010
+                continue
+            match_id = str(tables["match"]["match_id"][0])
+            if match_id in by_hold[True]:
+                print(f"{directory}: the same match as another, left out", file=sys.stderr)
+                continue
+            derived = derive(tables).tables()
+            credits = winprob.ledger.ledger(tables, model, shares)
+            halves = {
+                hold: rating2.halves(
+                    rating2.per_round(tables, derived, credits, hold=hold), match_id
+                )
+                for hold in (True, False)
+            }
+        except (IndexError, KeyError, ValueError, OSError, pl.exceptions.PolarsError) as error:
+            print(f"{directory}: left out ({error})", file=sys.stderr)
+            continue
+        modes.add(mode)
+        for hold, frame in halves.items():
+            by_hold[hold][match_id] = frame
+    fitted = {
+        hold: rating2.fit(
+            list(frames.values()),
+            version=args.version,
+            model=model.version,
+            shares=asdict(shares),
+            hold=hold,
+            trained_on={"modes": sorted(modes)},
+        )
+        for hold, frames in by_hold.items()
+    }
+    # The hold counts only if it helps the level predict HLTV 1.0 on the other half: the only
+    # target both fits share (each predicts its own credit, with or without the hold).
+    better = (
+        fitted[True].validation["predicts_other_half_hltv1"]["level"]
+        > fitted[False].validation["predicts_other_half_hltv1"]["level"]
+    )
+    rating = fitted[better]
+    print(f"{len(by_hold[True])} matches, model {model.version}")
+    for hold, fit in fitted.items():
+        print(
+            f"hold {'in' if hold else 'out'}: lambda {fit.lam}, s {fit.points_per_rating}, "
+            f"k {fit.ledger_rounds}, "
+            f"box {dict(zip(fit.box.features, [round(c, 3) for c in fit.box.coef], strict=True))}"
+        )
+        for key, value in fit.validation.items():
+            print(f"  {key}: {json.dumps(rating2._finite(value))}")
+    rating.save(args.out)
+    print(f"hold {'in' if rating.hold else 'out'} -> {args.out}")
     return 0
 
 
