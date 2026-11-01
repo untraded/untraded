@@ -10,9 +10,9 @@ import { buttonVariants } from "@/components/ui/button";
 import type { Locale, Tone } from "@/i18n/locale";
 import {
   type Advice,
-  getMatches,
-  getSession,
-  getSessions,
+  findMatches,
+  findSession,
+  findSessions,
   type MatchStatus,
   type Me,
   type SessionSummary,
@@ -70,9 +70,10 @@ export async function Dashboard({ me, tone }: { me: Me; tone: Tone }) {
   );
 }
 
-/** The matches still being analysed, newest first (`getMatches` is called once per request). */
+/** The matches still being analysed, newest first (fetched once per request). Streamed after the
+ * page started, so an API failure shows nothing rather than an error screen. */
 async function pendingMatches() {
-  return ((await getMatches(0))?.items ?? []).filter((m) => IN_PROGRESS.includes(m.status));
+  return ((await findMatches(0))?.items ?? []).filter((m) => IN_PROGRESS.includes(m.status));
 }
 
 /** The match being analysed, in one line on a phone. */
@@ -131,11 +132,17 @@ async function PendingCard() {
 
 /** The latest session's report and the recent sessions, or the wait for a first session. */
 async function Sessions({ tone }: { tone: Tone }) {
-  const t = await getTranslations("dashboard");
-  const locale = (await getLocale()) as Locale;
-  const sessions = await getSessions(0);
-  const latest = sessions?.items[0];
-  const report = latest ? await getSession(latest.id) : null;
+  const [sessions, t, locale] = await Promise.all([
+    findSessions(0),
+    getTranslations("dashboard"),
+    getLocale() as Promise<Locale>,
+  ]);
+  // Streamed after the page started: when the API fails, show nothing rather than an error
+  // screen, and never the "first session" wait for a player who has sessions.
+  if (sessions === null) return null;
+  const latest = sessions.items[0];
+  const report = latest ? await findSession(latest.id) : null;
+  if (latest && !report) return null;
 
   if (!report) {
     return (
@@ -187,7 +194,7 @@ async function Latest({
   tone,
   locale,
 }: {
-  report: NonNullable<Awaited<ReturnType<typeof getSession>>>;
+  report: NonNullable<Awaited<ReturnType<typeof findSession>>>;
   tone: Tone;
   locale: Locale;
 }) {

@@ -17,7 +17,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel
 
 from untraded_api.deps import ConnDep, UserDep
-from untraded_api.matches import LINE, MatchSummary, summary_fields
+from untraded_api.matches import MatchSummary, summary_fields, summary_query
 
 ROUNDS = "rounds"
 """In `metric_definition.cases`: the metric stands on the rounds played."""
@@ -191,41 +191,16 @@ CROSS JOIN LATERAL (
 WHERE s.steam_id = (SELECT steam_id FROM app_user WHERE id = %(user)s)
 """
 
-# The session's matches, as the list of matches shows them (`matches.SUMMARY`, same columns).
-# SUMMARY joins the view `metric_wide_current`, which aggregates `metric_value` per match and
-# player: filtered on a match id (a match page), PostgreSQL pushes the filter into the view;
-# joined to the session's matches, it cannot, and aggregates every value of every match in the
-# database (each row also checked by the row-level security of metric_value) before the join.
-# Here the same pivot runs per match in a lateral subquery, through the primary key of
-# metric_value (match_id, steam_id, scope, ...): the cost follows the session, not the database.
-# The pivot must stay that of the view (migrations 0001 and 0012); GROUP BY keeps "no row" when
-# the player has no value, as the view's LEFT JOIN did.
-SESSION_MATCHES = f"""
-SELECT m.id, m.played_at, m.ended_at, m.mode::text, m.status::text, m.map, m.score_a,
-       m.score_b, m.rounds_played, mp.team, w.match_id IS NOT NULL, {LINE}
-FROM play_session_match sm
-JOIN match m ON m.id = sm.match_id
-LEFT JOIN match_player mp
-       ON mp.match_id = m.id
-      AND mp.steam_id = (SELECT steam_id FROM app_user WHERE id = %(user)s)
-LEFT JOIN LATERAL (
-    SELECT v.match_id,
-           max(v.value) FILTER (WHERE v.metric_id = 'base.kills') AS kills,
-           max(v.value) FILTER (WHERE v.metric_id = 'base.deaths') AS deaths,
-           max(v.value) FILTER (WHERE v.metric_id = 'base.adr') AS adr,
-           max(v.value) FILTER (WHERE v.metric_id = 'base.kast') AS kast,
-           max(v.value) FILTER (WHERE v.metric_id = 'rating.hltv1') AS hltv1,
-           max(v.value) FILTER (WHERE v.metric_id = 'trade.untraded_deaths') AS untraded_deaths,
-           max(v.value) FILTER (WHERE v.metric_id = 'rating.untraded') AS untraded
-    FROM metric_value v
-    JOIN metric_current c USING (metric_id, version)
-    WHERE v.match_id = m.id AND v.steam_id = mp.steam_id AND v.scope = 'match'
-      AND v.params_hash = 'default'
-    GROUP BY v.match_id
-) w ON true
-WHERE sm.session_id = %(session)s
-ORDER BY m.played_at, m.id
-"""
+# The session's matches, as the list of matches shows them: the same summary (`matches.summary_query`,
+# one pivot of the metric values for the API), over the session's matches only, so the cost
+# follows the session, not the database.
+SESSION_MATCHES = (
+    summary_query(
+        "(SELECT m.* FROM play_session_match sm JOIN match m ON m.id = sm.match_id "
+        "WHERE sm.session_id = %(session)s)"
+    )
+    + "ORDER BY m.played_at, m.id"
+)
 
 COMPARISONS = """
 SELECT m.session_id, m.metric_id, m.version, d.name, d.unit, d.better, m.basis, m.session,

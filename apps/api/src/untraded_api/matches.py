@@ -144,7 +144,7 @@ def _wide_line(match: str, steam_id: str) -> str:
     """
 
 
-def _summary(matches: str) -> str:
+def summary_query(matches: str) -> str:
     """The summary of the matches `matches` selects (a table or a subquery, aliased `m`), with
     the user's team and line."""
     return f"""
@@ -158,8 +158,9 @@ LEFT JOIN LATERAL ({_wide_line("m.id", "mp.steam_id")}) w ON true
 """
 
 
-# Every match, to filter with WHERE or JOIN (the sessions use it too).
-SUMMARY = _summary("match")
+# Every match, to filter with WHERE (a match page); the list and the sessions cut their
+# matches first (`summary_query` over a subquery).
+SUMMARY = summary_query("match")
 
 
 def _line(values: tuple[Any, ...]) -> PlayerLine:
@@ -216,7 +217,7 @@ def list_matches(
     page = """(SELECT * FROM match ORDER BY played_at DESC NULLS LAST, created_at DESC, id
                LIMIT %(limit)s OFFSET %(offset)s)"""
     rows = conn.execute(
-        f"{_summary(page)} ORDER BY m.played_at DESC NULLS LAST, m.created_at DESC, m.id",
+        f"{summary_query(page)} ORDER BY m.played_at DESC NULLS LAST, m.created_at DESC, m.id",
         {"user": user, "limit": limit, "offset": offset},
     ).fetchall()
     return MatchList(

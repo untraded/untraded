@@ -491,6 +491,12 @@ export async function findSessionOf(
 /** A session's report the page can do without: `null` when it is missing or the API fails. */
 export const findSession = (id: string) =>
   apiGetOptional<SessionReport>(`/sessions/${encodeURIComponent(id)}`);
+/** The sessions, for a part streamed after the page started: `null` when the API fails. */
+export const findSessions = (offset = 0) =>
+  apiGetOptional<SessionList>(`/sessions?limit=20&offset=${offset}`);
+/** The matches, for a part streamed after the page started: `null` when the API fails. */
+export const findMatches = (offset = 0) =>
+  apiGetOptional<MatchList>(`/matches?limit=30&offset=${offset}`);
 export const getUploads = () => apiGet<UploadList>("/uploads");
 
 /** How many pages of sessions the progress page reads at most (20 per page). */
