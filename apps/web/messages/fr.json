@@ -815,6 +815,19 @@
       }
     }
   },
+  "notFound": {
+    "title": "Page introuvable",
+    "lead": "Cette adresse ne mène à aucune page d'Untraded.",
+    "why": "Causes possibles",
+    "reasonLink": "Le lien est incomplet ou mal copié.",
+    "reasonMatch": "Le match n'existe plus, ou il appartient à un joueur qui ne le partage pas avec toi : un match n'est visible que par ses joueurs.",
+    "reasonSignedOut": "Tu n'es pas connecté : connecte-toi avec Steam pour voir tes matchs.",
+    "home": "Retour à l'accueil",
+    "signIn": "Aller à l'accueil",
+    "matches": "Mes matchs",
+    "sessions": "Mes sessions",
+    "report": "Un lien du site t'a mené ici ? <link>Signale-le sur Discord</link>."
+  },
   "common": {
     "close": "Fermer"
   },

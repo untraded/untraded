@@ -815,6 +815,19 @@
       }
     }
   },
+  "notFound": {
+    "title": "Page not found",
+    "lead": "This address does not lead to any Untraded page.",
+    "why": "Possible causes",
+    "reasonLink": "The link is incomplete or was copied wrong.",
+    "reasonMatch": "The match no longer exists, or it belongs to a player who does not share it with you: a match is visible only to its players.",
+    "reasonSignedOut": "You are not signed in: sign in with Steam to see your matches.",
+    "home": "Back to home",
+    "signIn": "Go to home",
+    "matches": "My matches",
+    "sessions": "My sessions",
+    "report": "Did a link on the site bring you here? <link>Report it on Discord</link>."
+  },
   "common": {
     "close": "Close"
   },
