@@ -161,7 +161,7 @@ The swing above credits kills, plants and defuses only, so a round's credits do 
 - the counter-terrorists' credits add up to their result (1 or 0) minus their chance at the start of the round, the terrorists' to the opposite, and the ten players' to zero;
 - over a match, the average player's credit is therefore zero by construction, with no constant to subtract.
 
-**What moves the probability, and who it goes to** (`Shares` holds the numbers; the defaults are a starting point near Leetify's published split, and the published values will be chosen on the corpus):
+**What moves the probability, and who it goes to** (`Shares` holds the numbers: Leetify's published split for a kill, kept until the corpus shows a better one, see [Choosing the shares](#choosing-the-shares)):
 
 | Change | Credited to | Debited to |
 |---|---|---|
@@ -188,6 +188,33 @@ The swing above credits kills, plants and defuses only, so a round's credits do 
 | Average credit per round | 0.01 points | 0.40 points |
 
 A single match is a noisy measure for both: the rating 2.0 will steady it with the match's box score and shrink it towards the average over few rounds. `untraded winprob ledger <match directory>` prints each player's credit per round and its parts. The ledger does not feed the rating yet: `rating.untraded` still reads the swing above.
+
+### Choosing the shares
+
+The shares cannot change what a side earns in a round (the ledger adds up to its result), only how it is split between teammates. So they are judged on each player's credit **relative to their team**: every round, the player's credit minus their side's average (`untraded.winprob.shares`).
+
+- **Criterion**: the split-half reliability of that relative credit within each match (odd against even rounds, over every player-match of 12 rounds or more, Spearman-Brown). A split that credits the right players holds from one half of a match to the other; a split that credits at random does not.
+- **Also reported**: the share of the variance of a player's relative credit per match that is the player's (ICC(1), players with 3 matches or more). Few players recur in matchmaking, so it is not optimized.
+- **Search**: one share at a time (the kill's damage, flash and trade shares, the killer taking the rest but never less than 10 %; the plant's and the defuse's; the trade window), two passes, a change kept only if it gains more than 0.005.
+- **Out of sample**: the search is run on half the matches (split by a hash of the match id) and scored on the other half, both ways. **New shares are published only if they beat the current ones there by more than 0.005 on average**; a gain that does not hold out of sample is noise.
+- **Ablations**: the ledger without the hold, without the trade or flash share, and with the killer taking all, each with its gain over the published shares and a 95 % interval (bootstrap by match).
+
+`untraded winprob shares <match directories> --out shares.json` runs the whole study.
+
+**On 54 matches** (2026-11-01, model 1.0, 518 player-matches):
+
+- The search on every match settles on no trade share (killer 55 %, damage 30 %, flash 15 %): split-half 0.324 against 0.317. Out of sample, that gain does not hold (+0.001 on one half, −0.011 on the other), so **Leetify's split stays published**. With 54 matches, the shares are not told apart: every value tried scores between 0.31 and 0.33.
+- Ablations, against the published shares (split-half 0.317, ICC 0.189):
+
+| Variant | Split-half | Gain (95 % interval) | ICC |
+|---|---|---|---|
+| Without the hold | 0.341 | +0.024 (−0.008 to +0.061) | 0.190 |
+| Without the trade share | 0.324 | +0.008 (−0.010 to +0.024) | 0.185 |
+| Without the flash share | 0.320 | +0.003 (−0.004 to +0.010) | 0.184 |
+| The killer takes all | 0.326 | +0.009 (−0.022 to +0.037) | 0.172 |
+
+  No variant is better beyond doubt. The hold comes closest: it shares the clock evenly between the living, which measures survival more than skill within one match. Whether it stays in the rating is decided with the rating itself, on how well it predicts the next matches.
+- A player's relative credit on one match is a rough measure (split-half about 0.3): the rating will steady it with the match's box score and over several matches.
 
 ## The Untraded Rating
 

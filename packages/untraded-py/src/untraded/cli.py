@@ -237,6 +237,13 @@ def _parser() -> argparse.ArgumentParser:
     book.add_argument("match", type=Path, help="a match directory written by `untraded parse`")
     book.add_argument("--model", type=Path, help="a model file (default: the published model)")
     book.set_defaults(run=_winprob_ledger)
+    study = wp_actions.add_parser(
+        "shares", help="choose the ledger's shares on parsed matches (consenting players only)"
+    )
+    study.add_argument("matches", type=Path, nargs="+", help="match directories")
+    study.add_argument("--model", type=Path, help="a model file (default: the published model)")
+    study.add_argument("--out", type=Path, help="where to write the study (JSON)")
+    study.set_defaults(run=_winprob_shares)
     scale = wp_actions.add_parser(
         "rating-scale", help="measure the Untraded Rating's scale on parsed matches"
     )
@@ -426,6 +433,54 @@ def _winprob_ledger(args: argparse.Namespace) -> int:
     with pl.Config(tbl_rows=20, tbl_cols=12, tbl_hide_dataframe_shape=True, tbl_width_chars=160):
         print(f"model {model.version}: credit per round played, in win-probability points")
         print(table)
+    return 0
+
+
+def _winprob_shares(args: argparse.Namespace) -> int:
+    from dataclasses import asdict
+
+    from untraded.winprob import shares as study
+
+    model = winprob.Model.load(args.model) if args.model else winprob.default_model()
+    matches = []
+    for directory in args.matches:
+        tables = CanonicalMatch.read(directory).tables()
+        if tables["match"]["mode"][0] == "pro":
+            print(f"{directory}: a pro match, left out", file=sys.stderr)  # ADR 0010
+            continue
+        prepared = winprob.ledger.prepare(tables, model)
+        match_id = str(tables["match"]["match_id"][0])
+        matches.append(study.Match(prepared, study.played(tables), match_id))
+    if len(matches) < 4:
+        print("the study needs at least 4 matches", file=sys.stderr)
+        return 2
+    chosen, steps = study.choose(matches)
+    checks = study.cross_check(matches)
+    published = study.decide(winprob.ledger.DEFAULT_SHARES, chosen, checks)
+    variants = study.ablations(matches, published)
+    print(f"{len(matches)} matches, model {model.version}")
+    for step in steps:
+        print(f"  {step['share']:13} kept {step['kept']}, tried {step['tried']}")
+    print(f"chosen on every match: {asdict(chosen)}")
+    for check in checks:
+        print(
+            f"  chosen on {check['chosen_on']}, scored on {check['scored_on']}: "
+            f"{check['chosen']} against {check['start']} for the starting shares"
+        )
+    print(f"to publish: {asdict(published)}")
+    for name, value in variants.items():
+        print(f"  {name:17} {value}")
+    if args.out is not None:
+        report = {
+            "matches": len(matches),
+            "model": model.version,
+            "chosen": asdict(chosen),
+            "published": asdict(published),
+            "steps": [{**s, "tried": {str(k): v for k, v in s["tried"].items()}} for s in steps],
+            "cross_check": [{**c, "shares": asdict(c["shares"])} for c in checks],
+            "ablations": variants,
+        }
+        args.out.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     return 0
 
 
