@@ -154,6 +154,41 @@ Every parsed match keeps its swings in the derived table `swing` ([round model](
 
 The 2D viewer's round replays carry the curve and the swings ([replay format](replay-format.md), version 2).
 
+## The ledger (rating 2.0, in progress)
+
+The swing above credits kills, plants and defuses only, so a round's credits do not add up: the plant and the defuse are credited without being debited, and the time between events goes to no one. The **ledger** (`untraded.winprob.ledger`) credits **every change** of the probability through the round, so that each round adds up exactly:
+
+- the counter-terrorists' credits add up to their result (1 or 0) minus their chance at the start of the round, the terrorists' to the opposite, and the ten players' to zero;
+- over a match, the average player's credit is therefore zero by construction, with no constant to subtract.
+
+**What moves the probability, and who it goes to** (`Shares` holds the numbers; the defaults are a starting point near Leetify's published split, and the published values will be chosen on the corpus):
+
+| Change | Credited to | Debited to |
+|---|---|---|
+| Damage that does not kill | the attacker | the player hurt |
+| A kill | 35 % to the killer, 30 % to everyone who hurt the victim this round (by damage dealt), 15 % to the enemies who flashed the victim (still blind 1.1 s or more at the kill, by the time still blind), 20 % to the teammate the victim had killed within 5 s (a trade). A share with no one to take it is spread over the others | the victim |
+| The plant | 50 % to the planter, the rest to the other living terrorists | the living counter-terrorists |
+| The defuse | 70 % to the defuser, the rest to the other living counter-terrorists | the living terrorists |
+| The time between events ("hold": the clock, movement, pickups) and the end of the round (time running out, the explosion) | the living players of the side that gains | the living players of the other side |
+| Team damage, team kills | — | their author (the other side's gain goes to its living players) |
+| Damage from the world, a suicide | — | the victim |
+
+**How a state is read**: the last `player_tick` sample before the event, with the events between that sample and the event applied (a kill marks the victim dead, damage sets their health and armor). Two events a tick apart do not share a state. Once an event decides the round (the last enemy dies, the defuse), the round's ledger stops: exit frags move nothing. The kill that ends a round by elimination falls on its last tick and is credited as a kill. A round with more than 2,000 events (a crafted demo) gets no ledger, nor does one that would not add up.
+
+**Parts**: each credit is labelled shooting, utility (grenade damage and flashes), trade, objective, hold, taken (damage and deaths suffered) or team. A player's parts add up to their credit.
+
+**Computed at once for the whole match**: every state of the match goes through the model in one call, about 0.15 s a match.
+
+**First check, on 54 matches** (518 player-matches of 12 rounds or more, model 1.0):
+
+| | Ledger | Swing (above) |
+|---|---|---|
+| Split-half reliability within a match (odd against even rounds, Spearman-Brown) | 0.31 | 0.29 |
+| Correlation with HLTV 1.0 | 0.82 | 0.77 |
+| Average credit per round | 0.01 points | 0.40 points |
+
+A single match is a noisy measure for both: the rating 2.0 will steady it with the match's box score and shrink it towards the average over few rounds. `untraded winprob ledger <match directory>` prints each player's credit per round and its parts. The ledger does not feed the rating yet: `rating.untraded` still reads the swing above.
+
 ## The Untraded Rating
 
 `rating.swing` is the win probability a player's actions moved per round, in percentage points. Its average is about 0, so a rating cannot be a ratio to it. The **Untraded Rating** (`rating.untraded`, beta) maps it onto a scale where **1.00 is the average player of the corpus** (`untraded.winprob.rating`):

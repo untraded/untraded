@@ -19,7 +19,7 @@ the seconds left on it minus the time the quickest living counter-terrorist need
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 
 import polars as pl
 
@@ -188,10 +188,15 @@ def _bomb_spots(tables: Mapping[str, pl.DataFrame]) -> pl.DataFrame:
     )
 
 
-def _per_side(ticks: pl.DataFrame, tables: Mapping[str, pl.DataFrame]) -> pl.DataFrame:
-    """Team totals per round and tick, from `player_tick` rows: alive, health, armor, equipment
-    and `CARRIED` items of the living, kits of living counter-terrorists, and the seconds the
-    quickest of them needs to reach the bomb and defuse it (null before the plant)."""
+def _per_side(
+    ticks: pl.DataFrame,
+    tables: Mapping[str, pl.DataFrame],
+    keys: Sequence[str] = ("round", "tick"),
+) -> pl.DataFrame:
+    """Team totals per `keys` (a round and tick, by default), from `player_tick` rows: alive,
+    health, armor, equipment and `CARRIED` items of the living, kits of living
+    counter-terrorists, and the seconds the quickest of them needs to reach the bomb and defuse
+    it (null before the plant)."""
     rows = _carried(ticks, tables).join(_bomb_spots(tables), on="round", how="left")
     alive = pl.col("is_alive")
     ct, t = pl.col("side") == "CT", pl.col("side") == "T"
@@ -203,7 +208,7 @@ def _per_side(ticks: pl.DataFrame, tables: Mapping[str, pl.DataFrame]) -> pl.Dat
     defuse = pl.when(pl.col("has_defuser")).then(DEFUSE_KIT_SECONDS).otherwise(DEFUSE_SECONDS)
     # A position the demo got wrong (NaN) does not run the race.
     need = (distance / RUN_SPEED + defuse).fill_nan(None)
-    return rows.group_by("round", "tick").agg(
+    return rows.group_by(*keys).agg(
         (alive & ct).sum().alias("alive_ct"),
         (alive & t).sum().alias("alive_t"),
         pl.col("health").filter(alive & ct).sum().alias("hp_ct"),
