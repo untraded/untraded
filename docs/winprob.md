@@ -196,19 +196,21 @@ The shares cannot change what a side earns in a round (the ledger adds up to its
 - **Criterion**: the split-half reliability of that relative credit within each match (odd against even rounds, over every player-match of 12 rounds or more, Spearman-Brown). A split that credits the right players holds from one half of a match to the other; a split that credits at random does not.
 - **Also reported**: the share of the variance of a player's relative credit per match that is the player's (ICC(1), players with 3 matches or more). Few players recur in matchmaking, so it is not optimized.
 - **Search**: one share at a time (the kill's damage, flash and trade shares, the killer taking the rest but never less than 10 %; the plant's and the defuse's; the trade window), two passes, a change kept only if it gains more than 0.005.
-- **Out of sample**: the search is run on half the matches (split by a hash of the match id) and scored on the other half, both ways. **New shares are published only if they beat the current ones there by more than 0.005 on average**; a gain that does not hold out of sample is noise.
-- **Ablations**: the ledger without the hold, without the trade or flash share, and with the killer taking all, each with its gain over the published shares and a 95 % interval (bootstrap by match).
+- **Out of sample**: the search is run on half the matches (split by a hash of the match id) and scored on the other half, both ways, with the gain's 95 % interval (bootstrap by match). **New shares are published only if that interval is above zero on both halves**; a gain that does not hold out of sample is noise. The halves validate the search; the shares published are then those it picks on every match.
+- **Ablations**: the events only (the credits labelled hold left out: a diagnostic, since the rounds no longer add up), without the trade or flash share, and with the killer taking all, each with its gain over the published shares and a 95 % interval.
+- **What it cannot tell**: reliability is not validity. A split tied to a stable trait (a role, surviving) is consistent without being right. These criteria can reject a split that measures noise; whether the rating predicts what comes next is checked on the rating itself.
+- **Who is on which side**: as the ledger saw the players at the round's start, so a team is the five players the ledger credits.
 
 `untraded winprob shares <match directories> --out shares.json` runs the whole study.
 
 **On 54 matches** (2026-11-01, model 1.0, 518 player-matches):
 
-- The search on every match settles on no trade share (killer 55 %, damage 30 %, flash 15 %): split-half 0.324 against 0.317. Out of sample, that gain does not hold (+0.001 on one half, −0.011 on the other), so **Leetify's split stays published**. With 54 matches, the shares are not told apart: every value tried scores between 0.31 and 0.33.
+- The search on every match settles on no trade share (killer 55 %, damage 30 %, flash 15 %): split-half 0.324 against 0.317. Out of sample, that gain does not hold (+0.001, from −0.049 to +0.040, on one half; −0.011, from −0.029 to +0.006, on the other), so **Leetify's split stays published**. With 54 matches, the shares are not told apart: every value tried scores between 0.31 and 0.33.
 - Ablations, against the published shares (split-half 0.317, ICC 0.189):
 
 | Variant | Split-half | Gain (95 % interval) | ICC |
 |---|---|---|---|
-| Without the hold | 0.341 | +0.024 (−0.008 to +0.061) | 0.190 |
+| Events only (no hold) | 0.341 | +0.024 (−0.008 to +0.061) | 0.190 |
 | Without the trade share | 0.324 | +0.008 (−0.010 to +0.024) | 0.185 |
 | Without the flash share | 0.320 | +0.003 (−0.004 to +0.010) | 0.184 |
 | The killer takes all | 0.326 | +0.009 (−0.022 to +0.037) | 0.172 |

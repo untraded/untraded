@@ -5,16 +5,18 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import polars as pl
 import pytest
 
 from untraded import fixtures
-from untraded.winprob import default_model
+from untraded.winprob import default_model, shares
 from untraded.winprob.ledger import DEFAULT_SHARES, Shares, credit, prepare
 from untraded.winprob.shares import (
     MIN_FINAL,
+    TOLERANCE,
     Match,
     _normalized,
     _with,
@@ -22,7 +24,6 @@ from untraded.winprob.shares import (
     between_matches,
     choose,
     decide,
-    played,
     relative,
     split_half,
     split_half_gain,
@@ -35,20 +36,31 @@ FIXTURES = Path(__file__).parent / "fixtures"
 def matches() -> list[Match]:
     out = []
     for name in ("premier-half", "premier-abandon", "faceit-bots"):
-        tables = fixtures.read(FIXTURES / name)
-        out.append(Match(prepare(tables, default_model()), played(tables), name))
+        out.append(Match(prepare(fixtures.read(FIXTURES / name), default_model()), name))
     return out
 
 
 def test_relative_credit_is_zero_within_each_side(matches: list[Match]) -> None:
     m = matches[0]
-    rel = relative(credit(m.prepared), m.played).join(m.played, on=["steamid", "round"])
+    roster = m.prepared.rosters()
+    credits = credit(m.prepared)
+    rel = relative(credits, roster).join(roster, on=["steamid", "round"])
     sums = rel.group_by("round", "side").agg(pl.col("relative").sum())
     assert sums.select(pl.col("relative").abs().max()).item() < 1e-9
-    # Every player of a round with a ledger is there, credited or not.
-    rounds = credit(m.prepared)["round"].unique()
-    expected = m.played.filter(pl.col("round").is_in(rounds.implode())).height
-    assert rel.height == expected
+    # Every player of a round with a ledger is there, credited or not, on one side.
+    assert rel.height == roster.height
+    assert roster.select("steamid", "round").is_unique().all()
+    # The roster's sides are those the ledger credits.
+    sides = credits.select("steamid", "round", pl.col("side").alias("credited")).unique()
+    both = sides.join(roster, on=["steamid", "round"])
+    assert (both["credited"] == both["side"]).all()
+
+
+def test_prepared_matches_can_be_credited_again(matches: list[Match]) -> None:
+    m = matches[0]
+    first = credit(m.prepared)
+    credit(m.prepared, Shares(final=1.0, damage=0.0, flash=0.0, trade=0.0, plant=1.0))
+    assert credit(m.prepared).equals(first)
 
 
 def _synthetic(signal: float, players: int = 40, matches: int = 30, seed: int = 0) -> pl.DataFrame:
@@ -86,11 +98,14 @@ def test_a_real_gain_has_an_interval_above_zero() -> None:
 
 def test_shares_are_adopted_only_when_they_gain_out_of_sample() -> None:
     start, chosen = DEFAULT_SHARES, Shares(final=0.55, damage=0.3, flash=0.15, trade=0.0)
-    small = [{"chosen": {"split_half": 0.40}, "start": {"split_half": 0.40}}]
-    large = [{"chosen": {"split_half": 0.45}, "start": {"split_half": 0.40}}]
-    assert decide(start, chosen, small) == _normalized(start)
-    assert decide(start, chosen, large) == chosen
-    assert decide(start, chosen, []) == _normalized(start)
+
+    def check(low: float) -> dict[str, Any]:
+        return {"gain": {"gain": low + 0.01, "low": low, "high": low + 0.02}}
+
+    assert decide(start, chosen, [check(0.01), check(0.02)]) == chosen
+    assert decide(start, chosen, [check(0.01), check(-0.01)]) == _normalized(start)
+    assert decide(start, chosen, [check(float("nan")), check(0.02)]) == _normalized(start)
+    assert decide(start, chosen, [check(0.01)]) == _normalized(start)
 
 
 def test_the_killer_keeps_a_share() -> None:
@@ -105,18 +120,28 @@ def test_the_killer_keeps_a_share() -> None:
     assert _with(start, "plant", 0.75) == Shares(**{**start.__dict__, "plant": 0.75})
 
 
-def test_choose_keeps_the_start_on_near_ties(matches: list[Match]) -> None:
+def test_choose_moves_only_beyond_the_tolerance(monkeypatch: pytest.MonkeyPatch) -> None:
     start = _normalized(DEFAULT_SHARES)
-    chosen, steps = choose(matches, start, grid={"trade_window": (5.0,)}, passes=1)
-    assert chosen == start
-    assert steps == [
-        {"share": "trade_window", "tried": {5.0: steps[0]["tried"][5.0]}, "kept": None}
-    ]
-    results = ablations(matches, chosen)
+    gains = {0.25: TOLERANCE / 2, 0.75: TOLERANCE * 2, 1.0: float("nan")}
+
+    def fake(_: Any, candidate: Shares, *__: Any) -> dict[str, float]:
+        return {"split_half": 0.3 + gains.get(candidate.plant, 0.0)}
+
+    monkeypatch.setattr(shares, "score", fake)
+    near, _ = choose([], start, grid={"plant": (0.25, 0.5)}, passes=1)
+    assert near == start  # a gain under the tolerance is a near tie
+    far, steps = choose([], start, grid={"plant": (0.25, 0.5, 0.75, 1.0)}, passes=1)
+    assert far.plant == 0.75  # beyond it, and a nan score is never the best
+    assert steps[0]["kept"] == 0.75
+
+
+def test_ablations_report_their_gain(matches: list[Match]) -> None:
+    results = ablations(matches, _normalized(DEFAULT_SHARES))
     assert set(results) == {
         "chosen",
-        "no hold",
+        "events only",
         "no trade share",
         "no flash share",
         "killer takes all",
     }
+    assert set(results["events only"]["gain_over_chosen"]) == {"gain", "low", "high"}

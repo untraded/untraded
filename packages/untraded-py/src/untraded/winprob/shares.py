@@ -18,7 +18,12 @@ other; a split that credits at random does not.
 `choose` searches the shares one at a time (coordinate ascent over `GRID`), keeping a change only
 when it gains more than `TOLERANCE`: near-ties stay at the starting point, Leetify's published
 split. `cross_check` chooses on half the matches and scores on the other half, so the gain is
-measured where it was not chosen.
+measured where it was not chosen; `decide` adopts new shares only if that gain is real on both
+halves.
+
+Reliability is not validity: a split tied to a stable trait (a role, surviving) is consistent
+without being right. These criteria can reject a split that measures noise; whether the rating
+predicts what comes next is checked on the rating itself.
 """
 
 from __future__ import annotations
@@ -54,32 +59,29 @@ PASSES = 2
 
 @dataclass(frozen=True)
 class Match:
-    """One match for the study: its prepared ledger and who played which round on which side
-    (`steamid`, `round`, `side`, as in `round_player`)."""
+    """One match for the study: its prepared ledger (the match id only splits the corpus; it is
+    never written out)."""
 
     prepared: Prepared
-    played: pl.DataFrame
     match_id: str
 
 
-def played(tables: Mapping[str, pl.DataFrame]) -> pl.DataFrame:
-    """Who played which round on which side, from `player_tick` (`steamid`, `round`, `side`)."""
-    return (
-        tables["player_tick"]
-        .filter(pl.col("steamid").is_not_null(), pl.col("side").cast(pl.String).is_in(["CT", "T"]))
-        .select("steamid", "round", pl.col("side").cast(pl.String))
-        .unique(["steamid", "round"], keep="first")
-    )
-
-
-def relative(credits: pl.DataFrame, played: pl.DataFrame) -> pl.DataFrame:
+def relative(credits: pl.DataFrame, roster: pl.DataFrame) -> pl.DataFrame:
     """Each player's credit per round minus their side's average that round (`steamid`,
     `round`, `relative`): the part of the round's result that the split gives them in
-    particular. Rounds without a ledger are left out."""
+    particular. `roster` says who played each round on which side (`Prepared.rosters`); a
+    player credited in a round it does not list joins on the side of their credits. Rounds
+    without a ledger are left out."""
     rounds = credits.select("round").unique()
+    credited = credits.select("steamid", "round", "side").unique(["steamid", "round"])
+    players = pl.concat(
+        [
+            roster.select("steamid", pl.col("round").cast(pl.Int16), pl.col("side")),
+            credited,
+        ]
+    ).unique(["steamid", "round"], keep="first", maintain_order=True)
     per = (
-        played.select("steamid", pl.col("round").cast(pl.Int16), pl.col("side").cast(pl.String))
-        .join(rounds, on="round", how="semi")
+        players.join(rounds, on="round", how="semi")
         .join(
             credits.group_by("steamid", "round").agg(pl.col("credit").sum()),
             on=["steamid", "round"],
@@ -101,8 +103,8 @@ def _per_player_match(rel: pl.DataFrame) -> pl.DataFrame:
         .agg(
             pl.len().alias("rounds"),
             pl.col("relative").mean().alias("all"),
-            pl.col("relative").filter(pl.col("half") == 0).mean().alias("odd"),
-            pl.col("relative").filter(pl.col("half") == 1).mean().alias("even"),
+            pl.col("relative").filter(pl.col("half") == 1).mean().alias("odd"),
+            pl.col("relative").filter(pl.col("half") == 0).mean().alias("even"),
         )
         .filter(pl.col("rounds") >= MIN_ROUNDS)
         .drop_nulls()
@@ -185,7 +187,9 @@ def relative_credits(
         if keep is not None:
             credits = keep(credits)
         frames.append(
-            relative(credits, m.played).with_columns(pl.lit(m.match_id).alias("match_id"))
+            relative(credits, m.prepared.rosters()).with_columns(
+                pl.lit(m.match_id).alias("match_id")
+            )
         )
     return pl.concat(frames)
 
@@ -249,8 +253,12 @@ def choose(
                 tried[value] = (
                     best if candidate == current else score(matches, candidate)["split_half"]
                 )
-            top = max(tried, key=lambda v: tried[v])
-            kept = tried[top] > best + TOLERANCE
+            scored = {v: s for v, s in tried.items() if math.isfinite(s)}
+            if not scored:
+                steps.append({"share": name, "tried": tried, "kept": None})
+                continue
+            top = max(scored, key=lambda v: scored[v])
+            kept = math.isfinite(best) and scored[top] > best + TOLERANCE
             steps.append({"share": name, "tried": tried, "kept": top if kept else None})
             if kept:
                 changed = _with(current, name, top)
@@ -269,7 +277,8 @@ def cross_check(
     matches: Sequence[Match], start: Shares = DEFAULT_SHARES, **kwargs: Any
 ) -> list[dict[str, Any]]:
     """Shares chosen on each half of the matches (split by a hash of the match id), scored on the
-    other half against `start`: the gain where the shares were not chosen."""
+    other half against `start`, with the split-half gain and its interval: the gain where the
+    shares were not chosen."""
     out = []
     for half in (0, 1):
         fit = [m for m in matches if _half(m.match_id) == half]
@@ -277,13 +286,16 @@ def cross_check(
         if not fit or not test:
             continue
         chosen, _ = choose(fit, start, **kwargs)
+        rel_chosen = relative_credits(test, chosen)
+        rel_start = relative_credits(test, _normalized(start))
         out.append(
             {
                 "chosen_on": len(fit),
                 "scored_on": len(test),
                 "shares": chosen,
-                "chosen": score(test, chosen),
-                "start": score(test, _normalized(start)),
+                "chosen": {"split_half": round(split_half(rel_chosen), 4)},
+                "start": {"split_half": round(split_half(rel_start), 4)},
+                "gain": split_half_gain(rel_chosen, rel_start),
             }
         )
     return out
@@ -292,7 +304,7 @@ def cross_check(
 ABLATIONS: Mapping[
     str, tuple[Callable[[Shares], Shares], Callable[[pl.DataFrame], pl.DataFrame]]
 ] = {
-    "no hold": (lambda s: s, lambda c: c.filter(pl.col("part") != "hold")),
+    "events only": (lambda s: s, lambda c: c.filter(pl.col("part") != "hold")),
     "no trade share": (lambda s: _with(s, "trade", 0.0) or s, lambda c: c),
     "no flash share": (lambda s: _with(s, "flash", 0.0) or s, lambda c: c),
     "killer takes all": (
@@ -300,8 +312,10 @@ ABLATIONS: Mapping[
         lambda c: c,
     ),
 }
-"""Variants of the chosen shares, to show what each piece of the ledger brings: without the hold
-(the clock and the round's end), without the trade or flash share, and with the killer alone."""
+"""Variants of the chosen shares, to show what each piece of the ledger brings: the events only
+(the credits labelled hold left out: the clock, the round's end, and the other side's gain from a
+team kill or a death to the world; a diagnostic, since the rounds no longer add up), without the
+trade or flash share, and with the killer alone."""
 
 
 def ablations(matches: Sequence[Match], shares: Shares) -> dict[str, dict[str, Any]]:
@@ -325,10 +339,11 @@ def ablations(matches: Sequence[Match], shares: Shares) -> dict[str, dict[str, A
 
 
 def decide(start: Shares, chosen: Shares, checks: Sequence[Mapping[str, Any]]) -> Shares:
-    """The shares to publish: `chosen` only if, on the matches it was not chosen on, it beats the
-    starting shares by more than `TOLERANCE` on average; otherwise the starting shares (a gain
-    that does not hold out of sample is noise)."""
-    gains = [c["chosen"]["split_half"] - c["start"]["split_half"] for c in checks]
-    if gains and all(math.isfinite(g) for g in gains) and sum(gains) / len(gains) > TOLERANCE:
+    """The shares to publish: `chosen` (picked on every match) only if, on each half of the
+    matches, the shares picked on the other half beat the starting shares with a 95 % interval
+    above zero; otherwise the starting shares (a gain that does not hold out of sample is
+    noise). The halves validate the procedure, not the exact values chosen on every match."""
+    lows = [c["gain"]["low"] for c in checks]
+    if len(lows) == 2 and all(math.isfinite(low) and low > 0 for low in lows):
         return chosen
     return _normalized(start)

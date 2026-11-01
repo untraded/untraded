@@ -8,6 +8,7 @@ import argparse
 import datetime as dt
 import io
 import json
+import math
 import os
 import sys
 from collections.abc import Iterator, Mapping, Sequence
@@ -238,7 +239,9 @@ def _parser() -> argparse.ArgumentParser:
     book.add_argument("--model", type=Path, help="a model file (default: the published model)")
     book.set_defaults(run=_winprob_ledger)
     study = wp_actions.add_parser(
-        "shares", help="choose the ledger's shares on parsed matches (consenting players only)"
+        "shares",
+        help="choose the ledger's shares on parsed matches (pass consenting players' only, "
+        "ADR 0010; pro matches are left out)",
     )
     study.add_argument("matches", type=Path, nargs="+", help="match directories")
     study.add_argument("--model", type=Path, help="a model file (default: the published model)")
@@ -442,37 +445,43 @@ def _winprob_shares(args: argparse.Namespace) -> int:
     from untraded.winprob import shares as study
 
     model = winprob.Model.load(args.model) if args.model else winprob.default_model()
-    matches = []
+    matches: dict[str, study.Match] = {}
     for directory in args.matches:
-        tables = CanonicalMatch.read(directory).tables()
-        if tables["match"]["mode"][0] == "pro":
-            print(f"{directory}: a pro match, left out", file=sys.stderr)  # ADR 0010
+        try:
+            tables = CanonicalMatch.read(directory).tables()
+            if tables["match"]["mode"][0] == "pro":
+                print(f"{directory}: a pro match, left out", file=sys.stderr)  # ADR 0010
+                continue
+            match_id = str(tables["match"]["match_id"][0])
+            prepared = winprob.ledger.prepare(tables, model)
+        except (IndexError, ValueError, OSError) as error:
+            print(f"{directory}: left out ({error})", file=sys.stderr)
             continue
-        prepared = winprob.ledger.prepare(tables, model)
-        match_id = str(tables["match"]["match_id"][0])
-        matches.append(study.Match(prepared, study.played(tables), match_id))
+        matches[match_id] = study.Match(prepared, match_id)  # a match passed twice counts once
     if len(matches) < 4:
         print("the study needs at least 4 matches", file=sys.stderr)
         return 2
-    chosen, steps = study.choose(matches)
-    checks = study.cross_check(matches)
+    corpus = list(matches.values())
+    chosen, steps = study.choose(corpus)
+    checks = study.cross_check(corpus)
     published = study.decide(winprob.ledger.DEFAULT_SHARES, chosen, checks)
-    variants = study.ablations(matches, published)
-    print(f"{len(matches)} matches, model {model.version}")
+    variants = study.ablations(corpus, published)
+    print(f"{len(corpus)} matches, model {model.version}")
     for step in steps:
         print(f"  {step['share']:13} kept {step['kept']}, tried {step['tried']}")
     print(f"chosen on every match: {asdict(chosen)}")
     for check in checks:
         print(
             f"  chosen on {check['chosen_on']}, scored on {check['scored_on']}: "
-            f"{check['chosen']} against {check['start']} for the starting shares"
+            f"{check['chosen']} against {check['start']} for the starting shares, "
+            f"gain {check['gain']}"
         )
     print(f"to publish: {asdict(published)}")
     for name, value in variants.items():
         print(f"  {name:17} {value}")
     if args.out is not None:
         report = {
-            "matches": len(matches),
+            "matches": len(corpus),
             "model": model.version,
             "chosen": asdict(chosen),
             "published": asdict(published),
@@ -480,8 +489,20 @@ def _winprob_shares(args: argparse.Namespace) -> int:
             "cross_check": [{**c, "shares": asdict(c["shares"])} for c in checks],
             "ablations": variants,
         }
-        args.out.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+        text = json.dumps(_finite(report), indent=2, allow_nan=False)
+        args.out.write_text(text + "\n", encoding="utf-8")
     return 0
+
+
+def _finite(value: object) -> object:
+    """`value` with every non-finite float as None, so that it is valid JSON."""
+    if isinstance(value, float):
+        return value if math.isfinite(value) else None
+    if isinstance(value, dict):
+        return {k: _finite(v) for k, v in value.items()}
+    if isinstance(value, list | tuple):
+        return [_finite(v) for v in value]
+    return value
 
 
 def _radars(args: argparse.Namespace) -> int:

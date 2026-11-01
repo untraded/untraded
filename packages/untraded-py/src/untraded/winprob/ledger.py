@@ -408,6 +408,18 @@ class Prepared:
     chains: list[tuple[int, bool, list[dict[str, Any]]]]
     """Each round with a ledger: its number, whether the counter-terrorists won, its events."""
 
+    def rosters(self) -> pl.DataFrame:
+        """Who played each round with a ledger, on which side, as the ledger saw them at the
+        round's start (`steamid`, `round`, `side`)."""
+        rows = [
+            (steamid, number, side)
+            for number, _, events in self.chains
+            for steamid, side in self.side_of.get(events[0]["seq"] * 2, {}).items()
+        ]
+        return pl.DataFrame(
+            rows, schema={"steamid": pl.UInt64, "round": pl.Int16, "side": pl.String}, orient="row"
+        )
+
 
 def prepare(tables: Mapping[str, pl.DataFrame], model: Model) -> Prepared:
     """The model's probabilities for every state of a match, and the lookups `credit` needs."""
