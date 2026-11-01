@@ -3,16 +3,16 @@
 import { ChevronRight, Compass, Dumbbell, LoaderCircle, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { getLocale, getTimeZone, getTranslations } from "next-intl/server";
-import type { ReactNode } from "react";
+import { type ReactNode, Suspense } from "react";
 import { FollowUpList } from "@/components/follow-up";
 import { describeReference } from "@/components/reference";
 import { buttonVariants } from "@/components/ui/button";
 import type { Locale, Tone } from "@/i18n/locale";
 import {
   type Advice,
-  getMatches,
-  getSession,
-  getSessions,
+  findMatches,
+  findSession,
+  findSessions,
   type MatchStatus,
   type Me,
   type SessionSummary,
@@ -37,34 +37,20 @@ const ARROW: Record<Trend, string> = { better: "▲", worse: "▼", same: "=" };
  * The signed-in home page: the latest session and its priorities, what to work on before playing
  * again, the progress of the previous priorities, and the matches still being analysed. On a
  * phone it fits about one screen: shorter priorities, no instructions, no recent sessions.
+ *
+ * The title is sent at once; the session's report and the matches being analysed each stream in
+ * when the API gives them, so neither waits on the other.
  */
 export async function Dashboard({ me, tone }: { me: Me; tone: Tone }) {
   const t = await getTranslations("dashboard");
-  const locale = (await getLocale()) as Locale;
-  const timeZone = await getTimeZone();
-  const [sessions, matches] = await Promise.all([getSessions(0), getMatches(0)]);
-  const pending = (matches?.items ?? []).filter((m) => IN_PROGRESS.includes(m.status));
-  const latest = sessions?.items[0];
-  const report = latest ? await getSession(latest.id) : null;
-  const first = pending[0];
-
   return (
     <div className="flex flex-col gap-3 md:gap-6">
       <h1 className="sr-only text-2xl font-semibold md:not-sr-only md:text-[1.75rem]">
         {t("title")}
       </h1>
-      {first && (
-        <p className="flex items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-2 text-[0.8125rem] text-muted-foreground md:hidden">
-          <LoaderCircle
-            aria-hidden="true"
-            className="size-4 animate-spin motion-reduce:animate-none"
-          />
-          {t("pendingShort", {
-            map: mapName(first.map),
-            time: time(first.played_at, locale, timeZone),
-          })}
-        </p>
-      )}
+      <Suspense fallback={null}>
+        <PendingShort />
+      </Suspense>
       {me.source?.last_error && (
         <p
           role="status"
@@ -77,64 +63,128 @@ export async function Dashboard({ me, tone }: { me: Me; tone: Tone }) {
           </Link>
         </p>
       )}
-      {!report ? (
-        <Card>
-          <h2 className="font-semibold">{t("waiting")}</h2>
-          <p className="mt-1 max-w-prose text-muted-foreground">{t("waitingLead")}</p>
-          <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
-            {t("waitingUpload")}
-            <Link href="/upload" className={buttonVariants({ variant: "outline", size: "sm" })}>
-              {t("waitingUploadLink")}
-            </Link>
+      <Suspense fallback={null}>
+        <Sessions tone={tone} />
+      </Suspense>
+    </div>
+  );
+}
+
+/** The matches still being analysed, newest first (fetched once per request). Streamed after the
+ * page started, so an API failure shows nothing rather than an error screen. */
+async function pendingMatches() {
+  return ((await findMatches(0))?.items ?? []).filter((m) => IN_PROGRESS.includes(m.status));
+}
+
+/** The match being analysed, in one line on a phone. */
+async function PendingShort() {
+  const [pending, t, locale, timeZone] = await Promise.all([
+    pendingMatches(),
+    getTranslations("dashboard"),
+    getLocale() as Promise<Locale>,
+    getTimeZone(),
+  ]);
+  const first = pending[0];
+  if (!first) return null;
+  return (
+    <p className="flex items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-2 text-[0.8125rem] text-muted-foreground md:hidden">
+      <LoaderCircle aria-hidden="true" className="size-4 animate-spin motion-reduce:animate-none" />
+      {t("pendingShort", {
+        map: mapName(first.map),
+        time: time(first.played_at, locale, timeZone),
+      })}
+    </p>
+  );
+}
+
+/** The matches being analysed, in a card beside the report on a computer. */
+async function PendingCard() {
+  const [pending, t, locale, timeZone] = await Promise.all([
+    pendingMatches(),
+    getTranslations("dashboard"),
+    getLocale() as Promise<Locale>,
+    getTimeZone(),
+  ]);
+  const first = pending[0];
+  if (!first) return null;
+  return (
+    <Card className="hidden md:block">
+      <div className="flex gap-3">
+        <LoaderCircle
+          aria-hidden="true"
+          className="mt-0.5 size-4 shrink-0 animate-spin text-muted-foreground motion-reduce:animate-none"
+        />
+        <div>
+          <h2 className="text-[0.9375rem] font-semibold">
+            {t("pendingTitle", { count: pending.length })}
+          </h2>
+          <p className="text-[0.8125rem] text-muted-foreground">
+            {t("pendingBody", {
+              map: mapName(first.map),
+              time: time(first.played_at, locale, timeZone),
+            })}
           </p>
-        </Card>
-      ) : (
-        <div className="grid items-start gap-3 md:gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-          <div className="flex flex-col gap-3 md:gap-4">
-            <Latest report={report} tone={tone} locale={locale} />
-            {sessions && sessions.items.length > 1 && (
-              <Recent items={sessions.items.slice(0, 5)} locale={locale} />
-            )}
-          </div>
-          <div className="flex flex-col gap-3 md:gap-4">
-            {report.advice[0] && <WorkOn item={report.advice[0]} />}
-            {report.follow_up.length > 0 && (
-              <Card>
-                <h2 className="text-[0.8125rem] text-muted-foreground md:text-base md:font-semibold md:text-foreground">
-                  {t("progress")}
-                </h2>
-                <p className="mb-2 hidden text-[0.8125rem] text-muted-foreground md:block">
-                  {t("progressLead")}
-                </p>
-                <div className="mt-1.5 md:mt-0">
-                  <FollowUpList items={report.follow_up} locale={locale} compact />
-                </div>
-              </Card>
-            )}
-            {first && (
-              <Card className="hidden md:block">
-                <div className="flex gap-3">
-                  <LoaderCircle
-                    aria-hidden="true"
-                    className="mt-0.5 size-4 shrink-0 animate-spin text-muted-foreground motion-reduce:animate-none"
-                  />
-                  <div>
-                    <h2 className="text-[0.9375rem] font-semibold">
-                      {t("pendingTitle", { count: pending.length })}
-                    </h2>
-                    <p className="text-[0.8125rem] text-muted-foreground">
-                      {t("pendingBody", {
-                        map: mapName(first.map),
-                        time: time(first.played_at, locale, timeZone),
-                      })}
-                    </p>
-                  </div>
-                </div>
-              </Card>
-            )}
-          </div>
         </div>
-      )}
+      </div>
+    </Card>
+  );
+}
+
+/** The latest session's report and the recent sessions, or the wait for a first session. */
+async function Sessions({ tone }: { tone: Tone }) {
+  const [sessions, t, locale] = await Promise.all([
+    findSessions(0),
+    getTranslations("dashboard"),
+    getLocale() as Promise<Locale>,
+  ]);
+  // Streamed after the page started: when the API fails, show nothing rather than an error
+  // screen, and never the "first session" wait for a player who has sessions.
+  if (sessions === null) return null;
+  const latest = sessions.items[0];
+  const report = latest ? await findSession(latest.id) : null;
+  if (latest && !report) return null;
+
+  if (!report) {
+    return (
+      <Card>
+        <h2 className="font-semibold">{t("waiting")}</h2>
+        <p className="mt-1 max-w-prose text-muted-foreground">{t("waitingLead")}</p>
+        <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
+          {t("waitingUpload")}
+          <Link href="/upload" className={buttonVariants({ variant: "outline", size: "sm" })}>
+            {t("waitingUploadLink")}
+          </Link>
+        </p>
+      </Card>
+    );
+  }
+  return (
+    <div className="grid items-start gap-3 md:gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className="flex flex-col gap-3 md:gap-4">
+        <Latest report={report} tone={tone} locale={locale} />
+        {sessions && sessions.items.length > 1 && (
+          <Recent items={sessions.items.slice(0, 5)} locale={locale} />
+        )}
+      </div>
+      <div className="flex flex-col gap-3 md:gap-4">
+        {report.advice[0] && <WorkOn item={report.advice[0]} />}
+        {report.follow_up.length > 0 && (
+          <Card>
+            <h2 className="text-[0.8125rem] text-muted-foreground md:text-base md:font-semibold md:text-foreground">
+              {t("progress")}
+            </h2>
+            <p className="mb-2 hidden text-[0.8125rem] text-muted-foreground md:block">
+              {t("progressLead")}
+            </p>
+            <div className="mt-1.5 md:mt-0">
+              <FollowUpList items={report.follow_up} locale={locale} compact />
+            </div>
+          </Card>
+        )}
+        <Suspense fallback={null}>
+          <PendingCard />
+        </Suspense>
+      </div>
     </div>
   );
 }
@@ -144,7 +194,7 @@ async function Latest({
   tone,
   locale,
 }: {
-  report: NonNullable<Awaited<ReturnType<typeof getSession>>>;
+  report: NonNullable<Awaited<ReturnType<typeof findSession>>>;
   tone: Tone;
   locale: Locale;
 }) {

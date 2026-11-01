@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { Advice, MatchDetail, MetricValue, Round } from "../src/lib/api";
 import {
   bySide,
+  flaggedRounds,
   minutes,
   momentHref,
   prioritiesIn,
@@ -63,6 +64,20 @@ describe("match", () => {
       { round: 3, tick: 400, event: 720, moments: 2 },
       { round: 7, tick: 900, event: 1220, moments: 1 },
     ]);
+  });
+
+  it("keeps each flagged round's first moment and its priority", () => {
+    const first = advice(1, [
+      ["m1", 3, 500],
+      ["m1", 7, 900],
+    ]);
+    const second = { ...advice(2, [["m1", 3, 400]]), rule_id: "util.team_flash" } as Advice;
+    const flagged = flaggedRounds(prioritiesIn([first, second], "m1"));
+    expect([...flagged.entries()].sort((a, b) => a[0] - b[0])).toEqual([
+      [3, { tick: 400, event: 720, rule: "util.team_flash" }],
+      [7, { tick: 900, event: 1220, rule: "trade.untraded_deaths" }],
+    ]);
+    expect(flaggedRounds([]).size).toBe(0);
   });
 
   it("links a moment with its event and its priority", () => {

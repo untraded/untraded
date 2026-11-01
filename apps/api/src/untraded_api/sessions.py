@@ -17,7 +17,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel
 
 from untraded_api.deps import ConnDep, UserDep
-from untraded_api.matches import SUMMARY, MatchSummary, summary_fields
+from untraded_api.matches import MatchSummary, summary_fields, summary_query
 
 ROUNDS = "rounds"
 """In `metric_definition.cases`: the metric stands on the rounds played."""
@@ -166,25 +166,41 @@ class SessionReport(SessionSummary):
     """The previous session's priorities and their indicators since (vision § 5)."""
 
 
+# The results are counted per session inside the lateral subquery (no GROUP BY on the outer
+# query), so a list ordered by `play_session_recent` and cut by LIMIT counts only the sessions
+# it returns, not every session of the player.
 SESSION = """
-SELECT s.id, s.started_at, s.ended_at, s.matches, s.rounds, s.enough,
-       count(*) FILTER (WHERE r.result = 'win'),
-       count(*) FILTER (WHERE r.result = 'loss'),
-       count(*) FILTER (WHERE r.result = 'tie')
+SELECT s.id, s.started_at, s.ended_at, s.matches, s.rounds, s.enough, r.wins, r.losses, r.ties
 FROM play_session s
-LEFT JOIN LATERAL (
-    SELECT CASE
-        WHEN m.score_a IS NULL THEN NULL
-        WHEN (mp.team = 'A') = (m.score_a > m.score_b) AND m.score_a <> m.score_b THEN 'win'
-        WHEN m.score_a = m.score_b THEN 'tie'
-        ELSE 'loss' END AS result
-    FROM play_session_match sm
-    JOIN match m ON m.id = sm.match_id
-    JOIN match_player mp ON mp.match_id = m.id AND mp.steam_id = s.steam_id
-    WHERE sm.session_id = s.id
-) r ON true
+CROSS JOIN LATERAL (
+    SELECT count(*) FILTER (WHERE x.result = 'win') AS wins,
+           count(*) FILTER (WHERE x.result = 'loss') AS losses,
+           count(*) FILTER (WHERE x.result = 'tie') AS ties
+    FROM (
+        SELECT CASE
+            WHEN m.score_a IS NULL THEN NULL
+            WHEN (mp.team = 'A') = (m.score_a > m.score_b) AND m.score_a <> m.score_b THEN 'win'
+            WHEN m.score_a = m.score_b THEN 'tie'
+            ELSE 'loss' END AS result
+        FROM play_session_match sm
+        JOIN match m ON m.id = sm.match_id
+        JOIN match_player mp ON mp.match_id = m.id AND mp.steam_id = s.steam_id
+        WHERE sm.session_id = s.id
+    ) x
+) r
 WHERE s.steam_id = (SELECT steam_id FROM app_user WHERE id = %(user)s)
 """
+
+# The session's matches, as the list of matches shows them: the same summary
+# (`matches.summary_query`, one pivot of the metric values for the API), over the session's
+# matches only, so the cost follows the session, not the database.
+SESSION_MATCHES = (
+    summary_query(
+        "(SELECT m.* FROM play_session_match sm JOIN match m ON m.id = sm.match_id "
+        "WHERE sm.session_id = %(session)s)"
+    )
+    + "ORDER BY m.played_at, m.id"
+)
 
 COMPARISONS = """
 SELECT m.session_id, m.metric_id, m.version, d.name, d.unit, d.better, m.basis, m.session,
@@ -313,7 +329,7 @@ def list_sessions(
     """The user's own sessions, most recent first, with their headline comparisons, their
     maps and their first priority."""
     rows = conn.execute(
-        f"{SESSION} GROUP BY s.id ORDER BY s.started_at DESC LIMIT %(limit)s OFFSET %(offset)s",
+        f"{SESSION} ORDER BY s.started_at DESC LIMIT %(limit)s OFFSET %(offset)s",
         {"user": user, "limit": limit, "offset": offset},
     ).fetchall()
     ids = [row[0] for row in rows]
@@ -330,7 +346,7 @@ def list_sessions(
 def get_session(session_id: uuid.UUID, conn: ConnDep, user: UserDep) -> SessionReport:
     """A session's report: its matches, and every metric against the reference."""
     row = conn.execute(
-        f"{SESSION} AND s.id = %(session)s GROUP BY s.id", {"user": user, "session": session_id}
+        f"{SESSION} AND s.id = %(session)s", {"user": user, "session": session_id}
     ).fetchone()
     if row is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no such session")
@@ -342,12 +358,7 @@ def get_session(session_id: uuid.UUID, conn: ConnDep, user: UserDep) -> SessionR
     ).fetchone()
     assert window is not None
     params = window[4]
-    matches = conn.execute(
-        f"""{SUMMARY}
-        JOIN play_session_match sm ON sm.match_id = m.id AND sm.session_id = %(session)s
-        ORDER BY m.played_at""",
-        {"user": user, "session": session_id},
-    ).fetchall()
+    matches = conn.execute(SESSION_MATCHES, {"user": user, "session": session_id}).fetchall()
     comparisons = _comparisons(conn, [session_id])[session_id]
     advice = conn.execute(
         """

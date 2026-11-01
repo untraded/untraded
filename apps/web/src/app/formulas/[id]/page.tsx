@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
-import type { ReactNode } from "react";
+import { type ReactNode, Suspense } from "react";
 import { Better } from "@/components/formulas/better";
 import { Inline } from "@/components/formulas/inline";
 import type { Locale } from "@/i18n/locale";
@@ -31,17 +31,7 @@ export default async function Formula({ params }: Params) {
   const doc = metricDoc(id, locale);
   if (!doc) notFound();
   const t = await getTranslations("formulas");
-  const s = await getTranslations("sessions");
   const family = metricCatalog(locale).families.find((f) => f.prefix === doc.family);
-
-  // The last session's value, an extra the page stands without.
-  const latest = (await apiGetOptional<SessionList>("/sessions?limit=1&offset=0"))?.items[0];
-  const report = latest
-    ? await apiGetOptional<SessionReport>(`/sessions/${encodeURIComponent(latest.id)}`)
-    : null;
-  const mine = report?.metrics.find((c) => c.metric_id === doc.id);
-  const compared = mine && report ? compare(mine, report.rounds) : null;
-  const moved = compared?.kind === "ranked" ? gapTrend(compared.gap) : null;
 
   return (
     <article className="flex max-w-3xl flex-col gap-5">
@@ -86,42 +76,9 @@ export default async function Formula({ params }: Params) {
         </ul>
       </header>
 
-      {mine && report && (
-        <section
-          aria-label={t("yourSession")}
-          className="flex flex-wrap items-baseline gap-x-5 gap-y-1 rounded-lg border border-dashed border-border px-4 py-3"
-        >
-          <span className="text-[0.8125rem] text-muted-foreground">{t("yourSession")}</span>
-          <span className="text-lg font-semibold tabular-nums">
-            {metric(mine.session, mine.unit, mine.basis, locale)}
-          </span>
-          <span className="text-[0.8125rem] text-muted-foreground tabular-nums">
-            {s("vsReference", { value: metric(mine.reference, mine.unit, mine.basis, locale) })}
-          </span>
-          {moved && compared && (
-            <span
-              className={
-                moved === "better"
-                  ? "text-[0.8125rem] text-win"
-                  : moved === "worse"
-                    ? "text-[0.8125rem] text-loss"
-                    : "text-[0.8125rem] text-muted-foreground"
-              }
-            >
-              <span aria-hidden="true">
-                {moved === "better" ? "▲" : moved === "worse" ? "▼" : "="}{" "}
-              </span>
-              {gapPercent(compared.gap, locale)}
-            </span>
-          )}
-          <Link
-            href={`/sessions/${report.id}`}
-            className="ml-auto text-[0.8125rem] text-link underline underline-offset-3"
-          >
-            {t("openReport")}
-          </Link>
-        </section>
-      )}
+      <Suspense fallback={null}>
+        <YourSession id={doc.id} locale={locale} />
+      </Suspense>
 
       <section aria-labelledby="definition" className="flex flex-col gap-2">
         <h2 id="definition" className="text-[0.8125rem] font-medium text-muted-foreground">
@@ -264,5 +221,56 @@ function Part({ title, open, children }: { title: string; open?: boolean; childr
       </summary>
       <div className="border-t border-border px-4 py-3">{children}</div>
     </details>
+  );
+}
+
+/** The player's value on their last session, an extra the page stands without: streamed, so the
+ * formula does not wait on the session's report. */
+async function YourSession({ id, locale }: { id: string; locale: Locale }) {
+  const latest = (await apiGetOptional<SessionList>("/sessions?limit=1&offset=0"))?.items[0];
+  const report = latest
+    ? await apiGetOptional<SessionReport>(`/sessions/${encodeURIComponent(latest.id)}`)
+    : null;
+  const mine = report?.metrics.find((c) => c.metric_id === id);
+  if (!mine || !report) return null;
+  const t = await getTranslations("formulas");
+  const s = await getTranslations("sessions");
+  const compared = compare(mine, report.rounds);
+  const moved = compared.kind === "ranked" ? gapTrend(compared.gap) : null;
+  return (
+    <section
+      aria-label={t("yourSession")}
+      className="flex flex-wrap items-baseline gap-x-5 gap-y-1 rounded-lg border border-dashed border-border px-4 py-3"
+    >
+      <span className="text-[0.8125rem] text-muted-foreground">{t("yourSession")}</span>
+      <span className="text-lg font-semibold tabular-nums">
+        {metric(mine.session, mine.unit, mine.basis, locale)}
+      </span>
+      <span className="text-[0.8125rem] text-muted-foreground tabular-nums">
+        {s("vsReference", { value: metric(mine.reference, mine.unit, mine.basis, locale) })}
+      </span>
+      {moved && (
+        <span
+          className={
+            moved === "better"
+              ? "text-[0.8125rem] text-win"
+              : moved === "worse"
+                ? "text-[0.8125rem] text-loss"
+                : "text-[0.8125rem] text-muted-foreground"
+          }
+        >
+          <span aria-hidden="true">
+            {moved === "better" ? "▲" : moved === "worse" ? "▼" : "="}{" "}
+          </span>
+          {gapPercent(compared.gap, locale)}
+        </span>
+      )}
+      <Link
+        href={`/sessions/${report.id}`}
+        className="ml-auto text-[0.8125rem] text-link underline underline-offset-3"
+      >
+        {t("openReport")}
+      </Link>
+    </section>
   );
 }

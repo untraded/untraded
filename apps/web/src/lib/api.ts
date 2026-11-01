@@ -6,6 +6,7 @@
 
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
+import { cache } from "react";
 
 export const SESSION_COOKIE = "untraded_session";
 
@@ -215,8 +216,13 @@ async function sessionHeader(): Promise<Record<string, string>> {
 
 export class ApiError extends Error {}
 
-/** GET from the API. `null` when not signed in; `notFound()` on 404. */
-export async function apiGet<T>(path: string): Promise<T | null> {
+/**
+ * GET from the API. `null` when not signed in; `notFound()` on 404. Called once per path within
+ * one request: the layout, the page and its metadata all ask for `/me`, the page and its metadata
+ * for the match (React `cache`, which lives as long as the request: nothing is kept for another
+ * user).
+ */
+export const apiGet = cache(async function apiGet<T>(path: string): Promise<T | null> {
   const response = await fetch(`${internalApiUrl()}${path}`, {
     headers: await sessionHeader(),
     cache: "no-store",
@@ -225,13 +231,16 @@ export async function apiGet<T>(path: string): Promise<T | null> {
   if (response.status === 404) notFound();
   if (!response.ok) throw new ApiError(`API ${path}: HTTP ${response.status}`);
   return (await response.json()) as T;
-}
+});
 
 /**
  * GET from the API, tolerant: `null` on any failure (not signed in, missing, server error, no
  * answer), for data a page can do without, such as the matches behind a priority's evidence.
+ * Called once per path within one request, as `apiGet`.
  */
-export async function apiGetOptional<T>(path: string): Promise<T | null> {
+export const apiGetOptional = cache(async function apiGetOptional<T>(
+  path: string,
+): Promise<T | null> {
   try {
     const response = await fetch(`${internalApiUrl()}${path}`, {
       headers: await sessionHeader(),
@@ -241,7 +250,7 @@ export async function apiGetOptional<T>(path: string): Promise<T | null> {
   } catch {
     return null;
   }
-}
+});
 
 /** What a write answered: its status, and the `detail` of an error (e.g. `{ field }` on 422). */
 export interface ApiResult {
@@ -482,6 +491,12 @@ export async function findSessionOf(
 /** A session's report the page can do without: `null` when it is missing or the API fails. */
 export const findSession = (id: string) =>
   apiGetOptional<SessionReport>(`/sessions/${encodeURIComponent(id)}`);
+/** The sessions, for a part streamed after the page started: `null` when the API fails. */
+export const findSessions = (offset = 0) =>
+  apiGetOptional<SessionList>(`/sessions?limit=20&offset=${offset}`);
+/** The matches, for a part streamed after the page started: `null` when the API fails. */
+export const findMatches = (offset = 0) =>
+  apiGetOptional<MatchList>(`/matches?limit=30&offset=${offset}`);
 export const getUploads = () => apiGet<UploadList>("/uploads");
 
 /** How many pages of sessions the progress page reads at most (20 per page). */
