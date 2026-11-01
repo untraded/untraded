@@ -118,6 +118,20 @@ The counts come from each player's last inventory change (`inventory_change`). W
 - The learning curve still falls up to 16 training matches (log loss 0.473, 0.462, 0.453, 0.453 for 5, 10, 16, 21).
 - Weapons and grenades are not wrong inputs: 30 matches are too few to tell them apart from the equipment value. The selection is rerun at each step of the corpus.
 
+**Second run, on 54 matches** (2026-11-01: the 30 above, 17 from testers who opted in to research, and 7 more of the maintainer's; 1,175 rounds, 82,044 samples). The 16 newest matches (346 rounds) were held out:
+
+| On held-out matches | AUC | Brier | Log loss |
+|---|---|---|---|
+| **Model 2** (model 1's inputs and the defuse race, chosen on the training matches) | **0.894** | **0.133** | **0.405** |
+| Model 1's inputs, same matches | 0.894 | 0.133 | 0.405 |
+| Players alive only | 0.849 | 0.154 | 0.460 |
+| Model 2, contested states | 0.611 | 0.238 | 0.668 |
+
+- The defuse race joins again (cross-fitted gain +0.0012, from +0.0004 to +0.0020). On the held-out matches it gains +0.0009 of log loss over model 1's inputs, an interval from 0.0000 to +0.0018: a small gain, at the edge of what 16 matches can show.
+- The model now clearly beats the alive count alone (+0.056, from +0.034 to +0.075).
+- The learning curve flattens from about 28 training matches (log loss 0.417, 0.408, 0.404, 0.405 for 10, 19, 28 and 38): for a model this size, more matches mostly serve the families that do not qualify yet.
+- Weapons still lower the log loss slightly (−0.0025, from −0.0054 to +0.0005): they overlap the equipment value. A version where they replace it rather than add to it is to be tried.
+
 Model 1 stays the published model until model 2 is trained on a larger corpus and its swings are ready.
 
 ## Swing: crediting actions
