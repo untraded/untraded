@@ -76,7 +76,9 @@ def test_anyone_opens_the_demo_read_only(db: psycopg.Connection[Any], tmp_path: 
             client.delete("/admin/invitations/76561198000000009"),
         ]
         assert [r.status_code for r in refused] == [403] * len(refused)
-        assert client.post("/auth/logout").status_code == 204
+        signed_out = client.post("/auth/logout")
+        assert signed_out.status_code == 204
+        assert signed_out.headers["clear-site-data"] == '"cache"'
     assert db.execute(
         "SELECT deleted_at FROM app_user WHERE steam_id = %s", (DEMO,)
     ).fetchone() == (None,)
