@@ -7,10 +7,12 @@ import { getLocale, getTimeZone, getTranslations } from "next-intl/server";
 import { cache, Suspense } from "react";
 import { MatchPriorities } from "@/components/match/match-priorities";
 import { MatchRounds } from "@/components/match/match-rounds";
+import { PrioritiesSkeleton } from "@/components/match/match-skeletons";
 import { RatingCard } from "@/components/match/rating-card";
 import { SideSplit } from "@/components/match/side-split";
 import { TeamTable } from "@/components/match/team-table";
 import { ResultBadge } from "@/components/result-badge";
+import { Loading } from "@/components/skeleton";
 import type { Locale } from "@/i18n/locale";
 import {
   findPlayerMetrics,
@@ -151,7 +153,13 @@ export default async function MatchPage({ params }: Params) {
         <div className="grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_22rem]">
           <div className="flex min-w-0 flex-col gap-7">
             {played && (
-              <Suspense fallback={null}>
+              <Suspense
+                fallback={
+                  <Loading announce={false}>
+                    <PrioritiesSkeleton />
+                  </Loading>
+                }
+              >
                 <Priorities match={match} locale={locale} timeZone={timeZone} />
               </Suspense>
             )}

@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 The Untraded Authors
 // SPDX-License-Identifier: AGPL-3.0-only
 import { getTranslations } from "next-intl/server";
+import { Skeleton, SkeletonLine, slots } from "@/components/skeleton";
 import { Sparkline } from "@/components/sparkline";
 import type { Locale } from "@/i18n/locale";
 import type { FollowUp } from "@/lib/api";
@@ -100,5 +101,40 @@ export async function FollowUpList({
         );
       })}
     </ul>
+  );
+}
+
+/** `rows` previous priorities on their way, as `FollowUpList` lays them out. */
+export function FollowUpSkeleton({ rows, compact = false }: { rows: number; compact?: boolean }) {
+  return (
+    <div className="flex flex-col">
+      {slots(rows).map((i) =>
+        compact ? (
+          <div
+            key={i}
+            className="grid grid-cols-[minmax(0,1fr)_3.5rem_auto] items-center gap-2.5 border-t border-line-soft py-2 first:border-t-0 first:pt-0"
+          >
+            <div>
+              <SkeletonLine className="text-sm" width="w-32" />
+              <SkeletonLine className="text-xs" width="w-24" />
+            </div>
+            <Skeleton className="h-6" />
+            <SkeletonLine className="text-[0.8125rem]" width="w-14" />
+          </div>
+        ) : (
+          <div
+            key={i}
+            className="flex flex-col gap-1 border-t border-line-soft py-2.5 first:border-t-0 first:pt-0"
+          >
+            <div className="flex justify-between gap-2 text-sm">
+              <SkeletonLine width="w-40" />
+              <SkeletonLine width="w-16" />
+            </div>
+            <Skeleton className="h-8" />
+            <SkeletonLine className="text-xs" width="w-32" />
+          </div>
+        ),
+      )}
+    </div>
   );
 }

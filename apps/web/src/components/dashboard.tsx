@@ -4,8 +4,9 @@ import { ChevronRight, Compass, Dumbbell, LoaderCircle, TriangleAlert } from "lu
 import Link from "next/link";
 import { getLocale, getTimeZone, getTranslations } from "next-intl/server";
 import { type ReactNode, Suspense } from "react";
-import { FollowUpList } from "@/components/follow-up";
+import { FollowUpList, FollowUpSkeleton } from "@/components/follow-up";
 import { describeReference } from "@/components/reference";
+import { Loading, Skeleton, SkeletonLine } from "@/components/skeleton";
 import { buttonVariants } from "@/components/ui/button";
 import type { Locale, Tone } from "@/i18n/locale";
 import {
@@ -48,6 +49,8 @@ export async function Dashboard({ me, tone }: { me: Me; tone: Tone }) {
       <h1 className="sr-only text-2xl font-semibold md:not-sr-only md:text-[1.75rem]">
         {t("title")}
       </h1>
+      {/* Nothing while loading: there is rarely a match being analysed, and a placeholder would
+          then leave an empty line above the report. */}
       <Suspense fallback={null}>
         <PendingShort />
       </Suspense>
@@ -63,7 +66,13 @@ export async function Dashboard({ me, tone }: { me: Me; tone: Tone }) {
           </Link>
         </p>
       )}
-      <Suspense fallback={null}>
+      <Suspense
+        fallback={
+          <Loading announce={false}>
+            <SessionsSkeleton />
+          </Loading>
+        }
+      >
         <Sessions tone={tone} />
       </Suspense>
     </div>
@@ -181,9 +190,77 @@ async function Sessions({ tone }: { tone: Tone }) {
             </div>
           </Card>
         )}
+        {/* Nothing while loading: usually nothing to show, and it ends its column, so it moves
+            nothing when it comes. */}
         <Suspense fallback={null}>
           <PendingCard />
         </Suspense>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The report and its side column while they load, laid out as `Sessions` lays out a player with
+ * sessions (the common case): the latest session with three priorities and its button, the recent
+ * sessions on a computer, then what to work on and the previous priorities.
+ */
+function SessionsSkeleton() {
+  return (
+    <div className="grid items-start gap-3 md:gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className="flex flex-col gap-3 md:gap-4">
+        <Card>
+          <SkeletonLine className="text-[0.8125rem]" width="w-24" />
+          <SkeletonLine className="text-lg md:text-[1.3125rem]" width="w-56" />
+          <SkeletonLine className="mt-0.5 text-sm" width="w-72" />
+          <div className="mt-2.5 md:mt-4">
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                className="grid grid-cols-[1.125rem_minmax(0,1fr)] gap-x-2.5 border-t border-line-soft py-1.5 md:grid-cols-[1.375rem_minmax(0,1fr)] md:py-2.5"
+              >
+                <SkeletonLine width="w-2.5" />
+                <SkeletonLine className="text-[0.9375rem]" width="w-3/4" />
+                <SkeletonLine
+                  className="col-start-2 hidden text-[0.8125rem] md:block"
+                  width="w-48"
+                />
+              </div>
+            ))}
+          </div>
+          <Skeleton className="mt-3 h-9 w-full rounded-md md:mt-4 md:w-40" />
+        </Card>
+        <Card className="hidden md:block">
+          <SkeletonLine width="w-32" />
+          <div className="mt-2">
+            {[0, 1, 2, 3, 4].map((i) => (
+              <div key={i} className="border-t border-line-soft py-2.5 first:border-t-0">
+                <SkeletonLine className="text-sm" width="w-24" />
+                <SkeletonLine className="text-xs" width="w-28" />
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+      <div className="flex flex-col gap-3 md:gap-4">
+        <Card>
+          <SkeletonLine className="text-[0.8125rem]" width="w-28" />
+          <SkeletonLine className="mt-0.5 hidden text-[0.9375rem] md:block" width="w-44" />
+          <div className="mt-1 md:mt-2">
+            {[0, 1].map((i) => (
+              <div key={i} className="py-1.5 md:border-t md:border-line-soft md:py-2.5">
+                <SkeletonLine className="text-sm" width="w-48" />
+                <SkeletonLine className="mt-0.5 hidden text-sm md:block" width="w-full" />
+              </div>
+            ))}
+          </div>
+        </Card>
+        <Card>
+          <SkeletonLine className="text-[0.8125rem] md:text-base" width="w-32" />
+          <div className="mt-1.5 md:mt-2">
+            <FollowUpSkeleton rows={2} compact />
+          </div>
+        </Card>
       </div>
     </div>
   );

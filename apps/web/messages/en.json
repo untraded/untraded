@@ -828,6 +828,9 @@
     "sessions": "My sessions",
     "report": "Did a link on the site bring you here? <link>Report it on Discord</link>."
   },
+  "loading": {
+    "label": "Loading…"
+  },
   "common": {
     "close": "Close"
   },

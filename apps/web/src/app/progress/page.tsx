@@ -5,8 +5,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getLocale, getTimeZone, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
-import { FollowUpList } from "@/components/follow-up";
+import { FollowUpList, FollowUpSkeleton } from "@/components/follow-up";
 import { type ChartPoint, ProgressChart } from "@/components/progress/progress-chart";
+import { Loading } from "@/components/skeleton";
 import type { Locale } from "@/i18n/locale";
 import { findSession, sessionsBack } from "@/lib/api";
 import { cn } from "@/lib/cn";
@@ -138,7 +139,15 @@ export default async function Progress({
           {t("priorities")}
         </h2>
         <div className="rounded-lg border border-border bg-card p-4">
-          <Suspense fallback={null}>
+          {/* One priority's size: the usual case, and the box ends the page, so a report with
+              none (one line) or more only moves what is below it, which is nothing. */}
+          <Suspense
+            fallback={
+              <Loading announce={false}>
+                <FollowUpSkeleton rows={1} />
+              </Loading>
+            }
+          >
             <PreviousPriorities session={all[0]?.id ?? null} locale={locale} />
           </Suspense>
         </div>

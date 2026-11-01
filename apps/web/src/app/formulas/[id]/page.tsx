@@ -8,8 +8,9 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { type ReactNode, Suspense } from "react";
 import { Better } from "@/components/formulas/better";
 import { Inline } from "@/components/formulas/inline";
+import { Loading, Skeleton } from "@/components/skeleton";
 import type { Locale } from "@/i18n/locale";
-import { apiGetOptional, type SessionList, type SessionReport } from "@/lib/api";
+import { apiGetOptional, getMe, type SessionList, type SessionReport } from "@/lib/api";
 import { compare, gapPercent, gapTrend, metric } from "@/lib/format";
 import { metricCatalog, metricDoc } from "@/lib/metric-docs-files";
 
@@ -31,6 +32,8 @@ export default async function Formula({ params }: Params) {
   const doc = metricDoc(id, locale);
   if (!doc) notFound();
   const t = await getTranslations("formulas");
+  // Already read by the layout for this request (the API calls are cached per request).
+  const me = await getMe();
   const family = metricCatalog(locale).families.find((f) => f.prefix === doc.family);
 
   return (
@@ -76,7 +79,17 @@ export default async function Formula({ params }: Params) {
         </ul>
       </header>
 
-      <Suspense fallback={null}>
+      {/* The player's value is there for a signed-in player whose last session has the metric:
+          for them, a box of its size while it loads; nothing for a visitor, who never gets one. */}
+      <Suspense
+        fallback={
+          me ? (
+            <Loading announce={false}>
+              <Skeleton className="h-[3.25rem] rounded-lg" />
+            </Loading>
+          ) : null
+        }
+      >
         <YourSession id={doc.id} locale={locale} />
       </Suspense>
 

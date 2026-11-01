@@ -828,6 +828,9 @@
     "sessions": "Mes sessions",
     "report": "Un lien du site t'a mené ici ? <link>Signale-le sur Discord</link>."
   },
+  "loading": {
+    "label": "Chargement…"
+  },
   "common": {
     "close": "Fermer"
   },
