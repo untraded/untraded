@@ -388,21 +388,32 @@ def _winprob_rating_fit(args: argparse.Namespace) -> int:
     model = winprob.Model.load(args.model) if args.model else winprob.default_model()
     shares = winprob.ledger.DEFAULT_SHARES
     by_hold: dict[bool, dict[str, pl.DataFrame]] = {True: {}, False: {}}
+    modes: set[str] = set()
     for directory in args.matches:
         try:
             tables = CanonicalMatch.read(directory).tables()
-            if tables["match"]["mode"][0] == "pro":
+            mode = str(tables["match"]["mode"][0])
+            if mode == "pro":
                 print(f"{directory}: a pro match, left out", file=sys.stderr)  # ADR 0010
                 continue
             match_id = str(tables["match"]["match_id"][0])
+            if match_id in by_hold[True]:
+                print(f"{directory}: the same match as another, left out", file=sys.stderr)
+                continue
             derived = derive(tables).tables()
             credits = winprob.ledger.ledger(tables, model, shares)
-        except (IndexError, ValueError, OSError) as error:
+            halves = {
+                hold: rating2.halves(
+                    rating2.per_round(tables, derived, credits, hold=hold), match_id
+                )
+                for hold in (True, False)
+            }
+        except (IndexError, KeyError, ValueError, OSError, pl.exceptions.PolarsError) as error:
             print(f"{directory}: left out ({error})", file=sys.stderr)
             continue
-        for hold in (True, False):
-            rounds = rating2.per_round(tables, derived, credits, hold=hold)
-            by_hold[hold][match_id] = rating2.halves(rounds, match_id)
+        modes.add(mode)
+        for hold, frame in halves.items():
+            by_hold[hold][match_id] = frame
     fitted = {
         hold: rating2.fit(
             list(frames.values()),
@@ -410,22 +421,22 @@ def _winprob_rating_fit(args: argparse.Namespace) -> int:
             model=model.version,
             shares=asdict(shares),
             hold=hold,
-            trained_on={"sources": sorted({"valve-premier", "faceit"})},
+            trained_on={"modes": sorted(modes)},
         )
         for hold, frames in by_hold.items()
     }
-    # The hold counts only if it helps the level predict the other half (both targets).
-    better = all(
-        fitted[True].validation[f"predicts_other_half_{t}"]["level"]
-        > fitted[False].validation[f"predicts_other_half_{t}"]["level"]
-        for t in ("credit", "hltv1")
+    # The hold counts only if it helps the level predict HLTV 1.0 on the other half: the only
+    # target both fits share (each predicts its own credit, with or without the hold).
+    better = (
+        fitted[True].validation["predicts_other_half_hltv1"]["level"]
+        > fitted[False].validation["predicts_other_half_hltv1"]["level"]
     )
     rating = fitted[better]
     print(f"{len(by_hold[True])} matches, model {model.version}")
     for hold, fit in fitted.items():
         print(
             f"hold {'in' if hold else 'out'}: lambda {fit.lam}, s {fit.points_per_rating}, "
-            f"sigma2 {fit.round_variance}, tau2 {fit.level_variance}, k {fit.ledger_rounds:.0f}, "
+            f"k {fit.ledger_rounds}, "
             f"box {dict(zip(fit.box.features, [round(c, 3) for c in fit.box.coef], strict=True))}"
         )
         for key, value in fit.validation.items():

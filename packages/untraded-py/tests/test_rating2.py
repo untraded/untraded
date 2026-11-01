@@ -37,7 +37,7 @@ def half() -> Half:
     return tables, derive(tables).tables(), ledger(tables, default_model())
 
 
-def _model(level_variance: float = 5.0) -> RatingModel:
+def _model(ledger_rounds: float | None = 92.0) -> RatingModel:
     return RatingModel(
         version="test",
         model="1.0",
@@ -46,8 +46,7 @@ def _model(level_variance: float = 5.0) -> RatingModel:
         points_per_rating=15.0,
         box=Box(BOX_FEATURES, [0.7, 0.7, 0.8], [0.5, 0.45, 0.5], [0.5, -0.8, 0.8], 0.0),
         lam=100.0,
-        round_variance=460.0,
-        level_variance=level_variance,
+        ledger_rounds=ledger_rounds,
     )
 
 
@@ -84,15 +83,12 @@ def test_halves_split_the_rounds(half: Half) -> None:
 
 
 def test_the_level_moves_from_the_box_to_the_ledger() -> None:
-    model = _model()
-    k = model.ledger_rounds
-    assert k == pytest.approx(460 / 5)
+    model = _model(92.0)
     assert model.level(1.0, 5.0, 0) == pytest.approx(1.0)
-    assert model.level(1.0, 5.0, int(k)) == pytest.approx(3.0, abs=0.05)
+    assert model.level(1.0, 5.0, 92) == pytest.approx(3.0)
     assert model.level(1.0, 5.0, 100_000) == pytest.approx(5.0, abs=0.01)
     # A box that leaves nothing for the ledger: the level is the box.
-    flat = _model(level_variance=0.0)
-    assert math.isinf(flat.ledger_rounds)
+    flat = _model(None)
     assert flat.level(1.0, 5.0, 1000) == 1.0
     assert model.match_rating(15.0) == pytest.approx(2.0)
 
@@ -103,18 +99,41 @@ def test_the_published_rating_loads() -> None:
     text = resources.files("untraded.winprob").joinpath("rating-v2.json").read_text("utf-8")
     model = RatingModel.from_json(text)
     assert model.box.features == BOX_FEATURES
-    assert model.hold is False
-    assert 0 < model.ledger_rounds < 1000
+    assert "level_error_by_ledger_rounds" in model.validation
     assert "match_id" not in text  # ADR 0010: no match ids in published files
 
 
-def test_the_model_round_trips_and_is_checked() -> None:
-    model = _model(level_variance=0.0)
-    again = RatingModel.from_json(model.to_json())
-    assert again == model
-    broken = model.to_json().replace('"points_per_rating": 15.0', '"points_per_rating": -1.0')
-    with pytest.raises(ValueError, match="positive"):
-        RatingModel.from_json(broken)
+@pytest.mark.parametrize(
+    ("old", "new", "message"),
+    [
+        ('"points_per_rating": 15.0', '"points_per_rating": -1.0', "positive"),
+        ('"points_per_rating": 15.0', '"points_per_rating": NaN', "NaN"),
+        ('"lam": 100.0', '"lam": true', "finite"),
+        ('"ledger_rounds": 92.0', '"ledger_rounds": 0', "positive"),
+        ('"kpr",', '"kd",', "box must read"),
+        ('"intercept": 0.0', '"intercept": "x"', "finite"),
+        ('"version": "test",', "", "malformed"),
+    ],
+)
+def test_a_bad_rating_file_is_refused(old: str, new: str, message: str) -> None:
+    text = _model().to_json()
+    assert old in text
+    with pytest.raises(ValueError, match=message):
+        RatingModel.from_json(text.replace(old, new, 1))
+
+
+def test_the_model_round_trips() -> None:
+    for k in (92.0, None):
+        model = _model(k)
+        assert RatingModel.from_json(model.to_json()) == model
+
+
+def test_an_empty_match_rates_no_one() -> None:
+    empty = pl.DataFrame(
+        schema={"steamid": pl.UInt64, "round": pl.Int16, "credit": pl.Float64}
+        | dict.fromkeys(FEATURES, pl.Float64)
+    )
+    assert _model().rate_match(empty).is_empty()
 
 
 def test_a_match_averages_one(half: Half) -> None:

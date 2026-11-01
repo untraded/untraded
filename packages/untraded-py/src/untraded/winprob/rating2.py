@@ -9,17 +9,17 @@ does. So the rating gives two answers, on one scale where 1.00 is the average pl
 
 - **The match rating**: `1 + credit / s`, what the player's actions were worth in this match,
   with its margin (1.96 standard errors of the per-round credit). Faithful to what happened.
-- **The level**: what the player is worth, as an empirical Bayes estimate. The box score (kills,
-  deaths and damage per round, `BOX_FEATURES`) predicts the credit through a ridge regression
-  trained to **predict the credit of the rounds it did not see** (fitted on one half of each
-  match against the credit of the other half, as basketball's BPM is fitted to plus-minus). The
-  ledger then corrects that prediction as rounds add up:
+- **The level**: what the player is worth. The box score (kills, deaths and damage per round,
+  `BOX_FEATURES`) predicts the credit through a ridge regression trained to **predict the credit
+  of the rounds it did not see** (fitted on one half of each match against the credit of the
+  other half, as basketball's BPM is fitted to plus-minus). The ledger can then correct that
+  prediction as rounds add up:
 
-      level = box + n / (n + k) * (credit - box),    k = sigma^2 / tau^2
+      level = box + n / (n + k) * (credit - box)
 
-  with `sigma^2` the variance of one round's credit around the player's level and `tau^2` the
-  variance of levels around what the box predicts, both measured on the corpus. Over one match
-  the level is mostly the box; over hundreds of rounds, mostly the ledger.
+  with `k` chosen by how well the level predicts the credit of unseen rounds (`ledger_rounds`;
+  None when the box alone predicts best, as on halves of matches today). The level reads as the
+  match rating to expect, so it sits closer to 1.00.
 
 `s` is the credit per round worth 1.00, set so that the match rating spreads over the corpus's
 player-matches as HLTV 1.0 does: a 1.20 reads as at HLTV. The box is centred per match, so the
@@ -70,6 +70,8 @@ BOX_FEATURES = ["kpr", "dpr", "adr"]
 unseen rounds best; more statistics overfit (`docs/winprob.md`)."""
 TRADE_SECONDS = 5.0
 LAMBDAS = (1.0, 10.0, 100.0, 1000.0, 10000.0)
+LEDGER_ROUNDS: tuple[float | None, ...] = (12.0, 25.0, 50.0, 100.0, 200.0, 400.0, 800.0, None)
+"""The values of `k` tried (None: the box alone)."""
 FOLDS = 5
 MIN_ROUNDS = 12
 """Player-matches shorter than this are left out of the fit and the validation."""
@@ -278,20 +280,19 @@ def _cross_pairs(frame: pl.DataFrame) -> pl.DataFrame:
 
 
 def _keys(frame: pl.DataFrame) -> list[str]:
-    """A match's half (or the match, for whole rows): what a value is centred within."""
+    """A match's half (or the match, for whole rows): what a value is centred within. The unit
+    separator cannot occur in a match id, so two keys never collide."""
     return [
-        f"{m}/{h}"
+        f"{m}\x1f{h}"
         for m, h in zip(frame["match_id"].to_list(), frame["half"].to_list(), strict=True)
     ]
 
 
 def _centred(values: np.ndarray, groups: Sequence[str], weights: np.ndarray) -> np.ndarray:
     """`values` minus their weighted mean within each group (a match, or a match's half)."""
-    out = values.astype(float).copy()
-    keys = np.array(groups)
-    for g in np.unique(keys):
-        inside = keys == g
-        out[inside] -= np.average(values[inside], weights=weights[inside])
+    frame = pl.DataFrame({"g": list(groups), "v": values.astype(float), "w": weights.astype(float)})
+    mean = (pl.col("v") * pl.col("w")).sum().over("g") / pl.col("w").sum().over("g")
+    out: np.ndarray = frame.select(pl.col("v") - mean).to_series().to_numpy()
     return out
 
 
@@ -334,20 +335,12 @@ class RatingModel:
     """`s`: percentage points of credit per round worth 1.00 of rating."""
     box: Box
     lam: float
-    round_variance: float
-    """sigma^2: the variance of one round's credit around the player's level."""
-    level_variance: float
-    """tau^2: the variance of players' levels around what the box predicts."""
+    ledger_rounds: float | None
+    """`k`: after `k` rounds, the ledger weighs as much as the box in the level; chosen on the
+    corpus by how well the level predicts the credit of unseen rounds. None when the box alone
+    predicts best: the level is then the box until the corpus says otherwise."""
     trained_on: dict[str, Any] = field(default_factory=dict)
     validation: dict[str, Any] = field(default_factory=dict)
-
-    @property
-    def ledger_rounds(self) -> float:
-        """`k = sigma^2 / tau^2`: after `k` rounds, the ledger weighs as much as the box in the
-        level (infinite when the box leaves nothing for the ledger to tell)."""
-        if self.level_variance <= 0:
-            return math.inf
-        return self.round_variance / self.level_variance
 
     def match_rating(self, credit: float) -> float:
         """The match rating of a credit per round (percentage points)."""
@@ -356,9 +349,7 @@ class RatingModel:
     def level(self, box: float, credit: float, rounds: int) -> float:
         """The level in credit per round: the box's prediction, moved towards the ledger's credit
         by `rounds / (rounds + k)`."""
-        k = self.ledger_rounds
-        weight = 0.0 if math.isinf(k) else rounds / (rounds + k)
-        return box + weight * (credit - box)
+        return _level(box, credit, rounds, self.ledger_rounds)
 
     def level_rating(self, box: float, credit: float, rounds: int) -> float:
         """The level on the rating's scale (1.00 = the average player)."""
@@ -367,8 +358,20 @@ class RatingModel:
     def rate_match(self, rounds: pl.DataFrame) -> pl.DataFrame:
         """Every player of a match, from `per_round` rows: `steamid`, `rounds`, `credit` (per
         round, percentage points), `rating` (the match rating), `margin` (half-width of its 95 %
-        interval), `box` (the box's prediction, centred on the match) and `level` (the level this
-        match alone gives, on the rating's scale)."""
+        interval; null under 2 rounds), `box` (the box's prediction, centred on the match) and
+        `level` (the level this match alone gives, on the rating's scale)."""
+        if rounds.is_empty():
+            return pl.DataFrame(
+                schema={
+                    "steamid": pl.UInt64,
+                    "rounds": pl.UInt32,
+                    "credit": pl.Float64,
+                    "rating": pl.Float64,
+                    "margin": pl.Float64,
+                    "box": pl.Float64,
+                    "level": pl.Float64,
+                }
+            )
         agg = rounds.group_by("steamid").agg(
             pl.len().alias("rounds"),
             pl.col("credit").mean(),
@@ -400,17 +403,46 @@ class RatingModel:
 
     @classmethod
     def from_json(cls, text: str) -> RatingModel:
-        data = json.loads(text)
-        if data.pop("format", None) != FORMAT_VERSION:
-            raise ValueError("unknown rating format")
-        data["box"] = Box(**data["box"])
-        model = cls(**data)
-        numbers = (model.points_per_rating, model.round_variance, model.level_variance)
-        if not all(isinstance(v, int | float) and math.isfinite(v) for v in numbers):
+        """Reads a rating file, checking every number it computes with (a bad file is refused,
+        never silently turned into wrong ratings)."""
+
+        def refuse(constant: str) -> float:
+            raise ValueError(f"the rating file holds {constant}")
+
+        try:
+            data = json.loads(text, parse_constant=refuse)
+            if not isinstance(data, dict) or data.pop("format", None) != FORMAT_VERSION:
+                raise ValueError("unknown rating format")
+            data["box"] = Box(**data["box"])
+            model = cls(**data)
+        except (TypeError, KeyError, AttributeError) as error:
+            raise ValueError(f"malformed rating file: {error}") from error
+        box = model.box
+        if box.features != BOX_FEATURES:
+            raise ValueError(f"the rating's box must read {BOX_FEATURES}")
+        arrays = (box.mean, box.scale, box.coef)
+        if any(not isinstance(a, list) or len(a) != len(BOX_FEATURES) for a in arrays):
+            raise ValueError("the rating's box needs one number per feature")
+        numbers = [*box.mean, *box.scale, *box.coef, box.intercept, model.points_per_rating]
+        numbers += [model.lam]
+        if model.ledger_rounds is not None:
+            numbers.append(model.ledger_rounds)
+        if not all(_number(v) for v in numbers):
             raise ValueError("the rating needs finite numbers")
-        if model.points_per_rating <= 0 or model.round_variance <= 0:
-            raise ValueError("the rating's scale and round variance must be positive")
+        if min(box.scale) <= 0 or model.points_per_rating <= 0:
+            raise ValueError("the rating's scales must be positive")
+        if model.ledger_rounds is not None and model.ledger_rounds <= 0:
+            raise ValueError("the rating's ledger rounds must be positive")
         return model
+
+
+def _number(value: object) -> bool:
+    return isinstance(value, int | float) and not isinstance(value, bool) and math.isfinite(value)
+
+
+def _level(box: float, credit: float, rounds: int, k: float | None) -> float:
+    weight = 0.0 if k is None else rounds / (rounds + k)
+    return box + weight * (credit - box)
 
 
 def _finite(value: Any) -> Any:
@@ -429,9 +461,10 @@ def _sb(r: float) -> float:
 
 
 def _variances(pairs: pl.DataFrame, box: np.ndarray) -> tuple[float, float]:
-    """sigma^2 (a round's credit around the player's level) from the gap between a player's two
-    halves, and tau^2 (levels around the box) from the covariance of the two halves' residuals
-    (their noises are independent, their shared part is the level)."""
+    """A diagnostic: sigma^2 (a round's credit around the player's level) from the gap between a
+    player's two halves, and tau^2 from the covariance of the two halves' residuals from the box.
+    `sigma^2 / tau^2` would be `k` if the box's errors and the credit's noise were independent;
+    they are not (both come from the same rounds), so `k` is fitted instead (`fit`)."""
     frame = pairs.with_columns(pl.Series("box", box)).with_columns(
         (pl.col("credit") - pl.col("box")).alias("residual")
     )
@@ -468,8 +501,8 @@ def fit(
     trained_on: Mapping[str, Any] | None = None,
 ) -> RatingModel:
     """Fits the rating on `halves` frames (one per match, built with the same `hold`): the
-    box's penalty by predicting the other half of each match with matches held out, the box on
-    every match, the scale, and the two variances of the level."""
+    box's penalty and the level's `k`, both by the squared error of predicting the other half of
+    each match with matches held out; then the box on every match and the scale."""
     frame = pl.concat(frames)
     pairs = _cross_pairs(frame)
     if pairs.height < 20:
@@ -485,11 +518,23 @@ def fit(
     }
     lam = min(errors, key=lambda v: errors[v])
     box = _ridge(x, target, w, lam, BOX_FEATURES)
+    held_out_box = _box_cross_fitted(pairs, lam)
+    credit = pairs["credit"].to_numpy()
+    n = pairs["rounds"].to_numpy()
+    k_errors: dict[float | None, float] = {}
+    for k in LEDGER_ROUNDS:
+        level = np.array(
+            [_level(b, c, int(r), k) for b, c, r in zip(held_out_box, credit, n, strict=True)]
+        )
+        k_errors[k] = float(np.average((level - target) ** 2, weights=w))
+    k_best = min(k_errors, key=lambda v: k_errors[v])
     whole = frame.filter(pl.col("half") == "all", pl.col("rounds") >= MIN_ROUNDS)
     s = float(
         np.std(whole["credit"].to_numpy(), ddof=1) / np.std(whole["hltv1"].to_numpy(), ddof=1)
     )
-    sigma2, tau2 = _variances(pairs, _box_cross_fitted(pairs, lam))
+    if not math.isfinite(s) or s <= 0:
+        raise ValueError("the corpus gives no scale: the credit or HLTV 1.0 does not vary")
+    sigma2, tau2 = _variances(pairs, held_out_box)
     rating = RatingModel(
         version=version,
         model=model,
@@ -498,8 +543,7 @@ def fit(
         points_per_rating=round(s, 4),
         box=box,
         lam=lam,
-        round_variance=round(sigma2, 4),
-        level_variance=round(tau2, 4),
+        ledger_rounds=k_best,
         trained_on={
             **dict(trained_on or {}),
             "player_matches": whole.height,
@@ -507,7 +551,16 @@ def fit(
             "trained": dt.date.today().isoformat(),
         },
     )
-    return RatingModel(**{**rating.__dict__, "validation": validate(frame, rating)})
+    validation = validate(frame, rating)
+    validation["level_error_by_ledger_rounds"] = {
+        ("box only" if k is None else str(int(k))): round(e, 3) for k, e in k_errors.items()
+    }
+    validation["variances"] = {
+        "round": round(sigma2, 2),
+        "level_around_box": round(tau2, 2),
+        "their_ratio": round(sigma2 / tau2, 1) if tau2 > 0 else None,
+    }
+    return RatingModel(**{**rating.__dict__, "validation": validation})
 
 
 METRICS = ("match", "level", "box", "hltv1", "hltv2", "adr", "kd", "swing1")
