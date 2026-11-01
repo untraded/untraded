@@ -33,28 +33,39 @@ export function useLazyPopup<C>(
       : { Component: lazy.current, start: { defaultOpen: false, focusTrigger: false } },
   );
   const wantsOpen = useRef(false);
-  const preload = useCallback(() => {
-    lazy.load().then(
-      (Component) =>
-        setLoaded(
-          (previous) =>
-            previous ?? {
-              Component,
-              start: {
-                defaultOpen: wantsOpen.current,
-                focusTrigger:
-                  standIn.current !== null && document.activeElement === standIn.current,
-              },
-            },
-        ),
-      // The network failed: the stand-in stays, and the next hover or click tries again.
-      () => undefined,
-    );
-  }, [lazy, standIn]);
+  const load = useCallback(
+    (clicked: boolean) => {
+      lazy.load().then(
+        (Component) =>
+          setLoaded((previous) =>
+            // A click can land between a hover's load and its render: it still opens the popup.
+            previous && !(wantsOpen.current && !previous.start.defaultOpen)
+              ? previous
+              : {
+                  Component,
+                  start: {
+                    defaultOpen: wantsOpen.current,
+                    focusTrigger:
+                      standIn.current !== null && document.activeElement === standIn.current,
+                  },
+                },
+          ),
+        () => {
+          // The network failed: the stand-in stays, and the next hover or click tries again. A
+          // click must not open the popup later on its own; and since the code may be gone for
+          // good (a new version deployed since the page loaded), reloading is what a click gets.
+          wantsOpen.current = false;
+          if (clicked) window.location.reload();
+        },
+      );
+    },
+    [lazy, standIn],
+  );
+  const preload = useCallback(() => load(false), [load]);
   const open = useCallback(() => {
     wantsOpen.current = true;
-    preload();
-  }, [preload]);
+    load(true);
+  }, [load]);
   return {
     Component: loaded?.Component,
     start: loaded?.start ?? { defaultOpen: false, focusTrigger: false },
