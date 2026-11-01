@@ -17,7 +17,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel
 
 from untraded_api.deps import ConnDep, UserDep
-from untraded_api.matches import SUMMARY, MatchSummary, summary_fields
+from untraded_api.matches import LINE, MatchSummary, summary_fields
 
 ROUNDS = "rounds"
 """In `metric_definition.cases`: the metric stands on the rounds played."""
@@ -166,24 +166,65 @@ class SessionReport(SessionSummary):
     """The previous session's priorities and their indicators since (vision § 5)."""
 
 
+# The results are counted per session inside the lateral subquery (no GROUP BY on the outer
+# query), so a list ordered by `play_session_recent` and cut by LIMIT counts only the sessions
+# it returns, not every session of the player.
 SESSION = """
-SELECT s.id, s.started_at, s.ended_at, s.matches, s.rounds, s.enough,
-       count(*) FILTER (WHERE r.result = 'win'),
-       count(*) FILTER (WHERE r.result = 'loss'),
-       count(*) FILTER (WHERE r.result = 'tie')
+SELECT s.id, s.started_at, s.ended_at, s.matches, s.rounds, s.enough, r.wins, r.losses, r.ties
 FROM play_session s
-LEFT JOIN LATERAL (
-    SELECT CASE
-        WHEN m.score_a IS NULL THEN NULL
-        WHEN (mp.team = 'A') = (m.score_a > m.score_b) AND m.score_a <> m.score_b THEN 'win'
-        WHEN m.score_a = m.score_b THEN 'tie'
-        ELSE 'loss' END AS result
-    FROM play_session_match sm
-    JOIN match m ON m.id = sm.match_id
-    JOIN match_player mp ON mp.match_id = m.id AND mp.steam_id = s.steam_id
-    WHERE sm.session_id = s.id
-) r ON true
+CROSS JOIN LATERAL (
+    SELECT count(*) FILTER (WHERE x.result = 'win') AS wins,
+           count(*) FILTER (WHERE x.result = 'loss') AS losses,
+           count(*) FILTER (WHERE x.result = 'tie') AS ties
+    FROM (
+        SELECT CASE
+            WHEN m.score_a IS NULL THEN NULL
+            WHEN (mp.team = 'A') = (m.score_a > m.score_b) AND m.score_a <> m.score_b THEN 'win'
+            WHEN m.score_a = m.score_b THEN 'tie'
+            ELSE 'loss' END AS result
+        FROM play_session_match sm
+        JOIN match m ON m.id = sm.match_id
+        JOIN match_player mp ON mp.match_id = m.id AND mp.steam_id = s.steam_id
+        WHERE sm.session_id = s.id
+    ) x
+) r
 WHERE s.steam_id = (SELECT steam_id FROM app_user WHERE id = %(user)s)
+"""
+
+# The session's matches, as the list of matches shows them (`matches.SUMMARY`, same columns).
+# SUMMARY joins the view `metric_wide_current`, which aggregates `metric_value` per match and
+# player: filtered on a match id (a match page), PostgreSQL pushes the filter into the view;
+# joined to the session's matches, it cannot, and aggregates every value of every match in the
+# database (each row also checked by the row-level security of metric_value) before the join.
+# Here the same pivot runs per match in a lateral subquery, through the primary key of
+# metric_value (match_id, steam_id, scope, ...): the cost follows the session, not the database.
+# The pivot must stay that of the view (migrations 0001 and 0012); GROUP BY keeps "no row" when
+# the player has no value, as the view's LEFT JOIN did.
+SESSION_MATCHES = f"""
+SELECT m.id, m.played_at, m.ended_at, m.mode::text, m.status::text, m.map, m.score_a,
+       m.score_b, m.rounds_played, mp.team, w.match_id IS NOT NULL, {LINE}
+FROM play_session_match sm
+JOIN match m ON m.id = sm.match_id
+LEFT JOIN match_player mp
+       ON mp.match_id = m.id
+      AND mp.steam_id = (SELECT steam_id FROM app_user WHERE id = %(user)s)
+LEFT JOIN LATERAL (
+    SELECT v.match_id,
+           max(v.value) FILTER (WHERE v.metric_id = 'base.kills') AS kills,
+           max(v.value) FILTER (WHERE v.metric_id = 'base.deaths') AS deaths,
+           max(v.value) FILTER (WHERE v.metric_id = 'base.adr') AS adr,
+           max(v.value) FILTER (WHERE v.metric_id = 'base.kast') AS kast,
+           max(v.value) FILTER (WHERE v.metric_id = 'rating.hltv1') AS hltv1,
+           max(v.value) FILTER (WHERE v.metric_id = 'trade.untraded_deaths') AS untraded_deaths,
+           max(v.value) FILTER (WHERE v.metric_id = 'rating.untraded') AS untraded
+    FROM metric_value v
+    JOIN metric_current c USING (metric_id, version)
+    WHERE v.match_id = m.id AND v.steam_id = mp.steam_id AND v.scope = 'match'
+      AND v.params_hash = 'default'
+    GROUP BY v.match_id
+) w ON true
+WHERE sm.session_id = %(session)s
+ORDER BY m.played_at, m.id
 """
 
 COMPARISONS = """
@@ -313,7 +354,7 @@ def list_sessions(
     """The user's own sessions, most recent first, with their headline comparisons, their
     maps and their first priority."""
     rows = conn.execute(
-        f"{SESSION} GROUP BY s.id ORDER BY s.started_at DESC LIMIT %(limit)s OFFSET %(offset)s",
+        f"{SESSION} ORDER BY s.started_at DESC LIMIT %(limit)s OFFSET %(offset)s",
         {"user": user, "limit": limit, "offset": offset},
     ).fetchall()
     ids = [row[0] for row in rows]
@@ -330,7 +371,7 @@ def list_sessions(
 def get_session(session_id: uuid.UUID, conn: ConnDep, user: UserDep) -> SessionReport:
     """A session's report: its matches, and every metric against the reference."""
     row = conn.execute(
-        f"{SESSION} AND s.id = %(session)s GROUP BY s.id", {"user": user, "session": session_id}
+        f"{SESSION} AND s.id = %(session)s", {"user": user, "session": session_id}
     ).fetchone()
     if row is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no such session")
@@ -342,12 +383,7 @@ def get_session(session_id: uuid.UUID, conn: ConnDep, user: UserDep) -> SessionR
     ).fetchone()
     assert window is not None
     params = window[4]
-    matches = conn.execute(
-        f"""{SUMMARY}
-        JOIN play_session_match sm ON sm.match_id = m.id AND sm.session_id = %(session)s
-        ORDER BY m.played_at""",
-        {"user": user, "session": session_id},
-    ).fetchall()
+    matches = conn.execute(SESSION_MATCHES, {"user": user, "session": session_id}).fetchall()
     comparisons = _comparisons(conn, [session_id])[session_id]
     advice = conn.execute(
         """
