@@ -21,7 +21,6 @@ export default async function NotFound() {
         <ul className="flex list-disc flex-col gap-1.5 pl-5 text-muted-foreground">
           <li>{t("reasonLink")}</li>
           <li>{t("reasonMatch")}</li>
-          {!me && <li>{t("reasonSignedOut")}</li>}
         </ul>
       </div>
       <div className="flex flex-wrap gap-2">
