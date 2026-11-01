@@ -50,15 +50,23 @@ export function metricDoc(id: string, locale: Locale): MetricDoc | null {
   return doc ? localize(doc, catalogFor(locale)) : null;
 }
 
-/** The families, in order, with their pages and title in a language; the shared conventions. */
-export function metricCatalog(locale: Locale): {
+type MetricCatalog = {
   conventions: string[];
   families: { prefix: string; title: string; docs: MetricDoc[] }[];
-} {
+};
+
+// The pages only change with a new build, so each language's catalog is localised once.
+const catalogs = new Map<Locale, MetricCatalog>();
+let english: Map<string, MetricDoc> | null = null;
+
+/** The families, in order, with their pages and title in a language; the shared conventions. */
+export function metricCatalog(locale: Locale): MetricCatalog {
+  const cached = catalogs.get(locale);
+  if (cached) return cached;
   const { docs, index } = metricDocs();
   const catalog = catalogFor(locale);
   const byId = new Map(docs.map((d) => [d.id, localize(d, catalog)]));
-  return {
+  const result = {
     conventions: index.conventions.map((c) => translate(c, catalog)),
     families: index.families.map((f) => ({
       prefix: f.prefix,
@@ -66,4 +74,12 @@ export function metricCatalog(locale: Locale): {
       docs: f.ids.filter(shown).flatMap((id) => byId.get(id) ?? []),
     })),
   };
+  catalogs.set(locale, result);
+  return result;
+}
+
+/** Every page in the registry's English, by metric id. */
+export function englishDocs(): Map<string, MetricDoc> {
+  english ??= new Map(metricDocs().docs.map((d) => [d.id, d]));
+  return english;
 }

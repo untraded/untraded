@@ -9,7 +9,7 @@ import { Inline } from "@/components/formulas/inline";
 import { Button } from "@/components/ui/button";
 import type { Locale } from "@/i18n/locale";
 import type { MetricDoc } from "@/lib/metric-docs";
-import { metricCatalog, metricDocs } from "@/lib/metric-docs-files";
+import { englishDocs, metricCatalog } from "@/lib/metric-docs-files";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getTranslations("formulas"))("title") };
@@ -38,7 +38,7 @@ export default async function Formulas({
   const t = await getTranslations("formulas");
   const locale = (await getLocale()) as Locale;
   const { conventions, families } = metricCatalog(locale);
-  const english = new Map(metricDocs().docs.map((d) => [d.id, d]));
+  const english = englishDocs();
   const total = families.reduce((sum, f) => sum + f.docs.length, 0);
   const shown = families
     .map((f) => ({

@@ -8,10 +8,39 @@ import type { Comparison, PlayerLine } from "./api";
 
 const DASH = "–";
 
+// Building an `Intl` formatter costs far more than using one, and a page formats hundreds of
+// values: each formatter is built once per locale, options and time zone (the options carry the
+// time zone), then reused. They hold no user data, so sharing them across requests is safe, and the
+// keys stay few: two locales, a handful of options, the IANA time zones.
+const numberFormats = new Map<string, Intl.NumberFormat>();
+const dateFormats = new Map<string, Intl.DateTimeFormat>();
+
+/** The shared number formatter for a locale and options. */
+function numberFormat(locale: string, options: Intl.NumberFormatOptions): Intl.NumberFormat {
+  const key = `${locale}|${JSON.stringify(options)}`;
+  let format = numberFormats.get(key);
+  if (!format) {
+    format = new Intl.NumberFormat(locale, options);
+    numberFormats.set(key, format);
+  }
+  return format;
+}
+
+/** The shared date formatter for a locale and options (time zone included). */
+function dateFormat(locale: string, options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+  const key = `${locale}|${JSON.stringify(options)}`;
+  let format = dateFormats.get(key);
+  if (!format) {
+    format = new Intl.DateTimeFormat(locale, options);
+    dateFormats.set(key, format);
+  }
+  return format;
+}
+
 /** A number with `digits` decimals in the user's language, or a dash when undefined. */
 export function number(value: number | null | undefined, locale: Locale, digits = 0): string {
   if (value === null || value === undefined || !Number.isFinite(value)) return DASH;
-  return new Intl.NumberFormat(locale, {
+  return numberFormat(locale, {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
   }).format(value);
@@ -31,7 +60,7 @@ export function killDiff(line: PlayerLine | null): string {
 
 export function dateTime(iso: string | null, locale: Locale, timeZone: string): string {
   if (!iso) return DASH;
-  return new Intl.DateTimeFormat(locale, {
+  return dateFormat(locale, {
     dateStyle: "medium",
     timeStyle: "short",
     timeZone,
@@ -113,8 +142,8 @@ export function dateRange(
 ): string {
   const start = new Date(startIso);
   const end = new Date(endIso);
-  const day = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone });
-  const time = new Intl.DateTimeFormat(locale, { timeStyle: "short", timeZone });
+  const day = dateFormat(locale, { dateStyle: "medium", timeZone });
+  const time = dateFormat(locale, { timeStyle: "short", timeZone });
   return day.format(start) === day.format(end)
     ? `${day.format(start)}, ${time.format(start)} – ${time.format(end)}`
     : `${dateTime(startIso, locale, timeZone)} – ${dateTime(endIso, locale, timeZone)}`;
@@ -123,7 +152,7 @@ export function dateRange(
 /** A calendar day (`2026-10-18`), as written in the user's language. */
 export function day(isoDate: string, locale: Locale): string {
   const [year = 0, month = 1, date = 1] = isoDate.split("-").map(Number);
-  return new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone: "UTC" }).format(
+  return dateFormat(locale, { dateStyle: "medium", timeZone: "UTC" }).format(
     new Date(Date.UTC(year, month - 1, date)),
   );
 }
@@ -177,15 +206,13 @@ export function gapPercent(value: number | null, locale: Locale): string {
 
 /** A day without the year, for titles: `20 oct.`, `Oct 20`. */
 export function shortDay(iso: string, locale: Locale, timeZone: string): string {
-  return new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", timeZone }).format(
-    new Date(iso),
-  );
+  return dateFormat(locale, { day: "numeric", month: "short", timeZone }).format(new Date(iso));
 }
 
 /** A time of day: `23:00`, `11:00 PM`. */
 export function time(iso: string | null, locale: Locale, timeZone: string): string {
   if (!iso) return DASH;
-  return new Intl.DateTimeFormat(locale, { timeStyle: "short", timeZone }).format(new Date(iso));
+  return dateFormat(locale, { timeStyle: "short", timeZone }).format(new Date(iso));
 }
 
 /**
@@ -239,7 +266,7 @@ export function bytes(
     size /= base;
     unit += 1;
   }
-  return new Intl.NumberFormat(locale, {
+  return numberFormat(locale, {
     style: "unit",
     unit: units[unit],
     unitDisplay: "short",
@@ -250,7 +277,7 @@ export function bytes(
 /** The calendar day of an instant in a time zone: `2026-10-20`. */
 export function localDate(iso: string, timeZone: string): string {
   // `en-CA` writes dates as YYYY-MM-DD.
-  return new Intl.DateTimeFormat("en-CA", { dateStyle: "short", timeZone }).format(new Date(iso));
+  return dateFormat("en-CA", { dateStyle: "short", timeZone }).format(new Date(iso));
 }
 
 /** The Monday of the week a calendar day belongs to (weeks run Monday to Sunday). */
@@ -278,7 +305,7 @@ export function byWeek<T extends { started_at: string }>(
 
 /** A day with its weekday, without the year: `mar. 20 oct.`, `Tue, Oct 20`. */
 export function weekdayDay(iso: string, locale: Locale, timeZone: string): string {
-  return new Intl.DateTimeFormat(locale, {
+  return dateFormat(locale, {
     weekday: "short",
     day: "numeric",
     month: "short",
