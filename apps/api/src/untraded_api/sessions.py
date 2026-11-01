@@ -191,9 +191,9 @@ CROSS JOIN LATERAL (
 WHERE s.steam_id = (SELECT steam_id FROM app_user WHERE id = %(user)s)
 """
 
-# The session's matches, as the list of matches shows them: the same summary (`matches.summary_query`,
-# one pivot of the metric values for the API), over the session's matches only, so the cost
-# follows the session, not the database.
+# The session's matches, as the list of matches shows them: the same summary
+# (`matches.summary_query`, one pivot of the metric values for the API), over the session's
+# matches only, so the cost follows the session, not the database.
 SESSION_MATCHES = (
     summary_query(
         "(SELECT m.* FROM play_session_match sm JOIN match m ON m.id = sm.match_id "
