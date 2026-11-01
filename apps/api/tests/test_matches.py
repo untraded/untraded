@@ -213,7 +213,7 @@ def test_a_round_replay_revalidates_with_its_etag(match_id: uuid.UUID, tmp_path:
         other = me.get(url, headers={"If-None-Match": '"other"'})
         assert (other.status_code, other.headers["etag"]) == (200, etag)
         # A reanalysis rewrites the file: the old tag no longer matches.
-        replay.write_bytes(to_json_gz(replays[10]))
+        replay.write_bytes(to_json_gz(replays[next(n for n in sorted(replays) if n != 11)]))
         assert me.get(url, headers={"If-None-Match": etag}).status_code == 200
         # Someone who may not see the match learns nothing, whatever the header says.
         stranger = as_player(client, STRANGER)
