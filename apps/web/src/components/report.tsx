@@ -32,6 +32,7 @@ import {
   trend,
   trendClass,
 } from "@/lib/format";
+import { shown } from "@/lib/hidden-metrics";
 import { catalogFor } from "@/lib/metric-docs-files";
 
 const FAMILIES = ["base", "rating", "duel", "trade", "clutch", "util", "eco", "pos"];
@@ -74,34 +75,36 @@ export async function Report({
 
   // Metric names in the player's language, from the formulas' catalog; the API gives English.
   const names = catalogFor(locale)?.names ?? {};
-  const rows: GapRow[] = report.metrics.map((c) => {
-    const { kind, gap: value } = compare(c, report.rounds);
-    const name = names[c.metric_id] ?? c.name;
-    const perRound = c.basis === "per_round" ? t("perRound") : null;
-    return {
-      id: c.metric_id,
-      name,
-      formula: formulas("open", { name }),
-      family: families(family(c.metric_id)),
-      perRound,
-      value: metric(c.session, c.unit, c.basis, locale),
-      reference: t("vsReference", { value: metric(c.reference, c.unit, c.basis, locale) }),
-      gap: value,
-      kind,
-      // What a rate stands on, said when it is little: under the name if ranked, in place of the
-      // gap if too few to rank.
-      cases:
-        c.cases !== null && c.cases < FEW_CASES && (kind === "ranked" || kind === "few")
-          ? t("casesOf", { count: c.cases })
-          : null,
-      // A signed metric reads as its difference in units; every other one as a share.
-      gapText:
-        kind === "units"
-          ? [delta(c.delta, c.unit, c.basis, locale), perRound].filter(Boolean).join(" ")
-          : gapPercent(value, locale),
-      trend: kind === "units" ? trend(c) : gapTrend(value),
-    };
-  });
+  const rows: GapRow[] = report.metrics
+    .filter((c) => shown(c.metric_id))
+    .map((c) => {
+      const { kind, gap: value } = compare(c, report.rounds);
+      const name = names[c.metric_id] ?? c.name;
+      const perRound = c.basis === "per_round" ? t("perRound") : null;
+      return {
+        id: c.metric_id,
+        name,
+        formula: formulas("open", { name }),
+        family: families(family(c.metric_id)),
+        perRound,
+        value: metric(c.session, c.unit, c.basis, locale),
+        reference: t("vsReference", { value: metric(c.reference, c.unit, c.basis, locale) }),
+        gap: value,
+        kind,
+        // What a rate stands on, said when it is little: under the name if ranked, in place of the
+        // gap if too few to rank.
+        cases:
+          c.cases !== null && c.cases < FEW_CASES && (kind === "ranked" || kind === "few")
+            ? t("casesOf", { count: c.cases })
+            : null,
+        // A signed metric reads as its difference in units; every other one as a share.
+        gapText:
+          kind === "units"
+            ? [delta(c.delta, c.unit, c.basis, locale), perRound].filter(Boolean).join(" ")
+            : gapPercent(value, locale),
+        trend: kind === "units" ? trend(c) : gapTrend(value),
+      };
+    });
   const byGap = (a: GapRow, b: GapRow) =>
     (a.gap ?? Number.POSITIVE_INFINITY) - (b.gap ?? Number.POSITIVE_INFINITY);
   const groups = FAMILIES.map((key) => ({
@@ -230,8 +233,8 @@ export async function Report({
                     <ResultBadge result={match.my_result} status={match.status} />
                     <span className="col-span-2 text-xs text-muted-foreground">
                       {columns("kd")} {killDiff(match.my_line)},{" "}
-                      {columns(match.my_line?.untraded == null ? "rating" : "urating")}{" "}
-                      {number(match.my_line?.untraded ?? match.my_line?.hltv1, locale, 2)}
+                      {columns(match.my_line?.untraded == null ? "level" : "urating")}{" "}
+                      {number(match.my_line?.untraded ?? match.my_line?.level, locale, 2)}
                     </span>
                   </Link>
                 </li>

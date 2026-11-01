@@ -38,6 +38,9 @@ class PlayerLine(BaseModel):
     untraded_deaths: float | None
     untraded: float | None
     """The Untraded Rating (beta); null for a match analysed before it existed."""
+    level: float | None = None
+    """The Untraded Rating level (what the player is worth, on the same scale); HLTV 1.0
+    (`hltv1`) is kept for the API's readers but no longer shown on the site."""
 
 
 class MatchSummary(BaseModel):
@@ -115,7 +118,7 @@ class PlayerMetrics(BaseModel):
     metrics: list[MetricValue]
 
 
-LINE = "w.kills, w.deaths, w.adr, w.kast, w.hltv1, w.untraded_deaths, w.untraded"
+LINE = "w.kills, w.deaths, w.adr, w.kast, w.hltv1, w.untraded_deaths, w.untraded, w.level"
 
 
 def _wide_line(match: str, steam_id: str) -> str:
@@ -136,7 +139,8 @@ def _wide_line(match: str, steam_id: str) -> str:
            max(v.value) FILTER (WHERE v.metric_id = 'base.kast')   AS kast,
            max(v.value) FILTER (WHERE v.metric_id = 'rating.hltv1') AS hltv1,
            max(v.value) FILTER (WHERE v.metric_id = 'trade.untraded_deaths') AS untraded_deaths,
-           max(v.value) FILTER (WHERE v.metric_id = 'rating.untraded') AS untraded
+           max(v.value) FILTER (WHERE v.metric_id = 'rating.untraded') AS untraded,
+           max(v.value) FILTER (WHERE v.metric_id = 'rating.untraded_level') AS level
     FROM metric_value v
     JOIN metric_current c USING (metric_id, version)
     WHERE v.match_id = {match} AND v.steam_id = {steam_id}
@@ -164,7 +168,7 @@ SUMMARY = summary_query("match")
 
 
 def _line(values: tuple[Any, ...]) -> PlayerLine:
-    kills, deaths, adr, kast, hltv1, untraded_deaths, untraded = values
+    kills, deaths, adr, kast, hltv1, untraded_deaths, untraded, level = values
     return PlayerLine(
         kills=kills,
         deaths=deaths,
@@ -173,6 +177,7 @@ def _line(values: tuple[Any, ...]) -> PlayerLine:
         hltv1=hltv1,
         untraded_deaths=untraded_deaths,
         untraded=untraded,
+        level=level,
     )
 
 
@@ -199,7 +204,7 @@ def summary_fields(row: tuple[Any, ...]) -> dict[str, Any]:
         "rounds_played": rounds,
         "my_team": team,
         "my_result": _result(team, score_a, score_b) if status_ == "ready" else None,
-        "my_line": _line(row[11:18]) if has_line else None,
+        "my_line": _line(row[11:19]) if has_line else None,
     }
 
 
@@ -250,7 +255,7 @@ def get_match(match_id: uuid.UUID, conn: ConnDep, user: UserDep) -> MatchDetail:
         FROM match_player mp
         LEFT JOIN LATERAL ({_wide_line("mp.match_id", "mp.steam_id")}) w ON true
         WHERE mp.match_id = %s
-        ORDER BY mp.team, coalesce(w.untraded, w.hltv1) DESC NULLS LAST, mp.name
+        ORDER BY mp.team, coalesce(w.untraded, w.level) DESC NULLS LAST, mp.name
         """,
         (match_id,),
     ).fetchall()
@@ -283,7 +288,7 @@ def get_match(match_id: uuid.UUID, conn: ConnDep, user: UserDep) -> MatchDetail:
                 team=p[2],
                 rank=p[3],
                 rounds_on_team=p[4],
-                line=_line(p[5:12]),
+                line=_line(p[5:13]),
             )
             for p in players
         ],

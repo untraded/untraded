@@ -101,7 +101,8 @@ def line() -> dict[str, float]:
         "kast": round(rand.uniform(55, 86), 1),
         "hltv1": (hltv1 := round(rand.uniform(0.7, 1.45), 2)),
         "untraded_deaths": rand.randint(1, 9),
-        "untraded": round(hltv1 * rand.uniform(0.85, 1.15), 2),
+        "untraded": (untraded := round(hltv1 * rand.uniform(0.85, 1.15), 2)),
+        "level": round(1 + (untraded - 1) * rand.uniform(0.3, 0.5), 2),
     }
 
 
@@ -237,7 +238,13 @@ def with_cases(values: list[dict[str, Any]], rounds: int) -> list[dict[str, Any]
     return values
 
 
-HEADLINES = ["rating.untraded", "rating.hltv1", "base.adr", "base.kast", "trade.untraded_deaths"]
+HEADLINES = [
+    "rating.untraded",
+    "rating.untraded_level",
+    "base.adr",
+    "base.kast",
+    "trade.untraded_deaths",
+]
 
 
 # Round replays (2D viewer): the five rounds of the `premier-half` fixture (de_cache, rounds 11 to
@@ -432,7 +439,7 @@ KINDS = ["level", "self", "self", "none", "self", "self"] + ["self"] * 17
 # draws something readable: (newest value, oldest value, noise, newest reference, oldest one).
 HEADLINE_TREND = {
     "rating.untraded": (1.07, 0.93, 0.07, 1.02, 0.97),
-    "rating.hltv1": (1.09, 0.92, 0.06, 1.04, 0.96),
+    "rating.untraded_level": (1.04, 0.97, 0.03, 1.01, 0.99),
     "base.adr": (83.0, 72.0, 5.0, 81.0, 76.0),
     "base.kast": (74.0, 66.0, 3.0, 72.0, 69.0),
     "trade.untraded_deaths": (0.30, 0.46, 0.04, 0.35, 0.41),
@@ -589,7 +596,7 @@ def report(n: int) -> dict[str, Any]:
 SIDE_VALUES = {
     "base.kills": (4, 16), "base.deaths": (5, 13), "base.adr": (45, 105), "base.kast": (55, 88),
     "trade.untraded_deaths": (0, 5), "duel.opening_kills": (0, 3), "duel.opening_attempts": (3, 6),
-    "rating.hltv1": (0.55, 1.45),
+    "rating.untraded": (0.55, 1.45), "rating.untraded_level": (0.8, 1.2),
 }  # fmt: skip
 
 

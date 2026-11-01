@@ -180,6 +180,7 @@ def test_a_round_replay_is_served_to_who_may_see_the_match(
 
 
 LINE_KEYS = ("kills", "deaths", "adr", "kast", "hltv1", "untraded_deaths", "untraded")
+"""The view's columns; the routes add `level`."""
 
 
 def _wide_view(match_id: uuid.UUID) -> dict[str, dict[str, float | None]]:
@@ -199,9 +200,14 @@ def test_the_lines_are_those_of_the_wide_view(client: TestClient, match_id: uuid
     assert len(view) == 10
     me = as_player(client, ME)
     detail = me.get(f"/matches/{match_id}").json()
-    assert {p["steam_id"]: p["line"] for p in detail["players"]} == view
-    assert detail["my_line"] == view[str(ME)]
-    assert me.get("/matches").json()["items"][0]["my_line"] == view[str(ME)]
+    lines = {p["steam_id"]: p["line"] for p in detail["players"]}
+    assert {s: {k: line[k] for k in LINE_KEYS} for s, line in lines.items()} == view
+    assert all(line["level"] is not None for line in lines.values())
+    mine = {k: detail["my_line"][k] for k in LINE_KEYS}
+    assert mine == view[str(ME)]
+    listed = me.get("/matches").json()["items"][0]["my_line"]
+    assert {k: listed[k] for k in LINE_KEYS} == view[str(ME)]
+    assert listed["level"] == detail["my_line"]["level"]
 
 
 def test_a_match_without_lines_and_a_hidden_one(client: TestClient, match_id: uuid.UUID) -> None:
@@ -246,10 +252,9 @@ def test_a_match_without_lines_and_a_hidden_one(client: TestClient, match_id: uu
         detail = me.get(f"/matches/{quiet}").json()
         assert detail["my_line"] is None
         lines = {p["steam_id"]: p["line"] for p in detail["players"]}
-        assert lines == {
-            "2": _wide_view(match_id)["2"],
-            str(ME): dict.fromkeys(LINE_KEYS),
-        }
+        assert {k: lines["2"][k] for k in LINE_KEYS} == _wide_view(match_id)["2"]
+        assert lines[str(ME)] == dict.fromkeys([*LINE_KEYS, "level"])
+        assert set(lines) == {"2", str(ME)}
         # The player with a rating comes first in the team.
         assert [p["steam_id"] for p in detail["players"]] == ["2", str(ME)]
         assert me.get(f"/matches/{hidden}").status_code == 404

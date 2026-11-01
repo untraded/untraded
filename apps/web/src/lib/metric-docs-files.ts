@@ -9,6 +9,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import french from "@/content/metric-docs.fr.json";
 import type { Locale } from "@/i18n/locale";
+import { shown } from "./hidden-metrics";
 import {
   localize,
   type MetricDoc,
@@ -42,9 +43,10 @@ export function catalogFor(locale: Locale): MetricDocsCatalog | null {
   return locale === "fr" ? (french as MetricDocsCatalog) : null;
 }
 
-/** One metric's page in a language, or `null` when there is no such metric. */
+/** One metric's page in a language, or `null` when there is no such metric or the site does not
+ * show it (`HIDDEN_METRICS`). */
 export function metricDoc(id: string, locale: Locale): MetricDoc | null {
-  const doc = metricDocs().docs.find((d) => d.id === id);
+  const doc = shown(id) ? metricDocs().docs.find((d) => d.id === id) : undefined;
   return doc ? localize(doc, catalogFor(locale)) : null;
 }
 
@@ -61,7 +63,7 @@ export function metricCatalog(locale: Locale): {
     families: index.families.map((f) => ({
       prefix: f.prefix,
       title: catalog?.families[f.prefix] ?? f.title,
-      docs: f.ids.flatMap((id) => byId.get(id) ?? []),
+      docs: f.ids.filter(shown).flatMap((id) => byId.get(id) ?? []),
     })),
   };
 }

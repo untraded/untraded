@@ -53,11 +53,11 @@ export async function SideSplit({
     ct: number(urating.ct, locale, 2),
     t: number(urating.t, locale, 2),
   });
-  const rating = pair("rating.hltv1");
+  const level = pair("rating.untraded_level");
   rows.push({
-    name: m("rating"),
-    ct: number(rating.ct, locale, 2),
-    t: number(rating.t, locale, 2),
+    name: m("level"),
+    ct: number(level.ct, locale, 2),
+    t: number(level.t, locale, 2),
   });
 
   return (
