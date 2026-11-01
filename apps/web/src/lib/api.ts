@@ -513,13 +513,26 @@ export async function sessionsBack(
   return found;
 }
 
-/** The Untraded Rating of a player in a match: its margin (half its 95 % interval) and the parts
- * it adds up from (`GET /matches/{id}/players/{steam_id}/rating`). */
+/** The parts the Untraded Rating adds up from. */
+export type RatingPartName =
+  | "shooting"
+  | "utility"
+  | "trade"
+  | "objective"
+  | "taken"
+  | "team"
+  | "balance"
+  | "baseline";
+
+/** The Untraded Rating of a player in a match: the match rating (what their actions were worth),
+ * its margin (half its 95 % interval), the parts it adds up from, and the level (what the player
+ * is worth, on the same scale) (`GET /matches/{id}/players/{steam_id}/rating`). */
 export interface RatingDetail {
   value: number | null;
   margin: number | null;
   rounds: number | null;
-  parts: { part: "kills" | "deaths" | "plants" | "defuses" | "baseline"; points: number }[];
+  parts: { part: RatingPartName; points: number }[];
+  level?: number | null;
 }
 
 /** A player's rating detail, an extra the match page stands without. */

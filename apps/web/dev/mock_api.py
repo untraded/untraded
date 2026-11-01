@@ -593,29 +593,28 @@ SIDE_VALUES = {
 
 
 def player_rating(match_id: str, steam_id: str) -> dict[str, Any] | None:
-    """`GET /matches/{id}/players/{steam_id}/rating`, as in `apps/api` (#137): the parts add up
-    to the rating."""
+    """`GET /matches/{id}/players/{steam_id}/rating`, as in `apps/api` (rating 2.0): the parts add
+    up to the match rating, and the level sits closer to 1.00."""
     match = next((m for m in MATCHES if m["id"] == match_id), None)
     if match is None or match["status"] != "ready":
         return None
     value = match["my_line"]["untraded"] if steam_id == ME else round(rand.uniform(0.7, 1.4), 2)
-    kills = round(value * rand.uniform(0.55, 0.75), 2)
-    deaths = -round(rand.uniform(0.15, 0.3), 2)
-    plants = round(rand.uniform(0.0, 0.06), 2)
-    defuses = round(rand.uniform(0.0, 0.04), 2)
-    baseline = round(value - kills - deaths - plants - defuses, 2)
     parts = {
-        "kills": kills,
-        "deaths": deaths,
-        "plants": plants,
-        "defuses": defuses,
-        "baseline": baseline,
+        "shooting": round(rand.uniform(0.6, 1.3), 2),
+        "utility": round(rand.uniform(0.0, 0.12), 2),
+        "trade": round(rand.uniform(0.0, 0.06), 2),
+        "objective": round(rand.uniform(-0.04, 0.08), 2),
+        "taken": -round(rand.uniform(0.7, 1.2), 2),
+        "team": -round(rand.uniform(0.0, 0.02), 2),
+        "baseline": 1.0,
     }
+    parts["balance"] = round(value - sum(parts.values()), 2)
     return {
         "value": value,
-        "margin": round(rand.uniform(0.11, 0.19), 2),
+        "margin": round(rand.uniform(0.3, 0.5), 2),
         "rounds": match["rounds_played"],
         "parts": [{"part": k, "points": v} for k, v in parts.items()],
+        "level": round(1 + (value - 1) * rand.uniform(0.3, 0.5), 2),
     }
 
 

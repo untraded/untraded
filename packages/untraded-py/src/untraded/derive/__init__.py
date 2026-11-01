@@ -19,8 +19,9 @@ from untraded.derive.deaths import build_deaths
 from untraded.derive.players import build_round_players
 from untraded.derive.schema import TABLES
 from untraded.winprob import Model, default_model, swings
+from untraded.winprob.ledger import ledger
 
-__all__ = ["BuyThresholds", "DerivedError", "RoundModel", "derive", "swing_table"]
+__all__ = ["BuyThresholds", "DerivedError", "RoundModel", "derive", "ledger_table", "swing_table"]
 
 
 class DerivedError(ValueError):
@@ -35,6 +36,7 @@ class RoundModel:
     clutch: pl.DataFrame
     team_round: pl.DataFrame
     swing: pl.DataFrame
+    ledger: pl.DataFrame
 
     def tables(self) -> dict[str, pl.DataFrame]:
         return {f.name: getattr(self, f.name) for f in fields(self)}
@@ -50,7 +52,8 @@ def derive(
     winprob: Model | None = None,
 ) -> RoundModel:
     """Derives the round model of one match from its canonical tables. `winprob` is the
-    win-probability model the swings are computed with (default: the published one)."""
+    win-probability model the swings and the ledger are computed with (default: the published
+    one)."""
     tickrate = float(tables["match"]["tickrate"][0])
     rounds = tables["round"]
     states = tables["player_tick"]
@@ -73,6 +76,7 @@ def derive(
         "clutch": build_clutches(death, rounds, states, teams),
         "team_round": build_team_rounds(tables["economy"], rounds, teams, buy_thresholds),
         "swing": swings(tables, winprob or default_model()),
+        "ledger": ledger(tables, winprob or default_model()),
     }
     derived = RoundModel(**{name: _conform(frame, name) for name, frame in model.items()})
     _check(derived)
@@ -82,6 +86,11 @@ def derive(
 def swing_table(tables: Mapping[str, pl.DataFrame], winprob: Model | None = None) -> pl.DataFrame:
     """The `swing` table alone, for matches derived before it existed."""
     return _conform(swings(tables, winprob or default_model()), "swing")
+
+
+def ledger_table(tables: Mapping[str, pl.DataFrame], winprob: Model | None = None) -> pl.DataFrame:
+    """The `ledger` table alone, for matches derived before it existed."""
+    return _conform(ledger(tables, winprob or default_model()), "ledger")
 
 
 def _conform(frame: pl.DataFrame, name: str) -> pl.DataFrame:

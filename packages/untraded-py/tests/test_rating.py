@@ -7,6 +7,7 @@ from __future__ import annotations
 import statistics
 from pathlib import Path
 
+import numpy as np
 import polars as pl
 import pytest
 
@@ -15,6 +16,7 @@ from untraded.derive import derive
 from untraded.metrics import REGISTRY, Dataset, compute, compute_table
 from untraded.winprob import default_model
 from untraded.winprob.rating import RatingScale, default_scale, fit_scale
+from untraded.winprob.rating2 import default_rating
 
 FIXTURES = Path(__file__).parent / "fixtures"
 NAMES = ("premier-half", "premier-abandon", "faceit-bots")
@@ -55,13 +57,15 @@ def test_the_average_player_of_the_measured_matches_rates_one(
     assert RatingScale.from_json(scale.to_json()) == scale
 
 
-def test_the_published_scale_goes_with_the_published_model() -> None:
+def test_the_published_scales_go_with_the_published_model() -> None:
     scale = default_scale()
     assert scale.model == default_model().version
     assert scale.scale > 0
     assert scale.trained_on["matches"] > 0
-    # A new scale is a new version of the rating: they move together.
-    assert (scale.version, REGISTRY["rating.untraded"].version) == ("1.0", "1.0.0")
+    # A new rating file is a new version of the rating: they move together.
+    rating = default_rating()
+    assert rating.model == default_model().version
+    assert (rating.version, REGISTRY["rating.untraded"].version) == ("2.0", "2.0.0")
 
 
 def test_the_rating_adds_up_from_its_parts(matches: list[dict[str, pl.DataFrame]]) -> None:
@@ -77,19 +81,42 @@ def test_the_rating_adds_up_from_its_parts(matches: list[dict[str, pl.DataFrame]
         assert row["margin"] > 0  # wide: the fixture has 5 rounds
         assert row["rounds"] > 1
     assert set(parts["part"].unique().to_list()) == {
-        "kills",
-        "deaths",
-        "plants",
-        "defuses",
+        "shooting",
+        "utility",
+        "trade",
+        "objective",
+        "taken",
+        "team",
+        "balance",
         "baseline",
     }
+
+
+def test_the_average_player_of_a_match_rates_one(matches: list[dict[str, pl.DataFrame]]) -> None:
+    for tables in matches:
+        ds = Dataset.from_matches([tables])
+        values = compute(ds, ["rating.untraded", "rating.untraded_level"]).pivot(
+            "metric", index="steamid", values="value"
+        )
+        rounds = compute_table(ds, "rating.untraded_margin").select("steamid", "rounds")
+        joined = values.join(rounds, on="steamid").drop_nulls()
+        assert joined.height > 0
+        w = joined["rounds"].to_numpy().astype(float)
+        for name in ("rating.untraded", "rating.untraded_level"):
+            assert np.average(joined[name].to_numpy(), weights=w) == pytest.approx(1.0, abs=1e-9)
+        # The level is closer to 1.00 than the match rating: it is the rating to expect.
+        spread = joined.select(
+            (pl.col("rating.untraded") - 1).abs().mean().alias("match"),
+            (pl.col("rating.untraded_level") - 1).abs().mean().alias("level"),
+        ).row(0, named=True)
+        assert spread["level"] < spread["match"]
 
 
 @pytest.mark.parametrize("side", [None, "CT", "T"])
 def test_the_parts_add_up_on_mixed_matches_and_sides(
     matches: list[dict[str, pl.DataFrame]], side: str | None
 ) -> None:
-    older = {name: frame for name, frame in matches[1].items() if name != "swing"}
+    older = {name: frame for name, frame in matches[1].items() if name != "ledger"}
     ds = Dataset.from_matches([matches[0], older, matches[2]])
     if side is not None:
         ds = ds.split(side=side)
@@ -103,10 +130,10 @@ def test_the_parts_add_up_on_mixed_matches_and_sides(
         assert row["points"] == pytest.approx(row["value"], abs=1e-6)
 
 
-def test_without_swings_there_is_no_rating(matches: list[dict[str, pl.DataFrame]]) -> None:
-    older = {name: frame for name, frame in matches[0].items() if name != "swing"}
+def test_without_a_ledger_there_is_no_rating(matches: list[dict[str, pl.DataFrame]]) -> None:
+    older = {name: frame for name, frame in matches[0].items() if name != "ledger"}
     ds = Dataset.from_matches([older])
-    values = compute(ds, ["rating.untraded"])
+    values = compute(ds, ["rating.untraded", "rating.untraded_level"])
     assert values["value"].null_count() == values.height
     assert compute_table(ds, "rating.untraded_parts").is_empty()
     assert compute_table(ds, "rating.untraded_margin").is_empty()

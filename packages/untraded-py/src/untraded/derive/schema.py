@@ -18,6 +18,8 @@ Columns = dict[str, pl.DataType | type[pl.DataType]]
 
 BuyType = pl.Enum(["pistol", "eco", "semi", "force", "full"])
 SwingEvent = pl.Enum(["kill", "plant", "defuse"])
+LedgerEvent = pl.Enum(["damage", "kill", "plant", "defuse", "hold", "end"])
+LedgerPart = pl.Enum(["shooting", "utility", "trade", "objective", "hold", "taken", "team"])
 
 _ROUND_PLAYER: Columns = {
     "round": pl.Int16,
@@ -93,6 +95,18 @@ _SWING: Columns = {
     "p_ct_after": pl.Float32,
 }
 
+_LEDGER: Columns = {
+    "round": pl.Int16,
+    "tick": pl.Int32,
+    "event": LedgerEvent,
+    "steamid": pl.UInt64,
+    "side": Side,
+    "part": LedgerPart,
+    "credit": pl.Float64,
+    "p_ct_before": pl.Float32,
+    "p_ct_after": pl.Float32,
+}
+
 TABLES: dict[str, pl.Schema] = {
     "round_player": pl.Schema(_ROUND_PLAYER),
     "death": pl.Schema(_DEATH),
@@ -100,4 +114,5 @@ TABLES: dict[str, pl.Schema] = {
     "clutch": pl.Schema(_CLUTCH),
     "team_round": pl.Schema(_TEAM_ROUND),
     "swing": pl.Schema(_SWING),
+    "ledger": pl.Schema(_LEDGER),
 }

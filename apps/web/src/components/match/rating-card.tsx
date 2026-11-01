@@ -7,13 +7,22 @@ import type { RatingDetail } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { number } from "@/lib/format";
 
-/** The order the parts read in: what was done, then the baseline that sets the scale. */
-const ORDER = ["kills", "deaths", "plants", "defuses", "baseline"] as const;
+/** The order the parts read in: what was done, what it cost, then the scale's own parts. */
+const ORDER = [
+  "shooting",
+  "utility",
+  "trade",
+  "objective",
+  "taken",
+  "team",
+  "balance",
+  "baseline",
+] as const;
 
 /**
- * The player's Untraded Rating (beta) in this match: its value and margin, then the parts it adds
- * up from, each a signed bar (kills earn, deaths cost, the baseline brings 1.00 to the average
- * player). Links to its formula.
+ * The player's Untraded Rating (beta) in this match: the match rating and its margin, the level
+ * (what the player is worth, on the same scale), then the parts the match rating adds up from,
+ * each a signed bar. Links to its formula.
  */
 export async function RatingCard({
   rating,
@@ -67,6 +76,16 @@ export async function RatingCard({
               </span>
             )}
           </p>
+          {rating.level != null && (
+            <p className="text-sm text-muted-foreground">
+              {t.rich("level", {
+                level: number(rating.level, locale, 2),
+                b: (chunks) => (
+                  <span className="font-semibold text-foreground tabular-nums">{chunks}</span>
+                ),
+              })}
+            </p>
+          )}
           {parts.length > 0 && (
             <ul className="flex flex-col gap-1.5">
               {parts.map((p) => (

@@ -150,6 +150,14 @@ LIMITS: dict[str, tuple[str, ...]] = {
         "Beta: the scale is measured on a small corpus of high-level matches (docs/winprob.md). "
         "A new model or a larger corpus gives a new scale, which bumps this metric's version.",
         "Read it with its margin (`rating.untraded_margin`): over one match, it is wide.",
+        "What the player's actions were worth in the match, noisy over one match: for what the "
+        "player is worth, read `rating.untraded_level`.",
+    ),
+    "rating.untraded_level": (
+        "Beta: fitted on 54 high-level matches (docs/winprob.md). Over one match it is the box "
+        "score's prediction; how fast the ledger should take over across matches is not measured "
+        "yet.",
+        "Closer to 1.00 than the match rating by design: it is the match rating to expect.",
     ),
     "rating.untraded_margin": (
         "It only counts the spread of the player's own rounds, not the model's uncertainty.",
@@ -185,9 +193,22 @@ _RECURRING = (
 
 CHANGES: dict[str, dict[str, str]] = {
     "base.assist_score": {"1.0.0": "First version (#43)."},
-    "rating.untraded": {"1.0.0": "First version, the beta of the open rating (#137)."},
-    "rating.untraded_margin": {"1.0.0": "First version, the beta of the open rating (#137)."},
-    "rating.untraded_parts": {"1.0.0": "First version, the beta of the open rating (#137)."},
+    "rating.untraded": {
+        "1.0.0": "First version, the beta of the open rating (#137).",
+        "2.0.0": "The Untraded Rating 2.0: the ledger's credit per round (every change of the "
+        "round's win probability credited, the hold left out), on a scale fitted on 54 matches "
+        "(s = 15.31); the average player of a match is 1.00 by construction (#153 to #157).",
+    },
+    "rating.untraded_level": {"1.0.0": "First version, with the Untraded Rating 2.0 (#157)."},
+    "rating.untraded_margin": {
+        "1.0.0": "First version, the beta of the open rating (#137).",
+        "2.0.0": "The margin of the rating 2.0: the spread of the ledger's credit per round.",
+    },
+    "rating.untraded_parts": {
+        "1.0.0": "First version, the beta of the open rating (#137).",
+        "2.0.0": "The parts of the rating 2.0: shooting, utility, trade, objective, taken, team, "
+        "balance and baseline.",
+    },
     "rating.swing": {
         "1.0.0": "First version, with the win-probability model 1.0 (#125).",
         "1.1.0": "Nothing is credited once the round is decided: a death to the bomb's explosion "

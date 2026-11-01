@@ -17,7 +17,8 @@ from untraded.metrics.base import kast_round
 from untraded.metrics.dataset import Dataset
 from untraded.metrics.registry import ROUNDS, ParamValue, metric
 from untraded.ratings import rating_hltv_1, rating_hltv_2_approx
-from untraded.winprob.rating import Z95, default_scale
+from untraded.winprob.rating import Z95
+from untraded.winprob.rating2 import default_rating
 
 KAST = {"trade.window_s": 5.0, "kast.count_flash_assist": False}
 
@@ -128,73 +129,167 @@ def swing(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
     return per_player(ds, values, fill=None)
 
 
-def _rounds_with_swings(ds: Dataset, credits: pl.DataFrame) -> pl.DataFrame:
-    """The kept rounds of the matches that have swings: `match_id`, `round`, `steamid`."""
-    return ds.played.join(credits.select("match_id").unique(), on="match_id", how="semi").select(
-        "match_id", "round", "steamid"
+RATING_PARTS = ("shooting", "utility", "trade", "objective", "taken", "team")
+"""The ledger's parts the match rating adds up from (the hold is left out, docs/winprob.md)."""
+
+
+def _ledger_rounds(ds: Dataset) -> pl.DataFrame | None:
+    """Every player's ledger credit in every round with a ledger, in percentage points, the hold
+    left out and recentred so that the round's players average zero (`untraded.winprob.rating2`):
+    `match_id`, `round`, `steamid`, `credit`, one column per `RATING_PARTS` and `balance` (the
+    recentring), which add up to `credit`. Only the player's kept rounds. None without a ledger
+    (tables derived before it existed)."""
+    if "ledger" not in ds.tables:
+        return None
+    ledger = ds["ledger"].filter(pl.col("part").cast(pl.String) != "hold")
+    rounds = ds["ledger"].select("match_id", "round").unique()
+    players = (
+        ds["round_player"]
+        .select("match_id", "round", "steamid")
+        .join(rounds, on=["match_id", "round"], how="semi")
     )
+    parts = (
+        ledger.with_columns(pl.col("part").cast(pl.String))
+        .group_by("match_id", "round", "steamid", "part")
+        .agg((pl.col("credit").sum() * 100).alias("points"))
+        .pivot("part", index=["match_id", "round", "steamid"], values="points")
+    )
+    for part in RATING_PARTS:
+        if part not in parts.columns:
+            parts = parts.with_columns(pl.lit(0.0).alias(part))
+    per = (
+        players.join(parts, on=["match_id", "round", "steamid"], how="left")
+        .with_columns(pl.col(p).cast(pl.Float64).fill_null(0.0) for p in RATING_PARTS)
+        .with_columns(pl.sum_horizontal(*RATING_PARTS).alias("raw"))
+        .with_columns((-pl.col("raw").mean().over("match_id", "round")).alias("balance"))
+        .with_columns((pl.col("raw") + pl.col("balance")).alias("credit"))
+        .drop("raw")
+    )
+    return ds.kept(per)
 
 
 _UNTRADED_DOC = (
-    "1 + (swing per round - m) / k, the swing per round being `rating.swing`. m is the corpus's "
-    "swing per round (all rounds pooled): the average player rates 1.00. k is the swing worth "
-    "1.00, chosen so that the rating spreads over the corpus's player-matches as HLTV 1.0 does. "
-    "Both are published with the win-probability model (`rating-v1.json`, docs/winprob.md). Beta: "
-    "measured on a small corpus of high-level matches."
+    "The match rating: 1 + credit / s, the credit being the player's ledger credit per round "
+    "played (docs/winprob.md: every change of the round's win probability credited, the hold "
+    "left out and each round recentred so that its players average zero), in percentage points. "
+    "s is the credit worth 1.00, chosen so that the rating spreads over the corpus's "
+    "player-matches as HLTV 1.0 does (`rating-v2.json`): 1.00 is the average player of the "
+    "match, a 1.20 reads as at HLTV. What the player's actions were worth; "
+    "`rating.untraded_level` says what the player is worth. Beta: measured on 54 high-level "
+    "matches."
 )
 
 
 @metric(
     "rating.untraded",
-    version="1.0.0",
+    version="2.0.0",
     name="Untraded Rating",
     unit="ratio",
     better="higher",
     cases=(ROUNDS,),
-    uses=("swing", "round_player"),
+    uses=("ledger", "round_player"),
     doc=_UNTRADED_DOC,
 )
-def untraded(ds: Dataset, p: Mapping[str, ParamValue]) -> pl.DataFrame:
-    scale = default_scale()
-    return swing(ds, p).with_columns(
-        (1 + (pl.col("value") - scale.mean) / scale.scale).alias("value")
+def untraded(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
+    rounds = _ledger_rounds(ds)
+    if rounds is None:  # tables derived before the ledger: no value, rather than a wrong one
+        return per_player(ds, _frame([]), fill=None)
+    s = default_rating().points_per_rating
+    values = rounds.group_by("steamid").agg((1 + pl.col("credit").mean() / s).alias("value"))
+    return per_player(ds, values, fill=None)
+
+
+@metric(
+    "rating.untraded_level",
+    version="1.0.0",
+    name="Untraded Rating level",
+    unit="ratio",
+    better="higher",
+    cases=(ROUNDS,),
+    uses=("ledger", "round_player"),
+    doc="The level: what the player is worth, on the scale of `rating.untraded` (1.00 = the "
+    "average player). A ridge regression of the ledger's credit on kills, deaths and damage per "
+    "round, trained to predict the credit of rounds it has not seen (`rating-v2.json`), centred "
+    "on each match's players; the ledger's credit then corrects it by n / (n + k) as rounds add "
+    "up (on 54 matches the box alone predicted best, so k is not set yet and the level is the "
+    "box). Closer to 1.00 than the match rating, as an estimate should be. Over several matches, "
+    "the round-weighted average of each match's level.",
+)
+def untraded_level(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
+    rounds = _ledger_rounds(ds)
+    if rounds is None:
+        return per_player(ds, _frame([]), fill=None)
+    rating = default_rating()
+    stats = ds.round_players().select(
+        "match_id",
+        "round",
+        "steamid",
+        pl.col("kills").cast(pl.Float64).alias("kpr"),
+        pl.col("deaths").cast(pl.Float64).alias("dpr"),
+        (pl.col("damage").cast(pl.Float64) / 100).alias("adr"),
     )
+    per_match = (
+        rounds.join(stats, on=["match_id", "round", "steamid"])
+        .group_by("match_id", "steamid")
+        .agg(
+            pl.len().alias("n"),
+            pl.col("credit").mean(),
+            *(pl.col(f).mean() for f in rating.box.features),
+        )
+    )
+    if per_match.is_empty():
+        return per_player(ds, _frame([]), fill=None)
+    box = rating.box.predict(per_match.select(rating.box.features).to_numpy())
+    per_match = per_match.with_columns(pl.Series("box", box)).with_columns(
+        (
+            pl.col("box")
+            - (pl.col("box") * pl.col("n")).sum().over("match_id")
+            / pl.col("n").sum().over("match_id")
+        ).alias("box")
+    )
+    totals = per_match.group_by("steamid").agg(
+        pl.col("n").sum(),
+        ((pl.col("box") * pl.col("n")).sum() / pl.col("n").sum()).alias("box"),
+        ((pl.col("credit") * pl.col("n")).sum() / pl.col("n").sum()).alias("credit"),
+    )
+    values = [
+        {
+            "steamid": row["steamid"],
+            "value": 1
+            + rating.level(row["box"], row["credit"], int(row["n"])) / rating.points_per_rating,
+        }
+        for row in totals.iter_rows(named=True)
+    ]
+    return per_player(ds, _frame(values), fill=None)
 
 
 @metric(
     "rating.untraded_margin",
-    version="1.0.0",
+    version="2.0.0",
     name="Untraded Rating margin",
     unit="table",
     better="neutral",
     kind="table",
-    uses=("swing", "round_player"),
+    uses=("ledger", "round_player"),
     doc="Half-width of the 95 % interval of `rating.untraded`: 1.96 x the standard deviation of "
-    "the player's swing per round / sqrt(rounds) / k. A rating over few rounds is a rough one. "
+    "the player's credit per round / sqrt(rounds) / s. A rating over few rounds is a rough one. "
     "Columns: `steamid`, `rounds`, `margin` (null under 2 rounds).",
 )
 def untraded_margin(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
     schema = pl.Schema({"steamid": pl.UInt64, "rounds": pl.Int64, "margin": pl.Float64})
-    if "swing" not in ds.tables:
+    rounds = _ledger_rounds(ds)
+    if rounds is None:
         return pl.DataFrame(schema=schema)
-    credits = ds.kept(ds["swing"])
-    per_round = credits.group_by("match_id", "round", "steamid").agg(
-        (pl.col("swing").cast(pl.Float64).sum() * 100).alias("points")
-    )
-    # Every kept round counts, the ones without a credit as 0.
-    rounds = _rounds_with_swings(ds, credits).join(
-        per_round, on=["match_id", "round", "steamid"], how="left"
-    )
+    s = default_rating().points_per_rating
     spread = rounds.group_by("steamid").agg(
-        pl.len().alias("rounds"), pl.col("points").fill_null(0.0).std().alias("sd")
+        pl.len().alias("rounds"), pl.col("credit").std().alias("sd")
     )
-    k = default_scale().scale
     return (
         spread.select(
             "steamid",
             "rounds",
             pl.when(pl.col("rounds") > 1)
-            .then(Z95 * pl.col("sd") / pl.col("rounds").cast(pl.Float64).sqrt() / k)
+            .then(Z95 * pl.col("sd") / pl.col("rounds").cast(pl.Float64).sqrt() / s)
             .alias("margin"),
         )
         .cast(schema)
@@ -204,46 +299,30 @@ def untraded_margin(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
 
 @metric(
     "rating.untraded_parts",
-    version="1.0.0",
+    version="2.0.0",
     name="Untraded Rating by action",
     unit="table",
     better="neutral",
     kind="table",
-    uses=("swing", "round_player"),
-    doc="Where `rating.untraded` comes from, in rating points: `kills` (the kill credits that "
-    "helped the player's side: the shares of the kills they made or helped, by damage and flash), "
-    "`deaths` (the kill credits that hurt it: their deaths, and team kills), "
-    "`plants`, `defuses`, and `baseline` (1 - m / k), so that the parts add up to the rating. "
-    "Columns: `steamid`, `part`, `points`.",
+    uses=("ledger", "round_player"),
+    doc="Where `rating.untraded` comes from, in rating points: `shooting` (damage and kills with "
+    "guns, the player's shares of the kills they made or helped), `utility` (grenade damage and "
+    "kills, flashes on the victims), `trade` (the share given back when a teammate trades the "
+    "player's killer), `objective` (plants and defuses, and their cost to the other side), "
+    "`taken` (damage and deaths suffered), `team` (harm to one's own side), `balance` (the "
+    "recentring that keeps the round's average player at zero) and `baseline` (1.00), so that the "
+    "parts add up to the rating. Columns: `steamid`, `part`, `points`.",
 )
 def untraded_parts(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
     schema = pl.Schema({"steamid": pl.UInt64, "part": pl.String, "points": pl.Float64})
-    if "swing" not in ds.tables:
+    rounds = _ledger_rounds(ds)
+    if rounds is None or rounds.is_empty():
         return pl.DataFrame(schema=schema)
-    scale = default_scale()
-    credits = ds.kept(ds["swing"])
-    rounds = _rounds_with_swings(ds, credits).group_by("steamid").agg(pl.len().alias("rounds"))
-    event = pl.col("event").cast(pl.String)
-    part = (
-        pl.when(event == "kill")
-        .then(pl.when(pl.col("swing") >= 0).then(pl.lit("kills")).otherwise(pl.lit("deaths")))
-        .when(event == "plant")
-        .then(pl.lit("plants"))
-        .otherwise(pl.lit("defuses"))
-    )
-    parts = ["kills", "deaths", "plants", "defuses"]
-    grid = rounds.join(pl.DataFrame({"part": parts}), how="cross")
-    sums = credits.group_by("steamid", part.alias("part")).agg(
-        pl.col("swing").cast(pl.Float64).sum().alias("swing")
-    )
-    points = grid.join(sums, on=["steamid", "part"], how="left").select(
-        "steamid",
-        "part",
-        (pl.col("swing").fill_null(0.0) * 100 / pl.col("rounds") / scale.scale).alias("points"),
-    )
-    baseline = rounds.select(
-        "steamid",
-        pl.lit("baseline").alias("part"),
-        pl.lit(1 - scale.mean / scale.scale).alias("points"),
+    s = default_rating().points_per_rating
+    names = [*RATING_PARTS, "balance"]
+    means = rounds.group_by("steamid").agg(pl.col(p).mean() / s for p in names)
+    points = means.unpivot(index="steamid", on=names, variable_name="part", value_name="points")
+    baseline = means.select(
+        "steamid", pl.lit("baseline").alias("part"), pl.lit(1.0).alias("points")
     )
     return pl.concat([points, baseline]).cast(schema).sort("steamid", "part")

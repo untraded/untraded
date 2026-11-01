@@ -536,15 +536,19 @@
       "margin": "± {margin}",
       "rounds": "over {rounds} rounds",
       "parts": {
-        "kills": "Kills",
-        "deaths": "Deaths",
-        "plants": "Plants",
-        "defuses": "Defuses",
+        "shooting": "Shooting",
+        "utility": "Utility",
+        "trade": "Trades",
+        "objective": "Objective",
+        "taken": "Damage taken",
+        "team": "Own team",
+        "balance": "Round balance",
         "baseline": "Baseline"
       },
-      "hint": "Each action earns or costs points of round win probability. The baseline brings the scale to 1.00 for the average player. The margin gives the 95 % interval.",
+      "hint": "Every change of the round's win probability goes to a player: shooting, utility, trades and the objective earn, damage taken costs. The baseline puts the average player at 1.00. The margin gives the 95 % interval.",
       "formula": "Formula",
-      "none": "No Untraded Rating for this match yet: it was analysed before the rating existed."
+      "none": "No Untraded Rating for this match yet: it was analysed before the rating existed.",
+      "level": "Level: <b>{level}</b>, what you are worth on the same scale (from your kills, deaths and damage, calibrated on round win probability)"
     },
     "notes": {
       "title": "{count, plural, one {# note on how this demo was analysed} other {# notes on how this demo was analysed}}",
