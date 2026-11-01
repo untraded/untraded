@@ -22,9 +22,10 @@ from typing import Any
 import numpy as np
 import polars as pl
 
-from untraded.winprob.features import MONOTONE, NUMERIC
+from untraded.winprob.features import MONOTONE, NUMERIC_V2
 
 FORMAT_VERSION = 1
+MAP_PREFIX = "map="
 
 
 @dataclass(frozen=True)
@@ -32,8 +33,8 @@ class Model:
     version: str
     """The model's version, e.g. `1.0`: bumped whenever the coefficients change."""
     features: list[str]
-    """Input names, in coefficient order: `NUMERIC`, then `map=<name>` for each map but the
-    baseline."""
+    """Input names, in coefficient order: the numeric features (`NUMERIC` for model 1,
+    `NUMERIC_V2` for model 2), then `map=<name>` for each map but the baseline."""
     mean: list[float]
     scale: list[float]
     coef: list[float]
@@ -46,9 +47,14 @@ class Model:
     validation: dict[str, Any] = field(default_factory=dict)
     """`untraded.winprob.validation.evaluate` on matches held out, newest last."""
 
+    @property
+    def numeric(self) -> list[str]:
+        """The numeric features, in coefficient order."""
+        return [name for name in self.features if not name.startswith(MAP_PREFIX)]
+
     def design(self, frame: pl.DataFrame) -> np.ndarray:
-        """The standardized input matrix of `frame` (columns `NUMERIC` and `map`)."""
-        numeric = frame.select(NUMERIC).to_numpy().astype(float)
+        """The standardized input matrix of `frame` (its `numeric` columns and `map`)."""
+        numeric = frame.select(self.numeric).to_numpy().astype(float)
         maps = frame["map"].to_list()
         dummies = np.array(
             [[1.0 if m == name else 0.0 for name in self.maps[1:]] for m in maps], dtype=float
@@ -117,15 +123,17 @@ def fit(
     *,
     version: str,
     l2: float = 1.0,
+    numeric: Sequence[str] = NUMERIC_V2,
     monotone: Mapping[str, int] = MONOTONE,
     trained_on: Mapping[str, Any] | None = None,
 ) -> Model:
-    """Fits the model on `frame` (`untraded.winprob.features.samples`, several matches)."""
+    """Fits the model on `frame` (`untraded.winprob.features.samples`, several matches), on the
+    `numeric` features and the map."""
     maps = sorted(set(frame["map"].to_list()))
-    names = [*NUMERIC, *(f"map={m}" for m in maps[1:])]
-    numeric = frame.select(NUMERIC).to_numpy().astype(float)
+    names = [*numeric, *(f"{MAP_PREFIX}{m}" for m in maps[1:])]
+    numeric_values = frame.select(numeric).to_numpy().astype(float)
     dummies = np.array([[1.0 if m == name else 0.0 for name in maps[1:]] for m in frame["map"]])
-    raw = np.hstack([numeric, dummies.reshape(frame.height, len(maps) - 1)])
+    raw = np.hstack([numeric_values, dummies.reshape(frame.height, len(maps) - 1)])
     mean, scale = raw.mean(axis=0), raw.std(axis=0)
     scale[scale == 0] = 1.0
     x = (raw - mean) / scale

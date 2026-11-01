@@ -210,6 +210,13 @@ def _parser() -> argparse.ArgumentParser:
     train.add_argument("--version", required=True, help="the model's version, e.g. 1.0")
     train.add_argument("--l2", type=float, default=1.0, help="L2 penalty (default 1.0)")
     train.add_argument(
+        "--features",
+        choices=["auto", *sorted(winprob.FEATURE_SETS)],
+        default="auto",
+        help="the model's features: auto keeps model 1's and each family of model 2 that earns "
+        "its place in cross-validation (default); v1 or v2 take them all",
+    )
+    train.add_argument(
         "--held-out", type=float, default=0.3, help="share of the newest matches held out (0.3)"
     )
     train.add_argument(
@@ -311,6 +318,11 @@ def _winprob_train(args: argparse.Namespace) -> int:
         held_out=args.held_out,
         l2=args.l2,
         trained_on=winprob.model.describe(frame, args.sources),
+        **(
+            {"select": True}
+            if args.features == "auto"
+            else {"numeric": winprob.FEATURE_SETS[args.features]}
+        ),
     )
     model.save(args.out)
     report_ = model.validation
@@ -319,9 +331,26 @@ def _winprob_train(args: argparse.Namespace) -> int:
         f"{model.trained_on['samples']} samples -> {args.out}"
     )
     print(f"held out: {report_['test_matches']} newest matches, {report_['test_rounds']} rounds")
-    for name in ("model", "baseline_alive_only", "baseline_ct_rate", "before_plant", "after_plant"):
+    names = (
+        "model",
+        "baseline_v1_features",
+        "baseline_alive_only",
+        "baseline_ct_rate",
+        "before_plant",
+        "after_plant",
+        "contested",
+        "brier_parts",
+    )
+    for name in names:
         if report_.get(name):
             print(f"  {name:20} {json.dumps(report_[name])}")
+    for name, gain in report_["gain_over"].items():
+        print(f"  log loss gain over {name}: {json.dumps(gain)}")
+    for point in report_["learning_curve"]:
+        print(f"  learning curve: {json.dumps(point)}")
+    for step in report_.get("selection", []):
+        print(f"  selection: kept {step['kept']}, tried {json.dumps(step['candidates'])}")
+    print(f"  features: {', '.join(model.numeric)}")
     return 0
 
 
