@@ -48,13 +48,16 @@ export async function Loading({
   announce?: boolean;
 }) {
   const t = await getTranslations("loading");
+  // The label sits outside the busy region: screen readers keep quiet inside one.
   return (
-    <div aria-busy="true" className={className}>
+    <>
       <span role={announce ? "status" : undefined} className="sr-only">
         {t("label")}
       </span>
-      {children}
-    </div>
+      <div aria-busy="true" className={className}>
+        {children}
+      </div>
+    </>
   );
 }
 
