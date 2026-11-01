@@ -247,6 +247,16 @@ def _parser() -> argparse.ArgumentParser:
     study.add_argument("--model", type=Path, help="a model file (default: the published model)")
     study.add_argument("--out", type=Path, help="where to write the study (JSON)")
     study.set_defaults(run=_winprob_shares)
+    fit2 = wp_actions.add_parser(
+        "rating-fit",
+        help="fit and validate the Untraded Rating 2.0 on parsed matches (pass consenting "
+        "players' only, ADR 0010; pro matches are left out)",
+    )
+    fit2.add_argument("matches", type=Path, nargs="+", help="match directories")
+    fit2.add_argument("--model", type=Path, help="a model file (default: the published model)")
+    fit2.add_argument("--out", type=Path, required=True, help="the rating file to write (JSON)")
+    fit2.add_argument("--version", required=True, help="the rating's version, e.g. 2.0")
+    fit2.set_defaults(run=_winprob_rating_fit)
     scale = wp_actions.add_parser(
         "rating-scale", help="measure the Untraded Rating's scale on parsed matches"
     )
@@ -367,6 +377,61 @@ def _winprob_train(args: argparse.Namespace) -> int:
     for step in report_.get("selection", []):
         print(f"  selection: kept {step['kept']}, tried {json.dumps(step['candidates'])}")
     print(f"  features: {', '.join(model.numeric)}")
+    return 0
+
+
+def _winprob_rating_fit(args: argparse.Namespace) -> int:
+    from dataclasses import asdict
+
+    from untraded.winprob import rating2
+
+    model = winprob.Model.load(args.model) if args.model else winprob.default_model()
+    shares = winprob.ledger.DEFAULT_SHARES
+    by_hold: dict[bool, dict[str, pl.DataFrame]] = {True: {}, False: {}}
+    for directory in args.matches:
+        try:
+            tables = CanonicalMatch.read(directory).tables()
+            if tables["match"]["mode"][0] == "pro":
+                print(f"{directory}: a pro match, left out", file=sys.stderr)  # ADR 0010
+                continue
+            match_id = str(tables["match"]["match_id"][0])
+            derived = derive(tables).tables()
+            credits = winprob.ledger.ledger(tables, model, shares)
+        except (IndexError, ValueError, OSError) as error:
+            print(f"{directory}: left out ({error})", file=sys.stderr)
+            continue
+        for hold in (True, False):
+            rounds = rating2.per_round(tables, derived, credits, hold=hold)
+            by_hold[hold][match_id] = rating2.halves(rounds, match_id)
+    fitted = {
+        hold: rating2.fit(
+            list(frames.values()),
+            version=args.version,
+            model=model.version,
+            shares=asdict(shares),
+            hold=hold,
+            trained_on={"sources": sorted({"valve-premier", "faceit"})},
+        )
+        for hold, frames in by_hold.items()
+    }
+    # The hold counts only if it helps the level predict the other half (both targets).
+    better = all(
+        fitted[True].validation[f"predicts_other_half_{t}"]["level"]
+        > fitted[False].validation[f"predicts_other_half_{t}"]["level"]
+        for t in ("credit", "hltv1")
+    )
+    rating = fitted[better]
+    print(f"{len(by_hold[True])} matches, model {model.version}")
+    for hold, fit in fitted.items():
+        print(
+            f"hold {'in' if hold else 'out'}: lambda {fit.lam}, s {fit.points_per_rating}, "
+            f"sigma2 {fit.round_variance}, tau2 {fit.level_variance}, k {fit.ledger_rounds:.0f}, "
+            f"box {dict(zip(fit.box.features, [round(c, 3) for c in fit.box.coef], strict=True))}"
+        )
+        for key, value in fit.validation.items():
+            print(f"  {key}: {json.dumps(rating2._finite(value))}")
+    rating.save(args.out)
+    print(f"hold {'in' if rating.hold else 'out'} -> {args.out}")
     return 0
 
 

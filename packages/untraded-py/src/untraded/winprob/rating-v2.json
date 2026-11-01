@@ -1,0 +1,121 @@
+{
+  "format": 1,
+  "version": "2.0",
+  "model": "1.0",
+  "shares": {
+    "final": 0.35,
+    "damage": 0.3,
+    "flash": 0.15,
+    "trade": 0.2,
+    "plant": 0.5,
+    "defuse": 0.7,
+    "trade_window": 5.0,
+    "flash_min": 1.1
+  },
+  "hold": false,
+  "points_per_rating": 15.3095,
+  "box": {
+    "features": [
+      "kpr",
+      "dpr",
+      "adr"
+    ],
+    "mean": [
+      0.7209080668919504,
+      0.7279265228316437,
+      0.7937873667793084
+    ],
+    "scale": [
+      0.2887205559961158,
+      0.14775082785855198,
+      0.25396695873327363
+    ],
+    "coef": [
+      0.4727958838098442,
+      -0.8078890909442412,
+      0.824225387236634
+    ],
+    "intercept": 0.018876482969061355
+  },
+  "lam": 100.0,
+  "round_variance": 461.4283,
+  "level_variance": 5.2284,
+  "trained_on": {
+    "sources": [
+      "faceit",
+      "valve-premier"
+    ],
+    "player_matches": 518,
+    "matches": 52,
+    "trained": "2026-11-01"
+  },
+  "validation": {
+    "player_halves": 1036,
+    "predicts_other_half_credit": {
+      "match": 0.1982,
+      "level": 0.2451,
+      "box": 0.2547,
+      "hltv1": 0.2402,
+      "hltv2": 0.2444,
+      "adr": 0.2176,
+      "kd": 0.2545,
+      "swing1": 0.1787
+    },
+    "level_gain_credit": {
+      "match": {
+        "gain": 0.0469,
+        "low": 0.0239,
+        "high": 0.0702
+      },
+      "hltv1": {
+        "gain": 0.0049,
+        "low": -0.0197,
+        "high": 0.0282
+      },
+      "kd": {
+        "gain": -0.0094,
+        "low": -0.0277,
+        "high": 0.0096
+      }
+    },
+    "predicts_other_half_hltv1": {
+      "match": 0.2402,
+      "level": 0.318,
+      "box": 0.3436,
+      "hltv1": 0.3227,
+      "hltv2": 0.3311,
+      "adr": 0.2899,
+      "kd": 0.3388,
+      "swing1": 0.2252
+    },
+    "level_gain_hltv1": {
+      "match": {
+        "gain": 0.0778,
+        "low": 0.0502,
+        "high": 0.1057
+      },
+      "hltv1": {
+        "gain": -0.0047,
+        "low": -0.0277,
+        "high": 0.0181
+      },
+      "kd": {
+        "gain": -0.0208,
+        "low": -0.0384,
+        "high": -0.0038
+      }
+    },
+    "split_half": {
+      "match": 0.3312,
+      "level": 0.4851
+    },
+    "between_matches": {
+      "players": 9.0,
+      "match": 0.1502,
+      "level": 0.1332,
+      "hltv1": 0.0553,
+      "adr": 0.1903,
+      "kd": 0.0632
+    }
+  }
+}

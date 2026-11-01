@@ -218,6 +218,45 @@ The shares cannot change what a side earns in a round (the ledger adds up to its
   No variant is better beyond doubt. The hold comes closest: it shares the clock evenly between the living, which measures survival more than skill within one match. Whether it stays in the rating is decided with the rating itself, on how well it predicts the next matches.
 - A player's relative credit on one match is a rough measure (split-half about 0.3): the rating will steady it with the match's box score and over several matches.
 
+## The Untraded Rating 2.0 (in progress)
+
+Version 2.0 gives **two numbers on one scale**, where 1.00 is the average player of a match (`untraded.winprob.rating2`, `rating-v2.json`). Nothing in production uses them yet.
+
+**Why two numbers.** Over one match, the ledger's credit is noisy: on 54 matches, a player's K-D on half the rounds predicts their credit on the other half (correlation 0.25) better than their credit does (0.20). A rating can answer two questions, and one number cannot answer both well:
+
+| | Match rating | Level |
+|---|---|---|
+| Question | What were the player's actions worth in this match? | What is the player worth? |
+| Formula | `1 + credit / s` | `1 + level / s`, `level = box + n / (n + k) · (credit − box)` |
+| Built on | the ledger, as it happened | the box score, corrected by the ledger as rounds add up |
+| Reads like | Leetify's rating | basketball's BPM steadied by plus-minus |
+
+- **Credit**: the ledger's credit per round, in percentage points, **without the hold** (the clock and the round's end; recentred so that each round's players still average zero). The hold does worse on every check below, so it stays in the ledger and the 2D viewer but not in the rating.
+- **s = 15.31** points of credit per round for 1.00 of rating, so that the match rating spreads over the corpus's player-matches as HLTV 1.0 does: a 1.20 reads as at HLTV.
+- **Margin** of the match rating: 1.96 × the standard deviation of the player's credit per round ÷ √rounds ÷ s.
+- **Box**: a ridge regression (penalty 100, chosen by squared error with matches held out) of the credit on **kills, deaths and damage per round**, fitted on one half of each match (odd or even rounds) against the credit of the **other** half: it predicts what a player's actions will be worth in rounds it has not seen. Standardized coefficients: kills +0.47, deaths −0.81, damage +0.82. With 12 statistics (KAST, openings, trades, utility, multi-kills, survival…), it overfits: 0.22 out of sample against 0.26 in sample, deaths and survival splitting one effect between them, kills coming out negative. Three statistics predict best.
+- **k = σ² / τ² = 88 rounds**: σ² = 461 is the variance of one round's credit around the player's level (from the gap between a player's two halves), τ² = 5.2 the variance of levels around what the box predicts (from the covariance of the two halves' residuals, whose noises are independent). After 88 rounds, about four matches, the ledger weighs as much as the box in the level; over hundreds of rounds, the level is the ledger.
+
+**Validation on 54 matches** (518 player-matches of 12 rounds or more, 1,036 halves, the box always fitted without the match): how well each number on one half of a match predicts the other half.
+
+| On one half | Predicts the credit on the other half | Predicts HLTV 1.0 on the other half |
+|---|---|---|
+| **Level** | **0.245** | **0.318** |
+| Box alone | 0.255 | 0.344 |
+| K-D | 0.255 | 0.339 |
+| HLTV 2.0 (approx.) | 0.244 | 0.331 |
+| HLTV 1.0 | 0.240 | 0.323 |
+| ADR | 0.218 | 0.290 |
+| **Match rating** | **0.198** | **0.240** |
+| Rating 1 swing | 0.179 | 0.225 |
+
+- The level predicts the other half better than the match rating (+0.047, interval +0.024 to +0.070), as well as HLTV 1.0 (+0.005, −0.020 to +0.028).
+- Split-half reliability within a match: 0.49 for the level, 0.33 for the match rating.
+- Over one match the level is mostly the box, so it does not beat K-D: its point is to move to the ledger as rounds add up. That cannot be checked yet: only 9 players have 3 matches or more in the corpus.
+- With the hold, every number does worse (level 0.233 and 0.317, match rating 0.181 and 0.231).
+
+`untraded winprob rating-fit <match directories> --version 2.0 --out rating-v2.json` fits it, with and without the hold, and keeps the hold only if it helps the level on both targets.
+
 ## The Untraded Rating
 
 `rating.swing` is the win probability a player's actions moved per round, in percentage points. Its average is about 0, so a rating cannot be a ratio to it. The **Untraded Rating** (`rating.untraded`, beta) maps it onto a scale where **1.00 is the average player of the corpus** (`untraded.winprob.rating`):
