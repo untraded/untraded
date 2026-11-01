@@ -815,6 +815,19 @@
       }
     }
   },
+  "notFound": {
+    "tag": "404 · no target",
+    "title": "Page not found",
+    "lead": "This address does not lead to any Untraded page.",
+    "why": "Possible causes",
+    "reasonLink": "The link is incomplete or was copied wrong.",
+    "reasonMatch": "The page was removed or is reserved for other accounts: a match, for example, is visible only to its players.",
+    "home": "Back to home",
+    "signIn": "Go to home",
+    "matches": "My matches",
+    "sessions": "My sessions",
+    "report": "Did a link on the site bring you here? <link>Report it on Discord</link>."
+  },
   "common": {
     "close": "Close"
   },
