@@ -377,7 +377,8 @@ export function ReplayViewer({
             setTick(tickRef.current);
           }
         }
-        last = now;
+        // Stopped here (a marker, the end): the next play starts its clock afresh.
+        last = playRef.current.playing ? now : null;
       } else {
         last = null;
       }
@@ -392,6 +393,10 @@ export function ReplayViewer({
       .then((made) => {
         if (!live) return made.destroy();
         scene.current = made;
+        // The box may have changed size while the scene was made; and a canvas whose graphics
+        // context comes back (lost to the GPU) is drawn again, even paused.
+        made.resize(box.clientWidth);
+        box.querySelector("canvas")?.addEventListener("webglcontextrestored", draw);
         draw();
         if (playRef.current.playing) wakeRef.current();
       })
