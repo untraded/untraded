@@ -7,13 +7,17 @@ import {
   bombCarrier,
   clock,
   clockText,
+  focusLast,
   frameOf,
   hasLevels,
   killStory,
   levelAt,
   levelOf,
   momentKill,
+  playbackStep,
+  radarSrc,
   sampleAt,
+  sidesById,
   startTick,
   weaponKind,
 } from "../src/lib/replay";
@@ -174,6 +178,45 @@ describe("killStory", () => {
       kind: "dies",
       cause: "world",
     });
+  });
+
+  it("steps the playback by at most a tenth of a second of wall time", () => {
+    const replay = { tickrate: 64, end_tick: 1000 };
+    expect(playbackStep(replay, 100, 50, 1)).toBeCloseTo(103.2);
+    expect(playbackStep(replay, 100, 50, 2)).toBeCloseTo(106.4);
+    // Back from a hidden tab: one step, not the minutes it was away.
+    expect(playbackStep(replay, 100, 120_000, 1)).toBeCloseTo(106.4);
+    expect(playbackStep(replay, 100, -5, 1)).toBe(100);
+    expect(playbackStep(replay, 998, 100, 4)).toBe(1000);
+  });
+
+  it("knows each victim's side", () => {
+    const sides = sidesById([
+      { steamid: "1", side: "CT" },
+      { steamid: "2", side: "T" },
+      { steamid: "1", side: "T" },
+    ]);
+    expect(sides.get("1")).toBe("CT");
+    expect(sides.get("2")).toBe("T");
+    expect(sides.has("3")).toBe(false);
+  });
+
+  it("draws the highlighted player last, the others in order", () => {
+    const players = ["1", "2", "3", "4"].map((steamid) => ({ steamid }));
+    const ids = (focus: string | null) => focusLast(players, focus).map((p) => p.steamid);
+    expect(ids("2")).toEqual(["1", "3", "4", "2"]);
+    expect(ids(null)).toEqual(["1", "2", "3", "4"]);
+    expect(ids("9")).toEqual(["1", "2", "3", "4"]);
+    // The same order as the sort it replaces.
+    const sorted = [...players].sort(
+      (a, b) => Number(a.steamid === "3") - Number(b.steamid === "3"),
+    );
+    expect(ids("3")).toEqual(sorted.map((p) => p.steamid));
+  });
+
+  it("finds our radars", () => {
+    expect(radarSrc("de_nuke", "upper")).toBe("/radars/de_nuke.svg");
+    expect(radarSrc("de_nuke", "lower")).toBe("/radars/de_nuke_lower.svg");
   });
 
   it("says a suicide, by grenade or not", () => {

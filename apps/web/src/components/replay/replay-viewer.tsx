@@ -3,7 +3,17 @@
 "use client";
 
 import { Pause, Play, RotateCcw, RotateCw } from "lucide-react";
-import { type KeyboardEvent, type PointerEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type KeyboardEvent,
+  memo,
+  type PointerEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { preload } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { PUBLIC_API_PATH } from "@/lib/api-path";
 import { cn } from "@/lib/cn";
@@ -17,10 +27,14 @@ import {
   levelAt,
   momentKill,
   nearest,
+  playbackStep,
+  RADAR_MAPS,
   REPLAY_VERSION,
   type Replay,
+  radarSrc,
   sampleAt,
   startTick,
+  TWO_LEVELS,
   weaponKind,
 } from "@/lib/replay";
 import type { Scene, SceneColors } from "./scene";
@@ -119,6 +133,119 @@ function placeHead(
 const fill = (template: string, values: Record<string, string>) =>
   template.replace(/\{(\w+)\}/g, (_, key: string) => values[key] ?? "");
 
+/** The scene's code, PixiJS with it: never imported statically, so it stays out of the page. */
+const loadScene = () => import("./scene");
+
+/** A tick's place on the timeline, in % of the round. Within the round: an event can come after
+ * its last tick (a bomb planted as it ends). */
+const shareOf = (replay: Replay, t: number) =>
+  Math.min(
+    100,
+    Math.max(0, ((t - replay.start_tick) / (replay.end_tick - replay.start_tick)) * 100),
+  );
+
+/** The timeline's marks: kills, plants and the moment to review. They do not move with the
+ * playback, so they are not rendered again with it. */
+const TimelineMarks = memo(function TimelineMarks({
+  replay,
+  focusTick,
+  name,
+  roundTime,
+  labels,
+}: {
+  replay: Replay;
+  focusTick: number | null;
+  name: (steamid: string | null) => string;
+  roundTime: (tick: number) => string;
+  labels: ViewerLabels;
+}) {
+  const marks = useMemo(() => {
+    const sides = new Map(replay.players.map((p) => [p.steamid, p.side]));
+    return {
+      kills: replay.kills.map((kill) => ({
+        key: `${kill.tick}-${kill.victim}`,
+        title: fill(labels.markKill, {
+          attacker: name(kill.attacker),
+          victim: name(kill.victim),
+          time: roundTime(kill.tick),
+        }),
+        ct: sides.get(kill.attacker ?? "") === "CT",
+        left: shareOf(replay, kill.tick),
+      })),
+      plants: replay.bomb.events
+        .filter((event) => event.type === "planted")
+        .map((event) => ({
+          key: event.tick,
+          title: fill(labels.markPlant, { time: roundTime(event.tick) }),
+          left: shareOf(replay, event.tick),
+        })),
+    };
+  }, [replay, name, roundTime, labels]);
+  return (
+    <>
+      {marks.kills.map((kill) => (
+        <span
+          key={kill.key}
+          title={kill.title}
+          className={cn(
+            "absolute top-0 h-3 w-0.5 -translate-x-1/2 rounded-full",
+            kill.ct ? "bg-side-ct" : "bg-side-t",
+          )}
+          style={{ left: `${kill.left}%` }}
+        />
+      ))}
+      {marks.plants.map((plant) => (
+        <span
+          key={plant.key}
+          title={plant.title}
+          className="absolute top-[22px] size-2 -translate-x-1/2 rotate-45 rounded-[1px] bg-loss"
+          style={{ left: `${plant.left}%` }}
+        />
+      ))}
+      {focusTick !== null && (
+        <span
+          title={labels.markFocus}
+          className="absolute -top-1 size-2.5 -translate-x-1/2 rounded-full border-2 border-card bg-highlight"
+          style={{ left: `${shareOf(replay, focusTick)}%` }}
+        />
+      )}
+    </>
+  );
+});
+
+type Speed = (typeof SPEEDS)[number];
+
+/** The playback speeds, rendered again only when the speed changes. */
+const SpeedButtons = memo(function SpeedButtons({
+  speed,
+  onSpeed,
+  locale,
+  label,
+}: {
+  speed: Speed;
+  onSpeed: (speed: Speed) => void;
+  locale: string;
+  label: string;
+}) {
+  const format = useMemo(() => new Intl.NumberFormat(locale), [locale]);
+  return (
+    <fieldset className="col-start-2 row-start-1 m-0 inline-flex justify-self-end rounded-md border border-border bg-card p-0.5 sm:col-start-3">
+      <legend className="sr-only">{label}</legend>
+      {SPEEDS.map((value) => (
+        <button
+          key={value}
+          type="button"
+          aria-pressed={speed === value}
+          onClick={() => onSpeed(value)}
+          className="h-6 rounded-sm px-2 text-xs text-muted-foreground tabular-nums aria-pressed:bg-highlight-soft aria-pressed:font-semibold aria-pressed:text-foreground"
+        >
+          {format.format(value)}×
+        </button>
+      ))}
+    </fieldset>
+  );
+});
+
 /**
  * Replays a round from above: the radar, the players, grenades and bomb, with a timeline, speeds,
  * levels, the teams and the kill feed. Opens on `start` (a tick) with `focus` highlighted.
@@ -126,6 +253,7 @@ const fill = (template: string, values: Record<string, string>) =>
 export function ReplayViewer({
   matchId,
   round,
+  map,
   start,
   moment,
   focus,
@@ -134,6 +262,8 @@ export function ReplayViewer({
 }: {
   matchId: string;
   round: number;
+  /** The match's map, known before the replay: its radar is fetched alongside. */
+  map: string | null;
   start: number | null;
   /** The moment to review's event, when the link has it; else 5 s after `start`. */
   moment: number | null;
@@ -145,7 +275,7 @@ export function ReplayViewer({
   const [problem, setProblem] = useState<"missing" | "failed" | "noGraphics" | null>(null);
   const [tick, setTick] = useState(0);
   const [playing, setPlaying] = useState(false);
-  const [speed, setSpeed] = useState<(typeof SPEEDS)[number]>(1);
+  const [speed, setSpeed] = useState<Speed>(1);
   const [chosenLevel, setChosenLevel] = useState<Level | null>(null);
   const host = useRef<HTMLDivElement>(null);
   const probe = useRef<HTMLSpanElement>(null);
@@ -157,6 +287,21 @@ export function ReplayViewer({
   const doneRef = useRef<HTMLSpanElement>(null);
   /** Where "Play the moment" pauses: a little after the moment, so it is seen, then still. */
   const stopRef = useRef<number | null>(null);
+  /** Asks the scene for a frame: a redraw when paused, the loop's start when playing. */
+  const wakeRef = useRef<() => void>(() => {});
+
+  // The radar, fetched while the replay is (the scene loads it the same way, so it finds it).
+  if (map && RADAR_MAPS.has(map)) {
+    preload(radarSrc(map, "upper"), { as: "fetch", crossOrigin: "anonymous" });
+    if (TWO_LEVELS.has(map)) {
+      preload(radarSrc(map, "lower"), { as: "fetch", crossOrigin: "anonymous" });
+    }
+  }
+  // The scene's code too: it does not need the replay to come.
+  useEffect(() => {
+    // A failure is said when the scene is made, with the replay.
+    loadScene().catch(() => {});
+  }, []);
 
   // The replay, from the API (gzipped, and cached by the browser: it never changes). The format
   // version is in the address, so a new viewer never reads a replay cached for the old one.
@@ -192,7 +337,8 @@ export function ReplayViewer({
   viewRef.current = { focus, level };
   playRef.current = { playing, speed };
 
-  // The scene, and the clock that moves it while playing.
+  // The scene, and the clock that moves it while playing. Paused, it draws only when what it shows
+  // changes (a seek, the level, the focus, the colours, the size): no frame is asked for otherwise.
   useEffect(() => {
     if (!replay || !host.current || !probe.current) return;
     let live = true;
@@ -202,34 +348,52 @@ export function ReplayViewer({
     const box = host.current;
     const colors = readColors(probe.current);
     const draw = () => scene.current?.draw({ tick: tickRef.current, ...viewRef.current });
-    import("./scene")
+    const halt = () => {
+      playRef.current = { ...playRef.current, playing: false };
+      setPlaying(false);
+      setTick(tickRef.current);
+    };
+    // One frame: the playback moves if it plays, the scene is drawn, and the next frame is asked
+    // for only while it plays.
+    const step = (now: number) => {
+      frame = 0;
+      if (!live) return;
+      if (playRef.current.playing) {
+        if (last !== null) {
+          tickRef.current = playbackStep(
+            replay,
+            tickRef.current,
+            now - last,
+            playRef.current.speed,
+          );
+          if (stopRef.current !== null && tickRef.current >= stopRef.current) {
+            stopRef.current = null;
+            halt();
+          }
+          if (tickRef.current >= replay.end_tick) halt();
+          placeHead(replay, tickRef.current, headRef.current, doneRef.current);
+          if (now - shown > PANEL_EVERY) {
+            shown = now;
+            setTick(tickRef.current);
+          }
+        }
+        last = now;
+      } else {
+        last = null;
+      }
+      draw();
+      if (playRef.current.playing) frame = requestAnimationFrame(step);
+    };
+    wakeRef.current = () => {
+      if (live && scene.current && frame === 0) frame = requestAnimationFrame(step);
+    };
+    loadScene()
       .then(({ createScene }) => createScene(box, replay, box.clientWidth || 600, colors))
       .then((made) => {
         if (!live) return made.destroy();
         scene.current = made;
         draw();
-        const loop = (now: number) => {
-          if (!live) return;
-          if (playRef.current.playing && last !== null) {
-            const next =
-              tickRef.current + ((now - last) / 1000) * replay.tickrate * playRef.current.speed;
-            tickRef.current = Math.min(replay.end_tick, next);
-            if (stopRef.current !== null && tickRef.current >= stopRef.current) {
-              stopRef.current = null;
-              setPlaying(false);
-            }
-            if (tickRef.current >= replay.end_tick) setPlaying(false);
-            placeHead(replay, tickRef.current, headRef.current, doneRef.current);
-            if (now - shown > PANEL_EVERY) {
-              shown = now;
-              setTick(tickRef.current);
-            }
-          }
-          last = now;
-          draw();
-          frame = requestAnimationFrame(loop);
-        };
-        frame = requestAnimationFrame(loop);
+        if (playRef.current.playing) wakeRef.current();
       })
       .catch(() => live && setProblem("noGraphics"));
     const resize = new ResizeObserver(() => {
@@ -237,52 +401,82 @@ export function ReplayViewer({
       draw();
     });
     resize.observe(box);
-    // A theme change (the user's choice or the system's): new colours.
+    // A theme change (the user's choice, `data-theme` on `<html>`, or the system's): new colours.
     const recolor = () => {
       if (probe.current) scene.current?.setColors(readColors(probe.current));
       draw();
     };
     const themes = new MutationObserver(recolor);
-    themes.observe(document.documentElement, { attributes: true });
+    themes.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
     const dark = window.matchMedia("(prefers-color-scheme: dark)");
     dark.addEventListener("change", recolor);
+    // A hidden tab gets no frames: back in view, the playback goes on from where it was.
+    const visibility = () => {
+      last = null;
+    };
+    document.addEventListener("visibilitychange", visibility);
     return () => {
       live = false;
       cancelAnimationFrame(frame);
+      wakeRef.current = () => {};
       resize.disconnect();
       themes.disconnect();
       dark.removeEventListener("change", recolor);
+      document.removeEventListener("visibilitychange", visibility);
       scene.current?.destroy();
       scene.current = null;
     };
   }, [replay]);
 
-  function seek(next: number) {
-    if (!replay) return;
-    // Moving the playback by hand cancels the stop planned by "Play the moment".
-    stopRef.current = null;
-    tickRef.current = Math.min(replay.end_tick, Math.max(replay.start_tick, next));
-    setTick(tickRef.current);
-    placeHead(replay, tickRef.current, headRef.current, doneRef.current);
-  }
+  // What is drawn changed, or the playback started: a frame, which goes on as the loop while it
+  // plays. (Playing, the loop already draws each frame, and this asks for nothing more.)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: they are what triggers it, read by the scene through viewRef and playRef
+  useEffect(() => {
+    wakeRef.current();
+  }, [playing, level, focus]);
+
+  const seek = useCallback(
+    (next: number) => {
+      if (!replay) return;
+      // Moving the playback by hand cancels the stop planned by "Play the moment".
+      stopRef.current = null;
+      tickRef.current = Math.min(replay.end_tick, Math.max(replay.start_tick, next));
+      setTick(tickRef.current);
+      placeHead(replay, tickRef.current, headRef.current, doneRef.current);
+      wakeRef.current();
+    },
+    [replay],
+  );
 
   function toggle() {
     if (!replay) return;
     stopRef.current = null;
     if (!playing && tickRef.current >= replay.end_tick) seek(replay.start_tick);
+    // Paused, the panel shows exactly where the playback stopped.
+    if (playing) setTick(tickRef.current);
     setPlaying(!playing);
   }
 
-  // Positions of the timeline and its marks, in % of the round.
-  const share = (t: number) =>
-    // Within the round: an event can come after its last tick (a bomb planted as it ends).
-    replay
-      ? Math.min(
-          100,
-          Math.max(0, ((t - replay.start_tick) / (replay.end_tick - replay.start_tick)) * 100),
-        )
-      : 0;
+  // Positions of the timeline's playback, in % of the round.
+  const share = (t: number) => (replay ? shareOf(replay, t) : 0);
   const byId = useMemo(() => new Map(replay?.players.map((p) => [p.steamid, p]) ?? []), [replay]);
+  const bySide = useMemo(
+    () => ({
+      CT: replay?.players.filter((p) => p.side === "CT") ?? [],
+      T: replay?.players.filter((p) => p.side === "T") ?? [],
+    }),
+    [replay],
+  );
+  // Stable, for the parts that do not follow the playback (marks, the curve's static layer).
+  const roundTime = useCallback(
+    (t: number) => (replay ? clockText(clock(replay, t).seconds) : ""),
+    [replay],
+  );
+  const name = useCallback(
+    (steamid: string | null) =>
+      steamid === null ? labels.world : (byId.get(steamid)?.name ?? "?"),
+    [byId, labels.world],
+  );
   // The event of the moment to review: from the link, else 5 s after the opening (reports open
   // 5 s before, unless the demo starts later). Only within the round.
   const eventTick = replay && start !== null ? (moment ?? start + 5 * replay.tickrate) : null;
@@ -312,15 +506,12 @@ export function ReplayViewer({
     );
   }
 
-  const roundTime = (t: number) => (replay ? clockText(clock(replay, t).seconds) : "");
   const now = replay ? clock(replay, tick) : null;
   const weapon = (index: number | null) => {
     const name = index === null ? null : (replay?.weapons[index] ?? null);
     const kind = weaponKind(name);
     return kind === "knife" ? labels.knife : kind === "c4" ? labels.c4 : (name ?? "–");
   };
-  const name = (steamid: string | null) =>
-    steamid === null ? labels.world : (byId.get(steamid)?.name ?? "?");
   /** A kill in words: who killed whom with what, or how the player died. */
   const killText = (kill: NonNullable<typeof focusKill>) => {
     const story = killStory(kill, focus);
@@ -499,38 +690,14 @@ export function ReplayViewer({
                   className="absolute top-[14px] left-0 h-1 rounded-full bg-foreground/55"
                   style={{ width: `${share(tick)}%` }}
                 />
-                {replay.kills.map((kill) => (
-                  <span
-                    key={`${kill.tick}-${kill.victim}`}
-                    title={fill(labels.markKill, {
-                      attacker: name(kill.attacker),
-                      victim: name(kill.victim),
-                      time: roundTime(kill.tick),
-                    })}
-                    className={cn(
-                      "absolute top-0 h-3 w-0.5 -translate-x-1/2 rounded-full",
-                      byId.get(kill.attacker ?? "")?.side === "CT" ? "bg-side-ct" : "bg-side-t",
-                    )}
-                    style={{ left: `${share(kill.tick)}%` }}
-                  />
-                ))}
-                {replay.bomb.events
-                  .filter((event) => event.type === "planted")
-                  .map((event) => (
-                    <span
-                      key={event.tick}
-                      title={fill(labels.markPlant, { time: roundTime(event.tick) })}
-                      className="absolute top-[22px] size-2 -translate-x-1/2 rotate-45 rounded-[1px] bg-loss"
-                      style={{ left: `${share(event.tick)}%` }}
-                    />
-                  ))}
-                {focusTick !== null && (
-                  <span
-                    title={labels.markFocus}
-                    className="absolute -top-1 size-2.5 -translate-x-1/2 rounded-full border-2 border-card bg-highlight"
-                    style={{ left: `${share(focusTick)}%` }}
-                  />
-                )}
+                <TimelineMarks
+                  replay={replay}
+                  focusTick={focusTick}
+                  name={name}
+                  roundTime={roundTime}
+                  labels={labels}
+                />
+
                 <span
                   ref={headRef}
                   className="absolute top-[9px] h-3.5 w-1 -translate-x-1/2 rounded-full bg-foreground"
@@ -546,7 +713,7 @@ export function ReplayViewer({
                     tick={tick}
                     onSeek={seek}
                     roundTime={roundTime}
-                    name={(steamid) => name(steamid)}
+                    name={name}
                     labels={labels.winprob}
                     method={WINPROB_METHOD}
                   />
@@ -554,20 +721,7 @@ export function ReplayViewer({
                   <p className="text-xs text-muted-foreground">{labels.noWinprob}</p>
                 )}
               </div>
-              <fieldset className="col-start-2 row-start-1 m-0 inline-flex justify-self-end rounded-md border border-border bg-card p-0.5 sm:col-start-3">
-                <legend className="sr-only">{labels.speed}</legend>
-                {SPEEDS.map((value) => (
-                  <button
-                    key={value}
-                    type="button"
-                    aria-pressed={speed === value}
-                    onClick={() => setSpeed(value)}
-                    className="h-6 rounded-sm px-2 text-xs text-muted-foreground tabular-nums aria-pressed:bg-highlight-soft aria-pressed:font-semibold aria-pressed:text-foreground"
-                  >
-                    {new Intl.NumberFormat(locale).format(value)}×
-                  </button>
-                ))}
-              </fieldset>
+              <SpeedButtons speed={speed} onSpeed={setSpeed} locale={locale} label={labels.speed} />
             </div>
             <p className="flex flex-wrap gap-x-3.5 gap-y-1 px-3 pb-2.5 text-xs text-muted-foreground">
               <span className="inline-flex items-center gap-1.5">
@@ -593,7 +747,7 @@ export function ReplayViewer({
       {replay && sample && (
         <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-1 lg:gap-3">
           {(["CT", "T"] as const).map((side) => {
-            const players = replay.players.filter((p) => p.side === side);
+            const players = bySide[side];
             const alive = players.filter((p) => nearest(p.alive, sample)).length;
             return (
               <section key={side} className="rounded-lg border border-border bg-card">
