@@ -4,7 +4,7 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import type { MatchDetail, Round } from "@/lib/api";
 import { cn } from "@/lib/cn";
-import { momentHref } from "@/lib/match";
+import { type FlaggedMoment, momentHref } from "@/lib/match";
 
 /**
  * Every round of the match, each a link to the 2D viewer: filled = won, the bottom line = the side
@@ -17,7 +17,7 @@ export async function MatchRounds({
 }: {
   match: MatchDetail;
   /** Rounds to review (any priority), with the moment the viewer opens on. */
-  flagged: Map<number, { tick: number; event: number; rule: string }>;
+  flagged: Map<number, FlaggedMoment>;
 }) {
   const t = await getTranslations("match");
   const reasons = (await getTranslations("viewer")).raw("reasons") as Record<string, string>;

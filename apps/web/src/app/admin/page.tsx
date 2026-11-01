@@ -54,8 +54,9 @@ export default async function AdminPlayers({
   if (!me.admin) {
     return <p className="text-muted-foreground">{t("forbidden")}</p>;
   }
-  const players = (await getAdminPlayers())?.items ?? [];
-  const requests = (await getInvitationRequests())?.items ?? [];
+  const [playerList, requestList] = await Promise.all([getAdminPlayers(), getInvitationRequests()]);
+  const players = playerList?.items ?? [];
+  const requests = requestList?.items ?? [];
   const { erased, erase, request } = await searchParams;
   const requestNote =
     request && request in REQUEST_NOTES

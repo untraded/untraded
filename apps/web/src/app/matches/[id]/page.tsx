@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getLocale, getTimeZone, getTranslations } from "next-intl/server";
+import { cache, Suspense } from "react";
 import { MatchPriorities } from "@/components/match/match-priorities";
 import { MatchRounds } from "@/components/match/match-rounds";
 import { RatingCard } from "@/components/match/rating-card";
@@ -18,9 +19,16 @@ import {
   findSessionOf,
   getMatch,
   getMe,
+  type MatchDetail,
 } from "@/lib/api";
 import { dateTime, mapName, shortDay } from "@/lib/format";
-import { minutes, prioritiesIn, roundsBySide } from "@/lib/match";
+import {
+  type FlaggedMoment,
+  flaggedRounds,
+  minutes,
+  prioritiesIn,
+  roundsBySide,
+} from "@/lib/match";
 import { demoNote } from "@/lib/notes";
 
 type Params = { params: Promise<{ id: string }> };
@@ -31,8 +39,23 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 }
 
 /**
+ * The match's session and its priorities that flag rounds of this match: the session is found in
+ * the list of sessions, then its report read. Once per request, for the rounds and the priorities.
+ */
+const sessionOf = cache(async (matchId: string, playedAt: string | null) => {
+  const summary = await findSessionOf(matchId, playedAt);
+  const report = summary ? await findSession(summary.id) : null;
+  return { summary, priorities: report ? prioritiesIn(report.advice, matchId) : [] };
+});
+
+/** No round flagged, while the session's report is on its way. */
+const NONE = new Map<number, FlaggedMoment>();
+
+/**
  * One match, seen from the player: the rounds (each opens the 2D viewer), the rounds of this match
- * that the session's priorities flag, the player's numbers on each side, then both teams.
+ * that the session's priorities flag, the player's numbers on each side, then both teams. The
+ * session's report is the slow part: the rounds are sent without their frames and the priorities
+ * stream in when it comes.
  */
 export default async function MatchPage({ params }: Params) {
   const id = (await params).id;
@@ -44,25 +67,15 @@ export default async function MatchPage({ params }: Params) {
   const ready = match.status === "ready";
   const played = match.players.some((p) => p.steam_id === me.steam_id);
 
-  // The session and the player's metrics are extras: the page stands without them.
-  const [summary, metrics, rating] = ready
-    ? await Promise.all([
-        findSessionOf(match.id, match.played_at),
-        played ? findPlayerMetrics(match.id, me.steam_id) : null,
-        played ? findRating(match.id, me.steam_id) : null,
-      ])
-    : [null, null, null];
-  const report = summary ? await findSession(summary.id) : null;
-  const priorities = report ? prioritiesIn(report.advice, match.id) : [];
-  // Each flagged round's first moment, with the priority it is evidence for.
-  const flagged = new Map<number, { tick: number; event: number; rule: string }>();
-  for (const { advice, rounds } of priorities) {
-    for (const r of rounds) {
-      const known = flagged.get(r.round);
-      if (!known || r.tick < known.tick)
-        flagged.set(r.round, { tick: r.tick, event: r.event, rule: advice.rule_id });
-    }
-  }
+  // The session (streamed) and the player's metrics are extras: the page stands without them.
+  if (ready) void sessionOf(match.id, match.played_at);
+  const [metrics, rating] =
+    ready && played
+      ? await Promise.all([
+          findPlayerMetrics(match.id, me.steam_id),
+          findRating(match.id, me.steam_id),
+        ])
+      : [null, null];
   const length = minutes(match.played_at, match.ended_at);
   const mode = `modes.${match.mode}`;
   const details = [
@@ -128,21 +141,19 @@ export default async function MatchPage({ params }: Params) {
         )}
       </div>
 
-      {ready && match.rounds.length > 0 && <MatchRounds match={match} flagged={flagged} />}
+      {ready && match.rounds.length > 0 && (
+        <Suspense fallback={<MatchRounds match={match} flagged={NONE} />}>
+          <FlaggedRounds match={match} />
+        </Suspense>
+      )}
 
       {ready && (
         <div className="grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_22rem]">
           <div className="flex min-w-0 flex-col gap-7">
             {played && (
-              <MatchPriorities
-                match={match}
-                priorities={priorities}
-                session={
-                  summary
-                    ? { id: summary.id, day: shortDay(summary.started_at, locale, timeZone) }
-                    : null
-                }
-              />
+              <Suspense fallback={null}>
+                <Priorities match={match} locale={locale} timeZone={timeZone} />
+              </Suspense>
             )}
             {played && <RatingCard rating={rating} locale={locale} />}
             {played && (
@@ -160,5 +171,33 @@ export default async function MatchPage({ params }: Params) {
         </div>
       )}
     </article>
+  );
+}
+
+/** The rounds, those the session's priorities flag framed. */
+async function FlaggedRounds({ match }: { match: MatchDetail }) {
+  const { priorities } = await sessionOf(match.id, match.played_at);
+  return <MatchRounds match={match} flagged={flaggedRounds(priorities)} />;
+}
+
+/** The session's priorities that flag rounds of this match, with a link to its report. */
+async function Priorities({
+  match,
+  locale,
+  timeZone,
+}: {
+  match: MatchDetail;
+  locale: Locale;
+  timeZone: string;
+}) {
+  const { summary, priorities } = await sessionOf(match.id, match.played_at);
+  return (
+    <MatchPriorities
+      match={match}
+      priorities={priorities}
+      session={
+        summary ? { id: summary.id, day: shortDay(summary.started_at, locale, timeZone) } : null
+      }
+    />
   );
 }
