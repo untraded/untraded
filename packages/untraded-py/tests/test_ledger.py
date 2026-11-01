@@ -47,13 +47,72 @@ def test_every_round_adds_up(tables: dict[str, pl.DataFrame]) -> None:
     # The ten players' credits cancel out, round by round.
     totals = credits.group_by("round").agg(pl.col("credit").sum())
     assert totals.select(pl.col("credit").abs().max()).item() < 1e-9
-    # A side's credits add up to its result minus its chance at the start.
+    # Every regular round has a ledger.
+    rounds = _rounds(tables)
+    assert set(credits["round"].unique().to_list()) == set(rounds["round"].to_list())
+    # A side's credits add up to its result minus its chance at the start (the start view).
+    events = _events(tables, rounds)
+    features, _ = _views(tables, rounds, events)
+    p0 = dict(
+        zip(
+            features["view"].to_list(),
+            default_model().predict(features).tolist(),
+            strict=True,
+        )
+    )
+    starts = events.filter(pl.col("kind") == "start").select("round", "seq").rows()
     winners = dict(tables["round"].select("round", "winner_side").iter_rows())
-    for (number,), rows in credits.group_by(["round"]):
-        start = rows.sort("tick")["p_ct_before"][0]
-        ct = rows.filter(pl.col("side") == "CT")["credit"].sum()
+    for number, seq in starts:
+        ct = credits.filter(pl.col("round") == number, pl.col("side") == "CT")["credit"].sum()
         result = 1.0 if winners[number] == "CT" else 0.0
-        assert ct == pytest.approx(result - start, abs=1e-9)
+        assert ct == pytest.approx(result - p0[seq * 2], abs=1e-9)
+
+
+def test_the_last_kill_of_an_elimination_is_a_kill(tables: dict[str, pl.DataFrame]) -> None:
+    credits = ledger(tables, default_model())
+    eliminated = _rounds(tables).filter(pl.col("reason").cast(pl.String) == "elimination")
+    checked = 0
+    for number, over in eliminated.select("round", "over").rows():
+        # The kill that ends the round (kills after it are exit frags, not credited).
+        last = (
+            tables["kill"]
+            .filter(pl.col("round") == number, pl.col("tick") <= over)
+            .sort("tick")
+            .tail(1)
+        )
+        if last.is_empty() or last["victim"][0] is None:
+            continue
+        rows = credits.filter(
+            pl.col("round") == number,
+            pl.col("event") == "kill",
+            pl.col("tick") == last["tick"][0],
+        )
+        # Credited as a kill, the victim debited; nothing is left for the round's end.
+        assert rows.filter(pl.col("steamid") == last["victim"][0])["credit"].sum() < 0
+        end = credits.filter(pl.col("round") == number, pl.col("event") == "end")
+        assert end.select(pl.col("credit").abs().sum()).item() < 1e-9
+        checked += 1
+    if not eliminated.is_empty():
+        assert checked > 0
+
+
+def test_a_lone_planter_or_defuser_takes_it_all(tables: dict[str, pl.DataFrame]) -> None:
+    credits = ledger(tables, default_model())
+    rounds = _rounds(tables)
+    events = _events(tables, rounds)
+    _, players = _views(tables, rounds, events)
+    for kind, side in (("plant", "T"), ("defuse", "CT")):
+        for e in events.filter(pl.col("kind") == kind).iter_rows(named=True):
+            living = players.filter(
+                pl.col("view") == e["seq"] * 2, pl.col("side") == side, pl.col("is_alive")
+            )["steamid"].to_list()
+            rows = credits.filter(
+                pl.col("round") == e["round"],
+                pl.col("event") == kind,
+                pl.col("side") == side,
+            )
+            # Only the living share it: no dead teammate is credited.
+            assert set(rows["steamid"].to_list()) <= set(living) | {e["actor"]}
 
 
 def test_nothing_after_the_round_is_decided(half: dict[str, pl.DataFrame]) -> None:
@@ -137,10 +196,15 @@ def test_shares_are_checked() -> None:
         Shares(final=0.0)
     with pytest.raises(ValueError, match="plant"):
         Shares(plant=1.5)
-    credits = ledger(fixtures.read(FIXTURES / "premier-half"), default_model(), Shares(flash=0))
-    assert (
-        credits.filter((pl.col("event") == "kill") & (pl.col("part") == "utility"))
-        .select(pl.col("credit").abs().sum())
-        .item()
-        < 1.0
-    )
+    half = fixtures.read(FIXTURES / "premier-half")
+    with_flash = ledger(half, default_model())
+    without = ledger(half, default_model(), Shares(flash=0))
+    # Without the flash share, a kill's utility credit only goes to grenade damage on the victim.
+    grenades = half["damage"].filter(pl.col("weapon").is_in(["hegrenade", "inferno", "molotov"]))
+    hurt = set(grenades.select("round", "attacker").rows())
+    killers = set(half["kill"].select("round", "attacker").rows())
+    utility = without.filter(pl.col("event") == "kill", pl.col("part") == "utility")
+    for number, steamid in utility.select("round", "steamid").rows():
+        assert (number, steamid) in hurt | killers
+    flashed = with_flash.filter(pl.col("event") == "kill", pl.col("part") == "utility")
+    assert flashed.height > utility.height  # the flashers had a share

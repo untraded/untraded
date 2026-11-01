@@ -12,7 +12,7 @@ What moves the probability, and who it goes to (`Shares` holds the numbers):
 - **damage** that does not kill: to the attacker; debited to the player hurt;
 - **a kill**: debited to the victim. The killer's side shares it: `final` to the killer,
   `damage` to everyone who hurt the victim this round (by damage dealt), `flash` to the enemies
-  who flashed the victim (blind at least `flash_min` seconds at the kill, by blind time), and
+  who flashed the victim (blind at least `flash_min` more seconds at the kill, by that time), and
   `trade` to the teammate the victim had killed within `trade_window` seconds. A share with no
   one to take it is spread over the others;
 - **the plant**: `plant` to the planter, the rest to the other living terrorists; debited to the
@@ -37,6 +37,7 @@ last enemy dies, the defuse), the round's ledger stops: later kills move nothing
 
 from __future__ import annotations
 
+import math
 from collections import defaultdict
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -56,6 +57,10 @@ UTILITY_WEAPONS = frozenset(
 """Damage from these is `utility`; from any other weapon, `shooting`."""
 
 VALID_REASONS = ("bomb_exploded", "bomb_defused", "elimination", "time_ran_out")
+BALANCE = 1e-9
+"""How far from zero a round's credits may add up (rounding)."""
+MAX_EVENTS = 2000
+"""Events a round may have for a ledger (a real round has a few hundred at most)."""
 
 SCHEMA = {
     "round": pl.Int16,
@@ -109,6 +114,7 @@ def _rounds(tables: Mapping[str, pl.DataFrame]) -> pl.DataFrame:
             pl.col("freeze_end_tick").is_not_null(),
             pl.col("reason").cast(pl.String).is_in(VALID_REASONS),
         )
+        .unique("round", keep="none")  # a malformed table repeating a round: no ledger for it
         .with_columns(
             pl.min_horizontal("end_tick", "bomb_defused_tick", "bomb_exploded_tick").alias("over")
         )
@@ -128,7 +134,17 @@ def _events(tables: Mapping[str, pl.DataFrame], rounds: pl.DataFrame) -> pl.Data
         "health_after": pl.Int16,
         "armor_after": pl.Int16,
     }
-    timing = rounds.select("round", "freeze_end_tick", "over")
+    timing = rounds.select(
+        "round",
+        "freeze_end_tick",
+        "over",
+        (pl.col("reason").cast(pl.String) == "elimination").alias("eliminated"),
+    )
+    # The round's last kill shares the round's last tick when it ends by elimination: it counts.
+    in_play = (pl.col("tick") > pl.col("freeze_end_tick")) & (
+        (pl.col("tick") < pl.col("over"))
+        | ((pl.col("tick") == pl.col("over")) & pl.col("eliminated"))
+    )
 
     def frame(df: pl.DataFrame, **exprs: pl.Expr) -> pl.DataFrame:
         return df.select(
@@ -138,22 +154,9 @@ def _events(tables: Mapping[str, pl.DataFrame], rounds: pl.DataFrame) -> pl.Data
     damage = (
         tables["damage"]
         .join(timing, on="round")
-        .filter(
-            pl.col("victim").is_not_null(),
-            pl.col("health_after") > 0,
-            pl.col("tick") > pl.col("freeze_end_tick"),
-            pl.col("tick") < pl.col("over"),
-        )
+        .filter(pl.col("victim").is_not_null(), pl.col("health_after") > 0, in_play)
     )
-    kills = (
-        tables["kill"]
-        .join(timing, on="round")
-        .filter(
-            pl.col("victim").is_not_null(),
-            pl.col("tick") > pl.col("freeze_end_tick"),
-            pl.col("tick") < pl.col("over"),
-        )
-    )
+    kills = tables["kill"].join(timing, on="round").filter(pl.col("victim").is_not_null(), in_play)
     plants = rounds.filter(
         pl.col("bomb_planted_tick").is_not_null(), pl.col("bomb_planted_tick") < pl.col("over")
     )
@@ -199,6 +202,8 @@ def _events(tables: Mapping[str, pl.DataFrame], rounds: pl.DataFrame) -> pl.Data
         frame(rounds, round=pl.col("round"), tick=pl.col("over"), kind=pl.lit("end")),
     ]
     events = pl.concat(parts).with_row_index("source")
+    # A crafted demo could pile up events in a round: such a round gets no ledger.
+    events = events.filter(pl.len().over("round") <= MAX_EVENTS)
     return (
         events.with_columns(pl.col("kind").replace_strict(_ORDER).alias("order"))
         .sort("round", "tick", "order", "source")
@@ -239,12 +244,37 @@ def _views(
         "armor_after",
     )
     # Before an event: the events after its sample and before it in order; after: itself too.
-    pending = snapped.select("round", "seq", "snap").join(mutating, on="round")
-    before = pending.filter(pl.col("j_tick") > pl.col("snap"), pl.col("j") < pl.col("seq"))
-    after = pending.filter(
-        (pl.col("j_tick") > pl.col("snap")) & (pl.col("j") < pl.col("seq"))
-        | (pl.col("j") == pl.col("seq"))
+    # In order, they run from the first one after the sample up to the event, so only that range
+    # is joined (not every pair of the round).
+    firsts = (
+        snapped.select("round", "seq", "snap")
+        .sort("snap")
+        .join_asof(
+            mutating.sort("j_tick", "j").select("round", "j_tick", pl.col("j").alias("first")),
+            left_on="snap",
+            right_on="j_tick",
+            by="round",
+            strategy="forward",
+            allow_exact_matches=False,
+            check_sortedness=False,
+        )
+        .filter(pl.col("first").is_not_null(), pl.col("first") < pl.col("seq"))
     )
+    columns = ["round", "seq", "snap", "j", "j_tick", "j_kind", "steamid"]
+    columns += ["health_after", "armor_after"]
+    before = (
+        firsts.with_columns(pl.int_ranges("first", "seq", dtype=pl.UInt32).alias("j"))
+        .explode("j")
+        .select("round", "seq", "snap", "j")
+        .join(mutating, on=["round", "j"])
+        .select(columns)
+    )
+    itself = (
+        snapped.select("round", "seq", "snap", pl.col("seq").alias("j"))
+        .join(mutating, on=["round", "j"])
+        .select(columns)
+    )
+    after = pl.concat([before, itself])
     mods = (
         pl.concat(
             [
@@ -296,7 +326,9 @@ def _views(
     )
     features = _finish(sides.join(timing, on=["view", "round"]), float(match["tickrate"]))
     features = features.with_columns(pl.lit(match["map"]).alias("map"))
-    players = rows.select("view", "steamid", pl.col("side").cast(pl.String), "is_alive")
+    players = rows.filter(pl.col("steamid").is_not_null()).select(
+        "view", "steamid", pl.col("side").cast(pl.String), "is_alive"
+    )
     return features, players
 
 
@@ -346,8 +378,8 @@ def _spread(
     part: str,
 ) -> None:
     total = sum(weights.values())
-    if total <= 0:
-        return
+    if not math.isfinite(total) or total <= 0:
+        return  # nothing credited: the round no longer adds up, and `ledger` drops it
     for steamid, w in weights.items():
         out[(steamid, side, part)] += amount * w / total
 
@@ -357,7 +389,9 @@ def ledger(
 ) -> pl.DataFrame:
     """Every credit of a match (columns `SCHEMA`). `credit` is seen by the player's side, in
     probability (1 = a whole round); `p_ct_before` and `p_ct_after` frame the change it shares."""
-    tickrate = float(tables["match"]["tickrate"][0])
+    tickrate = float(tables["match"]["tickrate"][0] or 0)
+    if not math.isfinite(tickrate) or tickrate <= 0:
+        raise ValueError(f"the match's tickrate must be positive, not {tickrate}")
     rounds = _rounds(tables)
     events = _events(tables, rounds)
     if rounds.is_empty():
@@ -388,7 +422,12 @@ def ledger(
     blinds: dict[tuple[int, int], list[tuple[int, int, float]]] = defaultdict(list)
     for b in (
         tables["blind"]
-        .filter(~pl.col("is_teammate"), ~pl.col("is_self"), pl.col("flasher").is_not_null())
+        .filter(
+            ~pl.col("is_teammate"),
+            ~pl.col("is_self"),
+            pl.col("flasher").is_not_null(),
+            pl.col("duration").is_finite(),
+        )
         .select("round", "victim", "tick", "flasher", "duration")
         .rows()
     ):
@@ -403,10 +442,10 @@ def ledger(
     ):
         kills_by[(k[0], k[1])].append((k[2], k[3]))
     flash_assist = {
-        (k[0], k[1]): k[2]
+        (k[0], k[1], k[2]): k[3]
         for k in tables["kill"]
         .filter(pl.col("flash_assist"), pl.col("assister").is_not_null())
-        .select("round", "tick", "assister")
+        .select("round", "tick", "victim", "assister")
         .rows()
     }
 
@@ -458,7 +497,15 @@ def ledger(
             book.add(end | {"kind": "hold"}, (prev, pe), _hold(pe - prev, alive, side_of, ve))
             prev, last_view = pe, ve
         book.add(end, (prev, result), _hold(result - prev, alive, side_of, last_view, part="hold"))
-    return pl.DataFrame(book.rows, schema=SCHEMA)
+    credits = pl.DataFrame(book.rows, schema=SCHEMA)
+    # Every round adds up by construction; one that does not (a side with no player in a view)
+    # is left out rather than published wrong.
+    balanced = (
+        credits.group_by("round")
+        .agg(pl.col("credit").sum().abs().alias("off"))
+        .filter(pl.col("off") < BALANCE)["round"]
+    )
+    return credits.filter(pl.col("round").is_in(balanced.implode()))
 
 
 def _gain(side: str, d: float) -> float:
@@ -510,7 +557,7 @@ def _event(
     dealt: Mapping[tuple[int, int], list[tuple[int, int, str, int]]],
     blinds: Mapping[tuple[int, int], list[tuple[int, int, float]]],
     kills_by: Mapping[tuple[int, int], list[tuple[int, int]]],
-    flash_assist: Mapping[tuple[int, int], int],
+    flash_assist: Mapping[tuple[int, int, int], int],
 ) -> dict[tuple[int, str, str], float]:
     out: dict[tuple[int, str, str], float] = defaultdict(float)
     if d == 0:
@@ -522,7 +569,10 @@ def _event(
         other = "CT" if side == "T" else "T"
         share = shares.plant if kind == "plant" else shares.defuse
         g = _gain(side, d)
-        helpers = [h for h in _living(alive, side_of, view, side, but=actor) if h != actor]
+        # Only living teammates help: a lone planter or defuser takes it all.
+        helpers = [h for h in alive[view][side] if h != actor]
+        if actor is None and not helpers:
+            helpers = _living(alive, side_of, view, side)
         if actor is not None:
             out[(actor, side, "objective")] += g * (share if helpers else 1.0)
         if helpers:
@@ -567,8 +617,8 @@ def _event(
     for tick, flasher, duration in blinds.get(key, []):
         left = duration - (e["tick"] - tick) / tickrate
         if tick <= e["tick"] and left >= shares.flash_min and sides.get(flasher) == a_side:
-            flashers[flasher] += duration
-    assister = flash_assist.get((e["round"], e["tick"]))
+            flashers[flasher] += max(left, 1e-3)  # by the time still blind at the kill
+    assister = flash_assist.get((e["round"], e["tick"], victim))
     if not flashers and assister is not None and sides.get(assister) == a_side:
         flashers[assister] = 1.0
     window = shares.trade_window * tickrate
@@ -602,8 +652,21 @@ def _event(
 def per_player(credits: pl.DataFrame, rounds: pl.DataFrame) -> pl.DataFrame:
     """Each player's credit per round played, in percentage points, with its parts: `steamid`,
     `rounds`, `swing` and one column per part of `PARTS`. `rounds` is `round_player`-like
-    (`steamid`, `round`)."""
-    played = rounds.group_by("steamid").agg(pl.len().alias("rounds"))
+    (`steamid`, `round`); only the rounds with a ledger count, and a player credited in a round
+    `rounds` does not list still has it counted, so no credit is lost."""
+    with_ledger = credits.select("round").unique()
+    played = (
+        pl.concat(
+            [
+                rounds.select("steamid", pl.col("round").cast(pl.Int16)),
+                credits.select("steamid", "round"),
+            ]
+        )
+        .unique()
+        .join(with_ledger, on="round", how="semi")
+        .group_by("steamid")
+        .agg(pl.len().alias("rounds"))
+    )
     wide = (
         credits.group_by("steamid", "part")
         .agg(pl.col("credit").sum())
