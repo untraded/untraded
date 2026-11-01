@@ -157,7 +157,7 @@ function Marker({ n, className }: { n: number; className?: string }) {
     <span
       aria-hidden="true"
       className={cn(
-        "inline-grid size-5 shrink-0 place-items-center self-center rounded-full bg-foreground text-[0.6875rem] font-bold text-background",
+        "inline-grid size-5 shrink-0 place-items-center self-center rounded-full bg-foreground text-[0.6875rem] font-semibold text-background",
         className,
       )}
     >

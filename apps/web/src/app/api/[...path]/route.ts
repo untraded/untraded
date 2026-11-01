@@ -8,13 +8,9 @@
 
 import type { NextRequest } from "next/server";
 import { internalApiUrl } from "@/lib/api";
+import { hasNoBody, requestHeaders, responseHeaders } from "@/lib/relay";
 
 export const dynamic = "force-dynamic";
-
-// `content-length` too: the body is streamed, and the API refuses a too large upload from it
-// before reading anything.
-const REQUEST_HEADERS = ["accept", "content-length", "content-type", "cookie", "user-agent"];
-const RESPONSE_HEADERS = ["cache-control", "content-type", "location"];
 
 async function relay(
   request: NextRequest,
@@ -22,11 +18,7 @@ async function relay(
 ): Promise<Response> {
   const { path } = await params;
   const target = `${internalApiUrl()}/${path.map(encodeURIComponent).join("/")}${request.nextUrl.search}`;
-  const headers = new Headers();
-  for (const name of REQUEST_HEADERS) {
-    const value = request.headers.get(name);
-    if (value) headers.set(name, value);
-  }
+  const headers = requestHeaders(request.headers);
   const hasBody = !["GET", "HEAD"].includes(request.method);
   let response: Response;
   try {
@@ -44,25 +36,17 @@ async function relay(
     // refused at once): the site checks `GET /api/uploads` first for that.
     return Response.json({ detail: "the API did not answer" }, { status: 502 });
   }
-  const out = new Headers();
-  for (const name of RESPONSE_HEADERS) {
-    const value = response.headers.get(name);
-    if (value) out.set(name, value);
+  const { headers: out, gzip } = responseHeaders(
+    response.headers,
+    response.status,
+    request.headers.get("accept-encoding"),
+  );
+  // A 304 (a replay revalidated) or a 204 has no body: nothing to stream, nor to gzip.
+  if (hasNoBody(response.status) || !response.body) {
+    return new Response(null, { status: response.status, headers: out });
   }
-  for (const cookie of response.headers.getSetCookie()) out.append("set-cookie", cookie);
-  // `fetch` decompresses what the API gzipped (a round replay: 40 kB gzipped, 500 kB of JSON),
-  // and Next does not compress a route's stream: gzip it again for a browser that takes it.
-  const gzipped = /\bgzip\b/.test(response.headers.get("content-encoding") ?? "");
-  const accepted = /\bgzip\b/.test(request.headers.get("accept-encoding") ?? "");
-  if (gzipped && response.body) {
-    out.set("vary", "accept-encoding");
-    if (accepted) {
-      out.set("content-encoding", "gzip");
-      const body = response.body.pipeThrough(new CompressionStream("gzip"));
-      return new Response(body, { status: response.status, headers: out });
-    }
-  }
-  return new Response(response.body, { status: response.status, headers: out });
+  const body = gzip ? response.body.pipeThrough(new CompressionStream("gzip")) : response.body;
+  return new Response(body, { status: response.status, headers: out });
 }
 
 export { relay as DELETE, relay as GET, relay as PATCH, relay as POST, relay as PUT };

@@ -4,6 +4,9 @@
 // IBM Plex Sans and Mono (SIL Open Font License 1.1), served by the site itself: the files come
 // from the @fontsource packages at build time, so no browser ever calls a font host. The paths
 // must be written out in full: next/font only accepts literals.
+//
+// Every page preloads the sans weights, so the site uses 400 to 600 and no bold (700). The mono
+// face appears on few pages (codes, formulas, admin): it loads when used, not preloaded.
 
 import localFont from "next/font/local";
 
@@ -22,11 +25,6 @@ export const plexSans = localFont({
     {
       path: "../../node_modules/@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-600-normal.woff2",
       weight: "600",
-      style: "normal",
-    },
-    {
-      path: "../../node_modules/@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-700-normal.woff2",
-      weight: "700",
       style: "normal",
     },
   ],
@@ -49,4 +47,5 @@ export const plexMono = localFont({
   ],
   variable: "--font-plex-mono",
   display: "swap",
+  preload: false,
 });

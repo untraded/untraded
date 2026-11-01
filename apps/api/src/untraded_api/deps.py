@@ -18,6 +18,12 @@ from untraded_api.settings import Settings
 
 COOKIE = "untraded_session"
 
+CLEAR_CACHE = {"Clear-Site-Data": '"cache"'}
+"""Sent when a session ends (sign-out, erasure): a browser that receives it drops what it cached of
+the site, so the replays of one account do not outlive its session on a shared computer. The site
+signs out from its server, so only a browser calling the API itself gets it; the replays are kept
+a day at most for that reason."""
+
 
 def token_hash(token: str) -> bytes:
     """What the database keeps of a session token."""

@@ -179,6 +179,52 @@ def test_a_round_replay_is_served_to_who_may_see_the_match(
         assert stranger.get(f"/matches/{match_id}/rounds/11/replay").status_code == 404
 
 
+def test_a_round_replay_revalidates_with_its_etag(match_id: uuid.UUID, tmp_path: Path) -> None:
+    replays = build_replays(fixtures.read(FIXTURE))
+    prefix = f"matches/{match_id}"
+    (tmp_path / prefix / "replay").mkdir(parents=True)
+    replay = tmp_path / prefix / "replay" / "11.json.gz"
+    replay.write_bytes(to_json_gz(replays[11]))
+    with psycopg.connect(URL, autocommit=True) as conn:
+        conn.execute("UPDATE match SET parquet_prefix = %s WHERE id = %s", (prefix, match_id))
+    settings = Settings(
+        database_url=URL,
+        public_url="http://testserver",
+        web_url="http://web",
+        cookie_secure=False,
+        store_dir=str(tmp_path),
+    )
+    url = f"/matches/{match_id}/rounds/11/replay"
+    with TestClient(create_app(settings)) as client:
+        me = as_player(client, ME)
+        first = me.get(url)
+        etag = first.headers["etag"]
+        assert etag.startswith('"')
+        assert etag.endswith('"')
+        assert me.get(url).headers["etag"] == etag  # stable
+        assert first.headers["cache-control"] == "private, max-age=86400"
+        assert first.headers["vary"] == "Cookie"
+        same = me.get(url, headers={"If-None-Match": etag})
+        assert (same.status_code, same.content) == (304, b"")
+        assert (same.headers["etag"], same.headers["vary"]) == (etag, "Cookie")
+        assert "content-encoding" not in same.headers
+        weak = me.get(url, headers={"If-None-Match": f'"other", W/{etag}'})
+        assert weak.status_code == 304  # as the web's relay sends it back
+        other = me.get(url, headers={"If-None-Match": '"other"'})
+        assert (other.status_code, other.headers["etag"]) == (200, etag)
+        # A reanalysis rewrites the file: the old tag no longer matches.
+        replay.write_bytes(to_json_gz(replays[next(n for n in sorted(replays) if n != 11)]))
+        assert me.get(url, headers={"If-None-Match": etag}).status_code == 200
+        # Someone who may not see the match learns nothing, whatever the header says.
+        stranger = as_player(client, STRANGER)
+        plain = stranger.get(url)
+        for header in (etag, "*"):
+            asked = stranger.get(url, headers={"If-None-Match": header})
+            assert (asked.status_code, asked.json()) == (plain.status_code, plain.json())
+            assert "etag" not in asked.headers
+        assert plain.status_code == 404
+
+
 LINE_KEYS = ("kills", "deaths", "adr", "kast", "hltv1", "untraded_deaths", "untraded")
 """The view's columns; the routes add `level`."""
 

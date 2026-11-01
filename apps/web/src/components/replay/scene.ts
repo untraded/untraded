@@ -2,15 +2,17 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 //
 // The 2D viewer's drawing, with PixiJS (WebGL): the radar under everything, then smokes and fires,
-// grenades in flight, deaths, the bomb and the players. Loaded on the client only, from the viewer.
+// grenades in flight, deaths, the bomb and the players. Loaded on the client only, from the viewer:
+// it is only ever imported lazily, so PixiJS, imported here, comes in the same chunk, at once.
 
-import type { Application, Container, Graphics, Sprite, Text, Texture } from "pixi.js";
+import { Application, Assets, Container, Graphics, Sprite, Text, type Texture } from "pixi.js";
 import {
   angleBetween,
   between,
   bombCarrier,
   FIRE_RADIUS,
   type Frame,
+  focusLast,
   frameOf,
   hasLevels,
   type Level,
@@ -18,8 +20,11 @@ import {
   nearest,
   RADAR_MAPS,
   type Replay,
+  type ReplayPlayer,
+  radarSrc,
   SMOKE_RADIUS,
   sampleAt,
+  sidesById,
   TWO_LEVELS,
 } from "@/lib/replay";
 
@@ -49,6 +54,8 @@ export interface Scene {
   destroy: () => void;
 }
 
+const LEVELS: readonly Level[] = ["upper", "lower"];
+
 /** Draws a round in `host`, a square `size` pixels wide. Rejects when WebGL is not available. */
 export async function createScene(
   host: HTMLElement,
@@ -56,8 +63,7 @@ export async function createScene(
   size: number,
   initial: SceneColors,
 ): Promise<Scene> {
-  const PIXI = await import("pixi.js");
-  const app: Application = new PIXI.Application();
+  const app = new Application();
   await app.init({
     width: size,
     height: size,
@@ -83,10 +89,10 @@ export async function createScene(
   const radars: Partial<Record<Level, Sprite>> = {};
   if (frame.radar && RADAR_MAPS.has(replay.map)) {
     const load = async (level: Level) => {
-      const src = `/radars/${replay.map}${level === "lower" ? "_lower" : ""}.svg`;
+      const src = radarSrc(replay.map, level);
       try {
-        const texture: Texture = await PIXI.Assets.load({ src, data: { resolution: 2 } });
-        const sprite = new PIXI.Sprite(texture);
+        const texture: Texture = await Assets.load({ src, data: { resolution: 2 } });
+        const sprite = new Sprite(texture);
         sprite.width = 1024;
         sprite.height = 1024;
         radars[level] = sprite;
@@ -99,17 +105,17 @@ export async function createScene(
       ...(two && TWO_LEVELS.has(replay.map) ? [load("lower")] : []),
     ]);
   }
-  const ground: Container = new PIXI.Container();
+  const ground = new Container();
   for (const sprite of Object.values(radars)) if (sprite) ground.addChild(sprite);
-  const zones: Graphics = new PIXI.Graphics();
-  const marks: Graphics = new PIXI.Graphics();
-  const bodies: Graphics = new PIXI.Graphics();
-  const labels: Container = new PIXI.Container();
+  const zones = new Graphics();
+  const marks = new Graphics();
+  const bodies = new Graphics();
+  const labels = new Container();
   app.stage.addChild(ground, zones, marks, bodies, labels);
 
   const names = new Map<string, Text>();
   for (const player of replay.players) {
-    const text = new PIXI.Text({
+    const text = new Text({
       text: player.name,
       style: {
         fontFamily: "IBM Plex Sans, system-ui, sans-serif",
@@ -130,10 +136,16 @@ export async function createScene(
   const sideColor = (side: string | null) => (side === "CT" ? colors.ct : colors.t);
   const planted = replay.bomb.events.find((e) => e.type === "planted");
   const exploded = replay.bomb.events.find((e) => e.type === "exploded");
+  // Computed once rather than each frame: the victims' sides, and the drawing order per focus.
+  const sides = sidesById(replay.players);
+  let order: ReplayPlayer[] = focusLast(replay.players, null);
+  let orderFocus: string | null = null;
 
   function draw({ tick, focus, level }: SceneState) {
     ground.scale.set(scale);
-    for (const [key, sprite] of Object.entries(radars) as [Level, Sprite][]) {
+    for (const key of LEVELS) {
+      const sprite = radars[key];
+      if (!sprite) continue;
       // Only the level shown: when its radar is missing, no radar rather than the other level's.
       sprite.visible = !two || key === level;
       sprite.tint = colors.radar;
@@ -165,21 +177,27 @@ export async function createScene(
     for (const g of replay.grenades) {
       if (tick < g.throw_tick || (g.detonate_tick !== null && tick >= g.detonate_tick)) continue;
       const color = sideColor(g.side);
-      let last: { point: [number, number]; away: boolean } | null = null;
-      g.path.ticks.forEach((t, k) => {
-        if (t > tick) return;
-        const point = at(g.path.x[k] ?? 0, g.path.y[k] ?? 0);
+      // The path's ticks go forward: stop at the first one still to come.
+      let seen = false;
+      let lastX = 0;
+      let lastY = 0;
+      let lastAway = false;
+      for (let k = 0; k < g.path.ticks.length; k++) {
+        if ((g.path.ticks[k] ?? 0) > tick) break;
+        const [px, py] = at(g.path.x[k] ?? 0, g.path.y[k] ?? 0);
         const off = away(g.path.z[k]);
         if (k % 2 === 0) {
-          marks.circle(point[0], point[1], 1).fill({ color, alpha: 0.7 * (off ? AWAY : 1) });
+          marks.circle(px, py, 1).fill({ color, alpha: 0.7 * (off ? AWAY : 1) });
         }
-        last = { point, away: off };
-      });
-      const end = last as { point: [number, number]; away: boolean } | null;
-      if (end) {
-        const [x, y] = end.point;
-        if (end.away) marks.circle(x, y, 2.5).stroke({ width: 1.25, color, alpha: AWAY + 0.15 });
-        else marks.circle(x, y, 2.5).fill({ color });
+        seen = true;
+        lastX = px;
+        lastY = py;
+        lastAway = off;
+      }
+      if (seen) {
+        if (lastAway)
+          marks.circle(lastX, lastY, 2.5).stroke({ width: 1.25, color, alpha: AWAY + 0.15 });
+        else marks.circle(lastX, lastY, 2.5).fill({ color });
       }
     }
 
@@ -218,8 +236,8 @@ export async function createScene(
     // Deaths: a cross where the player fell.
     for (const kill of replay.kills) {
       if (kill.tick > tick) continue;
-      const victim = replay.players.find((p) => p.steamid === kill.victim);
-      if (!victim) continue;
+      const side = sides.get(kill.victim);
+      if (side === undefined) continue;
       const [x, y] = at(kill.victim_x, kill.victim_y);
       const off = away(kill.victim_z);
       marks
@@ -229,16 +247,17 @@ export async function createScene(
         .lineTo(x - 5, y + 5)
         .stroke({
           width: off ? 1.25 : 2,
-          color: sideColor(victim.side),
+          color: sideColor(side),
           alpha: off ? AWAY : 0.75,
         });
     }
 
     // Players, the highlighted one on top.
     const carrier = planted && tick >= planted.tick ? null : bombCarrier(replay, tick);
-    const order = [...replay.players].sort(
-      (a, b) => Number(a.steamid === focus) - Number(b.steamid === focus),
-    );
+    if (focus !== orderFocus) {
+      order = focusLast(replay.players, focus);
+      orderFocus = focus;
+    }
     for (const player of order) {
       const name = names.get(player.steamid);
       const x = between(player.x, sample);
@@ -283,7 +302,9 @@ export async function createScene(
         name.position.set(cx, cy - 10);
         name.alpha = alpha;
         name.style.fill = player.steamid === focus ? colors.foreground : colors.muted;
-        name.style.fontWeight = player.steamid === focus ? "600" : "500";
+        // Pixi redraws a text on every weight set, even the same one: only when it changes.
+        const weight = player.steamid === focus ? "600" : "500";
+        if (name.style.fontWeight !== weight) name.style.fontWeight = weight;
       }
     }
     app.render();
