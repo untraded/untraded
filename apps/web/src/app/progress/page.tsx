@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getLocale, getTimeZone, getTranslations } from "next-intl/server";
+import { Suspense } from "react";
 import { FollowUpList } from "@/components/follow-up";
 import { type ChartPoint, ProgressChart } from "@/components/progress/progress-chart";
 import type { Locale } from "@/i18n/locale";
@@ -60,8 +61,6 @@ export default async function Progress({
   const locale = (await getLocale()) as Locale;
   const timeZone = await getTimeZone();
   const sessions = inPeriod(all, period, now);
-  // The previous priorities come from the newest report, an extra the page stands without.
-  const latest = all[0] ? await findSession(all[0].id) : null;
   const first = sessions[0];
   const last = sessions.at(-1);
 
@@ -139,15 +138,24 @@ export default async function Progress({
           {t("priorities")}
         </h2>
         <div className="rounded-lg border border-border bg-card p-4">
-          {latest && latest.follow_up.length > 0 ? (
-            <FollowUpList items={latest.follow_up} locale={locale} />
-          ) : (
-            <p className="text-sm text-muted-foreground">{t("noPriority")}</p>
-          )}
+          <Suspense fallback={null}>
+            <PreviousPriorities session={all[0]?.id ?? null} locale={locale} />
+          </Suspense>
         </div>
       </section>
     </section>
   );
+}
+
+/** The previous priorities and their indicator, from the newest session's report: an extra the
+ * page stands without, streamed so the figures do not wait on it. */
+async function PreviousPriorities({ session, locale }: { session: string | null; locale: Locale }) {
+  const latest = session ? await findSession(session) : null;
+  if (latest && latest.follow_up.length > 0) {
+    return <FollowUpList items={latest.follow_up} locale={locale} />;
+  }
+  const t = await getTranslations("progress");
+  return <p className="text-sm text-muted-foreground">{t("noPriority")}</p>;
 }
 
 async function FigureCard({
