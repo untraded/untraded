@@ -1170,7 +1170,7 @@
     "shots": {
       "viewer": "The 2D viewer of a round, with the win-probability curve and the actions that weighed most",
       "priorities": "A session's priorities, each with the rounds it cost",
-      "rating": "An Untraded Rating broken down by action: kills, deaths, plants, defuses"
+      "rating": "An Untraded Rating broken down by action: shooting, utility, trades, objective"
     },
     "what": {
       "title": "What Untraded does",

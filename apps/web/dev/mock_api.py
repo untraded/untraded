@@ -78,7 +78,8 @@ def metrics() -> list[dict[str, str]]:
         ]
     except ImportError:  # outside the uv workspace: a few metrics are enough
         return [
-            {"id": "rating.untraded", "version": "1.0.0", "name": "Untraded Rating", "unit": "ratio", "better": "higher", "cases": ["rounds"], "signed": False},
+            {"id": "rating.untraded", "version": "2.0.0", "name": "Untraded Rating", "unit": "ratio", "better": "higher", "cases": ["rounds"], "signed": False},
+            {"id": "rating.untraded_level", "version": "1.0.0", "name": "Untraded Rating level", "unit": "ratio", "better": "higher", "cases": ["rounds"], "signed": False},
             {"id": "rating.hltv1", "version": "1.0.0", "name": "HLTV Rating 1.0", "unit": "ratio", "better": "higher", "cases": ["rounds"], "signed": False},
             {"id": "base.adr", "version": "1.0.0", "name": "ADR", "unit": "damage_per_round", "better": "higher", "cases": ["rounds"], "signed": False},
             {"id": "base.kast", "version": "1.1.0", "name": "KAST", "unit": "pct", "better": "higher", "cases": ["rounds"], "signed": False},

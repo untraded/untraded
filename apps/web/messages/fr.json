@@ -1170,7 +1170,7 @@
     "shots": {
       "viewer": "Le viewer 2D d'un round, avec la courbe de probabilité de victoire et les actions qui ont le plus pesé",
       "priorities": "Les priorités d'une session, chacune avec les rounds où elle a coûté",
-      "rating": "Un Untraded Rating décomposé par action : kills, morts, poses, désamorçages"
+      "rating": "Un Untraded Rating décomposé par action : tir, utilitaires, trades, objectif"
     },
     "what": {
       "title": "Ce que fait Untraded",

@@ -220,32 +220,44 @@ def untraded_level(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
     if rounds is None:
         return per_player(ds, _frame([]), fill=None)
     rating = default_rating()
-    stats = ds.round_players().select(
-        "match_id",
-        "round",
-        "steamid",
-        pl.col("kills").cast(pl.Float64).alias("kpr"),
-        pl.col("deaths").cast(pl.Float64).alias("dpr"),
-        (pl.col("damage").cast(pl.Float64) / 100).alias("adr"),
+    box_stats = {
+        "kpr": pl.col("kills").cast(pl.Float64),
+        "dpr": pl.col("deaths").cast(pl.Float64),
+        "adr": pl.col("damage").cast(pl.Float64) / 100,
+    }
+    # The box score of every player of the whole match (every side), in the rounds with a ledger:
+    # the level is centred on it, as the match rating is recentred on every round's players, so a
+    # side's level carries the side's advantage as its match rating does.
+    ledger_rounds = ds["ledger"].select("match_id", "round").unique()
+    stats = (
+        ds["round_player"]
+        .join(ledger_rounds, on=["match_id", "round"], how="semi")
+        .select("match_id", "round", "steamid", *(e.alias(f) for f, e in box_stats.items()))
     )
-    per_match = (
-        rounds.join(stats, on=["match_id", "round", "steamid"])
-        .group_by("match_id", "steamid")
-        .agg(
-            pl.len().alias("n"),
-            pl.col("credit").mean(),
-            *(pl.col(f).mean() for f in rating.box.features),
+
+    def boxes(frame: pl.DataFrame) -> pl.DataFrame:
+        per = frame.group_by("match_id", "steamid").agg(
+            pl.len().alias("n"), *(pl.col(f).mean() for f in rating.box.features)
         )
+        return per.with_columns(
+            pl.Series("box", rating.box.predict(per.select(rating.box.features).to_numpy()))
+        )
+
+    whole = boxes(stats)
+    centre = whole.group_by("match_id").agg(
+        ((pl.col("box") * pl.col("n")).sum() / pl.col("n").sum()).alias("centre")
     )
-    if per_match.is_empty():
+    kept = rounds.join(stats, on=["match_id", "round", "steamid"])
+    if kept.is_empty():
         return per_player(ds, _frame([]), fill=None)
-    box = rating.box.predict(per_match.select(rating.box.features).to_numpy())
-    per_match = per_match.with_columns(pl.Series("box", box)).with_columns(
-        (
-            pl.col("box")
-            - (pl.col("box") * pl.col("n")).sum().over("match_id")
-            / pl.col("n").sum().over("match_id")
-        ).alias("box")
+    per_match = (
+        boxes(kept)
+        .join(
+            kept.group_by("match_id", "steamid").agg(pl.col("credit").mean()),
+            on=["match_id", "steamid"],
+        )
+        .join(centre, on="match_id")
+        .with_columns((pl.col("box") - pl.col("centre")).alias("box"))
     )
     totals = per_match.group_by("steamid").agg(
         pl.col("n").sum(),

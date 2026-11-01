@@ -148,3 +148,41 @@ def test_a_broken_scale_file_is_refused() -> None:
     ):
         with pytest.raises(ValueError, match="scale"):
             RatingScale.from_json(broken)
+
+
+def test_a_ledger_that_fails_leaves_the_match_without_a_rating(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from untraded.winprob import ledger as ledger_module
+
+    monkeypatch.setattr(ledger_module, "MAX_PENDING", 0)
+    tables = fixtures.read(FIXTURES / "premier-half")
+    derived = derive(tables).tables()
+    assert derived["ledger"].is_empty()
+    assert not derived["round_player"].is_empty()  # the rest of the analysis stands
+    values = compute(Dataset.from_matches([{**tables, **derived}]), ["rating.untraded"])
+    assert values["value"].null_count() == values.height
+
+
+def test_a_sides_level_is_centred_on_the_whole_match(
+    matches: list[dict[str, pl.DataFrame]],
+) -> None:
+    # Each side's match rating and level are both measured against the whole match: the CT and
+    # T rows of a player, weighted by rounds, average to the player's match values.
+    ds = Dataset.from_matches([matches[0]])
+    whole = compute(ds, ["rating.untraded_level"]).select("steamid", pl.col("value").alias("all"))
+    rounds = ds.round_players().group_by("steamid", "side").agg(pl.len().alias("n"))
+    sides = []
+    for side in ("CT", "T"):
+        values = compute(ds.split(side=side), ["rating.untraded_level"]).drop_nulls("value")
+        sides.append(values.select("steamid", "value", pl.lit(side).alias("side")))
+    per_side = (
+        pl.concat(sides)
+        .join(rounds.with_columns(pl.col("side").cast(pl.String)), on=["steamid", "side"])
+        .group_by("steamid")
+        .agg(((pl.col("value") * pl.col("n")).sum() / pl.col("n").sum()).alias("mixed"))
+        .join(whole, on="steamid")
+    )
+    assert per_side.height > 0
+    # Not equal (the box is not linear in the side split's averages of a ratio), but close.
+    assert float(np.max(np.abs(per_side["mixed"].to_numpy() - per_side["all"].to_numpy()))) < 0.25
