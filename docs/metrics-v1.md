@@ -1,6 +1,6 @@
 # Metric catalog v1 (phase 1)
 
-*Version 1, 2026-10-13, updated 2026-10-26. This catalog is **closed** for phase 1: new metrics go to v2. Entries added since: `base.assist_score` (settled with the CS Demo Manager comparison), then the open rating: `rating.swing`, `rating.untraded`, `rating.untraded_level`, `rating.untraded_margin` and `rating.untraded_parts`. Each entry is a registered metric (`packages/untraded-py/src/untraded/metrics/`, 86 in all: 75 values and 11 tables) with a generated documentation page ([metrics/](metrics/README.md)), which also gives its version and history.*
+*Version 1, 2026-10-13, updated 2026-10-26. This catalog is **closed** for phase 1: new metrics go to v2. Entries added since: `base.assist_score` (settled with the CS Demo Manager comparison), then the open rating: `rating.swing`, `rating.untraded`, `rating.untraded_level`, `rating.untraded_margin` and `rating.untraded_parts`. Each entry is a registered metric (`packages/untraded-py/src/untraded/metrics/`, 88 in all: 77 values and 11 tables) with a generated documentation page ([metrics/](metrics/README.md)), which also gives its version and history.*
 
 **Legend**
 - **ID**: stable registry identifier. It never changes, even when the formula's version does.
@@ -54,8 +54,9 @@
   - **C gets a trade kill**.
   - When A and B kill each other on the same tick, nobody is traded. A's own grenade or fire killing B after A's death does trade it.
 - **W**, the trade window: ⚙ `trade.window_s = 5.0` (HLTV and CSDM convention). A 3-second variant is computed alongside with the `_w3` suffix (⚙ `trade.window_w3_s = 3.0`).
-- **Trade opportunity**: A is killed by B. Every teammate C of A who is **alive** at that tick and **within D units of B's position** has a trade opportunity.
+- **Trade opportunity**: A is killed by B. Every teammate C of A who is **alive** at that tick, **within D units of B's position**, and who **saw B within W** of the kill has a trade opportunity. "Saw" is the engine's spotting (`player_tick.spotted_by`, the radar's visibility, sampled at 16 Hz); a trade by C proves it too, since the spotting can lag behind a quick trade.
   - ⚙🎯 `trade.opportunity_distance = 1300` u (calibrated, [calibration.md](calibration.md)).
+  - Distance alone counted teammates behind walls: on 42 corpus matches, 7,010 opportunities converted at 13.6 %; with the sighting, 1,974 converted at 48 % ([calibration.md](calibration.md)).
 
 | ID | Name | Definition | CSDM |
 |---|---|---|---|
@@ -68,13 +69,15 @@
 | `trade.trade_kills` | Trade kills | Trade kills made: kills of an enemy who killed a teammate of the player within W before | ✅ |
 | `trade.traded_deaths` | Traded deaths | The player's deaths that were traded | ✅ |
 | `trade.traded_death_pct` | Traded death % | Traded deaths ÷ deaths × 100 | — |
-| `trade.untraded_deaths` | **Untraded deaths** | Deaths − traded deaths (the product's signature metric). Includes deaths with no teammate left to trade them | — |
+| `trade.untraded_deaths` | **Untraded deaths** | Deaths with a living teammate that were not traded (the product's signature metric). A death with no teammate left to trade it (the last player alive) is left out | — |
 | `trade.trade_kills_w3`, `trade.traded_deaths_w3`, `trade.traded_death_pct_w3`, `trade.untraded_deaths_w3` | 3-second variants | The same four metrics with W = 3 s (⚙ `trade.window_w3_s = 3.0`) | — |
 | `trade.kill_opportunities` | Trade opportunities | The player's trade opportunities (as defined above) | — |
 | `trade.kill_conversion_pct` | Opportunity conversion | Trade kills ÷ trade opportunities × 100 | — |
 | `trade.death_opportunities` | Tradable deaths | The player's deaths where at least one teammate had a trade opportunity | — |
 | `duel.isolated_deaths` | Isolated deaths | **Untraded** deaths where the nearest living teammate was more than R units away. ⚙🎯 `isolation.radius = 1000` u (checked on the corpus and kept, [calibration.md](calibration.md)). A death with no living teammate (last player alive) is not isolated | — |
 | `duel.isolated_death_pct` | Isolated death % | Isolated deaths ÷ deaths × 100 | — |
+| `duel.duels_lost` | Duels lost | Deaths in a duel: killed by an enemy's gun (no grenade, fire, knife, zeus or bomb), not blind, having seen the killer (`spotted_by`) within ⚙ `duel.sight_s = 2.0` before. Shot in the back, burnt or flashed is not a duel | — |
+| `duel.lost_without_damage_pct` | Duels lost without damage | Duels lost where the player had not hurt the killer earlier in the round ÷ duels lost × 100: duels lost on the aim (about half of them on the corpus) | — |
 | `duel.nearest_teammate_at_death` | Spacing at death | Median, over deaths with a living teammate, of the distance to the nearest one (u) | — |
 | `clutch.attempts_1v{1..5}` | Clutch attempts | Rounds where the player becomes the last one alive on the team, facing N living enemies. Kills after the round end are ignored, only the enemies present in the round count, and when the last two players of a team die on the same tick nobody clutched | ✅ |
 | `clutch.wins_1v{1..5}` | Clutch wins | …and the team wins the round, whether or not the clutcher survives | ✅ |

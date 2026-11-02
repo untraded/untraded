@@ -14,6 +14,7 @@ import polars as pl
 
 from untraded.advice.engine import Rule, placed, rule, standard
 from untraded.metrics import Dataset
+from untraded.metrics.duels import lost_duels, opportunities, untraded
 from untraded.metrics.positioning import recurring_death_spot
 from untraded.metrics.registry import ParamValue
 from untraded.metrics.utility import GRENADE_PRICES
@@ -22,7 +23,8 @@ TWO = {"advice.min_events": 2}
 
 
 def _untraded(p: Mapping[str, ParamValue]) -> pl.Expr:
-    return pl.col("trade_delay_s").is_null() | (pl.col("trade_delay_s") > p["trade.window_s"])
+    """Untraded, with a living teammate who could have traded (`trade.untraded_deaths`)."""
+    return untraded(p["trade.window_s"]) & pl.col("nearest_teammate_distance").is_not_null()
 
 
 def untraded_deaths(ds: Dataset, player: int, p: Mapping[str, ParamValue]) -> pl.DataFrame:
@@ -38,28 +40,11 @@ def isolated_deaths(ds: Dataset, player: int, p: Mapping[str, ParamValue]) -> pl
 
 
 def missed_trades(ds: Dataset, player: int, p: Mapping[str, ParamValue]) -> pl.DataFrame:
-    """Opportunities (a teammate killed near the player) the player did not convert: no kill of
-    that killer by the player within the trade window."""
-    chances = placed(
-        ds,
-        ds["trade_opportunity"].filter(
-            pl.col("distance_to_killer") <= p["trade.opportunity_distance"]
-        ),
-        player,
-        "teammate",
-    )
-    trades = (
-        ds["death"]
-        .filter(
-            (pl.col("killer") == player)
-            & pl.col("is_enemy_kill")
-            & (pl.col("avenges_delay_s") <= p["trade.window_s"])
-        )
-        .select("match_id", "round", pl.col("victim").alias("killer"))
-        .unique()
-    )
-    missed = chances.join(trades, on=["match_id", "round", "killer"], how="anti")
-    return standard(missed.rename({"victim": "teammate_killed"}), ("teammate_killed", "killer"))
+    """Opportunities (a teammate killed near the player, whose killer the player saw) the player
+    did not convert: the player did not trade that death within the trade window."""
+    missed = opportunities(ds, p).filter(~pl.col("converted"))
+    rows = placed(ds, missed, player, "teammate").rename({"victim": "teammate_killed"})
+    return standard(rows, ("teammate_killed", "killer"))
 
 
 def opening_deaths(ds: Dataset, player: int, _: Mapping[str, ParamValue]) -> pl.DataFrame:
@@ -84,24 +69,11 @@ def clutches_lost(ds: Dataset, player: int, _: Mapping[str, ParamValue]) -> pl.D
     return standard(placed(ds, rows.drop("side"), player, "steamid"), ("enemies",))
 
 
-def duels_without_damage(ds: Dataset, player: int, _: Mapping[str, ParamValue]) -> pl.DataFrame:
-    """Deaths to an enemy the player had not damaged in that round: duels lost on the aim."""
-    deaths = ds["death"].filter(pl.col("is_enemy_kill"))
-    hits = (
-        ds["damage"]
-        .filter(pl.col("attacker") == player)
-        .select(
-            "match_id", "round", pl.col("victim").alias("killer"), pl.col("tick").alias("hit_tick")
-        )
-    )
-    mine = placed(ds, deaths, player, "victim")
-    touched = (
-        mine.join(hits, on=["match_id", "round", "killer"])
-        .filter(pl.col("hit_tick") <= pl.col("tick"))
-        .select("match_id", "round", "tick")
-        .unique()
-    )
-    return standard(mine.join(touched, on=["match_id", "round", "tick"], how="anti"), ("killer",))
+def duels_without_damage(ds: Dataset, player: int, p: Mapping[str, ParamValue]) -> pl.DataFrame:
+    """Duels lost (the killer seen, a gun, not blind) without hurting the killer: lost on the
+    aim."""
+    rows = lost_duels(ds, p).filter(~pl.col("damaged"))
+    return standard(placed(ds, rows, player, "victim"), ("killer", "weapon"))
 
 
 def wasted_utility(ds: Dataset, player: int, _: Mapping[str, ParamValue]) -> pl.DataFrame:
@@ -155,7 +127,7 @@ def recurring_spot(ds: Dataset, player: int, p: Mapping[str, ParamValue]) -> pl.
 for definition in (
     Rule(
         id="trade.untraded_deaths",
-        version="1.0.0",
+        version="1.1.0",
         family="trade",
         metric="trade.untraded_deaths",
         evidence=untraded_deaths,
@@ -171,7 +143,7 @@ for definition in (
     ),
     Rule(
         id="trade.missed_trades",
-        version="1.0.0",
+        version="1.1.0",
         family="trade",
         metric="trade.kill_conversion_pct",
         evidence=missed_trades,
@@ -206,9 +178,9 @@ for definition in (
     ),
     Rule(
         id="combat.duels_without_damage",
-        version="1.0.0",
+        version="2.0.0",
         family="combat",
-        metric="base.hs_pct",
+        metric="duel.lost_without_damage_pct",
         evidence=duels_without_damage,
         actions=("drill.aim_botz", "drill.crosshair_placement", "drill.counter_strafe"),
     ),
@@ -230,7 +202,7 @@ for definition in (
     ),
     Rule(
         id="pos.recurring_death_spot",
-        version="1.0.0",
+        version="1.1.0",
         family="pos",
         metric="pos.recurring_death_spot",
         evidence=recurring_spot,

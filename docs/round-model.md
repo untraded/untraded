@@ -36,10 +36,11 @@ A round is played when the player is on a team at freeze-time end (the `economy`
 | `trade_delay_s`, `trader` | Float32?, UInt64? | the killer is then killed by the victim's team in the round, later or on the same tick (delay 0): after this delay, by this player. When the victim and the killer kill each other on the same tick, nobody is traded; the victim's own grenade or fire killing the killer later does trade the death. **Traded** = delay ≤ W |
 | `avenges_delay_s` | Float32? | this kill's victim had killed a teammate of the killer this long before (the latest such kill). **Trade kill** = delay ≤ W |
 | `nearest_teammate_distance` | Float32? | distance from the victim to the nearest living teammate, at the death tick |
+| `last_sight_s` | Float32? | how long before the death the victim last saw the killer: the latest `player_tick` sample, up to the death, where the victim is in the killer's `spotted_by` (the engine's spotting, sampled at 16 Hz). Null: not seen in the round, or not an enemy kill |
 
 ### `trade_opportunity` — one row per enemy kill and living teammate of the victim
 
-`tick` (Int32), `round` (Int16), `victim`, `killer`, `teammate` (UInt64), `distance_to_killer` (Float32: 3D distance from the teammate to the killer, at the kill tick). A teammate has a trade opportunity when that distance is within ⚙🎯 `trade.opportunity_distance` (1,300 u by default), applied by the metrics.
+`tick` (Int32), `round` (Int16), `victim`, `killer`, `teammate` (UInt64), `distance_to_killer` (Float32: 3D distance from the teammate to the killer, at the kill tick), `sight_delay_s` (Float32?: how long after the kill the teammate first saw the killer, both alive; null: never in the round). A teammate has a trade opportunity when that distance is within ⚙🎯 `trade.opportunity_distance` (1,300 u by default) and the teammate saw the killer, or traded it, within `trade.window_s`: applied by the metrics.
 
 ### `clutch` — one row per clutch
 

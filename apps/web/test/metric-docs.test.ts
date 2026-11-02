@@ -77,6 +77,6 @@ describe("metric docs", () => {
     expect(translate("First version (#37).", null)).toBe("First version (#37).");
     const local = localize(doc("trade.untraded_deaths"), fr);
     expect(local.name).toBe("Morts non tradées (5 s)");
-    expect(local.definition[0]).toMatch(/^Morts - morts tradées/);
+    expect(local.definition[0]).toMatch(/^Morts avec un coéquipier vivant/);
   });
 });

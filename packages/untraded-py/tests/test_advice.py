@@ -181,8 +181,12 @@ def test_cost_counts_rounds_and_weighs_the_lost_ones() -> None:
             assert found.actions
 
 
-def fake(rule_id: str, cost: float, rounds: list[int]) -> Finding:
-    rows = pl.DataFrame({"match_id": ["m"] * len(rounds), "round": rounds})
+def fake(rule_id: str, cost: float, rounds: list[int], tick: int = 0) -> Finding:
+    """One event per round, at `tick`: two findings share an event when both round and tick
+    match."""
+    rows = pl.DataFrame(
+        {"match_id": ["m"] * len(rounds), "round": rounds, "tick": [tick] * len(rounds)}
+    )
     return Finding(
         rule=rule_id,
         rule_version="1.0.0",
@@ -201,16 +205,22 @@ def fake(rule_id: str, cost: float, rounds: list[int]) -> Finding:
     )
 
 
-def test_priorities_are_the_costliest_without_repeating_rounds() -> None:
+def test_priorities_are_the_costliest_without_repeating_events() -> None:
     findings = [
         fake("a", 5, [1, 2, 3, 4]),
-        fake("b", 4, [1, 2, 3, 9]),  # 3 of its 4 rounds are already a's
+        fake("b", 4, [1, 2, 3, 9]),  # 3 of its 4 events are already a's
         fake("c", 3, [10, 11]),
         fake("d", 2, [12]),
         fake("e", 1, [13]),
     ]
     assert [f.rule for f in prioritize(findings)] == ["a", "c", "d"]
     assert [f.rule for f in prioritize(findings, limit=5)] == ["a", "c", "d", "e"]
+
+
+def test_a_widespread_finding_does_not_hide_others_in_the_same_rounds() -> None:
+    # `a` touches most rounds; `b` happens in those rounds, but at other moments.
+    findings = [fake("a", 9, list(range(1, 40))), fake("b", 4, [2, 5, 7], tick=100)]
+    assert [f.rule for f in prioritize(findings)] == ["a", "b"]
 
 
 # Pattern rule: a recurring death spot over the session and the days before it -------------------

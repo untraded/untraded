@@ -48,8 +48,13 @@ def kills(*rows: tuple[int, int | None, int], bots: tuple[int, ...] = ()) -> pl.
     )
 
 
-def states(ticks: list[int], dead: dict[int, int]) -> pl.DataFrame:
-    """Every player at every tick, at (p * 100, 0, 0); `dead` maps player -> death tick."""
+def states(
+    ticks: list[int],
+    dead: dict[int, int],
+    seen: dict[tuple[int, int], list[int]] | None = None,
+) -> pl.DataFrame:
+    """Every player at every tick, at (p * 100, 0, 0); `dead` maps player -> death tick, `seen`
+    maps (tick, player) -> the players who spot that player then (`spotted_by`)."""
     rows: list[dict[str, Any]] = []
     for tick in ticks:
         for player in TEAMS["steamid"].to_list():
@@ -63,9 +68,10 @@ def states(ticks: list[int], dead: dict[int, int]) -> pl.DataFrame:
                     "y": 0.0,
                     "z": 0.0,
                     "side": "CT" if player <= 3 else "T",
+                    "spotted_by": (seen or {}).get((tick, player), []),
                 }
             )
-    return pl.DataFrame(rows)
+    return pl.DataFrame(rows, schema_overrides={"spotted_by": pl.List(pl.Int64)})
 
 
 def test_a_kill_of_a_taken_over_bot_counts_for_the_killer_but_is_nobody_s_death() -> None:
@@ -137,6 +143,23 @@ def test_spacing_and_trade_opportunities_use_living_teammates() -> None:
     at_200 = opportunities.filter(pl.col("tick") == 200)
     # teammate 2 stands at 200 u, killer 6 at 600 u: 400 u away
     assert at_200.select("teammate", "distance_to_killer").rows() == [(2, 400.0)]
+
+
+def test_sightings_of_the_killer() -> None:
+    # 6 kills 1 at 200. 1 had spotted 6 at 136 (1 s before) but not at 200; 2 spots 6 at 264,
+    # 1 s after the kill; 3 kills 6 at 328 and is shown spotting 6 only after that death.
+    seen = {(136, 6): [1], (264, 6): [2], (392, 6): [3]}
+    found, opportunities = build_deaths(
+        kills((200, 6, 1), (328, 3, 6)),
+        TEAMS,
+        ROUNDS,
+        states([136, 200, 264, 328, 392], {1: 200, 6: 328}, seen),
+        64,
+    )
+    assert found.filter(pl.col("victim") == 1)["last_sight_s"].to_list() == [1.0]
+    at_200 = opportunities.filter(pl.col("tick") == 200)
+    delays = dict(at_200.select("teammate", "sight_delay_s").rows())
+    assert delays == {2: 1.0, 3: None}
 
 
 def test_clutch_starts_when_one_player_is_left_against_enemies() -> None:

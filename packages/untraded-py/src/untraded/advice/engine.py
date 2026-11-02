@@ -181,18 +181,19 @@ def finding(
     )
 
 
+def _events(finding: Finding) -> set[tuple[Any, ...]]:
+    return set(finding.evidence.select("match_id", "round", "tick").iter_rows())
+
+
 def prioritize(findings: Iterable[Finding], limit: int = 3, overlap: float = 0.5) -> list[Finding]:
-    """The `limit` costliest findings. A finding whose rounds mostly repeat those of a finding
+    """The `limit` costliest findings. A finding whose events mostly repeat those of a finding
     already kept (more than `overlap` of them) is skipped: two rules on the same deaths make one
-    priority, not two."""
+    priority, not two. Events, not rounds: a finding spread over half the session's rounds would
+    otherwise hide every other one."""
     kept: list[Finding] = []
     for candidate in sorted(findings, key=lambda f: (-f.cost, -f.events, f.rule)):
-        rounds = set(candidate.evidence.select("match_id", "round").iter_rows())
-        if any(
-            len(rounds & set(k.evidence.select("match_id", "round").iter_rows()))
-            > overlap * len(rounds)
-            for k in kept
-        ):
+        events = _events(candidate)
+        if any(len(events & _events(k)) > overlap * len(events) for k in kept):
             continue
         kept.append(candidate)
         if len(kept) == limit:

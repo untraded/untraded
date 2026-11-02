@@ -46,24 +46,24 @@ A finding costs the rounds it touches, weighted by those the team lost:
 cost = rounds lost + advice.won_round_weight (0.25) × rounds won
 ```
 
-The three costliest findings become the priorities (ties go to the finding with more events, then to the rule id). A finding whose rounds mostly repeat a kept one (over 50 %) is skipped: two rules on the same deaths make one priority. The open rating (planned) will replace this estimate of what a mistake costs.
+The three costliest findings become the priorities (ties go to the finding with more events, then to the rule id). A finding whose events (match, round, tick) mostly repeat those of a kept one (over 50 %) is skipped: two rules on the same deaths make one priority. Events, not rounds: a finding spread over half the session's rounds would otherwise hide every other one. The open rating (planned) will replace this estimate of what a mistake costs.
 
 ## Rules (batch 1)
 
 | Rule | Watches | Evidence |
 |---|---|---|
-| `trade.untraded_deaths` | `trade.untraded_deaths` (lower) | deaths not traded within `trade.window_s` |
+| `trade.untraded_deaths` | `trade.untraded_deaths` (lower) | deaths not traded within `trade.window_s`, with a living teammate (the last player alive has nobody to trade them) |
 | `trade.isolated_deaths` | `duel.isolated_death_pct` (lower) | untraded deaths with no teammate within `isolation.radius` |
-| `trade.missed_trades` | `trade.kill_conversion_pct` (higher) | trade opportunities (a teammate killed while the player was within `trade.opportunity_distance` of the killer) where the player did not kill that killer within the window |
+| `trade.missed_trades` | `trade.kill_conversion_pct` (higher) | trade opportunities (a teammate killed while the player was within `trade.opportunity_distance` of the killer, and saw the killer within the window) where the player did not kill that killer within the window |
 | `duel.opening_deaths` | `duel.opening_success_pct` (higher) | the player's opening deaths |
 | `duel.openings_lost` | `duel.opening_win_conversion_pct` (higher) | rounds lost after the player's opening kill |
 | `clutch.clutches_lost` | `clutch.win_pct` (higher) | clutches lost (start of the clutch) |
-| `combat.duels_without_damage` | `base.hs_pct` (higher) | deaths to an enemy the player had not damaged in that round before dying |
+| `combat.duels_without_damage` | `duel.lost_without_damage_pct` (lower) | duels lost (killed by a gun, not blind, having seen the killer within `duel.sight_s`) without hurting the killer earlier in the round |
 | `util.wasted_utility` | `util.unused_value_at_death` (lower) | deaths with grenades still in the inventory |
 | `util.team_flashes` | `util.teammates_flashed` (lower) | living teammates blinded by the player's flashes |
 | `pos.recurring_death_spot` | `pos.recurring_death_spot` (pattern; followed with `trade.untraded_deaths`) | the session's untraded deaths in a recurring zone |
 
-Every rule is at version 1.0.0. Rules carry a semantic version: a change of trigger or evidence bumps it, as for metrics (ADR 0003). The thresholds are to be calibrated on the testers' sessions. A rule's indicator, followed in the next sessions, is the metric it watches unless stated.
+Rules carry a semantic version: a change of trigger or evidence bumps it, as for metrics (ADR 0003). The thresholds are to be calibrated on the testers' sessions. A rule's indicator, followed in the next sessions, is the metric it watches unless stated.
 
 ## Output
 

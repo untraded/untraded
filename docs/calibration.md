@@ -51,6 +51,16 @@ The code is `untraded.calibration`. Each function measures what a threshold shou
 - **Result**: 752 real trades. The median distance is 757 units, the 75th percentile 1,008, the **90th 1,302** and the 95th 1,444. With 1,000 units, **26 % of the real trades came from a teammate who had "no opportunity"**.
 - **Decision: changed to 1,300 units.** The data clearly contradicts 1,000. The new versions are `trade.death_opportunities` 1.1.0, `trade.kill_opportunities` 1.1.0 and `trade.kill_conversion_pct` 1.2.0.
 
+### Trade opportunities: the sighting (02/11/2026)
+
+- **Problem**: distance alone counts a teammate behind a wall. In production, the advice listed up to 63 "missed trades" in an 80-round session, nearly one a round.
+- **Method**: the 42 matches parsed on hand (corpus and inbox). For every opportunity within 1,300 units, whether the teammate spotted the killer (`player_tick.spotted_by`, the engine's radar visibility, sampled at 16 Hz) within 5 s of the kill, both alive.
+- **Result**:
+  - 7,010 opportunities within 1,300 units, 954 of them converted: **13.6 %**;
+  - the teammate saw the killer in 1,786 of them; 80 % of the real trades are among them, and the rest (188) are trades the spotting missed, since it can lag behind a quick trade;
+  - with a sighting or a trade, 1,974 opportunities, converted at **48 %**.
+- **Decision**: an opportunity needs the sighting, or the trade itself (#167). The new versions are `trade.kill_opportunities` 1.2.0, `trade.death_opportunities` 1.2.0 and `trade.kill_conversion_pct` 1.3.0.
+
 ### `pos.recurring_death_share` = 0.25, `pos.recurring_min_rounds` = 8 → **32** rounds
 
 - **Method**: a recurring death spot must be a habit, not chance. The test is replication.

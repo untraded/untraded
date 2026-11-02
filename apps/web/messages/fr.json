@@ -653,7 +653,7 @@
           "label": "Morts isolées"
         },
         "missed_trades": {
-          "coach": "{events} fois, un coéquipier est mort près de toi sans que tu le trades. Sois prêt à sortir juste après le contact.",
+          "coach": "{events} fois, un coéquipier est mort près de toi, tu as vu le tueur et tu ne l'as pas tradé. Sois prêt à sortir juste après le contact.",
           "analyst": "{events} occasions de trade manquées : conversion {session}, contre {reference}.",
           "label": "Trades manqués"
         }
@@ -679,8 +679,8 @@
       },
       "combat": {
         "duels_without_damage": {
-          "coach": "{events} fois, tu es mort sans toucher ton adversaire. Travaille le placement du viseur et la première balle.",
-          "analyst": "{events} duels perdus sans dégâts ; HS % {session}, contre {reference}.",
+          "coach": "{events} fois, tu as vu ton adversaire et tu es mort sans le toucher. Travaille le placement du viseur et la première balle.",
+          "analyst": "{events} duels perdus sans dégâts : {session} de tes duels perdus, contre {reference}.",
           "label": "Duels perdus sans dégâts"
         }
       },

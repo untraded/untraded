@@ -89,16 +89,26 @@ LIMITS: dict[str, tuple[str, ...]] = {
         "A median over the player's deaths with a living teammate: undefined without any.",
     ),
     "trade.kill_opportunities": (
-        "An opportunity is a distance, not a sight line: a teammate behind a wall within the "
-        "distance had one. The distance (🎯) was calibrated on the corpus: 1300 units "
-        "(docs/calibration.md).",
+        "The sighting is the engine's spotting (the radar's), sampled at 16 Hz: not a true line "
+        "of sight, and it can lag behind a quick trade, which is why a trade counts as seen. "
+        "The distance (🎯) was calibrated on the corpus: 1300 units (docs/calibration.md).",
     ),
     "trade.death_opportunities": (
-        "An opportunity is a distance, not a sight line. The distance (🎯) was calibrated on "
-        "the corpus: 1300 units (docs/calibration.md).",
+        "The sighting is the engine's spotting, sampled at 16 Hz. The distance (🎯) was "
+        "calibrated on the corpus: 1300 units (docs/calibration.md).",
     ),
     "trade.untraded_deaths": (
-        "Includes deaths with no teammate left to trade them (the last player alive).",
+        "Leaves out the deaths with no teammate left to trade them (the last player alive), so "
+        "deaths = traded + untraded + those.",
+    ),
+    "duel.duels_lost": (
+        "The sighting is the engine's spotting, sampled at 16 Hz: a duel the spotting missed "
+        "is not counted, a death in the back never is. A death to a bot is never a duel: a bot "
+        "has no steamid to spot.",
+    ),
+    "duel.lost_without_damage_pct": (
+        "Damage to the killer earlier in the round counts, even in an earlier duel. About half "
+        "of the duels lost on the corpus: compare it with the player's own reference.",
     ),
     "clutch.win_pct": ("Undefined (empty) for a player without clutch attempts.",),
     "pos.setup_zone_t20": (
@@ -250,6 +260,20 @@ CHANGES: dict[str, dict[str, str]] = {
 """What changed in each version above 1.0.0, or a first version outside its family's PR."""
 CHANGES["trade.kill_conversion_pct"]["1.2.0"] = _OPPORTUNITY
 CHANGES["pos.recurring_death_spot"]["1.2.0"] = _RECURRING
+_SIGHT = (
+    "An opportunity needs the teammate to have seen the killer within `trade.window_s` (the "
+    "engine's spotting), or to have traded it: distance alone counted teammates behind walls, "
+    "and only 14 % of the opportunities were converted (#167)."
+)
+_ALONE = "The last player alive has nobody to trade them: such a death is left out (#167)."
+for _metric in ("trade.kill_opportunities", "trade.death_opportunities"):
+    CHANGES[_metric]["1.2.0"] = _SIGHT
+CHANGES["trade.kill_conversion_pct"]["1.3.0"] = _SIGHT
+for _metric in ("trade.untraded_deaths", "trade.untraded_deaths_w3"):
+    CHANGES[_metric]["1.2.0"] = _ALONE
+CHANGES["pos.recurring_death_spot"]["1.3.0"] = _ALONE
+CHANGES["duel.duels_lost"] = {"1.0.0": "First version (#167)."}
+CHANGES["duel.lost_without_damage_pct"] = {"1.0.0": "First version (#167)."}
 
 
 def history(metric_id: str, version: str) -> list[tuple[str, str]]:

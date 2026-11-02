@@ -2,7 +2,7 @@
 
 *Generated from the metric registry by `python -m untraded.metrics.docs`: do not edit by hand. The specification is [metrics-v1.md](../metrics-v1.md).*
 
-86 metrics, each with its own page. Parameters, their defaults and the calibrated thresholds are on [parameters.md](parameters.md).
+88 metrics, each with its own page. Parameters, their defaults and the calibrated thresholds are on [parameters.md](parameters.md).
 
 ## Shared conventions
 
@@ -39,8 +39,10 @@
 
 | Metric | Name | Version | Unit | Better | vs. CS Demo Manager |
 |---|---|---|---|---|---|
+| [`duel.duels_lost`](duel.duels_lost.md) | Duels lost | 1.0.0 | count | neutral | — |
 | [`duel.isolated_death_pct`](duel.isolated_death_pct.md) | Isolated death % | 1.1.0 | pct | lower | — |
 | [`duel.isolated_deaths`](duel.isolated_deaths.md) | Isolated deaths | 1.1.0 | count | lower | — |
+| [`duel.lost_without_damage_pct`](duel.lost_without_damage_pct.md) | Duels lost without damage | 1.0.0 | pct | lower | — |
 | [`duel.nearest_teammate_at_death`](duel.nearest_teammate_at_death.md) | Spacing at death | 1.0.0 | units | lower | — |
 | [`duel.opening_attempt_pct`](duel.opening_attempt_pct.md) | Opening frequency | 1.0.0 | pct | neutral | — |
 | [`duel.opening_attempts`](duel.opening_attempts.md) | Opening duels | 1.0.0 | count | neutral | — |
@@ -53,17 +55,17 @@
 
 | Metric | Name | Version | Unit | Better | vs. CS Demo Manager |
 |---|---|---|---|---|---|
-| [`trade.death_opportunities`](trade.death_opportunities.md) | Tradable deaths | 1.1.0 | count | neutral | — |
-| [`trade.kill_conversion_pct`](trade.kill_conversion_pct.md) | Opportunity conversion | 1.2.0 | pct | higher | — |
-| [`trade.kill_opportunities`](trade.kill_opportunities.md) | Trade opportunities | 1.1.0 | count | neutral | — |
+| [`trade.death_opportunities`](trade.death_opportunities.md) | Tradable deaths | 1.2.0 | count | neutral | — |
+| [`trade.kill_conversion_pct`](trade.kill_conversion_pct.md) | Opportunity conversion | 1.3.0 | pct | higher | — |
+| [`trade.kill_opportunities`](trade.kill_opportunities.md) | Trade opportunities | 1.2.0 | count | neutral | — |
 | [`trade.trade_kills`](trade.trade_kills.md) | Trade kills (5 s) | 1.1.0 | count | higher | compared (equal) |
 | [`trade.trade_kills_w3`](trade.trade_kills_w3.md) | Trade kills (3 s) | 1.1.0 | count | higher | — |
 | [`trade.traded_death_pct`](trade.traded_death_pct.md) | Traded death % (5 s) | 1.1.0 | pct | higher | indirectly |
 | [`trade.traded_death_pct_w3`](trade.traded_death_pct_w3.md) | Traded death % (3 s) | 1.1.0 | pct | higher | — |
 | [`trade.traded_deaths`](trade.traded_deaths.md) | Traded deaths (5 s) | 1.1.0 | count | neutral | compared (equal) |
 | [`trade.traded_deaths_w3`](trade.traded_deaths_w3.md) | Traded deaths (3 s) | 1.1.0 | count | neutral | — |
-| [`trade.untraded_deaths`](trade.untraded_deaths.md) | Untraded deaths (5 s) | 1.1.0 | count | lower | indirectly |
-| [`trade.untraded_deaths_w3`](trade.untraded_deaths_w3.md) | Untraded deaths (3 s) | 1.1.0 | count | lower | — |
+| [`trade.untraded_deaths`](trade.untraded_deaths.md) | Untraded deaths (5 s) | 1.2.0 | count | lower | indirectly |
+| [`trade.untraded_deaths_w3`](trade.untraded_deaths_w3.md) | Untraded deaths (3 s) | 1.2.0 | count | lower | — |
 
 ## Clutches
 
@@ -88,7 +90,7 @@
 | [`pos.death_zones`](pos.death_zones.md) | Death zones | 1.1.0 | table | neutral | — |
 | [`pos.heatmap_points`](pos.heatmap_points.md) | Heatmap points | 1.0.0 | table | neutral | — |
 | [`pos.kill_zones`](pos.kill_zones.md) | Kill zones | 1.0.0 | table | neutral | — |
-| [`pos.recurring_death_spot`](pos.recurring_death_spot.md) | Recurring death spot | 1.2.0 | table | neutral | — |
+| [`pos.recurring_death_spot`](pos.recurring_death_spot.md) | Recurring death spot | 1.3.0 | table | neutral | — |
 | [`pos.setup_diversity`](pos.setup_diversity.md) | Predictability | 1.0.0 | table | neutral | — |
 | [`pos.setup_zone_t20`](pos.setup_zone_t20.md) | Position at T+20 s | 1.0.0 | table | neutral | — |
 

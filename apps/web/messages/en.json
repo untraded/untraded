@@ -653,7 +653,7 @@
           "label": "Isolated deaths"
         },
         "missed_trades": {
-          "coach": "{events} times a teammate died near you and you didn't trade. Be ready to swing right after the contact.",
+          "coach": "{events} times a teammate died near you, you saw the killer and didn't trade. Be ready to swing right after the contact.",
           "analyst": "{events} trade opportunities missed: conversion {session}, against {reference}.",
           "label": "Missed trades"
         }
@@ -679,8 +679,8 @@
       },
       "combat": {
         "duels_without_damage": {
-          "coach": "{events} times you died without touching your killer. Work on crosshair placement and the first bullet.",
-          "analyst": "{events} duels lost without damage; HS % {session}, against {reference}.",
+          "coach": "{events} times you saw your killer and died without hitting them. Work on crosshair placement and the first bullet.",
+          "analyst": "{events} duels lost without damage: {session} of your duels lost, against {reference}.",
           "label": "Duels lost without damage"
         }
       },

@@ -54,6 +54,7 @@ _DEATH: Columns = {
     "trader": pl.UInt64,
     "avenges_delay_s": pl.Float32,
     "nearest_teammate_distance": pl.Float32,
+    "last_sight_s": pl.Float32,
 }
 
 _TRADE_OPPORTUNITY: Columns = {
@@ -63,6 +64,7 @@ _TRADE_OPPORTUNITY: Columns = {
     "killer": pl.UInt64,
     "teammate": pl.UInt64,
     "distance_to_killer": pl.Float32,
+    "sight_delay_s": pl.Float32,
 }
 
 _CLUTCH: Columns = {
