@@ -61,6 +61,15 @@ The code is `untraded.calibration`. Each function measures what a threshold shou
   - with a sighting or a trade, 1,974 opportunities, converted at **48 %**.
 - **Decision**: an opportunity needs the sighting, or the trade itself (#167). The new versions are `trade.kill_opportunities` 1.2.0, `trade.death_opportunities` 1.2.0 and `trade.kill_conversion_pct` 1.3.0.
 
+### Wasted utility: the dry peek (02/11/2026)
+
+- **Problem**: the rule listed every death with a grenade in the inventory. Half of all deaths qualify, so the rule was the first priority in 14 of the 34 sessions on hand, with up to 51 deaths to review, most of them nothing a player could act on (a CT keeping a molotov for the retake, a death in the back).
+- **Method**: the 47 matches parsed on hand. For every enemy death with a grenade (3,632), whether it was a duel lost (`duel.duels_lost`), whether a flash was held, and how far the victim had been from the death spot in the second before (`player_tick` positions, 16 Hz).
+- **Result**:
+  - movement in the second before a duel lost: median 60 units, 75th percentile 104; a player holding an angle barely moves, one peeking covers ground;
+  - at 64 units, 48 % of the duels lost are peeks; with a flash still held, 557 deaths, 15 % of the deaths with grenades, about 1.2 per player and match.
+- **Decision**: the rule watches the share of peeks lost with a flash held (`duel.dry_peek_pct`, ⚙ `duel.peek_distance` = 64 units), not the value at death (#168). `util.unused_value_at_death` is unchanged. On the 34 sessions, the rule now fires in 7 (17 before), with 3 to 6 peeks, and leads 3.
+
 ### `pos.recurring_death_share` = 0.25, `pos.recurring_min_rounds` = 8 → **32** rounds
 
 - **Method**: a recurring death spot must be a habit, not chance. The test is replication.

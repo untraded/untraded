@@ -74,6 +74,13 @@ PARAMETERS: dict[str, Parameter] = {
             "long before.",
         ),
         Parameter(
+            "duel.peek_distance",
+            64.0,
+            "units",
+            "A duel lost is a peek when, in the second before the death, the victim had been at "
+            "least this far from where they died: a player holding an angle barely moves.",
+        ),
+        Parameter(
             "assist.flash_weight",
             0.5,
             "ratio",

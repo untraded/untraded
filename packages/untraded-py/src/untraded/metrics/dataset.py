@@ -18,12 +18,12 @@ MatchTables = Mapping[str, pl.DataFrame]
 """Canonical tables (`parse_demo(...).tables()`) and derived tables (`derive(...).tables()`)."""
 
 LATER_COLUMNS: dict[str, dict[str, pl.DataType]] = {
-    "death": {"last_sight_s": pl.Float32()},
+    "death": {"last_sight_s": pl.Float32(), "moved_1s": pl.Float32()},
     "trade_opportunity": {"sight_delay_s": pl.Float32()},
 }
 """Derived columns added after matches were stored: null in a match derived before them, so that
-a session mixing old and new matches still computes (its old matches count no sighting) until
-`untraded-worker reanalyze --force` derives them again."""
+a session mixing old and new matches still computes (its old matches count no sighting and no
+movement) until `untraded-worker reanalyze --force` derives them again."""
 
 
 @dataclass(frozen=True)

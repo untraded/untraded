@@ -59,7 +59,7 @@ The three costliest findings become the priorities (ties go to the finding with 
 | `duel.openings_lost` | `duel.opening_win_conversion_pct` (higher) | rounds lost after the player's opening kill |
 | `clutch.clutches_lost` | `clutch.win_pct` (higher) | clutches lost (start of the clutch) |
 | `combat.duels_without_damage` | `duel.lost_without_damage_pct` (lower) | duels lost (killed by a gun, not blind, having seen the killer within `duel.sight_s`) without hurting the killer earlier in the round |
-| `util.wasted_utility` | `util.unused_value_at_death` (lower) | deaths with grenades still in the inventory |
+| `util.wasted_utility` | `duel.dry_peek_pct` (lower) | peeks lost (a duel lost when, in the second before, the player had been at least `duel.peek_distance` from the death spot) with a flash still in the inventory |
 | `util.team_flashes` | `util.teammates_flashed` (lower) | living teammates blinded by the player's flashes |
 | `pos.recurring_death_spot` | `pos.recurring_death_spot` (pattern; followed with `trade.untraded_deaths`) | the session's untraded deaths in a recurring zone |
 

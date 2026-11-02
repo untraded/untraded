@@ -110,6 +110,18 @@ LIMITS: dict[str, tuple[str, ...]] = {
         "Damage to the killer earlier in the round counts, even in an earlier duel. About half "
         "of the duels lost on the corpus: compare it with the player's own reference.",
     ),
+    "duel.peeks_lost": (
+        "Movement is the farthest sample from the death spot (a straight 3D line), read from "
+        "positions sampled at 16 Hz: a quick jiggle can fall between two samples. A holder who "
+        "has just repositioned, backed off, dropped from a box or been pushed by a molotov "
+        "counts as moving. About half of the duels lost on the corpus.",
+    ),
+    "duel.dry_peek_pct": (
+        "Only the player's own flash counts: a peek behind a teammate's flash still counts as "
+        "dry when the player kept theirs. A second flash kept after throwing the first, or a "
+        "flash in hand when the player was killed mid-throw, also counts as held. Peeks won "
+        "are not seen.",
+    ),
     "clutch.win_pct": ("Undefined (empty) for a player without clutch attempts.",),
     "pos.setup_zone_t20": (
         "Only rounds where the player is alive 20 s after freeze-time end (`setup.offset_s`).",
@@ -274,6 +286,8 @@ for _metric in ("trade.untraded_deaths", "trade.untraded_deaths_w3"):
 CHANGES["pos.recurring_death_spot"]["1.3.0"] = _ALONE
 CHANGES["duel.duels_lost"] = {"1.0.0": "First version (#167)."}
 CHANGES["duel.lost_without_damage_pct"] = {"1.0.0": "First version (#167)."}
+CHANGES["duel.peeks_lost"] = {"1.0.0": "First version (#168)."}
+CHANGES["duel.dry_peek_pct"] = {"1.0.0": "First version (#168)."}
 
 
 def history(metric_id: str, version: str) -> list[tuple[str, str]]:

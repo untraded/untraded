@@ -322,11 +322,18 @@ def lost_duels(ds: Dataset, p: Mapping[str, ParamValue]) -> pl.DataFrame:
         .select("match_id", "tick", "victim", "weapon")
         .unique(["match_id", "tick", "victim"], keep="first")
     )
+    # A player dies once a round: only the first death is a duel, so that a crafted demo
+    # repeating deaths cannot multiply the rows of the joins below.
+    once = (
+        ds["death"]
+        .filter(pl.col("victim").is_not_null())
+        .sort("match_id", "tick")
+        .unique(["match_id", "round", "victim"], keep="first", maintain_order=True)
+    )
     # Blind at the death: a blind that started before it and lasts until it (the kill's own
     # `victim_flash_duration` is the last flash's length, not reset when it wears off).
     blinded = (
-        ds["death"]
-        .select("match_id", "round", "tick", "victim")
+        once.select("match_id", "round", "tick", "victim")
         .join(
             ds["blind"].select(
                 "match_id", "round", "victim", pl.col("tick").alias("blind_tick"), "duration"
@@ -349,8 +356,7 @@ def lost_duels(ds: Dataset, p: Mapping[str, ParamValue]) -> pl.DataFrame:
         pl.col("tick").alias("hit_tick"),
     )
     deaths = (
-        ds["death"]
-        .filter(pl.col("is_enemy_kill") & (pl.col("last_sight_s") <= p["duel.sight_s"]))
+        once.filter(pl.col("is_enemy_kill") & (pl.col("last_sight_s") <= p["duel.sight_s"]))
         .join(shots, on=["match_id", "tick", "victim"])
         .join(blinded, on=["match_id", "tick", "victim"], how="anti")
         .filter(~weapon.is_in(NOT_A_GUN) & ~weapon.str.contains("(?i)knife|bayonet"))
@@ -397,6 +403,70 @@ def lost_without_damage_pct(ds: Dataset, p: Mapping[str, ParamValue]) -> pl.Data
     lost = lost_duels(ds, p)
     return rate(
         _count(ds, lost.filter(~pl.col("damaged")), "victim"),
+        _count(ds, lost, "victim"),
+        scale=100.0,
+    )
+
+
+# Peeks lost
+
+PEEK = {**SIGHT, "duel.peek_distance": 64.0}
+
+
+def lost_peeks(ds: Dataset, p: Mapping[str, ParamValue]) -> pl.DataFrame:
+    """Duels lost while peeking: in the second before the death, the player had been at least
+    `duel.peek_distance` from where they died. Adds `flash_held`: a flash still in the
+    inventory at the death, which could have been thrown for the peek."""
+    inventory = (
+        ds["kill"]
+        .select("match_id", "tick", "victim", "victim_inventory")
+        .unique(["match_id", "tick", "victim"], keep="first")
+    )
+    return (
+        lost_duels(ds, p)
+        .filter(pl.col("moved_1s") >= p["duel.peek_distance"])
+        .join(inventory, on=["match_id", "tick", "victim"], how="left")
+        .with_columns(
+            pl.col("victim_inventory")
+            .list.contains("Flashbang")
+            .fill_null(False)
+            .alias("flash_held")
+        )
+        .drop("victim_inventory")
+    )
+
+
+@metric(
+    "duel.peeks_lost",
+    version="1.0.0",
+    name="Peeks lost",
+    unit="count",
+    better="neutral",
+    params=PEEK,
+    uses=("death", "kill", "damage", "blind"),
+    doc="Duels lost (`duel.duels_lost`) where, in the second before the death, the player had "
+    "been at least `duel.peek_distance` from where they died: they peeked.",
+)
+def peeks_lost(ds: Dataset, p: Mapping[str, ParamValue]) -> pl.DataFrame:
+    return _count(ds, lost_peeks(ds, p), "victim")
+
+
+@metric(
+    "duel.dry_peek_pct",
+    version="1.0.0",
+    name="Peeks without the flash",
+    unit="pct",
+    better="lower",
+    cases=("duel.peeks_lost",),
+    params=PEEK,
+    uses=("death", "kill", "damage", "blind"),
+    doc="Peeks lost with a flash still in the inventory ÷ peeks lost * 100: the flash that could "
+    "have gone first.",
+)
+def dry_peek_pct(ds: Dataset, p: Mapping[str, ParamValue]) -> pl.DataFrame:
+    lost = lost_peeks(ds, p)
+    return rate(
+        _count(ds, lost.filter(pl.col("flash_held")), "victim"),
         _count(ds, lost, "victim"),
         scale=100.0,
     )

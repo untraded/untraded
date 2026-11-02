@@ -162,6 +162,20 @@ def test_sightings_of_the_killer() -> None:
     assert delays == {2: 1.0, 3: None}
 
 
+def test_movement_in_the_second_before_the_death() -> None:
+    # 6 kills 1 at 200, where 1 stands at x = 100. 1 was at x = 180 at 136 (1 s before) and at
+    # x = 0 at 100, too early to count; 6 stands still until 2 kills him at 300.
+    moving = {(100, 1): 0.0, (136, 1): 180.0, (168, 1): 120.0}
+    ticks = states([100, 136, 168, 200, 264, 300], {1: 200, 6: 300}).with_columns(
+        pl.struct("tick", "steamid")
+        .map_elements(lambda row: moving.get((row["tick"], row["steamid"])), pl.Float64)
+        .fill_null(pl.col("x"))
+        .alias("x")
+    )
+    found, _ = build_deaths(kills((200, 6, 1), (300, 2, 6)), TEAMS, ROUNDS, ticks, 64)
+    assert dict(found.select("victim", "moved_1s").rows()) == {1: 80.0, 6: 0.0}
+
+
 def test_clutch_starts_when_one_player_is_left_against_enemies() -> None:
     died = pl.DataFrame(
         {"tick": [200, 300, 300], "round": [1, 1, 1], "victim": [2, 3, 6]},

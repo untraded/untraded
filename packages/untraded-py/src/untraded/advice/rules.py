@@ -14,10 +14,9 @@ import polars as pl
 
 from untraded.advice.engine import Rule, placed, rule, standard
 from untraded.metrics import Dataset
-from untraded.metrics.duels import lost_duels, opportunities, untraded
+from untraded.metrics.duels import lost_duels, lost_peeks, opportunities, untraded
 from untraded.metrics.positioning import recurring_death_spot
 from untraded.metrics.registry import ParamValue
-from untraded.metrics.utility import GRENADE_PRICES
 
 TWO = {"advice.min_events": 2}
 
@@ -76,18 +75,11 @@ def duels_without_damage(ds: Dataset, player: int, p: Mapping[str, ParamValue]) 
     return standard(placed(ds, rows, player, "victim"), ("killer", "weapon"))
 
 
-def wasted_utility(ds: Dataset, player: int, _: Mapping[str, ParamValue]) -> pl.DataFrame:
-    deaths = ds["death"].join(
-        ds["kill"].select("match_id", "tick", "victim", "victim_inventory"),
-        on=["match_id", "tick", "victim"],
-    )
-    grenades = pl.element().is_in(list(GRENADE_PRICES))
-    price = pl.element().replace_strict(GRENADE_PRICES, default=0, return_dtype=pl.Int64)
-    rows = deaths.with_columns(
-        pl.col("victim_inventory").list.eval(pl.element().filter(grenades)).alias("grenades"),
-        pl.col("victim_inventory").list.eval(price).list.sum().alias("value"),
-    ).filter(pl.col("value") > 0)
-    return standard(placed(ds, rows, player, "victim"), ("grenades", "value"))
+def wasted_utility(ds: Dataset, player: int, p: Mapping[str, ParamValue]) -> pl.DataFrame:
+    """Peeks lost with a flash still in the inventory: the flash stayed on the body instead of
+    going first."""
+    rows = lost_peeks(ds, p).filter(pl.col("flash_held"))
+    return standard(placed(ds, rows, player, "victim"), ("killer", "weapon"))
 
 
 def team_flashes(ds: Dataset, player: int, p: Mapping[str, ParamValue]) -> pl.DataFrame:
@@ -186,11 +178,11 @@ for definition in (
     ),
     Rule(
         id="util.wasted_utility",
-        version="1.0.0",
+        version="2.0.0",
         family="util",
-        metric="util.unused_value_at_death",
+        metric="duel.dry_peek_pct",
         evidence=wasted_utility,
-        actions=("adjust.use_utility_before_death", "drill.lineups"),
+        actions=("adjust.use_utility_to_peek", "drill.pop_flashes"),
     ),
     Rule(
         id="util.team_flashes",

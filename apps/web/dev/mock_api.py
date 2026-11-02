@@ -555,12 +555,12 @@ def report(n: int) -> dict[str, Any]:
     if previous is not None:
         for indicator, name, unit, basis, better in [
             ("trade.untraded_deaths", "Untraded deaths (5 s)", "count", "per_round", "lower"),
-            ("util.unused_value_at_death", "Wasted utility", "dollars", "value", "lower"),
+            ("duel.dry_peek_pct", "Peeks without the flash", "pct", "value", "lower"),
         ]:
             values = [
                 round(rand.uniform(0.25, 0.45), 2)
                 if basis == "per_round"
-                else float(rand.randint(150, 330))
+                else float(rand.randint(30, 65))
                 for _ in history
             ]
             follow.append(
@@ -568,7 +568,7 @@ def report(n: int) -> dict[str, Any]:
                     "rule_id": "trade.untraded_deaths" if indicator.startswith("trade") else "util.wasted_utility",
                     "indicator": indicator, "name": name, "unit": unit, "basis": basis, "better": better,
                     "then": values[-2] if len(values) > 1 else None, "now": values[-1],
-                    "reference": 0.29 if basis == "per_round" else 180.0,
+                    "reference": 0.29 if basis == "per_round" else 42.0,
                     "history": [{"session_id": s["id"], "started_at": s["started_at"], "value": v} for s, v in zip(history, values, strict=True)],
                 }
             )  # fmt: skip
