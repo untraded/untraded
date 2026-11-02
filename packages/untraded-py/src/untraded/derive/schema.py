@@ -55,6 +55,7 @@ _DEATH: Columns = {
     "avenges_delay_s": pl.Float32,
     "nearest_teammate_distance": pl.Float32,
     "last_sight_s": pl.Float32,
+    "moved_1s": pl.Float32,
 }
 
 _TRADE_OPPORTUNITY: Columns = {

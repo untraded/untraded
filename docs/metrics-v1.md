@@ -1,6 +1,6 @@
 # Metric catalog v1 (phase 1)
 
-*Version 1, 2026-10-13, updated 2026-10-26. This catalog is **closed** for phase 1: new metrics go to v2. Entries added since: `base.assist_score` (settled with the CS Demo Manager comparison), then the open rating: `rating.swing`, `rating.untraded`, `rating.untraded_level`, `rating.untraded_margin` and `rating.untraded_parts`. Each entry is a registered metric (`packages/untraded-py/src/untraded/metrics/`, 88 in all: 77 values and 11 tables) with a generated documentation page ([metrics/](metrics/README.md)), which also gives its version and history.*
+*Version 1, 2026-10-13, updated 2026-10-26. This catalog is **closed** for phase 1: new metrics go to v2. Entries added since: `base.assist_score` (settled with the CS Demo Manager comparison), then the open rating: `rating.swing`, `rating.untraded`, `rating.untraded_level`, `rating.untraded_margin` and `rating.untraded_parts`. Each entry is a registered metric (`packages/untraded-py/src/untraded/metrics/`, 90 in all: 79 values and 11 tables) with a generated documentation page ([metrics/](metrics/README.md)), which also gives its version and history.*
 
 **Legend**
 - **ID**: stable registry identifier. It never changes, even when the formula's version does.
@@ -78,6 +78,8 @@
 | `duel.isolated_death_pct` | Isolated death % | Isolated deaths ÷ deaths × 100 | — |
 | `duel.duels_lost` | Duels lost | Deaths in a duel: killed by an enemy's gun (no grenade, fire, knife, zeus or bomb), not blind, having seen the killer (`spotted_by`) within ⚙ `duel.sight_s = 2.0` before. Shot in the back, burnt or flashed is not a duel | — |
 | `duel.lost_without_damage_pct` | Duels lost without damage | Duels lost where the player had not hurt the killer earlier in the round ÷ duels lost × 100: duels lost on the aim (about half of them on the corpus) | — |
+| `duel.peeks_lost` | Peeks lost | Duels lost where, in the second before the death, the player had been at least ⚙ `duel.peek_distance = 64` units from where they died (`moved_1s`): they peeked rather than held (about half of the duels lost on the corpus) | — |
+| `duel.dry_peek_pct` | Peeks without the flash | Peeks lost with a flash still in the inventory ÷ peeks lost × 100: the flash that could have gone first | — |
 | `duel.nearest_teammate_at_death` | Spacing at death | Median, over deaths with a living teammate, of the distance to the nearest one (u) | — |
 | `clutch.attempts_1v{1..5}` | Clutch attempts | Rounds where the player becomes the last one alive on the team, facing N living enemies. Kills after the round end are ignored, only the enemies present in the round count, and when the last two players of a team die on the same tick nobody clutched | ✅ |
 | `clutch.wins_1v{1..5}` | Clutch wins | …and the team wins the round, whether or not the clutcher survives | ✅ |

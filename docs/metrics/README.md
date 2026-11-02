@@ -2,7 +2,7 @@
 
 *Generated from the metric registry by `python -m untraded.metrics.docs`: do not edit by hand. The specification is [metrics-v1.md](../metrics-v1.md).*
 
-88 metrics, each with its own page. Parameters, their defaults and the calibrated thresholds are on [parameters.md](parameters.md).
+90 metrics, each with its own page. Parameters, their defaults and the calibrated thresholds are on [parameters.md](parameters.md).
 
 ## Shared conventions
 
@@ -39,6 +39,7 @@
 
 | Metric | Name | Version | Unit | Better | vs. CS Demo Manager |
 |---|---|---|---|---|---|
+| [`duel.dry_peek_pct`](duel.dry_peek_pct.md) | Peeks without the flash | 1.0.0 | pct | lower | — |
 | [`duel.duels_lost`](duel.duels_lost.md) | Duels lost | 1.0.0 | count | neutral | — |
 | [`duel.isolated_death_pct`](duel.isolated_death_pct.md) | Isolated death % | 1.1.0 | pct | lower | — |
 | [`duel.isolated_deaths`](duel.isolated_deaths.md) | Isolated deaths | 1.1.0 | count | lower | — |
@@ -50,6 +51,7 @@
 | [`duel.opening_kills`](duel.opening_kills.md) | Opening kills | 1.0.0 | count | higher | compared (equal) |
 | [`duel.opening_success_pct`](duel.opening_success_pct.md) | Opening success | 1.0.0 | pct | higher | — |
 | [`duel.opening_win_conversion_pct`](duel.opening_win_conversion_pct.md) | Opening conversion | 1.0.0 | pct | higher | — |
+| [`duel.peeks_lost`](duel.peeks_lost.md) | Peeks lost | 1.0.0 | count | neutral | — |
 
 ## Trades
 

@@ -686,9 +686,9 @@
       },
       "util": {
         "wasted_utility": {
-          "coach": "Tu es mort {events} fois avec des grenades sur toi. Lance-les avant de prendre le duel.",
-          "analyst": "{events} morts avec des grenades inutilisées : {session} par mort, contre {reference}.",
-          "label": "Utilitaires gaspillés"
+          "coach": "{events} fois, tu as peek et perdu le duel avec une flash encore sur toi. Flashe-toi avant de peek.",
+          "analyst": "{events} peeks perdus avec une flash en poche : {session} de tes peeks perdus, contre {reference}.",
+          "label": "Peeks sans ta flash"
         },
         "team_flashes": {
           "coach": "Tes flashs ont aveuglé tes coéquipiers {events} fois. Annonce-les et lance-les au-delà de tes coéquipiers.",

@@ -137,6 +137,7 @@ def build_deaths(
     death = (
         deaths.join(near, on="order", how="left")
         .join(last_sight, on="order", how="left")
+        .join(_moved(states, deaths, tickrate), on="order", how="left")
         .sort("order")
         .select(
             "tick",
@@ -153,9 +154,42 @@ def build_deaths(
             "avenges_delay_s",
             "nearest_teammate_distance",
             "last_sight_s",
+            "moved_1s",
         )
     )
     return death, opportunities
+
+
+def _moved(states: pl.DataFrame, deaths: pl.DataFrame, tickrate: float) -> pl.DataFrame:
+    """(`order`, `moved_1s`): how far from where they died the victim was at most, over the
+    samples of the second before the death. A player holding an angle barely moves; one peeking
+    it covers ground."""
+    # A player dies once a round: only the first death is measured, so that a crafted demo
+    # repeating deaths cannot multiply the rows.
+    first = (
+        deaths.filter(pl.col("victim").is_not_null())
+        .sort("order")
+        .unique(["round", "victim"], keep="first")
+        .select(
+            "order",
+            "round",
+            _id("victim").alias("steamid"),
+            "tick",
+            *(f"victim_{axis}" for axis in _POSITION),
+        )
+    )
+    samples = states.select(
+        "round", _id("steamid"), pl.col("tick").alias("sample_tick"), *_POSITION
+    )
+    return (
+        first.join(samples, on=["round", "steamid"])
+        .filter(
+            (pl.col("sample_tick") < pl.col("tick"))
+            & (pl.col("sample_tick") >= pl.col("tick") - tickrate)
+        )
+        .group_by("order")
+        .agg(_distance("victim").max().alias("moved_1s"))
+    )
 
 
 def _sightings(states: pl.DataFrame, deaths: pl.DataFrame) -> pl.DataFrame:

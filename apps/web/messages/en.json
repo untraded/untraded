@@ -686,9 +686,9 @@
       },
       "util": {
         "wasted_utility": {
-          "coach": "You died {events} times with grenades still on you. Throw them before taking the fight.",
-          "analyst": "{events} deaths with unused grenades: {session} per death, against {reference}.",
-          "label": "Wasted utility"
+          "coach": "{events} times you peeked and lost the duel with a flash still on you. Flash for yourself before you peek.",
+          "analyst": "{events} peeks lost with a flash held: {session} of your peeks lost, against {reference}.",
+          "label": "Peeks without your flash"
         },
         "team_flashes": {
           "coach": "Your flashes blinded teammates {events} times. Call them, and throw them past your teammates.",

@@ -53,7 +53,13 @@ def test_evidence_matches_the_watched_metrics(dataset: Dataset) -> None:
         wins = sum(value(values, f"clutch.wins_1v{n}", player) for n in range(1, 6))
         opening_kills = value(values, "duel.opening_kills", player)
         conversion = value(values, "duel.opening_win_conversion_pct", player)
+        duels = value(values, "duel.duels_lost", player)
+        peeks = value(values, "duel.peeks_lost", player)
         expected = {
+            "combat.duels_without_damage": round(
+                duels * value(values, "duel.lost_without_damage_pct", player) / 100
+            ),
+            "util.wasted_utility": round(peeks * value(values, "duel.dry_peek_pct", player) / 100),
             "trade.untraded_deaths": value(values, "trade.untraded_deaths", player),
             "trade.isolated_deaths": value(values, "duel.isolated_deaths", player),
             "duel.opening_deaths": value(values, "duel.opening_deaths", player),
@@ -65,16 +71,6 @@ def test_evidence_matches_the_watched_metrics(dataset: Dataset) -> None:
         }
         for rule_id, count in expected.items():
             assert evidence(dataset, rule_id, player).height == count, (rule_id, player)
-
-
-def test_wasted_utility_adds_up_to_the_metric(dataset: Dataset) -> None:
-    values = compute(dataset)
-    for player in dataset.players()["steamid"].to_list():
-        deaths = value(values, "base.deaths", player)
-        if not deaths:
-            continue
-        wasted = float(evidence(dataset, "util.wasted_utility", player)["value"].sum())
-        assert wasted / deaths == pytest.approx(value(values, "util.unused_value_at_death", player))
 
 
 def test_missed_trades_are_unconverted_opportunities(dataset: Dataset) -> None:

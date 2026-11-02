@@ -39,20 +39,23 @@ DEATH = frame(
         # round 2: 6 kills 1 (opening), 2 kills 6 four seconds later: a trade
         {"round": 2, "tick": 200, "victim": 1, "killer": 6, "is_opening": True,
          "trade_delay_s": 4.0, "trader": 2, "nearest_teammate_distance": 300.0,
-         "last_sight_s": 0.5},
+         "last_sight_s": 0.5, "moved_1s": 100.0},
         {"round": 2, "tick": 456, "victim": 6, "killer": 2, "avenges_delay_s": 4.0,
          "last_sight_s": 3.0},
         # round 3: 1 dies alone, 1,500 u from the nearest teammate, untraded
         {"round": 3, "tick": 300, "victim": 1, "killer": 6, "nearest_teammate_distance": 1500.0,
-         "last_sight_s": 1.0},
+         "last_sight_s": 1.0, "moved_1s": 120.0},
     ],
     {"is_enemy_kill": True, "is_opening": False, "trade_delay_s": None, "trader": None,
-     "avenges_delay_s": None, "nearest_teammate_distance": None, "last_sight_s": None},
+     "avenges_delay_s": None, "nearest_teammate_distance": None, "last_sight_s": None,
+     "moved_1s": 0.0},
 )  # fmt: skip
-# 1 had hurt 6 in round 2 before dying; 6 is killed with a molotov in round 2.
+# 1 had hurt 6 in round 2 before dying, a flash still on him; 6 is killed with a molotov in
+# round 2.
 KILL = pl.DataFrame(
     {"tick": [100, 200, 456, 300], "victim": [6, 1, 6, 1],
-     "weapon": ["ak47", "ak47", "inferno", "awp"], "victim_flash_duration": [0.0] * 4}
+     "weapon": ["ak47", "ak47", "inferno", "awp"], "victim_flash_duration": [0.0] * 4,
+     "victim_inventory": [["AK-47"], ["AK-47", "Flashbang"], ["Flashbang"], ["Flashbang"]]}
 )  # fmt: skip
 DAMAGE = pl.DataFrame({"round": [2], "tick": [150], "attacker": [1], "victim": [6]})
 # 1 is flashed in round 2 for 1 s (over by the death at 200) and in round 3 until after the death.
@@ -126,6 +129,14 @@ def test_duels_lost_need_a_sighting_a_gun_and_clear_eyes() -> None:
     assert values("duel.lost_without_damage_pct") == {1: 0.0, 2: None, 6: None}
     # with a 0.25 s sighting, round 2's duel (seen 0.5 s before) is a shot in the back
     assert values("duel.duels_lost", **{"duel.sight_s": 0.25}) == {1: 0.0, 2: 0.0, 6: 0.0}
+
+
+def test_peeks_lost_need_movement_and_the_flash_held() -> None:
+    # 1 moved 100 u before losing round 2's duel, a flash in the inventory; round 3's death,
+    # blind, is no duel. 6's flash burnt with him in a molotov: no duel either.
+    assert values("duel.peeks_lost") == {1: 1.0, 2: 0.0, 6: 0.0}
+    assert values("duel.dry_peek_pct") == {1: 100.0, 2: None, 6: None}
+    assert values("duel.peeks_lost", **{"duel.peek_distance": 150.0}) == {1: 0.0, 2: 0.0, 6: 0.0}
 
 
 def test_conversion_counts_the_opportunities_traded() -> None:
