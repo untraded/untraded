@@ -55,8 +55,8 @@ PARAMETERS: dict[str, Parameter] = {
             "trade.opportunity_distance",
             1300.0,
             "units",
-            "A living teammate of the victim within this straight-line distance of the killer "
-            "had a trade opportunity.",
+            "A living teammate of the victim within this straight-line distance of the killer, "
+            "who saw the killer within the trade window, had a trade opportunity.",
             calibrate=True,
         ),
         Parameter(
@@ -65,6 +65,13 @@ PARAMETERS: dict[str, Parameter] = {
             "units",
             "An untraded death is isolated when the nearest living teammate is farther than this.",
             calibrate=True,
+        ),
+        Parameter(
+            "duel.sight_s",
+            2.0,
+            "s",
+            "A death is a duel when the victim saw the killer (the engine's spotting) at most this "
+            "long before.",
         ),
         Parameter(
             "assist.flash_weight",

@@ -17,6 +17,14 @@ import polars as pl
 MatchTables = Mapping[str, pl.DataFrame]
 """Canonical tables (`parse_demo(...).tables()`) and derived tables (`derive(...).tables()`)."""
 
+LATER_COLUMNS: dict[str, dict[str, pl.DataType]] = {
+    "death": {"last_sight_s": pl.Float32()},
+    "trade_opportunity": {"sight_delay_s": pl.Float32()},
+}
+"""Derived columns added after matches were stored: null in a match derived before them, so that
+a session mixing old and new matches still computes (its old matches count no sighting) until
+`untraded-worker reanalyze --force` derives them again."""
+
 
 @dataclass(frozen=True)
 class Dataset:
@@ -32,11 +40,19 @@ class Dataset:
         for tables in matches:
             info = tables["match"].row(0, named=True)
             for name, frame in tables.items():
-                tagged = frame.with_columns(pl.lit(info["match_id"]).alias("match_id"))
+                tagged = frame.with_columns(
+                    pl.lit(info["match_id"]).alias("match_id"),
+                    *(
+                        pl.lit(None, dtype).alias(column)
+                        for column, dtype in LATER_COLUMNS.get(name, {}).items()
+                        if column not in frame.columns
+                    ),
+                )
                 if name == "round_player":
                     tagged = tagged.with_columns(pl.lit(info["map"]).alias("map"))
                 per_table.setdefault(name, []).append(tagged)
-        merged = {name: pl.concat(frames, how="vertical") for name, frames in per_table.items()}
+        # By name: a column added later sits at a different place in older matches.
+        merged = {name: pl.concat(frames, how="diagonal") for name, frames in per_table.items()}
         played = merged["round_player"].select(
             "match_id", "round", "steamid", "side", "team", "map"
         )

@@ -31,6 +31,8 @@ DEATH = pl.DataFrame(
         "killer": [6] * 5,
         "is_enemy_kill": [True] * 5,
         "trade_delay_s": [None, 2.0, None, None, None],
+        # at 400, 1 is the last player alive: nobody could trade that death
+        "nearest_teammate_distance": [300.0, 300.0, 300.0, None, 300.0],
     }
 )
 KILL = DEATH.select("tick", "victim").with_columns(
@@ -88,9 +90,10 @@ def test_recurring_death_spot_needs_share_and_rounds() -> None:
     assert compute_table(dataset(), "pos.recurring_death_spot").is_empty()
     eight = {"pos.recurring_min_rounds": 8}
     spots = compute_table(dataset(), "pos.recurring_death_spot", params=eight)
-    # 3 untraded deaths of 4 in Ramp (75 %) and 1 in Outside (25 %), over 8 rounds
+    # 2 untraded deaths of 3 in Ramp (67 %) and 1 in Outside (33 %), over 8 rounds; the death of
+    # the last player alive is left out
     assert spots.select("zone", "untraded_deaths", "rounds").rows() == [
-        ("Ramp", 3, 8),
+        ("Ramp", 2, 8),
         ("Outside", 1, 8),
     ]
     stricter = compute_table(

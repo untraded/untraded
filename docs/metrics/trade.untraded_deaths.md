@@ -4,11 +4,11 @@
 
 | Version | Kind | Unit | Better | Reads | Code |
 |---|---|---|---|---|---|
-| 1.1.0 | value | count | lower | `death`, `round_player` | [`untraded_deaths` in `metrics/duels.py`](https://github.com/untraded/untraded/blob/main/packages/untraded-py/src/untraded/metrics/duels.py) |
+| 1.2.0 | value | count | lower | `death`, `round_player` | [`untraded_deaths` in `metrics/duels.py`](https://github.com/untraded/untraded/blob/main/packages/untraded-py/src/untraded/metrics/duels.py) |
 
 ## Definition
 
-Deaths - traded deaths (the product's signature metric).
+Deaths with a living teammate that were not traded (the product's signature metric). The last player alive has nobody to trade them: such a death is left out.
 
 ## Parameters
 
@@ -22,7 +22,7 @@ On the `premier-half` fixture: a Premier match on de_cache, rounds 11 to 15, ano
 
 | A1 | A2 | A3 | A4 | A5 | B1 | B2 | B3 | B4 | B5 |
 |---|---|---|---|---|---|---|---|---|---|
-| 4 | 3 | 4 | 4 | 3 | 1 | 3 | 4 | 4 | 2 |
+| 4 | 2 | 3 | 4 | 1 | 0 | 3 | 4 | 3 | 2 |
 
 ## Against CS Demo Manager
 
@@ -30,7 +30,7 @@ No field of its own in CS Demo Manager; compared through deaths and traded death
 
 ## Limits
 
-- Includes deaths with no teammate left to trade them (the last player alive).
+- Leaves out the deaths with no teammate left to trade them (the last player alive), so deaths = traded + untraded + those.
 - A death is traded only when the killer is then killed **by the victim's team**, within `trade.window_s`, both ends included. CS Demo Manager differs in four ways: a killer killed by their own teammate trades the death, a player controlling a bot can trade, the kill of an enemy who had just killed a teammate is a trade kill, and a trade at exactly 5.00 s does not count (validation-csdm § 5).
 - Distances are straight lines between positions, through walls.
 
@@ -40,3 +40,4 @@ See also the [shared conventions](README.md#shared-conventions) of every metric.
 
 - **1.0.0**: First version (#33).
 - **1.1.0**: Trades now count a kill on the same tick (delay 0) (#41) and the victim's own grenade or fire killing the killer later (#42); two players killing each other on the same tick trade nothing.
+- **1.2.0**: The last player alive has nobody to trade them: such a death is left out (#167).

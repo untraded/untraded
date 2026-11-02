@@ -176,7 +176,7 @@ def setup_diversity(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
 
 @metric(
     "pos.recurring_death_spot",
-    version="1.2.0",
+    version="1.3.0",
     name="Recurring death spot",
     unit="table",
     better="neutral",
@@ -184,12 +184,15 @@ def setup_diversity(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
     params={**WINDOW, **RECURRING},
     uses=("death", "kill", "round_player"),
     doc="Per map and side: zones holding at least `pos.recurring_death_share` of the "
-    "player's **untraded** deaths, when the player played at least "
+    "player's **untraded** deaths (with a living teammate, as `trade.untraded_deaths`), when "
+    "the player played at least "
     "`pos.recurring_min_rounds` rounds there. Columns: `steamid`, `map`, `side`, `zone`, "
     "`untraded_deaths`, `share_pct`, `rounds`.",
 )
 def recurring_death_spot(ds: Dataset, p: Mapping[str, ParamValue]) -> pl.DataFrame:
-    untraded = _deaths(ds).filter(~_traded(p["trade.window_s"]))
+    untraded = _deaths(ds).filter(
+        ~_traded(p["trade.window_s"]) & pl.col("nearest_teammate_distance").is_not_null()
+    )
     zones = (
         untraded.group_by(*KEYS, pl.col("victim_place").alias("zone"))
         .agg(pl.len().alias("untraded_deaths"))

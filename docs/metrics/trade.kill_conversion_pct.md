@@ -4,11 +4,11 @@
 
 | Version | Kind | Unit | Better | Reads | Code |
 |---|---|---|---|---|---|
-| 1.2.0 | value | pct | higher | `death`, `trade_opportunity` | [`kill_conversion_pct` in `metrics/duels.py`](https://github.com/untraded/untraded/blob/main/packages/untraded-py/src/untraded/metrics/duels.py) |
+| 1.3.0 | value | pct | higher | `death`, `trade_opportunity` | [`kill_conversion_pct` in `metrics/duels.py`](https://github.com/untraded/untraded/blob/main/packages/untraded-py/src/untraded/metrics/duels.py) |
 
 ## Definition
 
-Trade kills ÷ trade opportunities * 100.
+Trade opportunities the player converted (traded that death within `trade.window_s`) ÷ trade opportunities * 100.
 
 Stands on [`trade.kill_opportunities`](trade.kill_opportunities.md): a value over few cases says little.
 
@@ -17,7 +17,7 @@ Stands on [`trade.kill_opportunities`](trade.kill_opportunities.md): a value ove
 | Parameter | Default | Meaning |
 |---|---|---|
 | `trade.window_s` | 5.0 s | Trade window W: a death is traded when a teammate kills the killer within W seconds, both ends included (the same tick, and exactly W). 5 s is the usual convention (HLTV, CS Demo Manager); CS Demo Manager excludes exactly W. |
-| `trade.opportunity_distance` | 1300.0 units | A living teammate of the victim within this straight-line distance of the killer had a trade opportunity. 🎯 Calibrated on the corpus (docs/calibration.md). |
+| `trade.opportunity_distance` | 1300.0 units | A living teammate of the victim within this straight-line distance of the killer, who saw the killer within the trade window, had a trade opportunity. 🎯 Calibrated on the corpus (docs/calibration.md). |
 
 ## Example
 
@@ -25,7 +25,7 @@ On the `premier-half` fixture: a Premier match on de_cache, rounds 11 to 15, ano
 
 | A1 | A2 | A3 | A4 | A5 | B1 | B2 | B3 | B4 | B5 |
 |---|---|---|---|---|---|---|---|---|---|
-| 0 | 0 | 16.67 | 33.33 | 0 | 66.67 | 0 | 25 | 0 | 0 |
+| — | 0 | 100 | 100 | 0 | 66.67 | — | 66.67 | 0 | 0 |
 
 ## Against CS Demo Manager
 
@@ -43,3 +43,4 @@ See also the [shared conventions](README.md#shared-conventions) of every metric.
 - **1.0.0**: First version (#33).
 - **1.1.0**: Trades now count a kill on the same tick (delay 0) (#41) and the victim's own grenade or fire killing the killer later (#42); two players killing each other on the same tick trade nothing.
 - **1.2.0**: `trade.opportunity_distance` 1000 -> 1300 units: 26 % of the real trades of the calibration corpus came from beyond 1000 units, 90 % from within 1300 (docs/calibration.md).
+- **1.3.0**: An opportunity needs the teammate to have seen the killer within `trade.window_s` (the engine's spotting), or to have traded it: distance alone counted teammates behind walls, and only 14 % of the opportunities were converted (#167).

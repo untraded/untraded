@@ -4,11 +4,11 @@
 
 | Version | Kind | Unit | Better | Reads | Code |
 |---|---|---|---|---|---|
-| 1.2.0 | table | table | neutral | `death`, `kill`, `round_player` | [`recurring_death_spot` in `metrics/positioning.py`](https://github.com/untraded/untraded/blob/main/packages/untraded-py/src/untraded/metrics/positioning.py) |
+| 1.3.0 | table | table | neutral | `death`, `kill`, `round_player` | [`recurring_death_spot` in `metrics/positioning.py`](https://github.com/untraded/untraded/blob/main/packages/untraded-py/src/untraded/metrics/positioning.py) |
 
 ## Definition
 
-Per map and side: zones holding at least `pos.recurring_death_share` of the player's **untraded** deaths, when the player played at least `pos.recurring_min_rounds` rounds there. Columns: `steamid`, `map`, `side`, `zone`, `untraded_deaths`, `share_pct`, `rounds`.
+Per map and side: zones holding at least `pos.recurring_death_share` of the player's **untraded** deaths (with a living teammate, as `trade.untraded_deaths`), when the player played at least `pos.recurring_min_rounds` rounds there. Columns: `steamid`, `map`, `side`, `zone`, `untraded_deaths`, `share_pct`, `rounds`.
 
 ## Parameters
 
@@ -41,3 +41,4 @@ See also the [shared conventions](README.md#shared-conventions) of every metric.
 - **1.0.0**: First version (#34).
 - **1.1.0**: Trades now count a kill on the same tick (delay 0) (#41) and the victim's own grenade or fire killing the killer later (#42); two players killing each other on the same tick trade nothing.
 - **1.2.0**: `pos.recurring_min_rounds` 8 -> 32 rounds: at 8, only 8 % of the spots found in half of a player's rounds came back in the other half (docs/calibration.md).
+- **1.3.0**: The last player alive has nobody to trade them: such a death is left out (#167).

@@ -135,11 +135,19 @@ def _traded_deaths(ds: Dataset, window: ParamValue) -> pl.DataFrame:
     return _count(ds, ds["death"].filter(pl.col("trade_delay_s") <= window), "victim")
 
 
+def untraded(window: ParamValue) -> pl.Expr:
+    """A death not traded within `window`."""
+    return pl.col("trade_delay_s").is_null() | (pl.col("trade_delay_s") > window)
+
+
 def _untraded(ds: Dataset, window: ParamValue) -> pl.DataFrame:
+    """Deaths - traded deaths - the deaths nobody could trade (no living teammate)."""
+    alone = ds["death"].filter(untraded(window) & pl.col("nearest_teammate_distance").is_null())
     return (
         total(ds, "deaths")
         .join(_traded_deaths(ds, window), on="steamid", suffix="_t")
-        .select("steamid", (pl.col("value") - pl.col("value_t")).alias("value"))
+        .join(_count(ds, alone, "victim"), on="steamid", suffix="_a")
+        .select("steamid", (pl.col("value") - pl.col("value_t") - pl.col("value_a")).alias("value"))
     )
 
 
@@ -189,13 +197,14 @@ def _trade_metrics(suffix: str, param: str, default: float) -> None:
 
     @metric(
         f"trade.untraded_deaths{suffix}",
-        version="1.1.0",
+        version="1.2.0",
         name=f"Untraded deaths ({seconds})",
         unit="count",
         better="lower",
         params=params,
         uses=("death", "round_player"),
-        doc="Deaths - traded deaths (the product's signature metric).",
+        doc="Deaths with a living teammate that were not traded (the product's signature "
+        "metric). The last player alive has nobody to trade them: such a death is left out.",
     )
     def untraded_deaths(ds: Dataset, p: Mapping[str, ParamValue]) -> pl.DataFrame:
         return _untraded(ds, p[param])
@@ -205,63 +214,192 @@ _trade_metrics("", "trade.window_s", WINDOW["trade.window_s"])
 _trade_metrics("_w3", "trade.window_w3_s", WINDOW_W3["trade.window_w3_s"])
 
 
-def _opportunities(ds: Dataset, distance: ParamValue) -> pl.DataFrame:
-    rows = ds["trade_opportunity"].filter(pl.col("distance_to_killer") <= distance)
-    return _count(ds, rows, "teammate")
+def opportunities(ds: Dataset, p: Mapping[str, ParamValue]) -> pl.DataFrame:
+    """The trade opportunities: the teammate was within `trade.opportunity_distance` of the
+    killer, and saw the killer within `trade.window_s` of the kill (or traded it, which proves
+    it: the engine's spotting can lag behind a quick trade). Adds `converted`: this teammate
+    traded the death within the window."""
+    window = p["trade.window_s"]
+    traders = (
+        ds["death"]
+        .select("match_id", "tick", "victim", "trader", traded=pl.col("trade_delay_s") <= window)
+        .unique(["match_id", "tick", "victim"], keep="first")
+    )
+    return (
+        ds["trade_opportunity"]
+        .filter(pl.col("distance_to_killer") <= p["trade.opportunity_distance"])
+        .join(traders, on=["match_id", "tick", "victim"], how="left")
+        .with_columns(
+            ((pl.col("trader") == pl.col("teammate")) & pl.col("traded"))
+            .fill_null(False)
+            .alias("converted")
+        )
+        .filter((pl.col("sight_delay_s") <= window) | pl.col("converted"))
+        .drop("trader", "traded")
+    )
+
+
+OPPORTUNITY_DOC = (
+    "within `trade.opportunity_distance` of the killer, and saw the killer (the engine's "
+    "spotting) within `trade.window_s` of the kill, or traded it"
+)
 
 
 @metric(
     "trade.kill_opportunities",
-    version="1.1.0",
+    version="1.2.0",
     name="Trade opportunities",
     unit="count",
     better="neutral",
-    params=OPPORTUNITY,
-    uses=("trade_opportunity",),
-    doc="Times a teammate of the player was killed while the player was alive and within "
-    "`trade.opportunity_distance` of the killer.",
+    params={**WINDOW, **OPPORTUNITY},
+    uses=("death", "trade_opportunity"),
+    doc=f"Times a teammate of the player was killed while the player was alive, {OPPORTUNITY_DOC}.",
 )
 def kill_opportunities(ds: Dataset, p: Mapping[str, ParamValue]) -> pl.DataFrame:
-    return _opportunities(ds, p["trade.opportunity_distance"])
+    return _count(ds, opportunities(ds, p), "teammate")
 
 
 @metric(
     "trade.kill_conversion_pct",
-    version="1.2.0",
+    version="1.3.0",
     name="Opportunity conversion",
     unit="pct",
     better="higher",
     cases=("trade.kill_opportunities",),
     params={**WINDOW, **OPPORTUNITY},
     uses=("death", "trade_opportunity"),
-    doc="Trade kills ÷ trade opportunities * 100.",
+    doc="Trade opportunities the player converted (traded that death within `trade.window_s`) "
+    "÷ trade opportunities * 100.",
 )
 def kill_conversion_pct(ds: Dataset, p: Mapping[str, ParamValue]) -> pl.DataFrame:
+    chances = opportunities(ds, p)
     return rate(
-        _trade_kills(ds, p["trade.window_s"]),
-        _opportunities(ds, p["trade.opportunity_distance"]),
+        _count(ds, chances.filter(pl.col("converted")), "teammate"),
+        _count(ds, chances, "teammate"),
         scale=100.0,
     )
 
 
 @metric(
     "trade.death_opportunities",
-    version="1.1.0",
+    version="1.2.0",
     name="Tradable deaths",
     unit="count",
     better="neutral",
-    params=OPPORTUNITY,
-    uses=("trade_opportunity",),
+    params={**WINDOW, **OPPORTUNITY},
+    uses=("death", "trade_opportunity"),
     doc="The player's deaths where at least one teammate had a trade opportunity.",
 )
 def death_opportunities(ds: Dataset, p: Mapping[str, ParamValue]) -> pl.DataFrame:
-    tradable = (
-        ds["trade_opportunity"]
-        .filter(pl.col("distance_to_killer") <= p["trade.opportunity_distance"])
+    tradable = opportunities(ds, p).select("match_id", "round", "tick", "victim").unique()
+    return _count(ds, tradable, "victim")
+
+
+# Duels lost
+
+SIGHT = {"duel.sight_s": 2.0}
+NOT_A_GUN = (
+    "hegrenade",
+    "flashbang",
+    "smokegrenade",
+    "decoy",
+    "molotov",
+    "incgrenade",
+    "inferno",
+    "planted_c4",
+    "taser",
+    "world",
+)
+
+
+def lost_duels(ds: Dataset, p: Mapping[str, ParamValue]) -> pl.DataFrame:
+    """Deaths in a duel: killed by an enemy's gun, not blind, after seeing the killer (the
+    engine's spotting) within `duel.sight_s` before. Shot in the back, burnt or flashed is not
+    a duel. Adds `damaged`: the player had hurt the killer earlier in the round."""
+    weapon = pl.col("weapon")
+    shots = (
+        ds["kill"]
+        .select("match_id", "tick", "victim", "weapon")
+        .unique(["match_id", "tick", "victim"], keep="first")
+    )
+    # Blind at the death: a blind that started before it and lasts until it (the kill's own
+    # `victim_flash_duration` is the last flash's length, not reset when it wears off).
+    blinded = (
+        ds["death"]
         .select("match_id", "round", "tick", "victim")
+        .join(
+            ds["blind"].select(
+                "match_id", "round", "victim", pl.col("tick").alias("blind_tick"), "duration"
+            ),
+            on=["match_id", "round", "victim"],
+        )
+        .join(ds["match"].select("match_id", "tickrate"), on="match_id")
+        .filter(
+            (pl.col("blind_tick") <= pl.col("tick"))
+            & (pl.col("tick") <= pl.col("blind_tick") + pl.col("duration") * pl.col("tickrate"))
+        )
+        .select("match_id", "tick", "victim")
         .unique()
     )
-    return _count(ds, tradable, "victim")
+    hits = ds["damage"].select(
+        "match_id",
+        "round",
+        pl.col("attacker").alias("victim"),
+        pl.col("victim").alias("killer"),
+        pl.col("tick").alias("hit_tick"),
+    )
+    deaths = (
+        ds["death"]
+        .filter(pl.col("is_enemy_kill") & (pl.col("last_sight_s") <= p["duel.sight_s"]))
+        .join(shots, on=["match_id", "tick", "victim"])
+        .join(blinded, on=["match_id", "tick", "victim"], how="anti")
+        .filter(~weapon.is_in(NOT_A_GUN) & ~weapon.str.contains("(?i)knife|bayonet"))
+    )
+    damaged = (
+        deaths.select("match_id", "round", "tick", "victim", "killer")
+        .join(hits, on=["match_id", "round", "victim", "killer"])
+        .filter(pl.col("hit_tick") <= pl.col("tick"))
+        .select("match_id", "tick", "victim", damaged=pl.lit(True))
+        .unique()
+    )
+    return deaths.join(damaged, on=["match_id", "tick", "victim"], how="left").with_columns(
+        pl.col("damaged").fill_null(False)
+    )
+
+
+@metric(
+    "duel.duels_lost",
+    version="1.0.0",
+    name="Duels lost",
+    unit="count",
+    better="neutral",
+    params=SIGHT,
+    uses=("death", "kill", "damage", "blind"),
+    doc="Deaths in a duel: killed by an enemy's gun (no grenade, fire, knife, zeus or bomb), "
+    "not blind, having seen the killer (the engine's spotting) within `duel.sight_s` before.",
+)
+def duels_lost(ds: Dataset, p: Mapping[str, ParamValue]) -> pl.DataFrame:
+    return _count(ds, lost_duels(ds, p), "victim")
+
+
+@metric(
+    "duel.lost_without_damage_pct",
+    version="1.0.0",
+    name="Duels lost without damage",
+    unit="pct",
+    better="lower",
+    cases=("duel.duels_lost",),
+    params=SIGHT,
+    uses=("death", "kill", "damage", "blind"),
+    doc="Duels lost where the player had not hurt the killer in the round ÷ duels lost * 100.",
+)
+def lost_without_damage_pct(ds: Dataset, p: Mapping[str, ParamValue]) -> pl.DataFrame:
+    lost = lost_duels(ds, p)
+    return rate(
+        _count(ds, lost.filter(~pl.col("damaged")), "victim"),
+        _count(ds, lost, "victim"),
+        scale=100.0,
+    )
 
 
 # Spacing
