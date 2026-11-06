@@ -387,7 +387,7 @@ def moments(rule: str, events: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def advice(session_n: int, match: dict[str, Any]) -> list[dict[str, Any]]:
-    base = [
+    return findings(session_n, match, 1, [
         ("trade.untraded_deaths", "trade.untraded_deaths", "count", "per_round", 0.41, 0.29, 9, 7,
          ["adjust.trade_distance", "adjust.play_with_entry", "drill.trade_timing"], {}),
         ("pos.recurring_death_spot", "pos.recurring_death_spot", "table", "pattern", None, None, 4, 4,
@@ -395,7 +395,24 @@ def advice(session_n: int, match: dict[str, Any]) -> list[dict[str, Any]]:
          {"map": match["map"], "side": "T", "zone": "Mid", "history_events": 11}),
         ("util.team_flashes", "util.teammates_flashed", "count", "per_round", 0.18, 0.09, 6, 4,
          ["adjust.call_your_flashes", "drill.pop_flashes"], {}),
-    ]  # fmt: skip
+    ])  # fmt: skip
+
+
+def other_findings(session_n: int, match: dict[str, Any]) -> list[dict[str, Any]]:
+    """The rest of what fired, past the three priorities."""
+    return findings(session_n, match, 4, [
+        ("trade.isolated_deaths", "duel.isolated_death_pct", "pct", "value", 46.0, 37.0, 5, 4,
+         ["adjust.trade_distance", "adjust.info_before_peek"], {}),
+        ("duel.opening_deaths", "duel.opening_success_pct", "pct", "value", 38.0, 49.0, 4, 3,
+         ["drill.prefire", "adjust.info_before_peek", "adjust.use_utility_to_peek"], {}),
+        ("clutch.clutches_lost", "clutch.win_pct", "pct", "value", 12.0, 24.0, 3, 3,
+         ["adjust.clutch_time", "drill.retake_servers"], {}),
+    ])  # fmt: skip
+
+
+def findings(
+    session_n: int, match: dict[str, Any], first: int, base: list[tuple[Any, ...]]
+) -> list[dict[str, Any]]:
     found = []
     for priority, (
         rule,
@@ -408,7 +425,7 @@ def advice(session_n: int, match: dict[str, Any]) -> list[dict[str, Any]]:
         lost,
         actions,
         details,
-    ) in enumerate(base, 1):
+    ) in enumerate(base, first):
         indicator = "trade.untraded_deaths" if rule.startswith("pos.") else metric
         found.append(
             {
@@ -470,6 +487,12 @@ def session_advice(n: int, session: dict[str, Any]) -> list[dict[str, Any]]:
     if session["_kind"] == "none" or n in QUIET:
         return []
     return advice(n, session["_matches"][0])
+
+
+def session_others(n: int, session: dict[str, Any]) -> list[dict[str, Any]]:
+    if session["_kind"] == "none" or n in QUIET:
+        return []
+    return other_findings(n, session["_matches"][0])
 
 
 def played(match: dict[str, Any]) -> dict[str, Any]:
@@ -588,6 +611,7 @@ def report(n: int) -> dict[str, Any]:
         "match_list": session["_matches"],
         "metrics": session["_values"],
         "advice": session_advice(n, session),
+        "other_findings": session_others(n, session),
         "follow_up": follow,
     }
 

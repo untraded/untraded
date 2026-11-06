@@ -39,6 +39,9 @@ DEFAULTS: dict[str, ParamValue] = {
 
 EVIDENCE_COLUMNS = ("match_id", "round", "tick", "map", "side")
 
+PRIORITIES = 3
+"""How many findings of a session become its priorities; the others are shown under them."""
+
 
 @dataclass(frozen=True)
 class Rule:
@@ -185,17 +188,31 @@ def _events(finding: Finding) -> set[tuple[Any, ...]]:
     return set(finding.evidence.select("match_id", "round", "tick").iter_rows())
 
 
-def prioritize(findings: Iterable[Finding], limit: int = 3, overlap: float = 0.5) -> list[Finding]:
-    """The `limit` costliest findings. A finding whose events mostly repeat those of a finding
-    already kept (more than `overlap` of them) is skipped: two rules on the same deaths make one
+def split_findings(
+    findings: Iterable[Finding], limit: int = PRIORITIES, overlap: float = 0.5
+) -> tuple[list[Finding], list[Finding]]:
+    """The priorities and the other findings, both costliest first.
+
+    The priorities are the `limit` costliest findings. A finding whose events mostly repeat those
+    of a priority (more than `overlap` of them) is not one: two rules on the same deaths make one
     priority, not two. Events, not rounds: a finding spread over half the session's rounds would
-    otherwise hide every other one."""
+    otherwise hide every other one. Whatever is not a priority is among the others, including the
+    findings skipped for their overlap."""
     kept: list[Finding] = []
+    others: list[Finding] = []
     for candidate in sorted(findings, key=lambda f: (-f.cost, -f.events, f.rule)):
         events = _events(candidate)
-        if any(len(events & _events(k)) > overlap * len(events) for k in kept):
-            continue
-        kept.append(candidate)
-        if len(kept) == limit:
-            break
-    return kept
+        if len(kept) >= limit or any(
+            len(events & _events(k)) > overlap * len(events) for k in kept
+        ):
+            others.append(candidate)
+        else:
+            kept.append(candidate)
+    return kept, others
+
+
+def prioritize(
+    findings: Iterable[Finding], limit: int = PRIORITIES, overlap: float = 0.5
+) -> list[Finding]:
+    """The priorities alone (`split_findings`)."""
+    return split_findings(findings, limit, overlap)[0]

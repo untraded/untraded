@@ -53,7 +53,7 @@ compute(ds.split(side="CT"), ["base.kast"])  # one metric, CT rounds only
 compute(ds, params={"trade.window_s": 3.0})  # another trade window
 ```
 
-`derive` also computes the `swing` table with the published win-probability model (`untraded.winprob.default_model()`), which `rating.swing` reads. The advice engine works on the same datasets: `untraded.advice.find(session, player, comparison, history=...)` then `prioritize(...)`, with `comparison` the `values` table of `untraded.reference.compare_to_self(...)`.
+`derive` also computes the `swing` table with the published win-probability model (`untraded.winprob.default_model()`), which `rating.swing` reads. The advice engine works on the same datasets: `untraded.advice.find(session, player, comparison, history=...)` then `prioritize(...)`, or `split_findings(...)` for the priorities and the other findings, with `comparison` the `values` table of `untraded.reference.compare_to_self(...)`.
 
 Results record each metric's version and the parameters used. The ratings are also available on match totals:
 

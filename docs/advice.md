@@ -11,6 +11,8 @@ After each session, Untraded gives up to **three priorities**. Each comes with:
 - an action;
 - an indicator to follow.
 
+The other rules that fired are not lost: they appear under the priorities as **other points**, with the same evidence, actions and vote.
+
 The rules are open, like the metrics: `untraded.advice` (MIT).
 
 ## References
@@ -47,6 +49,8 @@ cost = rounds lost + advice.won_round_weight (0.25) × rounds won
 ```
 
 The three costliest findings become the priorities (ties go to the finding with more events, then to the rule id). A finding whose events (match, round, tick) mostly repeat those of a kept one (over 50 %) is skipped: two rules on the same deaths make one priority. Events, not rounds: a finding spread over half the session's rounds would otherwise hide every other one. The open rating (planned) will replace this estimate of what a mistake costs.
+
+Every finding is stored. Those past the third, and those skipped because they repeat a kept one, are the session's **other points**, in the same order (cost, events, rule id), folded under the priorities in the session report. Only the three priorities are followed in the next session and shown on the match page and the dashboard.
 
 ## Rules (batch 1)
 

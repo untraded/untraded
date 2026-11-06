@@ -67,7 +67,9 @@ export async function Report({
 
   // The matches the evidence comes from, to draw their rounds. One that fails to load leaves its
   // evidence as a plain list of rounds rather than breaking the report.
-  const ids = [...new Set(report.advice.flatMap((a) => a.evidence.map((e) => e.match_id)))];
+  const others = report.other_findings ?? [];
+  const findings = [...report.advice, ...others];
+  const ids = [...new Set(findings.flatMap((a) => a.evidence.map((e) => e.match_id)))];
   const matches = new Map<string, MatchDetail>();
   for (const match of await Promise.all(ids.map((id) => findMatch(id)))) {
     if (match) matches.set(match.id, match);
@@ -165,6 +167,7 @@ export async function Report({
       <div className="grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_18.75rem]">
         <Priorities
           advice={report.advice}
+          others={others}
           sessionId={report.id}
           locale={locale}
           tone={tone}

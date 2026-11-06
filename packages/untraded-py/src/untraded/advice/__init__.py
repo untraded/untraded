@@ -1,9 +1,9 @@
 # SPDX-FileCopyrightText: 2026 The Untraded Authors
 # SPDX-License-Identifier: MIT
-"""Advice: up to three priorities per session, each proved by rounds (vision § 5).
+"""Advice: up to three priorities per session and the other findings, proved by rounds.
 
     findings = find(session, player, comparison, history=history)
-    priorities = prioritize(findings)
+    priorities, others = split_findings(findings)
 
 `comparison` holds, per value metric, the session's value and the reference's, as
 `untraded.reference.compare_to_self` returns them (`metric`, `basis`, `session`, `reference`);
@@ -18,11 +18,30 @@ from collections.abc import Iterable, Mapping
 import polars as pl
 
 from untraded.advice import rules as _rules  # noqa: F401 (registers the rules)
-from untraded.advice.engine import DEFAULTS, RULES, Finding, Rule, finding, prioritize, worse
+from untraded.advice.engine import (
+    DEFAULTS,
+    PRIORITIES,
+    RULES,
+    Finding,
+    Rule,
+    finding,
+    prioritize,
+    split_findings,
+    worse,
+)
 from untraded.metrics import Dataset
 from untraded.metrics.registry import ParamValue
 
-__all__ = ["DEFAULTS", "RULES", "Finding", "Rule", "find", "prioritize"]
+__all__ = [
+    "DEFAULTS",
+    "PRIORITIES",
+    "RULES",
+    "Finding",
+    "Rule",
+    "find",
+    "prioritize",
+    "split_findings",
+]
 
 
 def find(

@@ -106,6 +106,23 @@ def session_id() -> uuid.UUID:
                 found[ME],
             ),
         )
+        conn.execute(
+            """
+            INSERT INTO advice (steam_id, workspace_id, session_from, session_to, rule_id,
+                rule_version, priority, message_key, message_args, evidence, session_id, cost)
+            VALUES (%s, %s, %s, %s, 'util.team_flashes', '1.0.0', 4,
+                'advice.util.team_flashes', %s, %s, %s, 1.5)
+            """,
+            (
+                ME,
+                workspace[0],
+                START,
+                START,
+                Jsonb({"events": 3, "actions": ["adjust.call_your_flashes"]}),
+                Jsonb(evidence),
+                found[ME],
+            ),
+        )
         # The day before: a session that raised a priority on untraded deaths (2.0 per round).
         before = conn.execute(
             """
@@ -129,6 +146,23 @@ def session_id() -> uuid.UUID:
                 rule_version, priority, message_key, message_args, evidence, session_id)
             VALUES (%s, %s, %s, %s, 'trade.untraded_deaths', '1.0.0', 1,
                 'advice.trade.untraded_deaths', %s, '[]', %s)
+            """,
+            (
+                ME,
+                workspace[0],
+                START,
+                START,
+                Jsonb({"indicator": untraded.id}),
+                before[0],
+            ),
+        )
+        # Another finding of that session, not a priority: the next report does not follow it.
+        conn.execute(
+            """
+            INSERT INTO advice (steam_id, workspace_id, session_from, session_to, rule_id,
+                rule_version, priority, message_key, message_args, evidence, session_id)
+            VALUES (%s, %s, %s, %s, 'trade.isolated_deaths', '1.0.0', 4,
+                'advice.trade.isolated_deaths', %s, '[]', %s)
             """,
             (
                 ME,
@@ -268,6 +302,25 @@ def test_the_report_carries_its_priorities(client: TestClient, session_id: uuid.
     assert stranger.post(url, json={"vote": 1}).status_code == 404
     client.cookies.clear()
     assert client.post(url, json={"vote": 1}).status_code == 401
+
+
+def test_the_report_carries_the_other_findings_apart(
+    client: TestClient, session_id: uuid.UUID
+) -> None:
+    me = as_player(client, ME)
+    report = me.get(f"/sessions/{session_id}").json()
+    assert [a["rule_id"] for a in report["advice"]] == ["trade.untraded_deaths"]
+    (other,) = report["other_findings"]
+    assert (other["rule_id"], other["priority"], other["cost"]) == ("util.team_flashes", 4, 1.5)
+    assert other["evidence"][0]["goto_tick"] == 63680
+    assert other["args"]["actions"] == ["adjust.call_your_flashes"]
+    assert report["top_priority"]["rule_id"] == "trade.untraded_deaths"
+
+    # The vote works as on a priority.
+    url = f"/advice/{other['id']}/feedback"
+    assert me.post(url, json={"vote": 1}).status_code == 204
+    assert me.get(f"/sessions/{session_id}").json()["other_findings"][0]["my_vote"] == 1
+    assert as_player(client, STRANGER).post(url, json={"vote": 1}).status_code == 404
 
 
 def test_the_previous_priorities_are_followed(client: TestClient, session_id: uuid.UUID) -> None:

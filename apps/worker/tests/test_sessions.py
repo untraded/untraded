@@ -12,8 +12,9 @@ import polars as pl
 import psycopg
 import pytest
 
+from untraded.advice import Finding
 from untraded.metrics import REGISTRY
-from untraded_worker import queue
+from untraded_worker import advice, queue
 from untraded_worker.analysis import Analysis
 from untraded_worker.load import load_match
 from untraded_worker.sessions import (
@@ -65,6 +66,51 @@ def test_a_late_match_is_in_the_reference_of_the_next_30_days() -> None:
     assert later_sessions(everything, [matches[3]], window_days=30) == []
     # Nor does a session for the sessions of its own day (their reference stops the day before).
     assert later_sessions(everything, [matches[1]], window_days=30) == [[matches[3]]]
+
+
+def fake_finding(rule: str, cost: float, ticks: list[int], match: str = "m") -> Finding:
+    return Finding(
+        rule=rule,
+        rule_version="1.0.0",
+        metric="trade.untraded_deaths",
+        metric_version=REGISTRY["trade.untraded_deaths"].version,
+        basis="per_round",
+        session=1.0,
+        reference=0.5,
+        evidence=pl.DataFrame(
+            {"match_id": [match] * len(ticks), "round": [1] * len(ticks), "tick": ticks}
+        ),
+        rounds_touched=1,
+        rounds_lost=1,
+        cost=cost,
+        message_key=f"advice.{rule}",
+        actions=("adjust.trade_distance",),
+        indicator="trade.untraded_deaths",
+    )
+
+
+def test_the_other_findings_are_numbered_past_the_priorities() -> None:
+    a, b, c, d, e = (fake_finding(r, 1.0, [1]) for r in "abcde")
+    assert [(n, f.rule) for n, f in advice.numbered([a, b, c], [d, e])] == [
+        (1, "a"),
+        (2, "b"),
+        (3, "c"),
+        (4, "d"),
+        (5, "e"),
+    ]
+    # With fewer priorities too: the numbers up to 3 stay the priorities'.
+    assert [(n, f.rule) for n, f in advice.numbered([a, b], [c])] == [
+        (1, "a"),
+        (2, "b"),
+        (4, "c"),
+    ]
+
+
+def test_a_finding_stores_a_bounded_number_of_events() -> None:
+    found = fake_finding("a", 1.0, list(range(advice.MAX_EVIDENCE + 50)))
+    rows = advice.evidence_rows(found, {"m": uuid.uuid4()}, {"m": 64.0})
+    assert len(rows) == advice.MAX_EVIDENCE
+    assert found.events == advice.MAX_EVIDENCE + 50
 
 
 # ------------------------------------------------------------------------------------------
@@ -304,3 +350,32 @@ def test_the_session_gets_its_priorities_with_their_evidence(
     # Recomputing the session replaces its priorities.
     run(SessionJob(store), db, match_id)
     assert db.execute("SELECT count(*) FROM advice").fetchone() == (1,)
+
+
+@pytest.mark.db
+def test_every_finding_is_stored_past_the_priorities(
+    db: psycopg.Connection[Any],
+    tmp_path: Path,
+    analysis: Analysis,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = LocalStore(tmp_path)
+    match_id = add_match(db, store, analysis, at(20))
+    user = db.execute("SELECT id FROM app_user WHERE steam_id = %s", (ME,)).fetchone()
+    assert user is not None
+    db.execute(
+        "INSERT INTO workspace (kind, name, slug, created_by) VALUES ('personal', 'me', 'me', %s)",
+        (user[0],),
+    )
+    sha = match_id.hex * 2  # as `add_match` names it
+    findings = [
+        fake_finding("a", 5.0, [1, 2, 3], sha),
+        fake_finding("skipped", 4.0, [1, 2, 3], sha),  # the same events as `a`
+        fake_finding("b", 3.0, [4], sha),
+    ]
+    monkeypatch.setattr(advice, "find", lambda *_, **__: findings)
+    run(SessionJob(store), db, match_id)
+    rows = db.execute("SELECT rule_id, priority, evidence FROM advice ORDER BY priority").fetchall()
+    # Two priorities only: the other finding still starts at 4, or a reader would take it for one.
+    assert [(r[0], r[1]) for r in rows] == [("a", 1), ("b", 2), ("skipped", 4)]
+    assert rows[2][2][0]["match_id"] == str(match_id)
