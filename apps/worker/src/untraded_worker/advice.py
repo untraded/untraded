@@ -1,11 +1,11 @@
 # SPDX-FileCopyrightText: 2026 The Untraded Authors
 # SPDX-License-Identifier: AGPL-3.0-only
-"""A session's priorities (`advice`), computed right after its report by the `session` job.
+"""A session's findings (`advice`), computed right after its report by the `session` job.
 
 The rules are those of `untraded.advice`: they compare the session with the reference the
 report used (the player's own days, or their level) and look at the days before it for patterns.
-The three costliest findings are kept, with their evidence; each event gets the tick to jump to
-in the demo, `LEAD` before it happened (`demo_gototick`).
+Every finding is kept, with its evidence: the three priorities, then the others; each event gets
+the tick to jump to in the demo, `LEAD` before it happened (`demo_gototick`).
 """
 
 from __future__ import annotations
@@ -14,14 +14,14 @@ import datetime as dt
 import json
 import math
 import uuid
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from typing import Any
 
 import polars as pl
 import psycopg
 from psycopg.types.json import Jsonb
 
-from untraded.advice import Finding, find, prioritize
+from untraded.advice import PRIORITIES, Finding, find, split_findings
 from untraded.metrics import REGISTRY, Dataset
 
 LEAD = dt.timedelta(seconds=5)
@@ -51,6 +51,16 @@ def evidence_rows(
     return rows
 
 
+def numbered(
+    priorities: Sequence[Finding], others: Sequence[Finding]
+) -> Iterator[tuple[int, Finding]]:
+    """The value of `advice.priority` for each finding. The others always start past the
+    priorities' range, even with fewer priorities than that (when the other findings all repeat
+    their events): a number within it is what makes a priority for the readers."""
+    yield from enumerate(priorities, start=1)
+    yield from enumerate(others, start=PRIORITIES + 1)
+
+
 def advise(
     conn: psycopg.Connection[Any],
     steam_id: int,
@@ -62,7 +72,8 @@ def advise(
     comparison: pl.DataFrame,
     reference_kind: str,
 ) -> int:
-    """Writes the session's priorities for the player's personal workspace; returns how many."""
+    """Writes the session's findings for the player's personal workspace, the priorities and the
+    others; returns how many rows it wrote."""
     workspace = conn.execute(
         """
         SELECT w.id FROM workspace w JOIN app_user u ON u.id = w.created_by
@@ -73,7 +84,7 @@ def advise(
     if workspace is None:
         return 0
     tickrates = {str(t["match"]["match_id"][0]): float(t["match"]["tickrate"][0]) for t in session}
-    found = prioritize(
+    priorities, others = split_findings(
         find(
             Dataset.from_matches(session),
             steam_id,
@@ -81,7 +92,7 @@ def advise(
             history=Dataset.from_matches(history),
         )
     )
-    for priority, finding in enumerate(found, start=1):
+    for priority, finding in numbered(priorities, others):
         args = {
             "metric": finding.metric,
             "unit": REGISTRY[finding.metric].unit,
@@ -124,4 +135,4 @@ def advise(
                 finding.rounds_lost,
             ),
         )
-    return len(found)
+    return len(priorities) + len(others)

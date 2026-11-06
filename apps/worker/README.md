@@ -75,8 +75,9 @@ after a new replay format or a new win-probability model. Both log and skip a ma
   30 days before (`untraded.reference`), recomputed from the Parquet tables. A match is also in
   the reference of the sessions of the 30 days after it: when it arrives late (a demo sent days
   later), those sessions are recomputed too.
-- `advice.py`: the session's priorities, right after its report: the rules of `untraded.advice`
-  against the same reference, the three costliest kept, each event with its `demo_gototick`.
+- `advice.py`: the session's findings, right after its report: the rules of `untraded.advice`
+  against the same reference, every finding kept (the three priorities, numbered 1 to 3, then the
+  others from 4), each event with its `demo_gototick`.
 - `levels.py`: references by level (Premier rating bands of 2,500 points), pooled from every
   player of the collected matches as anonymous aggregates (opt-out respected, at least 20
   players), recomputed hourly; sessions without enough history of their own use them.

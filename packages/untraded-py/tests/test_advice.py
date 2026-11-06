@@ -9,7 +9,7 @@ import polars as pl
 import pytest
 
 from untraded import fixtures
-from untraded.advice import RULES, Rule, find, prioritize
+from untraded.advice import RULES, Rule, find, prioritize, split_findings
 from untraded.advice.engine import EVIDENCE_COLUMNS, Finding, rule, worse
 from untraded.derive import derive
 from untraded.metrics import REGISTRY, Dataset, compute
@@ -217,6 +217,29 @@ def test_a_widespread_finding_does_not_hide_others_in_the_same_rounds() -> None:
     # `a` touches most rounds; `b` happens in those rounds, but at other moments.
     findings = [fake("a", 9, list(range(1, 40))), fake("b", 4, [2, 5, 7], tick=100)]
     assert [f.rule for f in prioritize(findings)] == ["a", "b"]
+
+
+def test_the_findings_split_into_priorities_and_the_rest() -> None:
+    findings = [
+        fake("e", 1, [13]),
+        fake("a", 5, [1, 2, 3, 4]),
+        fake("d", 2, [12]),
+        fake("f", 1, [14, 15]),  # as costly as `e`, with more events
+        fake("b", 4, [1, 2, 3, 9]),  # 3 of its 4 events are already a's
+        fake("c", 3, [10, 11]),
+    ]
+    priorities, others = split_findings(findings)
+    assert [f.rule for f in priorities] == [f.rule for f in prioritize(findings)]
+    assert [f.rule for f in priorities] == ["a", "c", "d"]
+    # The skipped one too, in the same order as the priorities: cost, events, rule id.
+    assert [f.rule for f in others] == ["b", "f", "e"]
+
+
+def test_a_skipped_finding_is_among_the_others_with_fewer_than_three_priorities() -> None:
+    findings = [fake("a", 5, [1, 2, 3, 4]), fake("b", 4, [1, 2, 3, 9]), fake("c", 3, [10])]
+    priorities, others = split_findings(findings)
+    assert ([f.rule for f in priorities], [f.rule for f in others]) == (["a", "c"], ["b"])
+    assert split_findings([]) == ([], [])
 
 
 # Pattern rule: a recurring death spot over the session and the days before it -------------------

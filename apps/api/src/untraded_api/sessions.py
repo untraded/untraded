@@ -33,6 +33,10 @@ HEADLINES = (
 )
 """The metrics shown first, in this order."""
 
+PRIORITIES = 3
+"""`advice.priority` up to this is one of the session's priorities (`untraded.advice.PRIORITIES`,
+which the worker numbers them with); past it, one of its other findings."""
+
 
 class Comparison(BaseModel):
     metric_id: str
@@ -119,7 +123,7 @@ class Reference(BaseModel):
 
 
 class Advice(BaseModel):
-    """A priority: a rule that fired on the session, proved by its events."""
+    """A rule that fired on the session, proved by its events: a priority or another finding."""
 
     id: uuid.UUID
     rule_id: str
@@ -168,6 +172,9 @@ class SessionReport(SessionSummary):
     metrics: list[Comparison]
     advice: list[Advice]
     """Up to three priorities, most costly first."""
+    other_findings: list[Advice]
+    """Every other rule that fired, most costly first (skipped for repeating a priority's events,
+    or past the third)."""
     follow_up: list[FollowUp]
     """The previous session's priorities and their indicators since (vision § 5)."""
 
@@ -377,6 +384,20 @@ def get_session(session_id: uuid.UUID, conn: ConnDep, user: UserDep) -> SessionR
         """,
         {"user": user, "session": session_id},
     ).fetchall()
+    findings = [
+        Advice(
+            id=a[0],
+            rule_id=a[1],
+            rule_version=a[2],
+            priority=a[3],
+            message_key=a[4],
+            args=a[5],
+            evidence=a[6],
+            cost=a[7],
+            my_vote=a[8],
+        )
+        for a in advice
+    ]
     return SessionReport(
         **_summary(row, comparisons, _extras(conn, [session_id])),
         reference=Reference(
@@ -393,20 +414,8 @@ def get_session(session_id: uuid.UUID, conn: ConnDep, user: UserDep) -> SessionR
         ),
         match_list=[MatchSummary(**summary_fields(m)) for m in matches],
         metrics=comparisons,
-        advice=[
-            Advice(
-                id=a[0],
-                rule_id=a[1],
-                rule_version=a[2],
-                priority=a[3],
-                message_key=a[4],
-                args=a[5],
-                evidence=a[6],
-                cost=a[7],
-                my_vote=a[8],
-            )
-            for a in advice
-        ],
+        advice=[f for f in findings if f.priority <= PRIORITIES],
+        other_findings=[f for f in findings if f.priority > PRIORITIES],
         follow_up=_follow_up(conn, session_id, window[8], window[9]),
     )
 
@@ -427,8 +436,8 @@ def _follow_up(
         return []
     raised = conn.execute(
         "SELECT rule_id, message_args->>'indicator' FROM advice "
-        "WHERE session_id = %s ORDER BY priority",
-        (previous[0],),
+        "WHERE session_id = %s AND priority <= %s ORDER BY priority",
+        (previous[0], PRIORITIES),
     ).fetchall()
     found = []
     for rule_id, indicator in raised:

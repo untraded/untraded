@@ -634,6 +634,7 @@
   "advice": {
     "title": "Priorities",
     "none": "Nothing stands out against your reference this session.",
+    "others": "Other points ({count})",
     "tone": "Tone",
     "coach": "Coach",
     "analyst": "Analyst",

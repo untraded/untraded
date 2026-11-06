@@ -8,15 +8,18 @@ import { RoundStrip, type StripCell } from "@/components/round-strip";
 import { Button } from "@/components/ui/button";
 import { type Locale, TONES, type Tone } from "@/i18n/locale";
 import type { Advice, AdviceEvent, MatchDetail } from "@/lib/api";
+import { cn } from "@/lib/cn";
 import { mapName, metric, score } from "@/lib/format";
 import { momentHref } from "@/lib/match";
 
 /**
  * The session's priorities, the first one open: the finding in the chosen tone and its cost, then
- * the rounds to review on their match's strip, what to do, and the vote.
+ * the rounds to review on their match's strip, what to do, and the vote. The session's other
+ * findings come under them, folded.
  */
 export async function Priorities({
   advice,
+  others,
   sessionId,
   locale,
   tone,
@@ -25,6 +28,8 @@ export async function Priorities({
   readOnly = false,
 }: {
   advice: Advice[];
+  /** The other rules that fired, beyond the priorities. */
+  others: Advice[];
   sessionId: string;
   locale: Locale;
   tone: Tone;
@@ -67,6 +72,34 @@ export async function Priorities({
           ))}
         </ol>
       )}
+      {others.length > 0 && (
+        // A named group: each finding inside is a `group` of its own, and its chevron must follow
+        // its own fold, not this one.
+        <details className="group/others">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg px-4 py-2.5 font-semibold text-muted-foreground hover:bg-muted/40 hover:text-foreground sm:px-5 [&::-webkit-details-marker]:hidden">
+            {t("others", { count: others.length })}
+            <ChevronDown
+              aria-hidden="true"
+              className="size-4 transition-transform group-open/others:rotate-180"
+            />
+          </summary>
+          <ul className="mt-3 flex flex-col gap-3">
+            {others.map((item) => (
+              <Priority
+                key={item.id}
+                item={item}
+                open={false}
+                numbered={false}
+                sessionId={sessionId}
+                locale={locale}
+                tone={tone}
+                matches={matches}
+                readOnly={readOnly}
+              />
+            ))}
+          </ul>
+        </details>
+      )}
     </section>
   );
 }
@@ -74,6 +107,7 @@ export async function Priorities({
 async function Priority({
   item,
   open,
+  numbered = true,
   sessionId,
   locale,
   tone,
@@ -83,6 +117,8 @@ async function Priority({
   readOnly: boolean;
   item: Advice;
   open: boolean;
+  /** Shows its rank: the priorities have one, the other findings do not. */
+  numbered?: boolean;
   sessionId: string;
   locale: Locale;
   tone: Tone;
@@ -107,10 +143,19 @@ async function Priority({
   return (
     <li>
       <details open={open} className="group rounded-lg border border-border bg-card">
-        <summary className="grid cursor-pointer list-none rounded-lg hover:bg-muted/40 grid-cols-[1.25rem_minmax(0,1fr)_1.25rem] gap-x-3 gap-y-0.5 p-4 sm:px-5 [&::-webkit-details-marker]:hidden">
-          <span className="text-[1.0625rem] font-semibold text-muted-foreground">
-            {item.priority}
-          </span>
+        <summary
+          className={cn(
+            "grid cursor-pointer list-none rounded-lg hover:bg-muted/40 gap-x-3 gap-y-0.5 p-4 sm:px-5 [&::-webkit-details-marker]:hidden",
+            numbered
+              ? "grid-cols-[1.25rem_minmax(0,1fr)_1.25rem]"
+              : "grid-cols-[minmax(0,1fr)_1.25rem]",
+          )}
+        >
+          {numbered && (
+            <span className="text-[1.0625rem] font-semibold text-muted-foreground">
+              {item.priority}
+            </span>
+          )}
           <span className="text-base leading-snug font-semibold text-pretty sm:text-[1.0625rem]">
             {text}
           </span>
@@ -118,11 +163,13 @@ async function Priority({
             aria-hidden="true"
             className="mt-1 size-4 text-muted-foreground transition-transform group-open:rotate-180"
           />
-          <span className="col-start-2 text-[0.8125rem] text-muted-foreground">
+          <span className={cn("text-[0.8125rem] text-muted-foreground", numbered && "col-start-2")}>
             {t("costLong", { touched: args.rounds_touched, lost: args.rounds_lost })}
           </span>
         </summary>
-        <div className="flex flex-col gap-5 px-4 pb-4 sm:pr-5 sm:pl-12">
+        <div
+          className={cn("flex flex-col gap-5 px-4 pb-4 sm:pr-5", numbered ? "sm:pl-12" : "sm:pl-5")}
+        >
           <div className="flex flex-col gap-3">
             <p className="text-[0.8125rem] font-medium text-muted-foreground">
               {t("evidence", { count: item.evidence.length })}

@@ -426,7 +426,10 @@ export interface FollowUp {
 }
 
 export interface SessionReport extends SessionSummary {
+  /** Up to three priorities. */
   advice: Advice[];
+  /** Every other rule that fired, most costly first. */
+  other_findings: Advice[];
   follow_up: FollowUp[];
   reference: {
     /** `self`, `level` (players of the same rating band) or `none`. */
