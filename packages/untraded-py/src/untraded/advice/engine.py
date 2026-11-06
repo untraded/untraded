@@ -99,7 +99,8 @@ def rule(rule: Rule) -> Rule:
         raise ValueError(f"rule {rule.id!r} compares a neutral metric")
     watched = REGISTRY[rule.metric]
     if not rule.history and not (
-        watched.unit == "pct" or (watched.unit == "count" and not watched.cases)
+        (watched.unit == "pct" and watched.cases and not watched.signed)
+        or (watched.unit == "count" and not watched.cases)
     ):
         raise ValueError(f"rule {rule.id!r} watches {rule.metric!r}: no chance test for it")
     if not rule.history and watched.unit == "count" and watched.better != "lower":

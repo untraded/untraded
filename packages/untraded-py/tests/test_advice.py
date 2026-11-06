@@ -254,6 +254,24 @@ def test_a_total_that_should_grow_cannot_be_tested() -> None:
         )
 
 
+def test_a_signed_or_caseless_percentage_cannot_be_tested() -> None:
+    """Neither gives a count of bad cases among cases."""
+    metrics = [m for m in REGISTRY.values() if m.unit == "pct" and (m.signed or not m.cases)]
+    assert metrics
+    for metric in metrics:
+        with pytest.raises(ValueError, match="no chance test"):
+            rule(
+                Rule(
+                    id="test.signed",
+                    version="1.0.0",
+                    family="util",
+                    metric=metric.id,
+                    evidence=RULES["duel.opening_deaths"].evidence,
+                    actions=(),
+                )
+            )
+
+
 def test_a_rule_needs_a_metric_it_can_test() -> None:
     with pytest.raises(ValueError, match="no chance test"):
         rule(

@@ -58,8 +58,9 @@ def find(
     """Every rule that fires for `player` in `session`, with its evidence and cost.
 
     `params` overrides metric parameters (e.g. the trade window) for the evidence.
-    `test_chance=False` for a reference that is not a rate over rounds, such as players of the same
-    level (medians of per-match values): gap and events decide, and nothing is a clear signal.
+    `test_chance=False` for a reference the test was not measured against, such as players of the
+    same level (mostly medians of per-match values): gap and events decide, and nothing is a clear
+    signal.
     """
     reference = {row["metric"]: row for row in comparison.iter_rows(named=True)}
     in_session = set(session.played["match_id"].unique())
