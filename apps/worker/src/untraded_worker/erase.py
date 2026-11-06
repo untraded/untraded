@@ -6,9 +6,10 @@ Afterwards the player is what any non-registered player of a match is:
 - their account goes with everything tied to it: sources and their encrypted codes, consents,
   sign-in sessions, votes, invitation (or request for one) and personal workspace;
 - their play sessions, advice and aggregates go too;
-- the matches no other user played in are deleted whole: rows, Parquet and raw demo, and so
-  are the matches their sources brought that were never parsed (waiting, or failed);
-- the matches other users played in stay, since they are those users' matches too. The player
+- the matches that count for no other user (`credit`) are deleted whole: rows, Parquet and raw
+  demo, and so are the matches their sources brought that were never parsed (waiting, or failed).
+  A demo they sent goes even if it names other users: it was never on those users' accounts;
+- the matches that count for other users stay, since they are those users' matches too. The player
   remains one of the ten players there, never shown outside the match, and is left out of the
   level references from now on (`benchmark_opt_out`).
 
@@ -28,12 +29,13 @@ from typing import Any
 
 import psycopg
 
+from untraded_worker.credit import credited
 from untraded_worker.queue import Job
 from untraded_worker.store import LocalStore
 
 log = logging.getLogger("untraded.worker")
 
-OWN_MATCHES = """
+OWN_MATCHES = f"""
 SELECT m.id, m.demo_key, m.parquet_prefix
 FROM match m
 JOIN match_player mp ON mp.match_id = m.id AND mp.steam_id = %(steam)s
@@ -41,6 +43,7 @@ WHERE NOT EXISTS (
     SELECT 1 FROM match_player o
     JOIN app_user u ON u.steam_id = o.steam_id AND u.deleted_at IS NULL
     WHERE o.match_id = m.id AND o.steam_id <> %(steam)s
+      AND {credited("o.match_id", "o.steam_id")}
 )
 UNION
 SELECT m.id, m.demo_key, m.parquet_prefix
@@ -59,7 +62,7 @@ WHERE NOT EXISTS (SELECT 1 FROM match_player mp WHERE mp.match_id = m.id)
     WHERE ms.match_id = m.id AND u.steam_id <> %(steam)s
   )
 """
-"""The player's matches that no other (live) user played in, and the matches their sources
+"""The player's matches that count for no other (live) user, and the matches their sources
 brought that were never parsed (pending, failed: no players known yet) and no other live
 user's source brought too."""
 

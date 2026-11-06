@@ -242,6 +242,7 @@ matches that already have them; `--force` rewrites every match.
 
 ```bash
 docker compose exec worker untraded-worker reanalyze         # new metrics or versions (the Untraded Rating)
+docker compose exec worker untraded-worker reanalyze --force # every match; once when updating past the rule on whom a sent demo counts for
 docker compose exec worker untraded-worker swings --force    # a new win-probability model
 docker compose exec worker untraded-worker replays --force   # a new round replay format (2D viewer)
 ```

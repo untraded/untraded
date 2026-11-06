@@ -66,6 +66,10 @@ def match(
     ).fetchone()
     assert row is not None
     match_id = uuid.UUID(str(row[0]))
+    db.execute(
+        "INSERT INTO match_source (match_id, kind, external_id) VALUES (%s, 'valve_bot', %s)",
+        (match_id, str(match_id)),
+    )
     prefix = f"matches/{match_id}"
     db.execute("UPDATE match SET parquet_prefix = %s WHERE id = %s", (prefix, match_id))
     for steam_id in players:

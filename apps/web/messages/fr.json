@@ -41,7 +41,7 @@
   },
   "upload": {
     "title": "Envoyer une démo",
-    "lead": "Pour tes matchs FACEIT, ESEA et tes scrims : télécharge la démo sur la page du match, puis envoie-la ici. L'analyse prend quelques minutes, et le match rejoint tes sessions comme un match Premier.",
+    "lead": "Pour tes matchs FACEIT, ESEA et tes scrims : télécharge la démo sur la page du match, puis envoie-la ici. L'analyse prend quelques minutes, et le match rejoint tes sessions comme un match Premier. Il ne compte que pour toi : un coéquipier qui le veut aussi envoie le même fichier.",
     "refusals": {
       "off": {
         "title": "L'envoi de démos est désactivé sur ce serveur",

@@ -101,11 +101,14 @@ class ParseJob:
             return
 
         known = conn.execute(
-            "SELECT id, demo_key FROM match WHERE sha256 = %s AND id <> %s FOR UPDATE",
+            "SELECT id, demo_key, demo_deleted_at IS NOT NULL FROM match "
+            "WHERE sha256 = %s AND id <> %s FOR UPDATE",
             (canonical.match_id, match_id),
         ).fetchone()
         if known is not None:
-            self._merge(conn, match_id, known[0], demo_key, known[1])
+            # A demo retention already took: this copy brought the file back under the same key.
+            kept = None if known[2] else known[1]
+            self._merge(conn, match_id, known[0], demo_key, kept)
             return
 
         analysis = analyze(canonical.tables())

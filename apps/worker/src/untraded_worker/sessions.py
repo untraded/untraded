@@ -8,11 +8,11 @@ it (`untraded.reference.compare_to_self`), recomputed from the matches' Parquet 
 averaged from per-match values (metrics-v1 § 0).
 
 The `session` job (payload `{"steam_id": "...", "match_id": "<uuid>"}`) runs after each parse,
-for every invited player of the match: it recomputes the session holding that match. A match
-that joins two sessions merges them; the sessions it replaces are deleted. A match is also in the
-reference of the sessions of the `window_days` that follow it: when it arrives late (a demo sent
-days after it was played), the job queues a `session` job for each of those sessions too (payload
-`"follow": false`, so they do not queue others in turn).
+for every invited player the match counts for (`credit`): it recomputes the session holding that
+match. A match that joins two sessions merges them; the sessions it replaces are deleted. A match
+is also in the reference of the sessions of the `window_days` that follow it: when it arrives late
+(a demo sent days after it was played), the job queues a `session` job for each of those sessions
+too (payload `"follow": false`, so they do not queue others in turn).
 
 Without enough history of their own, the player is compared with players of the same Premier
 rating band (`levels`), and failing that with nothing: the report then shows the session alone.
@@ -34,6 +34,7 @@ from psycopg.types.json import Jsonb
 
 from untraded import reference
 from untraded_worker import advice, levels, load, queue
+from untraded_worker.credit import credited
 from untraded_worker.queue import Job
 from untraded_worker.store import LocalStore
 
@@ -97,18 +98,40 @@ def later_sessions(
 
 
 def queue_sessions(conn: psycopg.Connection[Any], match_id: uuid.UUID) -> int:
-    """Queues a `session` job for each invited player of the match; returns how many."""
+    """Queues a `session` job for each invited player the match counts for; returns how many."""
     players = conn.execute(
-        """
+        f"""
         SELECT mp.steam_id FROM match_player mp
         JOIN app_user u ON u.steam_id = mp.steam_id AND u.deleted_at IS NULL
-        WHERE mp.match_id = %s
+        WHERE mp.match_id = %s AND {credited("mp.match_id", "mp.steam_id")}
         """,
         (match_id,),
     ).fetchall()
     for (steam_id,) in players:
         queue.enqueue(conn, "session", {"steam_id": str(steam_id), "match_id": str(match_id)})
     return len(players)
+
+
+def withdraw_sessions(conn: psycopg.Connection[Any], match_id: uuid.UUID) -> int:
+    """Deletes the sessions holding the match of players it does not count for, written before
+    `credit` existed, and queues the sessions of their other matches; returns how many went. A
+    session job alone would not do it: it never sees a match that no longer counts."""
+    stale = conn.execute(
+        f"""
+        SELECT s.id, s.steam_id, array(
+            SELECT o.match_id FROM play_session_match o
+            WHERE o.session_id = s.id AND o.match_id <> sm.match_id)
+        FROM play_session s JOIN play_session_match sm ON sm.session_id = s.id
+        JOIN app_user u ON u.steam_id = s.steam_id AND u.deleted_at IS NULL
+        WHERE sm.match_id = %s AND NOT {credited("sm.match_id", "s.steam_id")}
+        """,
+        (match_id,),
+    ).fetchall()
+    for session_id, steam_id, others in stale:
+        conn.execute("DELETE FROM play_session WHERE id = %s", (session_id,))
+        for other in others:
+            queue.enqueue(conn, "session", {"steam_id": str(steam_id), "match_id": str(other)})
+    return len(stale)
 
 
 @dataclass(frozen=True)
@@ -214,11 +237,12 @@ class SessionJob:
 
     def _played(self, conn: psycopg.Connection[Any], steam_id: int) -> list[PlayedMatch]:
         rows = conn.execute(
-            """
+            f"""
             SELECT m.id, m.sha256, m.played_at, coalesce(m.ended_at, m.played_at),
                    m.parquet_prefix
             FROM match m JOIN match_player mp ON mp.match_id = m.id AND mp.steam_id = %s
             WHERE m.status = 'ready' AND m.played_at IS NOT NULL AND m.parquet_prefix IS NOT NULL
+              AND {credited("m.id", "mp.steam_id")}
             ORDER BY m.played_at, m.id
             """,
             (steam_id,),

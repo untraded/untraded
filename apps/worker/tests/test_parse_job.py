@@ -112,6 +112,10 @@ def _workspace(db: psycopg.Connection[Any], kind: str, steam_id: int) -> uuid.UU
 
 def test_access(db: psycopg.Connection[Any], analysis: Analysis) -> None:
     match_id = _match(db)
+    db.execute(
+        "INSERT INTO match_source (match_id, kind, external_id) VALUES (%s, 'valve_bot', 'v')",
+        (match_id,),
+    )
     load_match(db, match_id, analysis)
     own = _workspace(db, "personal", 1)  # player 1 played
     _workspace(db, "personal", 99)  # did not

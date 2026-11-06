@@ -137,6 +137,10 @@ def add_match(
     ).fetchone()
     assert row is not None
     match_id = uuid.UUID(str(row[0]))
+    db.execute(
+        "INSERT INTO match_source (match_id, kind, external_id) VALUES (%s, 'valve_bot', %s)",
+        (match_id, str(match_id)),
+    )
     tables = dict(analysis.tables)
     tables["match"] = tables["match"].with_columns(pl.lit(match_id.hex * 2).alias("match_id"))
     load_match(db, match_id, dataclasses.replace(analysis, tables=tables))
