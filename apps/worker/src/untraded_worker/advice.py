@@ -93,6 +93,7 @@ def advise(
             steam_id,
             comparison.select("metric", "basis", "session", "reference"),
             history=Dataset.from_matches(history),
+            test_chance=reference_kind == "self",
         )
     )
     for priority, finding in numbered(priorities, others):
@@ -108,6 +109,8 @@ def advise(
             "rounds_lost": finding.rounds_lost,
             "actions": list(finding.actions),
             "indicator": finding.indicator,
+            "chance": _clean(finding.chance),
+            "strong": finding.strong,
             **{k: _clean(v) for k, v in finding.details.items()},
         }
         conn.execute(

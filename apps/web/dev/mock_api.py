@@ -437,7 +437,8 @@ def findings(
                 "args": {
                     "metric": metric, "unit": unit, "basis": basis, "session": session,
                     "reference": reference, "events": events, "rounds_touched": events,
-                    "rounds_lost": lost, "actions": actions, "indicator": indicator, **details,
+                    "rounds_lost": lost, "actions": actions, "indicator": indicator,
+                    "strong": priority == 1, "chance": 0.01 if priority == 1 else 0.12, **details,
                 },
                 "evidence": unavailable(
                     session_n, priority, moments(rule, evidence(match, events, details.get("zone")))

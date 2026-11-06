@@ -31,10 +31,17 @@ The report always names its reference ("your 14 matches from … to …", or "Pr
 
 ## How a rule fires
 
-A rule watches one metric, and the metric's direction (`better`) says what "worse" means. It fires when both hold:
+A rule watches one metric, and the metric's direction (`better`) says what "worse" means. It fires when all three hold:
 
 1. the session is worse than the reference by at least **`advice.min_gap_pct` = 15 %** (relative);
-2. the session holds at least **`advice.min_events` = 3** events that prove it (2 for opening duels, opening conversion, clutches and the recurring spot).
+2. the session holds at least **`advice.min_events` = 3** events that prove it (2 for opening duels, opening conversion, clutches and the recurring spot);
+3. chance alone rarely gives so many events: at the reference's rate, the probability of at least this many (`chance`) is below **`advice.max_chance` = 0.2**.
+
+Below **`advice.strong_chance` = 0.05**, the finding is a **clear signal**: the report marks it, and it comes before the others whatever it costs.
+
+The chance is exact, without a normal approximation. A total (untraded deaths per round) is a Poisson count over the session's rounds. A percentage is a binomial count of bad cases among the metric's cases. The reference is taken as exact, and a rule can name a `cluster`, events that are one decision, counted once (a flash blinding two teammates). Team flashes vary more than this model expects, so their thresholds are stricter: 0.1 and 0.02. A rule can only watch a percentage or a total that should stay low, since an average has no such test. [calibration.md](calibration.md) measures how often rules fire on noise.
+
+The test is skipped, so a finding is never a clear signal, in three cases: pattern rules; a reference with no such events, such as 100 % over two clutches; and players of the same level, a reference this test has not been measured against (most of its values are medians of per-match values, not rates).
 
 **The evidence is what the metric counts.** Each rule's events apply the metric's own filter and parameters (trade window, isolation radius, minimum blind…), and the tests check the counts match on every fixture.
 
@@ -48,9 +55,9 @@ A finding costs the rounds it touches, weighted by those the team lost:
 cost = rounds lost + advice.won_round_weight (0.25) × rounds won
 ```
 
-The three costliest findings become the priorities (ties go to the finding with more events, then to the rule id). A finding whose events (match, round, tick) mostly repeat those of a kept one (over 50 %) is skipped: two rules on the same deaths make one priority. Events, not rounds: a finding spread over half the session's rounds would otherwise hide every other one. The open rating (planned) will replace this estimate of what a mistake costs.
+Clear signals come first, then the costliest: the first three become the priorities (ties go to the finding with more events, then to the rule id). A finding is skipped when it shares over 50 % of the smaller finding's events (match, round, tick) with a kept one: two rules on the same deaths make one priority. So a large finding can give way to a small one it contains, and it stays among the other points; on 34 real sessions this changed the priorities of one. Events, not rounds: a finding spread over half the session's rounds would otherwise hide every other one. The open rating (planned) will replace this estimate of what a mistake costs.
 
-Every finding is stored. Those past the third, and those skipped because they repeat a kept one, are the session's **other points**, in the same order (cost, events, rule id), folded under the priorities in the session report. Only the three priorities are followed in the next session and shown on the match page and the dashboard.
+Every finding is stored. Those past the third, and those skipped because they repeat a kept one, are the session's **other points**, in the same order (clear signals, cost, events, rule id), folded under the priorities in the session report. Only the three priorities are followed in the next session and shown on the match page and the dashboard.
 
 ## Rules (batch 1)
 
@@ -77,6 +84,7 @@ A `Finding` holds:
 - the session and reference values;
 - the evidence: `match_id`, `round`, `tick`, `map`, `side`, plus details such as the killer, the distance or the grenades;
 - rounds touched, rounds lost and cost;
+- `chance` and `strong` (a clear signal);
 - the i18n message key (`advice.<rule>`), the action ids and the indicator.
 
 The clients render the text in the user's language and tone (coach or analyst).

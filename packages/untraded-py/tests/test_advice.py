@@ -3,14 +3,23 @@
 from __future__ import annotations
 
 import dataclasses
+import math
 from pathlib import Path
 
 import polars as pl
 import pytest
 
 from untraded import fixtures
-from untraded.advice import RULES, Rule, find, prioritize, split_findings
-from untraded.advice.engine import EVIDENCE_COLUMNS, Finding, rule, worse
+from untraded.advice import DEFAULTS, RULES, Rule, find, prioritize, split_findings
+from untraded.advice.engine import (
+    EVIDENCE_COLUMNS,
+    Finding,
+    _binomial_tail,
+    _poisson_tail,
+    chance,
+    rule,
+    worse,
+)
 from untraded.derive import derive
 from untraded.metrics import REGISTRY, Dataset, compute
 from untraded.metrics.dataset import MatchTables
@@ -148,6 +157,135 @@ def test_too_few_events_do_not_make_a_finding() -> None:
     assert find(ds, player, comparison(ds, player, 2.0), rules=[strict]) == []
 
 
+def test_chance_is_an_exact_tail() -> None:
+    assert _binomial_tail(2, 2, 0.5) == pytest.approx(0.25)
+    assert _binomial_tail(1, 2, 0.5) == pytest.approx(0.75)
+    assert _binomial_tail(3, 2, 0.5) == 0.0
+    assert _binomial_tail(1, 5, 0.0) == 0.0
+    assert _poisson_tail(1, 2.0) == pytest.approx(1 - math.exp(-2.0))
+    assert _poisson_tail(0, 2.0) == 1.0
+    assert _poisson_tail(3, 0.0) == 0.0
+
+
+def test_a_small_gap_on_few_events_is_not_a_finding() -> None:
+    ds = Dataset.from_matches([tables("premier-abandon")])
+    player = max(
+        ds.players()["steamid"].to_list(),
+        key=lambda p: evidence(ds, "trade.untraded_deaths", p).height,
+    )
+    only = [RULES["trade.untraded_deaths"]]
+    # 20 % worse clears the gap, but that many events are likely at the reference's rate.
+    assert not find(ds, player, comparison(ds, player, 1.2), rules=only)
+    (found,) = find(ds, player, comparison(ds, player, 5.0), rules=only)
+    assert found.chance is not None
+    assert found.chance < DEFAULTS["advice.strong_chance"]
+    assert found.strong
+
+
+def test_a_cluster_counts_once_in_the_chance_test() -> None:
+    ds = Dataset.from_matches([tables("premier-abandon")])
+    player = int(ds.players()["steamid"][0])
+    rows = pl.DataFrame(
+        {"match_id": ["m"] * 4, "round": [1] * 4, "tick": [1] * 4, "g": [7, 7, 7, 7]}
+    )
+    plain = dataclasses.replace(RULES["util.team_flashes"], cluster=None)
+    grouped = dataclasses.replace(RULES["util.team_flashes"], cluster="g")
+    alone = chance(plain, ds, player, rows, basis="value", reference=1.0)
+    together = chance(grouped, ds, player, rows, basis="value", reference=1.0)
+    assert together is not None
+    assert alone is not None
+    assert together > alone
+
+
+def test_a_cluster_is_counted_per_match() -> None:
+    ds = Dataset.from_matches([tables("premier-abandon")])
+    player = int(ds.players()["steamid"][0])
+    flashes = dataclasses.replace(RULES["util.team_flashes"], cluster="g")
+    rows = {
+        "round": [1, 1],
+        "tick": [1, 2],
+        "g": [7, 7],
+    }
+    same = pl.DataFrame({"match_id": ["m", "m"], **rows})
+    apart = pl.DataFrame({"match_id": ["m", "n"], **rows})
+    one = chance(flashes, ds, player, same, basis="value", reference=1.0)
+    two = chance(flashes, ds, player, apart, basis="value", reference=1.0)
+    assert one is not None
+    assert two is not None
+    assert two < one
+
+
+def test_a_reference_with_no_such_events_is_no_clear_signal() -> None:
+    ds = Dataset.from_matches([tables("premier-abandon")])
+    player = max(
+        ds.players()["steamid"].to_list(),
+        key=lambda p: evidence(ds, "trade.untraded_deaths", p).height,
+    )
+    only = [RULES["trade.untraded_deaths"]]
+    zero = comparison(ds, player, 2.0).with_columns(pl.lit(0.0).alias("reference"))
+    (found,) = find(ds, player, zero, rules=only)
+    assert found.chance is None
+    assert not found.strong
+
+
+def test_a_level_reference_is_not_tested() -> None:
+    ds = Dataset.from_matches([tables("premier-abandon")])
+    player = max(
+        ds.players()["steamid"].to_list(),
+        key=lambda p: evidence(ds, "trade.untraded_deaths", p).height,
+    )
+    only = [RULES["trade.untraded_deaths"]]
+    (found,) = find(ds, player, comparison(ds, player, 1.2), rules=only, test_chance=False)
+    assert found.chance is None
+    assert not found.strong
+
+
+def test_a_total_that_should_grow_cannot_be_tested() -> None:
+    with pytest.raises(ValueError, match="too many"):
+        rule(
+            Rule(
+                id="test.kills",
+                version="1.0.0",
+                family="duel",
+                metric="base.kills",
+                evidence=RULES["duel.opening_deaths"].evidence,
+                actions=(),
+            )
+        )
+
+
+def test_a_signed_or_caseless_percentage_cannot_be_tested() -> None:
+    """Neither gives a count of bad cases among cases."""
+    metrics = [m for m in REGISTRY.values() if m.unit == "pct" and (m.signed or not m.cases)]
+    assert metrics
+    for metric in metrics:
+        with pytest.raises(ValueError, match="no chance test"):
+            rule(
+                Rule(
+                    id="test.signed",
+                    version="1.0.0",
+                    family="util",
+                    metric=metric.id,
+                    evidence=RULES["duel.opening_deaths"].evidence,
+                    actions=(),
+                )
+            )
+
+
+def test_a_rule_needs_a_metric_it_can_test() -> None:
+    with pytest.raises(ValueError, match="no chance test"):
+        rule(
+            Rule(
+                id="test.average",
+                version="1.0.0",
+                family="util",
+                metric="util.blind_per_flash",
+                evidence=RULES["duel.opening_deaths"].evidence,
+                actions=(),
+            )
+        )
+
+
 def test_a_rule_cannot_watch_a_neutral_metric() -> None:
     with pytest.raises(ValueError, match="neutral"):
         rule(
@@ -211,6 +349,19 @@ def test_priorities_are_the_costliest_without_repeating_events() -> None:
     ]
     assert [f.rule for f in prioritize(findings)] == ["a", "c", "d"]
     assert [f.rule for f in prioritize(findings, limit=5)] == ["a", "c", "d", "e"]
+
+
+def test_clear_signals_come_before_costlier_findings() -> None:
+    weak = fake("a", 9, [1, 2, 3])
+    clear = dataclasses.replace(fake("b", 2, [4, 5, 6]), strong=True)
+    assert [f.rule for f in prioritize([weak, clear])] == ["b", "a"]
+    assert [f.rule for f in split_findings([weak, clear], limit=1)[1]] == ["a"]
+
+
+def test_a_clear_subset_and_its_superset_make_one_priority() -> None:
+    whole = fake("whole", 9, [1, 2, 3, 4, 5, 6, 7, 8, 9])
+    part = dataclasses.replace(fake("part", 2, [1, 2, 3, 4]), strong=True)
+    assert [f.rule for f in prioritize([whole, part])] == ["part"]
 
 
 def test_a_widespread_finding_does_not_hide_others_in_the_same_rounds() -> None:

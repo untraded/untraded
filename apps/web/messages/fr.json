@@ -635,6 +635,8 @@
     "title": "Priorités",
     "none": "Rien ne ressort par rapport à ta référence sur cette session.",
     "others": "Autres points relevés ({count})",
+    "strong": "Signal net",
+    "strongHint": "Signal net : un tel écart est rare vu ta référence et le nombre de cas. Ça reste une seule session.",
     "tone": "Ton",
     "coach": "Coach",
     "analyst": "Analyste",

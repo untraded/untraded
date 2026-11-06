@@ -635,6 +635,8 @@
     "title": "Priorities",
     "none": "Nothing stands out against your reference this session.",
     "others": "Other points ({count})",
+    "strong": "Clear signal",
+    "strongHint": "Clear signal: a gap this size is rare given your reference and the number of cases. It stays one session.",
     "tone": "Tone",
     "coach": "Coach",
     "analyst": "Analyst",
