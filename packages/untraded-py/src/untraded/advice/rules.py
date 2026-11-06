@@ -95,7 +95,7 @@ def team_flashes(ds: Dataset, player: int, p: Mapping[str, ParamValue]) -> pl.Da
             & (pl.col("duration") >= p["flash.min_blind_s"])
         )
     )
-    return standard(placed(ds, blinds, player, "flasher"), ("victim", "duration"))
+    return standard(placed(ds, blinds, player, "flasher"), ("victim", "duration", "grenade_id"))
 
 
 def recurring_spot(ds: Dataset, player: int, p: Mapping[str, ParamValue]) -> pl.DataFrame:
@@ -119,7 +119,7 @@ def recurring_spot(ds: Dataset, player: int, p: Mapping[str, ParamValue]) -> pl.
 for definition in (
     Rule(
         id="trade.untraded_deaths",
-        version="1.1.0",
+        version="1.2.0",
         family="trade",
         metric="trade.untraded_deaths",
         evidence=untraded_deaths,
@@ -127,7 +127,7 @@ for definition in (
     ),
     Rule(
         id="trade.isolated_deaths",
-        version="1.0.0",
+        version="1.1.0",
         family="trade",
         metric="duel.isolated_death_pct",
         evidence=isolated_deaths,
@@ -135,7 +135,7 @@ for definition in (
     ),
     Rule(
         id="trade.missed_trades",
-        version="1.1.0",
+        version="1.2.0",
         family="trade",
         metric="trade.kill_conversion_pct",
         evidence=missed_trades,
@@ -143,7 +143,7 @@ for definition in (
     ),
     Rule(
         id="duel.opening_deaths",
-        version="1.0.0",
+        version="1.1.0",
         family="duel",
         metric="duel.opening_success_pct",
         evidence=opening_deaths,
@@ -152,7 +152,7 @@ for definition in (
     ),
     Rule(
         id="duel.openings_lost",
-        version="1.0.0",
+        version="1.1.0",
         family="duel",
         metric="duel.opening_win_conversion_pct",
         evidence=openings_lost,
@@ -161,7 +161,7 @@ for definition in (
     ),
     Rule(
         id="clutch.clutches_lost",
-        version="1.0.0",
+        version="1.1.0",
         family="clutch",
         metric="clutch.win_pct",
         evidence=clutches_lost,
@@ -170,7 +170,7 @@ for definition in (
     ),
     Rule(
         id="combat.duels_without_damage",
-        version="2.0.0",
+        version="2.1.0",
         family="combat",
         metric="duel.lost_without_damage_pct",
         evidence=duels_without_damage,
@@ -178,7 +178,7 @@ for definition in (
     ),
     Rule(
         id="util.wasted_utility",
-        version="2.0.0",
+        version="2.1.0",
         family="util",
         metric="duel.dry_peek_pct",
         evidence=wasted_utility,
@@ -186,10 +186,14 @@ for definition in (
     ),
     Rule(
         id="util.team_flashes",
-        version="1.0.0",
+        version="1.1.0",
         family="util",
         metric="util.teammates_flashed",
         evidence=team_flashes,
+        cluster="grenade_id",
+        # Measured on the corpus, these thresholds fire as often on noise as the others' defaults
+        # (docs/calibration.md).
+        params={"advice.max_chance": 0.1, "advice.strong_chance": 0.02},
         actions=("adjust.call_your_flashes", "drill.pop_flashes"),
     ),
     Rule(

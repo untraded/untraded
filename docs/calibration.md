@@ -70,6 +70,23 @@ The code is `untraded.calibration`. Each function measures what a threshold shou
   - at 64 units, 48 % of the duels lost are peeks; with a flash still held, 557 deaths, 15 % of the deaths with grenades, about 1.2 per player and match.
 - **Decision**: the rule watches the share of peeks lost with a flash held (`duel.dry_peek_pct`, ⚙ `duel.peek_distance` = 64 units), not the value at death (#168). `util.unused_value_at_death` is unchanged. On the 34 sessions, the rule now fires in 7 (17 before), with 3 to 6 peeks, and leads 3.
 
+### When a rule fires: chance (06/11/2026)
+
+- **Problem**: a gap of 15 % and 3 events decide a finding, whatever the number of cases. How much of it is noise?
+- **Method**: a one-off script, not in `untraded.calibration`. 5 players with at least 8 matches, 46 matches. 400 times per player, 2 to 4 of their own matches drawn at random are a session and the others its reference: their play did not change on purpose, so what fires is ordinary variation between matches. The same counts on their 34 real sessions, each against its earlier matches (at least 5). Pattern rules are left out, and neither column keeps the 30-day window. The draws overlap and the players are few: the rates are orders of magnitude, and thresholds close to each other are not told apart.
+- **Result**, findings per session (9 comparing rules, before the team flash thresholds below):
+
+  | Trigger | Random sessions | Real sessions |
+  |---|---:|---:|
+  | Gap and events only | 2.56 | 2.53 |
+  | and chance < 0.2 | 1.36 | 1.38 |
+  | and chance < 0.1 | 0.70 | 0.65 |
+  | and chance < 0.05 | 0.37 | 0.41 |
+
+  Below 0.05, each rule fires 1 to 5 % of the time on noise, as expected: the test holds, except for team flashes (14 %). Counting a flash once brings them to 9 %; thresholds of 0.1 and 0.02 bring them to 13 % and 6 %, like the other rules at 0.2 and 0.05.
+- **Reading**: real sessions do not stand out from random ones at any threshold. Against the player's own days, a session rarely differs from their habits. Taken at face value, most findings, clear signals included, are no more frequent than this ordinary variation.
+- **Decision**: two levels, `advice.max_chance` = 0.2 and `advice.strong_chance` = 0.05, with 0.1 and 0.02 for team flashes. The gap and the minimum of events stay. **Limits**: the self comparison cannot see a lasting habit, since it is in the reference; level references are not tested; and the correction for a flash uses the session's own ratio of blinds per flash.
+
 ### `pos.recurring_death_share` = 0.25, `pos.recurring_min_rounds` = 8 → **32** rounds
 
 - **Method**: a recurring death spot must be a habit, not chance. The test is replication.

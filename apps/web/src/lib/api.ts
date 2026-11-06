@@ -404,6 +404,8 @@ export interface Advice {
     side?: string;
     zone?: string;
     history_events?: number;
+    /** A clear signal: very unlikely to come from chance. */
+    strong?: boolean;
   };
   evidence: AdviceEvent[];
   cost: number;

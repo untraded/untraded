@@ -24,6 +24,7 @@ from untraded.advice.engine import (
     RULES,
     Finding,
     Rule,
+    chance,
     finding,
     prioritize,
     split_findings,
@@ -52,10 +53,13 @@ def find(
     history: Dataset | None = None,
     params: Mapping[str, ParamValue] | None = None,
     rules: Iterable[Rule] | None = None,
+    test_chance: bool = True,
 ) -> list[Finding]:
     """Every rule that fires for `player` in `session`, with its evidence and cost.
 
     `params` overrides metric parameters (e.g. the trade window) for the evidence.
+    `test_chance=False` for a reference that is not a rate over rounds, such as players of the same
+    level (medians of per-match values): gap and events decide, and nothing is a clear signal.
     """
     reference = {row["metric"]: row for row in comparison.iter_rows(named=True)}
     in_session = set(session.played["match_id"].unique())
@@ -97,6 +101,21 @@ def find(
         events = rule.evidence(session, player, p)
         if events.height < minimum:
             continue
+        odds = (
+            chance(
+                rule,
+                session,
+                player,
+                events,
+                basis=row["basis"],
+                reference=row["reference"],
+                params=params,
+            )
+            if test_chance
+            else None
+        )
+        if odds is not None and odds >= float(rule.param("advice.max_chance")):
+            continue
         found.append(
             finding(
                 rule,
@@ -106,6 +125,7 @@ def find(
                 basis=row["basis"],
                 session=row["session"],
                 reference=row["reference"],
+                odds=odds,
             )
         )
     return found

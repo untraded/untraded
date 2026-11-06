@@ -165,13 +165,24 @@ async function Priority({
             aria-hidden="true"
             className="mt-1 size-4 text-muted-foreground transition-transform group-open:rotate-180"
           />
-          <span className={cn("text-[0.8125rem] text-muted-foreground", numbered && "col-start-2")}>
+          <span
+            className={cn(
+              "flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.8125rem] text-muted-foreground",
+              numbered && "col-start-2",
+            )}
+          >
+            {args.strong && (
+              <span className="rounded border border-border px-1.5 py-px text-xs font-medium text-foreground">
+                {t("strong")}
+              </span>
+            )}
             {t("costLong", { touched: args.rounds_touched, lost: args.rounds_lost })}
           </span>
         </summary>
         <div
           className={cn("flex flex-col gap-5 px-4 pb-4 sm:pr-5", numbered ? "sm:pl-12" : "sm:pl-5")}
         >
+          {args.strong && <p className="text-sm text-muted-foreground">{t("strongHint")}</p>}
           <div className="flex flex-col gap-3">
             <p className="text-[0.8125rem] font-medium text-muted-foreground">
               {t("evidence", { count: item.evidence.length })}
