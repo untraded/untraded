@@ -3,7 +3,10 @@
 """References by level (`level_reference`, migration 0004): what players of a rating band do.
 
 They pool **every player of the collected matches**, not only the users: each match brings ten
-players. Players who opted out (`player.benchmark_opt_out`) are left out, and a band is only
+players. Collected means served by Valve (`valve_bot`): a demo someone sent can be edited, ranks
+included, and these references are compared with everyone else's sessions, so it counts for its
+sender alone (`credit`) and stays out of them, until the collector brings the same demo. Players
+who opted out (`player.benchmark_opt_out`) are left out, and a band is only
 published with at least `MIN_PLAYERS` distinct players, so no one can be singled out.
 
 For each Premier rating band of `BAND` points, the (player, match) rows of that band are pooled,
@@ -44,6 +47,10 @@ JOIN match_player mp ON mp.match_id = v.match_id AND mp.steam_id = v.steam_id
 JOIN player p ON p.steam_id = v.steam_id AND NOT p.benchmark_opt_out
 WHERE v.scope = 'match' AND v.params_hash = 'default'
   AND mp.rank > 0 AND mp.rounds_on_team >= %(min_rounds)s
+  AND EXISTS (
+      SELECT 1 FROM match_source ms
+      WHERE ms.match_id = m.id AND ms.kind = 'valve_bot' AND ms.rejected IS NULL
+  )
 """
 
 

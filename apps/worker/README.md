@@ -45,8 +45,9 @@ after a new replay format or a new win-probability model. Both log and skip a ma
 - `jobs.py`: the handlers by kind. `parse` (`{"match_id": ...}`): demo from the store, canonical
   and derived tables (the `swing` table included), round model and metrics (scopes `match`, `ct`,
   `t`), Parquet under `matches/{id}/`, the round replays, SQL tables, `workspace_match`, status
-  `ready` (`failed` once the job is dead), then a `session` job per registered player of the
-  match. A demo already known by its sha256 is merged into its match. A demo of a mode we do not
+  `ready` (`failed` once the job is dead), then a `session` job per registered player the
+  match counts for (`credit.py`: everyone when Valve served it, otherwise only those who sent
+  it). A demo already known by its sha256 is merged into its match. A demo of a mode we do not
   analyse (Competitive or Wingman, from Valve's share-code chain) makes the match `unavailable`
   and its demo is deleted; so does a demo sent by a player who is not in the match, when nothing
   else brought it (`not_a_player`). `download` (`{"match_id": ..., "url": ...}`): resumable HTTP
@@ -65,7 +66,7 @@ after a new replay format or a new win-probability model. Both log and skip a ma
   and swings. Written by the parse (a failure there leaves the analysis standing), and by
   `untraded-worker replays`.
 - `retry.py`: `untraded-worker retry-failed`, the failed matches put back in the queue from their last dead download or parse, attempts reset. A parse needs its raw demo: once the retention deleted it, the match stays failed (logged).
-- `reanalyze.py`: `untraded-worker reanalyze [--force]`, the matches parsed before analysed again from their Parquet tables (derived tables, metrics, replays, SQL rows), and their players' sessions queued again: after an update that adds metrics or versions. Without `--force`, only the matches missing the current `rating.untraded`.
+- `reanalyze.py`: `untraded-worker reanalyze [--force]`, the matches parsed before analysed again from their Parquet tables (derived tables, metrics, replays, SQL rows), and their players' sessions queued again: after an update that adds metrics or versions. Without `--force`, only the matches missing the current `rating.untraded`. Also how `credit.py` reaches the matches of an older version: run `--force` once after updating, and it withdraws the access and sessions they should no longer give.
 - `demo.py`: `untraded-worker import-demo <dir> [--name] [--consent-version]`, the demo account (`76561190000100001`, out of the references by level): its user (created as an invited account signing in once, with a consent to analysis only and no source) and the anonymized matches of `untraded demo build`, loaded as the parse job would; again, it skips the loaded ones.
 - `swings.py`: `untraded-worker swings`, the `swing` table of matches parsed before it existed,
   or again after a new win-probability model.

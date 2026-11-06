@@ -42,6 +42,7 @@ This ADR fixes the shape of the schema before any implementation. The reference 
 4. **Ingestion.**
    - `match` is unique on the sha256 of the decompressed demo, the deduplication key of ADR 0009.
    - `match_source` records every way a match arrived, keyed by the source and its own id (Valve match id, FACEIT match id…). Two users uploading the same match create one match and two sources.
+   - A match counts for a player (sessions, reference, their list of matches) when Valve served it to the collector or when that player sent it (`apps/worker/src/untraded_worker/credit.py`): a sent demo can be edited, so a name in `match_player` proves nothing. The other players of a sent match see it once they send the same file.
    - `ingest_source` holds each user's sources. Secrets (Steam authentication code, webhook tokens) are **encrypted by the application** before storage.
    - A match moves through `pending → downloading → parsing → ready`, or ends as `failed` or `unavailable`.
 5. **Events in SQL.**

@@ -77,6 +77,10 @@ def test_level_references_are_computed_from_the_database(conn: psycopg.Connectio
             "INSERT INTO match (mode, status) VALUES ('premier', 'ready') RETURNING id"
         ).fetchone()
         assert match is not None
+        conn.execute(
+            "INSERT INTO match_source (match_id, kind, external_id) VALUES (%s, 'valve_bot', %s)",
+            (match[0], str(match[0])),
+        )
         for p in range(21):
             steam = 76561198000000000 + p
             conn.execute(
@@ -95,6 +99,26 @@ def test_level_references_are_computed_from_the_database(conn: psycopg.Connectio
                 "VALUES (%s, %s, 'match', 'base.kills', '1.0.0', 'default', %s)",
                 (match[0], steam, 40 if p == 20 else 20),
             )
+    # A demo someone sent, ranks and all: it can be edited, so it stays out of the references.
+    forged = conn.execute(
+        "INSERT INTO match (mode, status) VALUES ('premier', 'ready') RETURNING id"
+    ).fetchone()
+    assert forged is not None
+    conn.execute(
+        "INSERT INTO match_source (match_id, kind, external_id) VALUES (%s, 'upload', %s)",
+        (forged[0], str(forged[0])),
+    )
+    conn.execute(
+        "INSERT INTO match_player (match_id, steam_id, team, name, rounds_on_team, rank) "
+        "VALUES (%s, 76561198000000000, 'A', 'p', 20, 18000)",
+        (forged[0],),
+    )
+    conn.execute(
+        "INSERT INTO metric_value (match_id, steam_id, scope, metric_id, version, "
+        "params_hash, value) "
+        "VALUES (%s, 76561198000000000, 'match', 'base.kills', '1.0.0', 'default', 4000)",
+        (forged[0],),
+    )
     assert levels.compute_levels(conn) == 1
     ref = levels.level_reference(conn, 19_000)
     assert ref.row(0, named=True)["value"] == pytest.approx(1.0)  # the opted-out 40s are left out

@@ -53,6 +53,10 @@ def session_id() -> uuid.UUID:
         ).fetchone()
         assert row is not None
         match_id = row[0]
+        conn.execute(
+            "INSERT INTO match_source (match_id, kind, external_id) VALUES (%s, 'valve_bot', %s)",
+            (match_id, str(match_id)),
+        )
         load_match(conn, match_id, analysis)
         TOKENS.update({steam_id: add_user(conn, steam_id) for steam_id in (ME, STRANGER)})
         refresh_access(conn, match_id)

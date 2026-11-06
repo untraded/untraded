@@ -22,6 +22,7 @@ from psycopg.types.json import Jsonb
 
 from untraded.metrics import REGISTRY
 from untraded_worker.analysis import Analysis
+from untraded_worker.credit import credited
 
 DEFAULT_PARAMS = "default"
 """`params_hash` of the values computed with every parameter at its default."""
@@ -330,23 +331,27 @@ def _table_rows(match_id: uuid.UUID, analysis: Analysis) -> Iterable[tuple[Any, 
 
 def refresh_access(conn: psycopg.Connection[Any], match_id: uuid.UUID) -> int:
     """Recomputes which workspaces see the match (see `workspace_match` in ADR 0011); returns
-    how many do. When several reasons apply, the first of own, roster, shared is kept."""
+    how many do. When several reasons apply, the first of own, roster, shared is kept.
+
+    Own and shared follow whom the match counts for (`credit`). A roster sees it when 3 members
+    played in it and it counts for at least one of them: a team's scrim sent by one of its players
+    reaches the team, a demo forged by an outsider naming three of them does not."""
     conn.execute("DELETE FROM workspace_match WHERE match_id = %s", (match_id,))
     params = {"match": match_id}
     conn.execute(
-        """
+        f"""
         INSERT INTO workspace_match (workspace_id, match_id, reason)
         SELECT w.id, %(match)s, 'own'::access_reason
         FROM workspace w
         JOIN app_user u ON u.id = w.created_by AND u.deleted_at IS NULL
         JOIN match_player mp ON mp.steam_id = u.steam_id AND mp.match_id = %(match)s
-        WHERE w.kind = 'personal'
+        WHERE w.kind = 'personal' AND {credited("mp.match_id", "mp.steam_id")}
         ON CONFLICT DO NOTHING
         """,
         params,
     )
     conn.execute(
-        """
+        f"""
         INSERT INTO workspace_match (workspace_id, match_id, reason)
         SELECT DISTINCT r.workspace_id, %(match)s, 'roster'::access_reason
         FROM roster r
@@ -358,18 +363,19 @@ def refresh_access(conn: psycopg.Connection[Any], match_id: uuid.UUID) -> int:
           AND (rm.valid_to IS NULL OR rm.valid_to >= coalesce(m.played_at::date, current_date))
         GROUP BY r.id, r.workspace_id
         HAVING count(DISTINCT rm.steam_id) >= 3
+           AND bool_or({credited("mp.match_id", "mp.steam_id")})
         ON CONFLICT DO NOTHING
         """,
         params,
     )
     conn.execute(
-        """
+        f"""
         INSERT INTO workspace_match (workspace_id, match_id, reason)
         SELECT DISTINCT wp.workspace_id, %(match)s, 'shared'::access_reason
         FROM workspace_player wp
         JOIN workspace w ON w.id = wp.workspace_id AND w.kind = 'team'
         JOIN match_player mp ON mp.steam_id = wp.steam_id AND mp.match_id = %(match)s
-        WHERE wp.share_solo
+        WHERE wp.share_solo AND {credited("mp.match_id", "mp.steam_id")}
         ON CONFLICT DO NOTHING
         """,
         params,

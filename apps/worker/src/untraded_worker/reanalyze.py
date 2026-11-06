@@ -44,6 +44,7 @@ def reanalyze(conn: psycopg.Connection[Any], store: LocalStore, match_id: uuid.U
         store.write_tables(prefix, analysis.tables)
         load.load_match(conn, match_id, analysis)
         load.refresh_access(conn, match_id)
+        sessions.withdraw_sessions(conn, match_id)
         sessions.queue_sessions(conn, match_id)
         try:
             replays.write_replays(store, prefix, analysis.tables)

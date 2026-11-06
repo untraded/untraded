@@ -49,6 +49,10 @@ def match_id() -> uuid.UUID:
         ).fetchone()
         assert row is not None
         match_id = uuid.UUID(str(row[0]))
+        conn.execute(
+            "INSERT INTO match_source (match_id, kind, external_id) VALUES (%s, 'valve_bot', %s)",
+            (match_id, str(match_id)),
+        )
         load_match(conn, match_id, analysis)
         tokens = {steam_id: add_user(conn, steam_id) for steam_id in (ME, STRANGER)}
         refresh_access(conn, match_id)
@@ -269,6 +273,11 @@ def test_a_match_without_lines_and_a_hidden_one(client: TestClient, match_id: uu
             ).fetchone()
             assert row is not None
             added.append(uuid.UUID(str(row[0])))
+            conn.execute(
+                "INSERT INTO match_source (match_id, kind, external_id) "
+                "VALUES (%s, 'valve_bot', %s)",
+                (row[0], str(row[0])),
+            )
         quiet, hidden = added
         conn.execute(
             "INSERT INTO match_player (match_id, steam_id, team, name, rounds_on_team) "

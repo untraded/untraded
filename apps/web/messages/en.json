@@ -41,7 +41,7 @@
   },
   "upload": {
     "title": "Send a demo",
-    "lead": "For your FACEIT and ESEA matches and your scrims: download the demo from the match page, then send it here. The analysis takes a few minutes, and the match joins your sessions like a Premier match.",
+    "lead": "For your FACEIT and ESEA matches and your scrims: download the demo from the match page, then send it here. The analysis takes a few minutes, and the match joins your sessions like a Premier match. It counts for you alone: a teammate who wants it sends the same file.",
     "refusals": {
       "off": {
         "title": "Sending demos is off on this server",
