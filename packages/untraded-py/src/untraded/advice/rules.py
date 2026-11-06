@@ -107,11 +107,13 @@ def team_flashes(ds: Dataset, player: int, p: Mapping[str, ParamValue]) -> pl.Da
 
 
 def rounds_without_impact(ds: Dataset, player: int, p: Mapping[str, ParamValue]) -> pl.DataFrame:
-    """Rounds outside KAST: the player died with no kill or assist, and was not traded."""
+    """Rounds outside KAST, shown at the player's death, or at the end of the round for a player
+    with no death and no state at the end (a disconnect)."""
     rows = (
         ds["round_player"]
         .filter(~kast_round(p))
-        .with_columns(pl.col("death_tick").alias("tick"))
+        .join(ds["round"].select("match_id", "round", "end_tick"), on=["match_id", "round"])
+        .with_columns(pl.coalesce("death_tick", "end_tick").alias("tick"))
         .drop("side")
     )
     return standard(placed(ds, rows, player, "steamid"), ("damage",))

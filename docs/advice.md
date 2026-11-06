@@ -72,11 +72,11 @@ Every finding is stored. Those past the third, and those skipped because they re
 | `combat.duels_without_damage` | `duel.lost_without_damage_pct` (lower) | duels lost (killed by a gun, not blind, having seen the killer within `duel.sight_s`) without hurting the killer earlier in the round |
 | `util.wasted_utility` | `duel.dry_peek_pct` (lower) | peeks lost (a duel lost when, in the second before, the player had been at least `duel.peek_distance` from the death spot) with a flash still in the inventory |
 | `util.team_flashes` | `util.teammates_flashed` (lower) | living teammates blinded by the player's flashes |
-| `combat.rounds_without_impact` | `base.kast` (higher) | rounds outside KAST: the player died with no kill or assist, and was not traded |
+| `combat.rounds_without_impact` | `base.kast` (higher) | rounds outside KAST: no kill, no assist (flash assists do not count), not survived, not traded; shown at the player's death, or at the end of the round if they have none (a disconnect) |
 | `trade.slow_trades` | `trade.slow_trade_pct` (lower) | trade kills that took longer than `trade.window_w3_s` |
 | `util.self_flashes` | `util.self_flashed` (lower) | the player's own flash blinding them; thresholds 0.1 and 0.01 |
-| `util.empty_flashes` | `util.empty_flash_pct` (lower) | flashes that went off and blinded no living enemy |
-| `util.he_team_hits` | `util.he_team_hits` (lower) | HE grenades that hurt a teammate |
+| `util.empty_flashes` | `util.empty_flash_pct` (lower) | flashes that blinded no living enemy |
+| `util.he_team_hits` | `util.he_team_hits` (lower) | HE grenades that took health from a teammate |
 | `util.unused_grenades` | `util.unused_grenade_round_pct` (lower) | rounds started with a grenade where the player threw none, shown at their death or at the end of the round; thresholds 0.05 and 0.005 |
 | `pos.recurring_death_spot` | `pos.recurring_death_spot` (pattern; followed with `trade.untraded_deaths`) | the session's untraded deaths in a recurring zone |
 

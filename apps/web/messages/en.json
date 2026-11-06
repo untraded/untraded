@@ -692,7 +692,7 @@
           "label": "Duels lost without damage"
         },
         "rounds_without_impact": {
-          "coach": "{events} rounds where you died with no kill, no assist and no trade. Stay useful to the end: throw your grenades and play near a teammate.",
+          "coach": "{events} rounds without impact: no kill, no assist other than a flash, no trade, and you did not survive. Stay useful to the end: throw your grenades and play near a teammate.",
           "analyst": "{events} rounds without impact: KAST {session}, against {reference}.",
           "label": "Rounds without impact"
         }

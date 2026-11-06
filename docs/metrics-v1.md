@@ -110,10 +110,10 @@ These metrics are distributions per map and side, not one number per player: the
 | `util.blind_per_flash` | Flash efficiency | Enemy blind time dealt ÷ flashes thrown | — |
 | `util.teammates_flashed`, `util.team_blind_time` | Team flashes | Count (same minimum) and total duration on teammates, the player excluded | ✅ |
 | `util.self_flashed` | Self-flashes | Times the player blinded themselves, same minimum | — |
-| `util.empty_flash_pct` | Flashes on nobody | Flashes that went off and blinded no living enemy, same minimum, ÷ flashes thrown × 100 | — |
+| `util.empty_flash_pct` | Flashes on nobody | Flashes that blinded no living enemy, same minimum, ÷ flashes thrown × 100 | — |
 | `util.flash_to_kill` | Decisive flashes | Enemies blinded by the player and killed by the player's team, the player included, **while still blind** (blind tick ≤ kill tick ≤ blind tick + duration; no minimum). One count per kill for each player whose flash was still active | — |
 | `util.he_damage`, `util.he_team_damage` | HE damage | Capped damage to enemies and to teammates; self-damage counts as neither | ✅ |
-| `util.he_team_hits` | HE on teammates | The player's HE grenades that hurt at least one teammate; self-damage does not count | — |
+| `util.he_team_hits` | HE on teammates | The player's HE grenades that took health from at least one teammate; self-damage does not count | — |
 | `util.fire_damage` | Fire damage | Capped molotov and incendiary damage to enemies (fire ownership is verified, see demoparser2 issue #317) | ✅ |
 | `util.grenade_rounds`, `util.unused_grenade_round_pct` | Grenades never thrown | Rounds started with a grenade in the inventory, and the share of them where the player threw none (a grenade picked up later does not count) | — |
 | `util.unused_value_at_death` | Wasted utility | Value ($) of grenades in the inventory at death, averaged per death (buy prices: flash 200, HE 300, smoke 300, molotov 400, incendiary 500, decoy 50) | — |

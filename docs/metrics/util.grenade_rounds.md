@@ -30,4 +30,4 @@ See also the [shared conventions](README.md#shared-conventions) of every metric.
 
 ## History
 
-- **1.0.0**: First version (#35).
+- **1.0.0**: First version, for the advice rules of batch 2.

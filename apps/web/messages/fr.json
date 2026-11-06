@@ -692,7 +692,7 @@
           "label": "Duels perdus sans dégâts"
         },
         "rounds_without_impact": {
-          "coach": "{events} rounds où tu es mort sans kill, sans assist et sans trade. Reste utile jusqu'au bout : lance tes grenades et joue près d'un coéquipier.",
+          "coach": "{events} rounds sans impact : pas de kill, pas d'assist hors flash, pas de trade, et tu n'as pas survécu. Reste utile jusqu'au bout : lance tes grenades et joue près d'un coéquipier.",
           "analyst": "{events} rounds sans impact : KAST {session}, contre {reference}.",
           "label": "Rounds sans impact"
         }

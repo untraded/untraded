@@ -8,7 +8,7 @@
 
 ## Definition
 
-Flashes that went off and blinded no living enemy for at least `flash.min_blind_s` ÷ flashes thrown * 100.
+Flashes that blinded no living enemy for at least `flash.min_blind_s` ÷ flashes thrown * 100.
 
 Stands on [`util.thrown_flash`](util.thrown_flash.md): a value over few cases says little.
 
@@ -38,4 +38,4 @@ See also the [shared conventions](README.md#shared-conventions) of every metric.
 
 ## History
 
-- **1.0.0**: First version (#35).
+- **1.0.0**: First version, for the advice rules of batch 2.

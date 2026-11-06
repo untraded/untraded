@@ -241,12 +241,10 @@ def flash_to_kill(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
 
 
 def empty_flashes(ds: Dataset, p: Mapping[str, ParamValue]) -> pl.DataFrame:
-    """Flashes that went off and blinded no living enemy for at least `flash.min_blind_s`."""
-    went_off = ds["grenade"].filter(
-        (pl.col("type").cast(pl.String) == "flash") & pl.col("detonate_tick").is_not_null()
-    )
+    """Flashes that blinded no living enemy for at least `flash.min_blind_s`."""
+    flashes = ds["grenade"].filter(pl.col("type").cast(pl.String) == "flash")
     landed = _enemy_blinds(ds).filter(_long(p["flash.min_blind_s"]))
-    return went_off.join(
+    return flashes.join(
         landed.select("match_id", "grenade_id").unique(), on=["match_id", "grenade_id"], how="anti"
     )
 
@@ -260,8 +258,8 @@ def empty_flashes(ds: Dataset, p: Mapping[str, ParamValue]) -> pl.DataFrame:
     cases=("util.thrown_flash",),
     params=MIN_BLIND,
     uses=("blind", "death", "grenade"),
-    doc="Flashes that went off and blinded no living enemy for at least `flash.min_blind_s` ÷ "
-    "flashes thrown * 100.",
+    doc="Flashes that blinded no living enemy for at least `flash.min_blind_s` ÷ flashes thrown "
+    "* 100.",
 )
 def empty_flash_pct(ds: Dataset, p: Mapping[str, ParamValue]) -> pl.DataFrame:
     return rate(
@@ -333,6 +331,7 @@ def he_team_hits(ds: Dataset) -> pl.DataFrame:
         & pl.col("grenade_id").is_not_null()
         & (pl.col("attacker") != pl.col("victim"))
         & pl.col("is_team_damage")
+        & (pl.col("damage") > 0)
     )
     return rows.sort("tick").unique(["match_id", "grenade_id"], keep="first", maintain_order=True)
 

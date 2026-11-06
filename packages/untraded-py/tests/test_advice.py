@@ -271,6 +271,29 @@ def test_a_total_that_should_grow_cannot_be_tested() -> None:
         )
 
 
+def test_every_event_has_a_moment(dataset: Dataset) -> None:
+    """The worker opens the demo at `tick`: an event without one would fail the whole session."""
+    for player in dataset.players()["steamid"].to_list():
+        for definition in RULES.values():
+            rows = definition.evidence(dataset, player, definition.evidence_params())
+            assert rows["tick"].null_count() == 0, definition.id
+
+
+def test_a_round_without_a_death_can_be_without_impact() -> None:
+    """A disconnect: no death and no state at the round's end, shown at the end of the round."""
+    ds = Dataset.from_matches([tables("premier-abandon")])
+    rule_ = RULES["combat.rounds_without_impact"]
+    deaths = ds["round_player"].filter(pl.col("death_tick").is_null() & ~pl.col("survived"))
+    assert deaths.height > 0
+    row = deaths.row(0, named=True)
+    rows = rule_.evidence(ds, row["steamid"], rule_.evidence_params())
+    shown = rows.filter((pl.col("match_id") == row["match_id"]) & (pl.col("round") == row["round"]))
+    end = ds["round"].filter(
+        (pl.col("match_id") == row["match_id"]) & (pl.col("round") == row["round"])
+    )["end_tick"][0]
+    assert shown["tick"].to_list() == [end]
+
+
 def test_a_signed_or_caseless_percentage_cannot_be_tested() -> None:
     """Neither gives a count of bad cases among cases."""
     metrics = [m for m in REGISTRY.values() if m.unit == "pct" and (m.signed or not m.cases)]
