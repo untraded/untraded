@@ -24,6 +24,9 @@ from psycopg.types.json import Jsonb
 from untraded.advice import PRIORITIES, Finding, find, split_findings
 from untraded.metrics import REGISTRY, Dataset
 
+MAX_EVIDENCE = 200
+"""Events stored per finding, the first ones: far more than a real session holds, so that a crafted
+demo cannot inflate a report. The finding's `events` keeps the true count."""
 LEAD = dt.timedelta(seconds=5)
 """How long before the event the demo starts: enough to see it coming."""
 
@@ -41,7 +44,7 @@ def evidence_rows(
 ) -> list[dict[str, Any]]:
     """The finding's events for the clients: our match id, and the tick to jump to."""
     rows = []
-    for event in found.evidence.iter_rows(named=True):
+    for event in found.evidence.head(MAX_EVIDENCE).iter_rows(named=True):
         sha = event["match_id"]
         lead = int(LEAD.total_seconds() * tickrates.get(sha, 64.0))
         row = {k: _clean(v) for k, v in event.items() if k != "match_id"}

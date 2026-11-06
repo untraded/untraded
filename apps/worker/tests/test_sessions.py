@@ -106,6 +106,13 @@ def test_the_other_findings_are_numbered_past_the_priorities() -> None:
     ]
 
 
+def test_a_finding_stores_a_bounded_number_of_events() -> None:
+    found = fake_finding("a", 1.0, list(range(advice.MAX_EVIDENCE + 50)))
+    rows = advice.evidence_rows(found, {"m": uuid.uuid4()}, {"m": 64.0})
+    assert len(rows) == advice.MAX_EVIDENCE
+    assert found.events == advice.MAX_EVIDENCE + 50
+
+
 # ------------------------------------------------------------------------------------------
 # Against PostgreSQL: the fixture stands for every match (same tables, other ids and times).
 

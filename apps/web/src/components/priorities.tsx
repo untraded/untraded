@@ -138,7 +138,9 @@ async function Priority({
   });
   const byMatch = new Map<string, AdviceEvent[]>();
   for (const event of item.evidence) {
-    byMatch.set(event.match_id, [...(byMatch.get(event.match_id) ?? []), event]);
+    const group = byMatch.get(event.match_id);
+    if (group) group.push(event);
+    else byMatch.set(event.match_id, [event]);
   }
   return (
     <li>
@@ -240,8 +242,11 @@ async function Evidence({
   // A rule can flag several moments in one round (two teammates untraded, two team flashes):
   // every one of them stays reachable from its round.
   const byRound = new Map<number, AdviceEvent[]>();
-  for (const event of events)
-    byRound.set(event.round, [...(byRound.get(event.round) ?? []), event]);
+  for (const event of events) {
+    const group = byRound.get(event.round);
+    if (group) group.push(event);
+    else byRound.set(event.round, [event]);
+  }
   // The 2D viewer opens on the moment (5 s before the event), when the match can be loaded.
   const viewer = (event: AdviceEvent, round: number) =>
     match

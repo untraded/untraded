@@ -16,7 +16,7 @@ days after it was played), the job queues a `session` job for each of those sess
 
 Without enough history of their own, the player is compared with players of the same Premier
 rating band (`levels`), and failing that with nothing: the report then shows the session alone.
-Its priorities (`advice`) follow, against the same reference.
+Its findings (`advice`) follow, against the same reference.
 """
 
 from __future__ import annotations
