@@ -407,6 +407,18 @@ def other_findings(session_n: int, match: dict[str, Any]) -> list[dict[str, Any]
          ["drill.prefire", "adjust.info_before_peek", "adjust.use_utility_to_peek"], {}),
         ("clutch.clutches_lost", "clutch.win_pct", "pct", "value", 12.0, 24.0, 3, 3,
          ["adjust.clutch_time", "drill.retake_servers"], {}),
+        ("combat.rounds_without_impact", "base.kast", "pct", "value", 66.0, 72.0, 8, 6,
+         ["adjust.trade_distance", "adjust.use_utility_before_death"], {}),
+        ("trade.slow_trades", "trade.slow_trade_pct", "pct", "value", 45.0, 28.0, 5, 3,
+         ["drill.trade_timing", "adjust.follow_entry"], {}),
+        ("util.self_flashes", "util.self_flashed", "count", "per_round", 0.14, 0.05, 5, 3,
+         ["adjust.flash_from_cover", "drill.pop_flashes"], {}),
+        ("util.empty_flashes", "util.empty_flash_pct", "pct", "value", 70.0, 56.0, 7, 4,
+         ["adjust.flash_with_purpose", "drill.lineups"], {}),
+        ("util.he_team_hits", "util.he_team_hits", "count", "per_round", 0.08, 0.01, 3, 2,
+         ["adjust.check_team_before_he"], {}),
+        ("util.unused_grenades", "util.unused_grenade_round_pct", "pct", "value", 30.0, 16.0, 6, 4,
+         ["adjust.use_utility_before_death", "drill.lineups"], {}),
     ])  # fmt: skip
 
 

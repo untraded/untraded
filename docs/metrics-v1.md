@@ -70,6 +70,7 @@
 | `trade.traded_deaths` | Traded deaths | The player's deaths that were traded | ✅ |
 | `trade.traded_death_pct` | Traded death % | Traded deaths ÷ deaths × 100 | — |
 | `trade.untraded_deaths` | **Untraded deaths** | Deaths with a living teammate that were not traded (the product's signature metric). A death with no teammate left to trade it (the last player alive) is left out | — |
+| `trade.slow_trade_pct` | Slow trades | Trade kills that took longer than ⚙ `trade.window_w3_s = 3.0`, within W, ÷ trade kills × 100 | — |
 | `trade.trade_kills_w3`, `trade.traded_deaths_w3`, `trade.traded_death_pct_w3`, `trade.untraded_deaths_w3` | 3-second variants | The same four metrics with W = 3 s (⚙ `trade.window_w3_s = 3.0`) | — |
 | `trade.kill_opportunities` | Trade opportunities | The player's trade opportunities (as defined above) | — |
 | `trade.kill_conversion_pct` | Opportunity conversion | Trade kills ÷ trade opportunities × 100 | — |
@@ -109,9 +110,12 @@ These metrics are distributions per map and side, not one number per player: the
 | `util.blind_per_flash` | Flash efficiency | Enemy blind time dealt ÷ flashes thrown | — |
 | `util.teammates_flashed`, `util.team_blind_time` | Team flashes | Count (same minimum) and total duration on teammates, the player excluded | ✅ |
 | `util.self_flashed` | Self-flashes | Times the player blinded themselves, same minimum | — |
+| `util.empty_flash_pct` | Flashes on nobody | Flashes that went off and blinded no living enemy, same minimum, ÷ flashes thrown × 100 | — |
 | `util.flash_to_kill` | Decisive flashes | Enemies blinded by the player and killed by the player's team, the player included, **while still blind** (blind tick ≤ kill tick ≤ blind tick + duration; no minimum). One count per kill for each player whose flash was still active | — |
 | `util.he_damage`, `util.he_team_damage` | HE damage | Capped damage to enemies and to teammates; self-damage counts as neither | ✅ |
+| `util.he_team_hits` | HE on teammates | The player's HE grenades that hurt at least one teammate; self-damage does not count | — |
 | `util.fire_damage` | Fire damage | Capped molotov and incendiary damage to enemies (fire ownership is verified, see demoparser2 issue #317) | ✅ |
+| `util.grenade_rounds`, `util.unused_grenade_round_pct` | Grenades never thrown | Rounds started with a grenade in the inventory, and the share of them where the player threw none (a grenade picked up later does not count) | — |
 | `util.unused_value_at_death` | Wasted utility | Value ($) of grenades in the inventory at death, averaged per death (buy prices: flash 200, HE 300, smoke 300, molotov 400, incendiary 500, decoy 50) | — |
 
 `player_blind` also fires on players who are already dead: flash metrics only count blinds of living players. Fire damage counts only damage linked to one of the player's own grenades (fire and impact).

@@ -2,7 +2,7 @@
 
 *Generated from the metric registry by `python -m untraded.metrics.docs`: do not edit by hand. The specification is [metrics-v1.md](../metrics-v1.md).*
 
-90 metrics, each with its own page. Parameters, their defaults and the calibrated thresholds are on [parameters.md](parameters.md).
+95 metrics, each with its own page. Parameters, their defaults and the calibrated thresholds are on [parameters.md](parameters.md).
 
 ## Shared conventions
 
@@ -60,6 +60,7 @@
 | [`trade.death_opportunities`](trade.death_opportunities.md) | Tradable deaths | 1.2.0 | count | neutral | — |
 | [`trade.kill_conversion_pct`](trade.kill_conversion_pct.md) | Opportunity conversion | 1.3.0 | pct | higher | — |
 | [`trade.kill_opportunities`](trade.kill_opportunities.md) | Trade opportunities | 1.2.0 | count | neutral | — |
+| [`trade.slow_trade_pct`](trade.slow_trade_pct.md) | Slow trades | 1.0.0 | pct | lower | — |
 | [`trade.trade_kills`](trade.trade_kills.md) | Trade kills (5 s) | 1.1.0 | count | higher | compared (equal) |
 | [`trade.trade_kills_w3`](trade.trade_kills_w3.md) | Trade kills (3 s) | 1.1.0 | count | higher | — |
 | [`trade.traded_death_pct`](trade.traded_death_pct.md) | Traded death % (5 s) | 1.1.0 | pct | higher | indirectly |
@@ -101,12 +102,15 @@
 | Metric | Name | Version | Unit | Better | vs. CS Demo Manager |
 |---|---|---|---|---|---|
 | [`util.blind_per_flash`](util.blind_per_flash.md) | Flash efficiency | 1.0.0 | seconds | higher | — |
+| [`util.empty_flash_pct`](util.empty_flash_pct.md) | Flashes on nobody | 1.0.0 | pct | lower | — |
 | [`util.enemies_flashed`](util.enemies_flashed.md) | Enemies flashed | 1.0.0 | count | higher | — |
 | [`util.enemy_blind_time`](util.enemy_blind_time.md) | Blind time dealt | 1.0.0 | seconds | higher | — |
 | [`util.fire_damage`](util.fire_damage.md) | Fire damage | 1.0.0 | hp | higher | — |
 | [`util.flash_to_kill`](util.flash_to_kill.md) | Decisive flashes | 1.0.0 | count | higher | — |
+| [`util.grenade_rounds`](util.grenade_rounds.md) | Rounds with grenades | 1.0.0 | count | neutral | — |
 | [`util.he_damage`](util.he_damage.md) | HE damage | 1.0.0 | hp | higher | — |
 | [`util.he_team_damage`](util.he_team_damage.md) | HE team damage | 1.0.0 | hp | lower | — |
+| [`util.he_team_hits`](util.he_team_hits.md) | HE on teammates | 1.0.0 | count | lower | — |
 | [`util.self_flashed`](util.self_flashed.md) | Self-flashes | 1.0.0 | count | lower | — |
 | [`util.team_blind_time`](util.team_blind_time.md) | Team blind time | 1.0.0 | seconds | lower | — |
 | [`util.teammates_flashed`](util.teammates_flashed.md) | Teammates flashed | 1.0.0 | count | lower | — |
@@ -116,6 +120,7 @@
 | [`util.thrown_molotov`](util.thrown_molotov.md) | Molotov thrown | 1.0.0 | count | neutral | — |
 | [`util.thrown_per_round`](util.thrown_per_round.md) | Utility per round | 1.0.0 | per_round | higher | — |
 | [`util.thrown_smoke`](util.thrown_smoke.md) | Smoke thrown | 1.0.0 | count | neutral | — |
+| [`util.unused_grenade_round_pct`](util.unused_grenade_round_pct.md) | Grenades never thrown | 1.0.0 | pct | lower | — |
 | [`util.unused_value_at_death`](util.unused_value_at_death.md) | Wasted utility | 1.0.0 | dollars | lower | — |
 
 ## Economy

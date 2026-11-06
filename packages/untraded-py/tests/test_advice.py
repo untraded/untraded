@@ -64,7 +64,24 @@ def test_evidence_matches_the_watched_metrics(dataset: Dataset) -> None:
         conversion = value(values, "duel.opening_win_conversion_pct", player)
         duels = value(values, "duel.duels_lost", player)
         peeks = value(values, "duel.peeks_lost", player)
+        kast = value(values, "base.kast", player)
+        played = float(dataset.rounds_played().filter(pl.col("steamid") == player)["rounds"].sum())
+        grenades = value(values, "util.grenade_rounds", player)
+        flashes = value(values, "util.thrown_flash", player)
+        trades = value(values, "trade.trade_kills", player)
         expected = {
+            "combat.rounds_without_impact": round(played * (1 - kast / 100)),
+            "trade.slow_trades": round(
+                trades * value(values, "trade.slow_trade_pct", player) / 100
+            ),
+            "util.self_flashes": value(values, "util.self_flashed", player),
+            "util.empty_flashes": round(
+                flashes * value(values, "util.empty_flash_pct", player) / 100
+            ),
+            "util.he_team_hits": value(values, "util.he_team_hits", player),
+            "util.unused_grenades": round(
+                grenades * value(values, "util.unused_grenade_round_pct", player) / 100
+            ),
             "combat.duels_without_damage": round(
                 duels * value(values, "duel.lost_without_damage_pct", player) / 100
             ),
@@ -415,7 +432,7 @@ def test_recurring_spot_looks_at_history_and_shows_the_session_deaths() -> None:
 
 
 def test_rules_are_registered_with_valid_metrics() -> None:
-    assert len(RULES) == 10
+    assert len(RULES) == 16
     for registered in RULES.values():
         assert registered.metric in REGISTRY
         assert registered.actions

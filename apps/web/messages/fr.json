@@ -659,6 +659,11 @@
           "coach": "{events} fois, un coéquipier est mort près de toi, tu as vu le tueur et tu ne l'as pas tradé. Sois prêt à sortir juste après le contact.",
           "analyst": "{events} occasions de trade manquées : conversion {session}, contre {reference}.",
           "label": "Trades manqués"
+        },
+        "slow_trades": {
+          "coach": "{events} de tes trades ont mis plus de 3 secondes. Plus tu tardes, plus le tueur a le temps de se replacer : sors juste après le contact.",
+          "analyst": "{events} trades lents : {session} de tes trades, contre {reference}.",
+          "label": "Trades trop lents"
         }
       },
       "duel": {
@@ -685,6 +690,11 @@
           "coach": "{events} fois, tu as vu ton adversaire et tu es mort sans le toucher. Travaille le placement du viseur et la première balle.",
           "analyst": "{events} duels perdus sans dégâts : {session} de tes duels perdus, contre {reference}.",
           "label": "Duels perdus sans dégâts"
+        },
+        "rounds_without_impact": {
+          "coach": "{events} rounds où tu es mort sans kill, sans assist et sans trade. Reste utile jusqu'au bout : lance tes grenades et joue près d'un coéquipier.",
+          "analyst": "{events} rounds sans impact : KAST {session}, contre {reference}.",
+          "label": "Rounds sans impact"
         }
       },
       "util": {
@@ -697,6 +707,26 @@
           "coach": "Tes flashs ont aveuglé tes coéquipiers {events} fois. Annonce-les et lance-les au-delà de tes coéquipiers.",
           "analyst": "{events} coéquipiers flashés : {session} par round, contre {reference}.",
           "label": "Flashs sur tes alliés"
+        },
+        "self_flashes": {
+          "coach": "{events} fois, ta propre flash t'a touché. Lance-la plus loin et tourne-toi avant qu'elle éclate.",
+          "analyst": "{events} auto-flashs : {session} par round, contre {reference}.",
+          "label": "Auto-flashs"
+        },
+        "empty_flashes": {
+          "coach": "{events} de tes flashs n'ont aveuglé aucun adversaire. Lance-les là où ils regardent, au moment où ton équipe sort.",
+          "analyst": "{events} flashs sans adversaire aveuglé : {session} de tes flashs, contre {reference}.",
+          "label": "Flashs dans le vide"
+        },
+        "he_team_hits": {
+          "coach": "{events} de tes HE ont blessé un coéquipier. Regarde où est ton équipe avant de lancer.",
+          "analyst": "{events} HE sur tes alliés : {session} par round, contre {reference}.",
+          "label": "HE sur tes alliés"
+        },
+        "unused_grenades": {
+          "coach": "{events} rounds avec des grenades que tu n'as jamais lancées. Lance-les avant le duel : sur ton corps, elles n'aident personne.",
+          "analyst": "{events} rounds sans grenade lancée : {session} de tes rounds avec grenades, contre {reference}.",
+          "label": "Grenades jamais lancées"
         }
       },
       "pos": {
@@ -781,6 +811,18 @@
       "change_timing": {
         "title": "Change de timing",
         "how": "Même spot, autre moment : plus tôt, plus tard, ou seulement après un utilitaire. Casse le schéma qu'ils attendent."
+      },
+      "flash_from_cover": {
+        "title": "Lance ta flash à couvert",
+        "how": "Lance-la derrière un mur, ou assez loin devant toi, et tourne-toi jusqu'à l'éclat. Tu sors une fois qu'elle a éclaté, pas avant."
+      },
+      "flash_with_purpose": {
+        "title": "Flashe pour une sortie",
+        "how": "Lance une flash quand un coéquipier ou toi allez sortir, vers un angle où un adversaire peut être. Sans sortie derrière, garde-la."
+      },
+      "check_team_before_he": {
+        "title": "Regarde ton équipe avant ta HE",
+        "how": "Regarde le radar avant de lancer, et annonce-la. Évite les passages où un coéquipier est sur le point d'entrer."
       }
     },
     "drill": {

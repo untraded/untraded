@@ -87,6 +87,26 @@ The code is `untraded.calibration`. Each function measures what a threshold shou
 - **Reading**: real sessions do not stand out from random ones at any threshold. Against the player's own days, a session rarely differs from their habits. Taken at face value, most findings, clear signals included, are no more frequent than this ordinary variation.
 - **Decision**: two levels, `advice.max_chance` = 0.2 and `advice.strong_chance` = 0.05, with 0.1 and 0.02 for team flashes. The gap and the minimum of events stay. **Limits**: the self comparison cannot see a lasting habit, since it is in the reference; level references are not tested; and the correction for a flash uses the session's own ratio of blinds per flash.
 
+### Rules of batch 2: which ones stay (07/11/2026)
+
+- **Problem**: seven candidates, each a count of bad cases so the chance test can read it. Which ones hold, and at which thresholds?
+- **Method**: a one-off script, the same as above: 5 players, 47 matches parsed, 300 random sessions per player, 34 real sessions. Few players again: orders of magnitude.
+- **Result**, share of random sessions that fire, then number of real sessions that fire, at each threshold:
+
+  | Candidate | Rate over the corpus | < 0.2 | < 0.1 | < 0.05 | < 0.01 | < 0.005 |
+  |---|---:|---:|---:|---:|---:|---:|
+  | Rounds without impact | 29 % | 17.9 %, 6 | 10.3 %, 4 | 5.8 %, 1 | 2.5 %, 0 | 1.3 %, 0 |
+  | Slow trades | 28 % | 14.0 %, 2 | 7.4 %, 2 | 4.4 %, 2 | 0.8 %, 0 | 0.4 %, 0 |
+  | Self-flashes | 0.05 per round | 16.3 %, 8 | 12.0 %, 6 | 8.3 %, 5 | 5.1 %, 5 | 3.9 %, 3 |
+  | Flashes on nobody | 56 % | 16.9 %, 4 | 10.8 %, 3 | 6.5 %, 2 | 1.5 %, 0 | 0.5 %, 0 |
+  | Flashes never followed up | 87 % | 3.1 %, 0 | 0.7 %, 0 | 0.3 %, 0 | 0 %, 0 | 0 %, 0 |
+  | HE on teammates | 0.008 per round | 0.5 %, 0 | 0.5 %, 0 | 0.5 %, 0 | 0.5 %, 0 | 0.2 %, 0 |
+  | Grenades never thrown | 16 % | 23.5 %, 10 | 16.7 %, 7 | 11.9 %, 6 | 6.1 %, 3 | 4.6 %, 2 |
+
+- **Reading**: a flash that blinds an enemy and leads to no kill is the normal case (87 %), so it says little about a mistake: this candidate is dropped. Self-flashes and grenades never thrown vary more than the model expects. Self-flashes are the first rule to stand out from noise on real sessions (5 of 34, or 15 %, against 5 % below 0.01), on few sessions.
+- **Decision**: the default thresholds, except self-flashes (0.1 and 0.01) and grenades never thrown (0.05 and 0.005). HE on teammates never fired on a real session here, and stays: it costs no noise, and it says something when it happens. These counts use the rate of the earlier matches; the engine compares percentages by the median of per-match values, so it fires somewhat less.
+- **Effect** on the 34 real sessions, compared with batch 1: findings per session 1.85 → 2.47, priorities 1.71 → 2.00, sessions with no priority 3 → 1, priorities changed in 14. **Limit**: a clear signal goes first whatever it costs, so 3 self-flashes can come before 40 untraded deaths. Self-flashes come first in 3 sessions, grenades never thrown in 4.
+
 ### `pos.recurring_death_share` = 0.25, `pos.recurring_min_rounds` = 8 → **32** rounds
 
 - **Method**: a recurring death spot must be a habit, not chance. The test is replication.

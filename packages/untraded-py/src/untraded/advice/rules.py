@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: 2026 The Untraded Authors
 # SPDX-License-Identifier: MIT
-"""The rules, batch 1: trades, spacing, opening duels, clutches, aim, utility, positioning.
+"""The rules, batches 1 and 2: trades, spacing, opening duels, clutches, aim, utility,
+positioning.
 
 Each rule's evidence applies the same filter as the metric it watches, so the events listed are
 the ones the metric counts (the tests check it on the fixtures).
@@ -14,9 +15,16 @@ import polars as pl
 
 from untraded.advice.engine import Rule, placed, rule, standard
 from untraded.metrics import Dataset
-from untraded.metrics.duels import lost_duels, lost_peeks, opportunities, untraded
+from untraded.metrics.base import kast_round
+from untraded.metrics.duels import lost_duels, lost_peeks, opportunities, slow_trades, untraded
 from untraded.metrics.positioning import recurring_death_spot
 from untraded.metrics.registry import ParamValue
+from untraded.metrics.utility import (
+    empty_flashes,
+    he_team_hits,
+    self_blinds,
+    unused_grenade_rounds,
+)
 
 TWO = {"advice.min_events": 2}
 
@@ -96,6 +104,53 @@ def team_flashes(ds: Dataset, player: int, p: Mapping[str, ParamValue]) -> pl.Da
         )
     )
     return standard(placed(ds, blinds, player, "flasher"), ("victim", "duration", "grenade_id"))
+
+
+def rounds_without_impact(ds: Dataset, player: int, p: Mapping[str, ParamValue]) -> pl.DataFrame:
+    """Rounds outside KAST: the player died with no kill or assist, and was not traded."""
+    rows = (
+        ds["round_player"]
+        .filter(~kast_round(p))
+        .with_columns(pl.col("death_tick").alias("tick"))
+        .drop("side")
+    )
+    return standard(placed(ds, rows, player, "steamid"), ("damage",))
+
+
+def slow_trade_kills(ds: Dataset, player: int, p: Mapping[str, ParamValue]) -> pl.DataFrame:
+    rows = placed(ds, slow_trades(ds, p), player, "killer")
+    return standard(rows, ("victim", "avenges_delay_s"))
+
+
+def self_flashes(ds: Dataset, player: int, p: Mapping[str, ParamValue]) -> pl.DataFrame:
+    rows = placed(ds, self_blinds(ds, p), player, "flasher")
+    return standard(rows, ("duration",))
+
+
+def flashes_on_nobody(ds: Dataset, player: int, p: Mapping[str, ParamValue]) -> pl.DataFrame:
+    rows = empty_flashes(ds, p).with_columns(pl.col("detonate_tick").alias("tick")).drop("side")
+    return standard(placed(ds, rows, player, "thrower"))
+
+
+def he_on_teammates(ds: Dataset, player: int, _: Mapping[str, ParamValue]) -> pl.DataFrame:
+    return standard(placed(ds, he_team_hits(ds), player, "attacker"), ("victim", "damage"))
+
+
+def unused_grenades(ds: Dataset, player: int, _: Mapping[str, ParamValue]) -> pl.DataFrame:
+    """Shown at the player's death, or at the end of the round if they survived it."""
+    deaths = ds["round_player"].select("match_id", "round", "steamid", "death_tick")
+    ends = ds["round"].select("match_id", "round", "end_tick")
+    rows = (
+        unused_grenade_rounds(ds)
+        .join(deaths, on=["match_id", "round", "steamid"], how="left")
+        .join(ends, on=["match_id", "round"], how="left")
+        .with_columns(
+            pl.coalesce("death_tick", "end_tick").alias("tick"),
+            pl.col("grenades").list.join(", "),
+        )
+        .drop("side")
+    )
+    return standard(placed(ds, rows, player, "steamid"), ("grenades",))
 
 
 def recurring_spot(ds: Dataset, player: int, p: Mapping[str, ParamValue]) -> pl.DataFrame:
@@ -195,6 +250,58 @@ for definition in (
         # (docs/calibration.md).
         params={"advice.max_chance": 0.1, "advice.strong_chance": 0.02},
         actions=("adjust.call_your_flashes", "drill.pop_flashes"),
+    ),
+    Rule(
+        id="combat.rounds_without_impact",
+        version="1.0.0",
+        family="combat",
+        metric="base.kast",
+        evidence=rounds_without_impact,
+        actions=("adjust.trade_distance", "adjust.use_utility_before_death"),
+    ),
+    Rule(
+        id="trade.slow_trades",
+        version="1.0.0",
+        family="trade",
+        metric="trade.slow_trade_pct",
+        evidence=slow_trade_kills,
+        actions=("drill.trade_timing", "adjust.follow_entry"),
+    ),
+    Rule(
+        id="util.self_flashes",
+        version="1.0.0",
+        family="util",
+        metric="util.self_flashed",
+        evidence=self_flashes,
+        # They vary more than the model expects (docs/calibration.md).
+        params={"advice.max_chance": 0.1, "advice.strong_chance": 0.01},
+        actions=("adjust.flash_from_cover", "drill.pop_flashes"),
+    ),
+    Rule(
+        id="util.empty_flashes",
+        version="1.0.0",
+        family="util",
+        metric="util.empty_flash_pct",
+        evidence=flashes_on_nobody,
+        actions=("adjust.flash_with_purpose", "drill.lineups"),
+    ),
+    Rule(
+        id="util.he_team_hits",
+        version="1.0.0",
+        family="util",
+        metric="util.he_team_hits",
+        evidence=he_on_teammates,
+        actions=("adjust.check_team_before_he",),
+    ),
+    Rule(
+        id="util.unused_grenades",
+        version="1.0.0",
+        family="util",
+        metric="util.unused_grenade_round_pct",
+        evidence=unused_grenades,
+        # They vary more than the model expects (docs/calibration.md).
+        params={"advice.max_chance": 0.05, "advice.strong_chance": 0.005},
+        actions=("adjust.use_utility_before_death", "drill.lineups"),
     ),
     Rule(
         id="pos.recurring_death_spot",
