@@ -249,6 +249,36 @@ def test_without_enough_history_the_reference_is_not_shown(
 
 
 @pytest.mark.db
+@pytest.mark.parametrize(
+    "erase",
+    [
+        pytest.param("UPDATE app_user SET deleted_at = now() WHERE steam_id = %s", id="asked"),
+        pytest.param("DELETE FROM app_user WHERE steam_id = %s", id="done"),
+    ],
+)
+def test_a_queued_job_writes_nothing_for_an_erased_player(
+    db: psycopg.Connection[Any], tmp_path: Path, analysis: Analysis, erase: str
+) -> None:
+    store = LocalStore(tmp_path)
+    earlier = add_match(db, store, analysis, at(20))
+    # The match stays when it counts for someone else; a later session would follow from this job.
+    add_match(db, store, analysis, at(20, days=2))
+    db.execute(erase, (ME,))
+    run(SessionJob(store), db, earlier)
+    assert sessions(db) == []
+    assert queue.claim(db, ["session"], "test") is None
+
+
+@pytest.mark.db
+def test_a_registered_player_still_gets_a_session(
+    db: psycopg.Connection[Any], tmp_path: Path, analysis: Analysis
+) -> None:
+    store = LocalStore(tmp_path)
+    run(SessionJob(store), db, add_match(db, store, analysis, at(20)))
+    assert len(sessions(db)) == 1
+
+
+@pytest.mark.db
 def test_parsed_matches_queue_a_session_per_invited_player(
     db: psycopg.Connection[Any], tmp_path: Path, analysis: Analysis
 ) -> None:
