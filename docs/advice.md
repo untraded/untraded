@@ -37,7 +37,7 @@ A rule watches one metric, and the metric's direction (`better`) says what "wors
 2. the session holds at least **`advice.min_events` = 3** events that prove it (2 for opening duels, opening conversion, clutches and the recurring spot);
 3. chance alone rarely gives so many events: at the reference's rate, the probability of at least this many (`chance`) is below **`advice.max_chance` = 0.2**.
 
-Below **`advice.strong_chance` = 0.05**, the finding is a **clear signal**: the report marks it, and it comes before the others whatever it costs.
+Below **`advice.strong_chance` = 0.05**, the finding is a **clear signal**: the report marks it. It says how sure the finding is, not what it costs, so it does not change the order.
 
 The chance is exact, without a normal approximation. A total (untraded deaths per round) is a Poisson count over the session's rounds. A percentage is a binomial count of bad cases among the metric's cases. The reference is taken as exact, and a rule can name a `cluster`, events that are one decision, counted once (a flash blinding two teammates). Team flashes vary more than this model expects, so their thresholds are stricter: 0.1 and 0.02. A rule can only watch a percentage or a total that should stay low, since an average has no such test. [calibration.md](calibration.md) measures how often rules fire on noise.
 
@@ -55,9 +55,9 @@ A finding costs the rounds it touches, weighted by those the team lost:
 cost = rounds lost + advice.won_round_weight (0.25) × rounds won
 ```
 
-Clear signals come first, then the costliest: the first three become the priorities (ties go to the finding with more events, then to the rule id). A finding is skipped when it shares over 50 % of the smaller finding's events (match, round, tick) with a kept one: two rules on the same deaths make one priority. So a large finding can give way to a small one it contains, and it stays among the other points; on 34 real sessions this changed the priorities of one. Events, not rounds: a finding spread over half the session's rounds would otherwise hide every other one. The open rating (planned) will replace this estimate of what a mistake costs.
+The costliest come first: the first three become the priorities (ties go to the finding with more events, then to the rule id). A finding is skipped when it shares over 50 % of the smaller finding's events (match, round, tick) with a kept one: two rules on the same deaths make one priority. The skipped one stays among the other points. Events, not rounds: a finding spread over half the session's rounds would otherwise hide every other one. The open rating (planned) will replace this estimate of what a mistake costs.
 
-Every finding is stored. Those past the third, and those skipped because they repeat a kept one, are the session's **other points**, in the same order (clear signals, cost, events, rule id), folded under the priorities in the session report. Only the three priorities are followed in the next session and shown on the match page and the dashboard.
+Every finding is stored. Those past the third, and those skipped because they repeat a kept one, are the session's **other points**, in the same order (cost, events, rule id), folded under the priorities in the session report. Only the three priorities are followed in the next session and shown on the match page and the dashboard.
 
 ## Rules
 

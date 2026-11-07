@@ -391,17 +391,24 @@ def test_priorities_are_the_costliest_without_repeating_events() -> None:
     assert [f.rule for f in prioritize(findings, limit=5)] == ["a", "c", "d", "e"]
 
 
-def test_clear_signals_come_before_costlier_findings() -> None:
-    weak = fake("a", 9, [1, 2, 3])
-    clear = dataclasses.replace(fake("b", 2, [4, 5, 6]), strong=True)
-    assert [f.rule for f in prioritize([weak, clear])] == ["b", "a"]
-    assert [f.rule for f in split_findings([weak, clear], limit=1)[1]] == ["a"]
+def test_a_clear_signal_does_not_outrank_a_costlier_finding() -> None:
+    costly = fake("b", 9, [1, 2, 3])
+    clear = dataclasses.replace(fake("a", 2, [4, 5, 6]), strong=True)
+    assert [f.rule for f in prioritize([clear, costly])] == ["b", "a"]
+    assert [f.rule for f in split_findings([clear, costly], limit=1)[1]] == ["a"]
 
 
-def test_a_clear_subset_and_its_superset_make_one_priority() -> None:
+def test_a_clear_signal_does_not_break_a_tie_on_cost() -> None:
+    plain = fake("a", 5, [1, 2, 3])
+    clear = dataclasses.replace(fake("b", 5, [4, 5, 6]), strong=True)
+    assert [f.rule for f in prioritize([clear, plain])] == ["a", "b"]
+
+
+def test_a_clear_subset_and_its_costlier_superset_make_one_priority() -> None:
     whole = fake("whole", 9, [1, 2, 3, 4, 5, 6, 7, 8, 9])
     part = dataclasses.replace(fake("part", 2, [1, 2, 3, 4]), strong=True)
-    assert [f.rule for f in prioritize([whole, part])] == ["part"]
+    priorities, others = split_findings([whole, part])
+    assert ([f.rule for f in priorities], [f.rule for f in others]) == (["whole"], ["part"])
 
 
 def test_a_widespread_finding_does_not_hide_others_in_the_same_rounds() -> None:
