@@ -171,7 +171,7 @@ class SessionReport(SessionSummary):
     match_list: list[MatchSummary]
     metrics: list[Comparison]
     advice: list[Advice]
-    """Up to three priorities, clear signals first, then most costly."""
+    """Up to three priorities, most costly first."""
     other_findings: list[Advice]
     """Every other rule that fired, in the same order (skipped for repeating a priority's events,
     or past the third)."""
