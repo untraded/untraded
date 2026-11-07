@@ -214,6 +214,33 @@ _trade_metrics("", "trade.window_s", WINDOW["trade.window_s"])
 _trade_metrics("_w3", "trade.window_w3_s", WINDOW_W3["trade.window_w3_s"])
 
 
+def slow_trades(ds: Dataset, p: Mapping[str, ParamValue]) -> pl.DataFrame:
+    """Trade kills that took longer than `trade.window_w3_s`, within `trade.window_s`."""
+    return ds["death"].filter(
+        pl.col("is_enemy_kill")
+        & (pl.col("avenges_delay_s") > p["trade.window_w3_s"])
+        & (pl.col("avenges_delay_s") <= p["trade.window_s"])
+    )
+
+
+@metric(
+    "trade.slow_trade_pct",
+    version="1.0.0",
+    name="Slow trades",
+    unit="pct",
+    better="lower",
+    cases=("trade.trade_kills",),
+    params={**WINDOW, **WINDOW_W3},
+    uses=("death",),
+    doc="Trade kills that took longer than `trade.window_w3_s` ÷ trade kills (within "
+    "`trade.window_s`) * 100.",
+)
+def slow_trade_pct(ds: Dataset, p: Mapping[str, ParamValue]) -> pl.DataFrame:
+    return rate(
+        _count(ds, slow_trades(ds, p), "killer"), _trade_kills(ds, p["trade.window_s"]), scale=100.0
+    )
+
+
 def opportunities(ds: Dataset, p: Mapping[str, ParamValue]) -> pl.DataFrame:
     """The trade opportunities: the teammate was within `trade.opportunity_distance` of the
     killer, and saw the killer within `trade.window_s` of the kill (or traded it, which proves

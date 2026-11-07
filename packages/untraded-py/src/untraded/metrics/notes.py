@@ -281,6 +281,15 @@ _ALONE = "The last player alive has nobody to trade them: such a death is left o
 for _metric in ("trade.kill_opportunities", "trade.death_opportunities"):
     CHANGES[_metric]["1.2.0"] = _SIGHT
 CHANGES["trade.kill_conversion_pct"]["1.3.0"] = _SIGHT
+for _metric in (
+    "trade.slow_trade_pct",
+    "util.empty_flash_pct",
+    "util.grenade_rounds",
+    "util.he_team_hits",
+    "util.unused_grenade_round_pct",
+):
+    CHANGES[_metric] = {"1.0.0": "First version, for the advice rules of batch 2."}
+
 for _metric in ("trade.untraded_deaths", "trade.untraded_deaths_w3"):
     CHANGES[_metric]["1.2.0"] = _ALONE
 CHANGES["pos.recurring_death_spot"]["1.3.0"] = _ALONE

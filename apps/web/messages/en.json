@@ -659,6 +659,11 @@
           "coach": "{events} times a teammate died near you, you saw the killer and didn't trade. Be ready to swing right after the contact.",
           "analyst": "{events} trade opportunities missed: conversion {session}, against {reference}.",
           "label": "Missed trades"
+        },
+        "slow_trades": {
+          "coach": "{events} of your trades took more than 3 seconds. The longer you wait, the more time the killer has to reposition: go right after the contact.",
+          "analyst": "{events} slow trades: {session} of your trades, against {reference}.",
+          "label": "Slow trades"
         }
       },
       "duel": {
@@ -685,6 +690,11 @@
           "coach": "{events} times you saw your killer and died without hitting them. Work on crosshair placement and the first bullet.",
           "analyst": "{events} duels lost without damage: {session} of your duels lost, against {reference}.",
           "label": "Duels lost without damage"
+        },
+        "rounds_without_impact": {
+          "coach": "{events} rounds without impact: no kill, no assist other than a flash, no trade, and you did not survive. Stay useful to the end: throw your grenades and play near a teammate.",
+          "analyst": "{events} rounds without impact: KAST {session}, against {reference}.",
+          "label": "Rounds without impact"
         }
       },
       "util": {
@@ -697,6 +707,26 @@
           "coach": "Your flashes blinded teammates {events} times. Call them, and throw them past your teammates.",
           "analyst": "{events} teammates flashed: {session} per round, against {reference}.",
           "label": "Team flashes"
+        },
+        "self_flashes": {
+          "coach": "{events} times your own flash caught you. Throw it further and turn away before it pops.",
+          "analyst": "{events} self-flashes: {session} per round, against {reference}.",
+          "label": "Self-flashes"
+        },
+        "empty_flashes": {
+          "coach": "{events} of your flashes blinded no enemy. Throw them where enemies are looking, as your team goes in.",
+          "analyst": "{events} flashes with no enemy blinded: {session} of your flashes, against {reference}.",
+          "label": "Flashes on nobody"
+        },
+        "he_team_hits": {
+          "coach": "{events} of your HE grenades hurt a teammate. Check where your team is before you throw.",
+          "analyst": "{events} HE grenades on teammates: {session} per round, against {reference}.",
+          "label": "HE on teammates"
+        },
+        "unused_grenades": {
+          "coach": "{events} rounds with grenades you never threw. Throw them before the duel: on your body, they help nobody.",
+          "analyst": "{events} rounds with no grenade thrown: {session} of your rounds with grenades, against {reference}.",
+          "label": "Grenades never thrown"
         }
       },
       "pos": {
@@ -781,6 +811,18 @@
       "change_timing": {
         "title": "Change your timing",
         "how": "Same spot, another moment: earlier, later, or only after utility. Break the pattern they expect."
+      },
+      "flash_from_cover": {
+        "title": "Throw your flash from cover",
+        "how": "Throw it behind a wall, or far enough ahead of you, and turn away until it pops. Go once it has popped, not before."
+      },
+      "flash_with_purpose": {
+        "title": "Flash for a push",
+        "how": "Throw a flash when you or a teammate are about to go, towards an angle where an enemy can be. With no push behind it, keep it."
+      },
+      "check_team_before_he": {
+        "title": "Check your team before your HE",
+        "how": "Look at the radar before you throw, and call it. Avoid the paths a teammate is about to enter."
       }
     },
     "drill": {

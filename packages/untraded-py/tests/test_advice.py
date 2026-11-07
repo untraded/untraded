@@ -64,7 +64,24 @@ def test_evidence_matches_the_watched_metrics(dataset: Dataset) -> None:
         conversion = value(values, "duel.opening_win_conversion_pct", player)
         duels = value(values, "duel.duels_lost", player)
         peeks = value(values, "duel.peeks_lost", player)
+        kast = value(values, "base.kast", player)
+        played = float(dataset.rounds_played().filter(pl.col("steamid") == player)["rounds"].sum())
+        grenades = value(values, "util.grenade_rounds", player)
+        flashes = value(values, "util.thrown_flash", player)
+        trades = value(values, "trade.trade_kills", player)
         expected = {
+            "combat.rounds_without_impact": round(played * (1 - kast / 100)),
+            "trade.slow_trades": round(
+                trades * value(values, "trade.slow_trade_pct", player) / 100
+            ),
+            "util.self_flashes": value(values, "util.self_flashed", player),
+            "util.empty_flashes": round(
+                flashes * value(values, "util.empty_flash_pct", player) / 100
+            ),
+            "util.he_team_hits": value(values, "util.he_team_hits", player),
+            "util.unused_grenades": round(
+                grenades * value(values, "util.unused_grenade_round_pct", player) / 100
+            ),
             "combat.duels_without_damage": round(
                 duels * value(values, "duel.lost_without_damage_pct", player) / 100
             ),
@@ -254,6 +271,29 @@ def test_a_total_that_should_grow_cannot_be_tested() -> None:
         )
 
 
+def test_every_event_has_a_moment(dataset: Dataset) -> None:
+    """The worker opens the demo at `tick`: an event without one would fail the whole session."""
+    for player in dataset.players()["steamid"].to_list():
+        for definition in RULES.values():
+            rows = definition.evidence(dataset, player, definition.evidence_params())
+            assert rows["tick"].null_count() == 0, definition.id
+
+
+def test_a_round_without_a_death_can_be_without_impact() -> None:
+    """A disconnect: no death and no state at the round's end, shown at the end of the round."""
+    ds = Dataset.from_matches([tables("premier-abandon")])
+    rule_ = RULES["combat.rounds_without_impact"]
+    deaths = ds["round_player"].filter(pl.col("death_tick").is_null() & ~pl.col("survived"))
+    assert deaths.height > 0
+    row = deaths.row(0, named=True)
+    rows = rule_.evidence(ds, row["steamid"], rule_.evidence_params())
+    shown = rows.filter((pl.col("match_id") == row["match_id"]) & (pl.col("round") == row["round"]))
+    end = ds["round"].filter(
+        (pl.col("match_id") == row["match_id"]) & (pl.col("round") == row["round"])
+    )["end_tick"][0]
+    assert shown["tick"].to_list() == [end]
+
+
 def test_a_signed_or_caseless_percentage_cannot_be_tested() -> None:
     """Neither gives a count of bad cases among cases."""
     metrics = [m for m in REGISTRY.values() if m.unit == "pct" and (m.signed or not m.cases)]
@@ -415,7 +455,7 @@ def test_recurring_spot_looks_at_history_and_shows_the_session_deaths() -> None:
 
 
 def test_rules_are_registered_with_valid_metrics() -> None:
-    assert len(RULES) == 10
+    assert len(RULES) == 16
     for registered in RULES.values():
         assert registered.metric in REGISTRY
         assert registered.actions

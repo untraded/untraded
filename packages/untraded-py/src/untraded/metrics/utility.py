@@ -181,6 +181,11 @@ def team_blind_time(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
     return _by(ds, _team_blinds(ds), "flasher", pl.col("duration").sum())
 
 
+def self_blinds(ds: Dataset, p: Mapping[str, ParamValue]) -> pl.DataFrame:
+    """The player's own flash blinding them for at least `flash.min_blind_s`, while alive."""
+    return _blinds(ds).filter(pl.col("is_self") & _long(p["flash.min_blind_s"]))
+
+
 @metric(
     "util.self_flashed",
     version="1.0.0",
@@ -233,6 +238,35 @@ def flash_to_kill(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
         .unique(["match_id", "round", "victim", "flasher"])
     )
     return _by(ds, decisive, "flasher", pl.len())
+
+
+def empty_flashes(ds: Dataset, p: Mapping[str, ParamValue]) -> pl.DataFrame:
+    """Flashes that blinded no living enemy for at least `flash.min_blind_s`."""
+    flashes = ds["grenade"].filter(pl.col("type").cast(pl.String) == "flash")
+    landed = _enemy_blinds(ds).filter(_long(p["flash.min_blind_s"]))
+    return flashes.join(
+        landed.select("match_id", "grenade_id").unique(), on=["match_id", "grenade_id"], how="anti"
+    )
+
+
+@metric(
+    "util.empty_flash_pct",
+    version="1.0.0",
+    name="Flashes on nobody",
+    unit="pct",
+    better="lower",
+    cases=("util.thrown_flash",),
+    params=MIN_BLIND,
+    uses=("blind", "death", "grenade"),
+    doc="Flashes that blinded no living enemy for at least `flash.min_blind_s` ÷ flashes thrown "
+    "* 100.",
+)
+def empty_flash_pct(ds: Dataset, p: Mapping[str, ParamValue]) -> pl.DataFrame:
+    return rate(
+        _by(ds, empty_flashes(ds, p), "thrower", pl.len()),
+        _thrown(ds, THROWN["flash"]),
+        scale=100.0,
+    )
 
 
 # Utility damage
@@ -290,7 +324,80 @@ def fire_damage(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
     return _grenade_damage(ds, FIRE_WEAPONS, team=False)
 
 
+def he_team_hits(ds: Dataset) -> pl.DataFrame:
+    """One row per HE grenade of the player's that hurt a teammate (self-damage is not one)."""
+    rows = ds["damage"].filter(
+        (pl.col("weapon") == "hegrenade")
+        & pl.col("grenade_id").is_not_null()
+        & (pl.col("attacker") != pl.col("victim"))
+        & pl.col("is_team_damage")
+        & (pl.col("damage") > 0)
+    )
+    return rows.sort("tick").unique(["match_id", "grenade_id"], keep="first", maintain_order=True)
+
+
+@metric(
+    "util.he_team_hits",
+    version="1.0.0",
+    name="HE on teammates",
+    unit="count",
+    better="lower",
+    uses=("damage",),
+    doc="The player's HE grenades that hurt at least one teammate (self-damage excluded).",
+)
+def he_team_hits_count(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
+    return _by(ds, he_team_hits(ds), "attacker", pl.len())
+
+
 # Wasted utility
+
+
+def grenade_rounds(ds: Dataset) -> pl.DataFrame:
+    """Rounds the player started with a grenade (`economy.inventory`), and which ones (`grenades`).
+    A grenade picked up later does not count."""
+    names = list(GRENADE_PRICES)
+    held = pl.col("inventory").list.eval(pl.element().filter(pl.element().is_in(names)))
+    return (
+        ds["economy"].with_columns(held.alias("grenades")).filter(pl.col("grenades").list.len() > 0)
+    )
+
+
+def unused_grenade_rounds(ds: Dataset) -> pl.DataFrame:
+    """`grenade_rounds` where the player threw no grenade at all."""
+    threw = ds["grenade"].select("match_id", "round", pl.col("thrower").alias("steamid")).unique()
+    return grenade_rounds(ds).join(threw, on=["match_id", "round", "steamid"], how="anti")
+
+
+@metric(
+    "util.grenade_rounds",
+    version="1.0.0",
+    name="Rounds with grenades",
+    unit="count",
+    better="neutral",
+    uses=("economy",),
+    doc="Rounds the player started with at least one grenade in the inventory.",
+)
+def grenade_rounds_count(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
+    return _by(ds, grenade_rounds(ds), "steamid", pl.len())
+
+
+@metric(
+    "util.unused_grenade_round_pct",
+    version="1.0.0",
+    name="Grenades never thrown",
+    unit="pct",
+    better="lower",
+    cases=("util.grenade_rounds",),
+    uses=("economy", "grenade"),
+    doc="Rounds started with a grenade where the player threw none ÷ rounds started with a "
+    "grenade * 100.",
+)
+def unused_grenade_round_pct(ds: Dataset, _: Mapping[str, ParamValue]) -> pl.DataFrame:
+    return rate(
+        _by(ds, unused_grenade_rounds(ds), "steamid", pl.len()),
+        _by(ds, grenade_rounds(ds), "steamid", pl.len()),
+        scale=100.0,
+    )
 
 
 @metric(
