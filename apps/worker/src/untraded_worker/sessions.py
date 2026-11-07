@@ -144,6 +144,11 @@ class SessionJob:
     def __call__(self, conn: psycopg.Connection[Any], job: Job) -> None:
         steam_id = int(job.payload["steam_id"])
         match_id = uuid.UUID(str(job.payload["match_id"]))
+        if not self._registered(conn, steam_id):
+            # Erased while this job was queued, or running elsewhere: a shared match still names
+            # them. Its row goes too, since its payload holds their Steam ID.
+            conn.execute("DELETE FROM job WHERE id = %s", (job.id,))
+            return
         played = self._played(conn, steam_id)
         session = session_of(played, match_id)
         if not session:
@@ -180,6 +185,16 @@ class SessionJob:
                     "session",
                     {"steam_id": str(steam_id), "match_id": str(later[0].id), "follow": False},
                 )
+
+    def _registered(self, conn: psycopg.Connection[Any], steam_id: int) -> bool:
+        """Whether the player has an account not marked deleted. The lock makes `erase_player`,
+        which locks the account first, wait until this job commits: it then deletes what the job
+        wrote."""
+        row = conn.execute(
+            "SELECT 1 FROM app_user WHERE steam_id = %s AND deleted_at IS NULL FOR KEY SHARE",
+            (steam_id,),
+        ).fetchone()
+        return row is not None
 
     def _reference(
         self,
