@@ -14,7 +14,7 @@ import datetime as dt
 import json
 import math
 import uuid
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from typing import Any
 
 import polars as pl
@@ -142,3 +142,50 @@ def advise(
             ),
         )
     return len(priorities) + len(others)
+
+
+def votes_on_sessions_of(
+    conn: psycopg.Connection[Any], steam_id: int, match_ids: Sequence[uuid.UUID]
+) -> list[tuple[Any, ...]]:
+    """The votes on the findings of the player's sessions holding these matches, oldest first."""
+    return conn.execute(
+        """
+        SELECT f.user_id, f.vote, f.comment, f.created_at, a.rule_id, a.rule_version,
+               a.message_args->>'map', a.message_args->>'side', a.message_args->>'zone'
+        FROM advice_feedback f
+        JOIN advice a ON a.id = f.advice_id
+        JOIN play_session s ON s.id = a.session_id
+        WHERE s.steam_id = %s AND EXISTS (
+            SELECT 1 FROM play_session_match sm
+            WHERE sm.session_id = s.id AND sm.match_id = ANY(%s)
+        )
+        ORDER BY f.created_at
+        """,
+        (steam_id, list(match_ids)),
+    ).fetchall()
+
+
+def restore_votes(
+    conn: psycopg.Connection[Any], session_id: uuid.UUID, votes: Iterable[tuple[Any, ...]]
+) -> None:
+    """Puts the votes back on the same findings of a recomputed session.
+
+    The same finding is the same rule at the same version, on the same spot for a pattern rule (the
+    others have no spot): a vote judged that, and a new version is a new judgement to make. A
+    finding that no longer fires takes its vote with it. When two sessions merge and both hold a
+    vote by the same person on a finding, the latest stays: the votes come oldest first."""
+    for user, vote, comment, voted_at, rule, version, map_, side, zone in votes:
+        conn.execute(
+            """
+            INSERT INTO advice_feedback (advice_id, user_id, vote, comment, created_at)
+            SELECT a.id, %s::uuid, %s::smallint, %s::text, %s::timestamptz
+            FROM advice a
+            WHERE a.session_id = %s AND a.rule_id = %s AND a.rule_version = %s
+              AND a.message_args->>'map' IS NOT DISTINCT FROM %s::text
+              AND a.message_args->>'side' IS NOT DISTINCT FROM %s::text
+              AND a.message_args->>'zone' IS NOT DISTINCT FROM %s::text
+            ON CONFLICT (advice_id, user_id) DO UPDATE
+            SET vote = EXCLUDED.vote, comment = EXCLUDED.comment, created_at = EXCLUDED.created_at
+            """,
+            (user, vote, comment, voted_at, session_id, rule, version, map_, side, zone),
+        )
