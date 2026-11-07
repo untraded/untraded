@@ -368,7 +368,7 @@
       "i2": "your sessions, your priorities and your statistics;",
       "i3": "the matches no other registered player played in, with their demos and files."
     },
-    "eraseShared": "Matches played with other registered players stay theirs: you appear there only as an unregistered player, and you leave the level references. The server's backups expire on their own, within 4 weeks.",
+    "eraseShared": "Matches played with other registered players stay theirs: you appear there only as an unregistered player, and you leave the level references. If no match remains, we keep only your Steam ID, with no name or statistics, so that you do not return to those references. A match played later with a registered player will name you like any unregistered player. The server's backups expire on their own, within 4 weeks.",
     "eraseFinal": "This is final: it cannot be undone, and your data cannot be recovered.",
     "erase": "Delete my account and my data",
     "eraseConfirm": "Delete your account and your data for good?",

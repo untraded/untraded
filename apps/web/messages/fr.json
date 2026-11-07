@@ -368,7 +368,7 @@
       "i2": "tes sessions, tes priorités et tes statistiques ;",
       "i3": "les matchs où aucun autre inscrit n'a joué, avec leurs démos et leurs fichiers."
     },
-    "eraseShared": "Les matchs joués avec d'autres inscrits restent les leurs : tu n'y figures plus que comme un joueur non inscrit, et tu sors des références par niveau. Les sauvegardes du serveur s'effacent d'elles-mêmes, en 4 semaines au plus.",
+    "eraseShared": "Les matchs joués avec d'autres inscrits restent les leurs : tu n'y figures plus que comme un joueur non inscrit, et tu sors des références par niveau. Si aucun match ne reste, nous gardons uniquement ton SteamID, sans pseudo ni statistiques, pour que tu ne reviennes pas dans ces références. Un match joué plus tard avec un inscrit te citera comme tout joueur non inscrit. Les sauvegardes du serveur s'effacent d'elles-mêmes, en 4 semaines au plus.",
     "eraseFinal": "C'est définitif : on ne peut ni l'annuler, ni récupérer tes données.",
     "erase": "Supprimer mon compte et mes données",
     "eraseConfirm": "Supprimer définitivement ton compte et tes données ?",

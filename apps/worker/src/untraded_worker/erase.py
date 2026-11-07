@@ -11,7 +11,12 @@ Afterwards the player is what any non-registered player of a match is:
   A demo they sent goes even if it names other users: it was never on those users' accounts;
 - the matches that count for other users stay, since they are those users' matches too. The player
   remains one of the ten players there, never shown outside the match, and is left out of the
-  level references from now on (`benchmark_opt_out`).
+  level references from now on (`benchmark_opt_out`);
+- with no match left, only their Steam ID stays, with no name or statistics, as that refusal: a
+  match parsed later for someone else may name them, and must not bring them back into the
+  references. No such row is created for someone who only had an invitation;
+- the jobs naming them or their deleted matches go: their payloads hold the Steam ID, or a demo's
+  address. A job running elsewhere stays; a `session` job then removes itself.
 
 The research corpus follows at its next copy: without their consent, their demos leave it,
 unless another consenting player is in the match. Database dumps keep them until they expire
@@ -103,16 +108,33 @@ def erase_player(conn: psycopg.Connection[Any], store: LocalStore, steam_id: int
             conn.execute("DELETE FROM app_user WHERE id = %s", (user[0],))
         conn.execute("DELETE FROM invitation WHERE steam_id = %s", (steam_id,))
         conn.execute("DELETE FROM invitation_request WHERE steam_id = %s", (steam_id,))
-        # In the matches that stay, they are one of the players, out of the level references.
-        still = conn.execute(
-            "SELECT 1 FROM match_player WHERE steam_id = %s LIMIT 1", (steam_id,)
-        ).fetchone()
-        if still:
+        # Out of the level references from now on, in the matches that stay and in any later one.
+        # The name goes: `match_player` holds the one shown in a match.
+        if user is not None:
             conn.execute(
-                "UPDATE player SET benchmark_opt_out = true WHERE steam_id = %s", (steam_id,)
+                """
+                INSERT INTO player (steam_id, last_name, benchmark_opt_out) VALUES (%s, '', true)
+                ON CONFLICT (steam_id) DO UPDATE
+                SET last_name = '', first_seen_at = now(), benchmark_opt_out = true
+                """,
+                (steam_id,),
             )
         else:
-            conn.execute("DELETE FROM player WHERE steam_id = %s", (steam_id,))
+            conn.execute(
+                "UPDATE player SET last_name = '', first_seen_at = now(), benchmark_opt_out = true "
+                "WHERE steam_id = %s",
+                (steam_id,),
+            )
+        # A running job is not ours to delete; this job's own row goes with `ErasePlayerJob`.
+        conn.execute(
+            "DELETE FROM job WHERE kind IN ('session', 'erase_player') "
+            "AND payload->>'steam_id' = %s AND status <> 'running'",
+            (str(steam_id),),
+        )
+        conn.execute(
+            "DELETE FROM job WHERE payload->>'match_id' = ANY(%s) AND status <> 'running'",
+            ([str(row[0]) for row in own],),
+        )
         # A raw demo goes only when no remaining match uses it (two matches can share one).
         demos = sorted({row[1] for row in own if row[1]})
         used = {
@@ -138,3 +160,5 @@ class ErasePlayerJob:
 
     def __call__(self, conn: psycopg.Connection[Any], job: Job) -> None:
         erase_player(conn, self.store, int(job.payload["steam_id"]))
+        # In the job's transaction: if anything fails, the row comes back and the job retries.
+        conn.execute("DELETE FROM job WHERE id = %s", (job.id,))
