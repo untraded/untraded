@@ -383,3 +383,175 @@ def test_every_finding_is_stored_past_the_priorities(
     # Two priorities only: the other finding still starts at 4, or a reader would take it for one.
     assert [(r[0], r[1]) for r in rows] == [("a", 1), ("b", 2), ("skipped", 4)]
     assert rows[2][2][0]["match_id"] == str(match_id)
+
+
+def with_workspace(db: psycopg.Connection[Any]) -> Any:
+    user = db.execute("SELECT id FROM app_user WHERE steam_id = %s", (ME,)).fetchone()
+    assert user is not None
+    db.execute(
+        "INSERT INTO workspace (kind, name, slug, created_by) VALUES ('personal', 'me', 'me', %s)",
+        (user[0],),
+    )
+    return user[0]
+
+
+def vote(
+    db: psycopg.Connection[Any],
+    user: Any,
+    match_id: uuid.UUID,
+    value: int,
+    at_: dt.datetime = DAY,
+    comment: str | None = None,
+) -> None:
+    db.execute(
+        """
+        INSERT INTO advice_feedback (advice_id, user_id, vote, comment, created_at)
+        SELECT a.id, %s::uuid, %s::smallint, %s::text, %s::timestamptz FROM advice a
+        JOIN play_session_match sm ON sm.session_id = a.session_id
+        WHERE sm.match_id = %s AND a.rule_id = 'a'
+        """,
+        (user, value, comment, at_, match_id),
+    )
+
+
+def votes(db: psycopg.Connection[Any]) -> list[tuple[Any, ...]]:
+    return db.execute(
+        "SELECT a.rule_id, f.vote, f.comment, f.created_at FROM advice_feedback f "
+        "JOIN advice a ON a.id = f.advice_id ORDER BY a.rule_id"
+    ).fetchall()
+
+
+def firing(monkeypatch: pytest.MonkeyPatch, *findings: Finding) -> None:
+    """`advice.find` gives these findings, on the session's first match."""
+    monkeypatch.setattr(
+        advice,
+        "find",
+        lambda ds, *_, **__: [
+            dataclasses.replace(
+                f,
+                evidence=f.evidence.with_columns(
+                    pl.lit(ds.played["match_id"][0]).alias("match_id")
+                ),
+            )
+            for f in findings
+        ],
+    )
+
+
+@pytest.mark.db
+def test_a_recomputed_session_keeps_its_votes(
+    db: psycopg.Connection[Any],
+    tmp_path: Path,
+    analysis: Analysis,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = LocalStore(tmp_path)
+    user = with_workspace(db)
+    match_id = add_match(db, store, analysis, at(20))
+    firing(monkeypatch, fake_finding("a", 5.0, [1]), fake_finding("b", 3.0, [2]))
+    run(SessionJob(store), db, match_id)
+    vote(db, user, match_id, -1, comment="not my fault")
+    run(SessionJob(store), db, match_id)
+    # On the new row of the finding, as it was; the finding nobody voted on gets no vote.
+    assert votes(db) == [("a", -1, "not my fault", DAY)]
+    assert db.execute("SELECT count(*) FROM advice").fetchone() == (2,)
+    # And again: a forced analysis recomputes a session once per match.
+    run(SessionJob(store), db, match_id)
+    assert votes(db) == [("a", -1, "not my fault", DAY)]
+
+
+@pytest.mark.db
+@pytest.mark.parametrize(
+    "after",
+    [
+        pytest.param(lambda f: dataclasses.replace(f, rule="other"), id="no-longer-fires"),
+        pytest.param(lambda f: dataclasses.replace(f, rule_version="2.0.0"), id="new-version"),
+        pytest.param(
+            lambda f: dataclasses.replace(f, details={"map": "m", "side": "T", "zone": "A"}),
+            id="another-spot",
+        ),
+    ],
+)
+def test_a_vote_stays_with_what_it_judged(
+    db: psycopg.Connection[Any],
+    tmp_path: Path,
+    analysis: Analysis,
+    monkeypatch: pytest.MonkeyPatch,
+    after: Any,
+) -> None:
+    store = LocalStore(tmp_path)
+    user = with_workspace(db)
+    match_id = add_match(db, store, analysis, at(20))
+    spot = dataclasses.replace(
+        fake_finding("a", 5.0, [1]), details={"map": "m", "side": "CT", "zone": "A"}
+    )
+    firing(monkeypatch, spot)
+    run(SessionJob(store), db, match_id)
+    vote(db, user, match_id, 1)
+    assert len(votes(db)) == 1
+    firing(monkeypatch, after(spot))
+    run(SessionJob(store), db, match_id)
+    assert votes(db) == []
+
+
+@pytest.mark.db
+def test_the_same_spot_keeps_its_vote(
+    db: psycopg.Connection[Any],
+    tmp_path: Path,
+    analysis: Analysis,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = LocalStore(tmp_path)
+    user = with_workspace(db)
+    match_id = add_match(db, store, analysis, at(20))
+    firing(
+        monkeypatch,
+        dataclasses.replace(
+            fake_finding("a", 5.0, [1]), details={"map": "m", "side": "CT", "zone": "A"}
+        ),
+    )
+    run(SessionJob(store), db, match_id)
+    vote(db, user, match_id, 1)
+    run(SessionJob(store), db, match_id)
+    assert [v[:2] for v in votes(db)] == [("a", 1)]
+
+
+@pytest.mark.db
+def test_merged_sessions_keep_the_latest_vote(
+    db: psycopg.Connection[Any],
+    tmp_path: Path,
+    analysis: Analysis,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = LocalStore(tmp_path)
+    user = with_workspace(db)
+    firing(monkeypatch, fake_finding("a", 5.0, [1]))
+    early = add_match(db, store, analysis, at(18))  # until 18:40
+    late = add_match(db, store, analysis, at(20.5))  # from 20:30: two sessions
+    run(SessionJob(store), db, early)
+    run(SessionJob(store), db, late)
+    latest = DAY + dt.timedelta(hours=2)
+    vote(db, user, late, -1, latest)
+    vote(db, user, early, 1, DAY)  # written last, but the older vote: the date decides
+    between = add_match(db, store, analysis, at(19.4))  # 19:24 to 20:04 joins them
+    run(SessionJob(store), db, between)
+    assert db.execute("SELECT count(*) FROM play_session").fetchone() == (1,)
+    assert votes(db) == [("a", -1, None, latest)]
+
+
+@pytest.mark.db
+def test_a_vote_is_only_kept_for_the_player_of_the_session(
+    db: psycopg.Connection[Any],
+    tmp_path: Path,
+    analysis: Analysis,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = LocalStore(tmp_path)
+    user = with_workspace(db)
+    match_id = add_match(db, store, analysis, at(20))
+    firing(monkeypatch, fake_finding("a", 5.0, [1]))
+    run(SessionJob(store), db, match_id)
+    vote(db, user, match_id, 1)
+    # Another player of the same match: their session does not read, or take, this vote.
+    assert advice.votes_on_sessions_of(db, ME + 1, [match_id]) == []
+    assert len(advice.votes_on_sessions_of(db, ME, [match_id])) == 1

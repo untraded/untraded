@@ -161,6 +161,8 @@ class SessionJob:
             min_rounds=self.min_rounds,
         )
         chosen = self._reference(conn, steam_id, session, comparison)
+        # Read before `_save`: deleting the sessions it replaces deletes their votes.
+        votes = advice.votes_on_sessions_of(conn, steam_id, [m.id for m in session])
         session_id = self._save(conn, steam_id, session, comparison, chosen)
         advice.advise(
             conn,
@@ -173,6 +175,7 @@ class SessionJob:
             chosen.values,
             chosen.kind,
         )
+        advice.restore_votes(conn, session_id, votes)
         if job.payload.get("follow", True):
             for later in later_sessions(played, session, self.window_days):
                 queue.enqueue(
