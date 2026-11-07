@@ -270,6 +270,19 @@ def test_a_queued_job_writes_nothing_for_an_erased_player(
 
 
 @pytest.mark.db
+def test_a_job_finding_its_player_erased_removes_itself(
+    db: psycopg.Connection[Any], tmp_path: Path
+) -> None:
+    queue.enqueue(db, "session", {"steam_id": str(ME), "match_id": str(uuid.uuid4())})
+    claimed = queue.claim(db, ["session"], "test")
+    assert claimed is not None
+    db.execute("DELETE FROM app_user WHERE steam_id = %s", (ME,))
+    SessionJob(LocalStore(tmp_path))(db, claimed)
+    queue.complete(db, claimed)  # as the runner does, on a row now gone
+    assert db.execute("SELECT count(*) FROM job").fetchone() == (0,)
+
+
+@pytest.mark.db
 def test_a_registered_player_still_gets_a_session(
     db: psycopg.Connection[Any], tmp_path: Path, analysis: Analysis
 ) -> None:

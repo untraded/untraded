@@ -145,7 +145,10 @@ class SessionJob:
         steam_id = int(job.payload["steam_id"])
         match_id = uuid.UUID(str(job.payload["match_id"]))
         if not self._registered(conn, steam_id):
-            return  # erased while this job was queued: a shared match still names them
+            # Erased while this job was queued, or running elsewhere: a shared match still names
+            # them. Its row goes too, since its payload holds their Steam ID.
+            conn.execute("DELETE FROM job WHERE id = %s", (job.id,))
+            return
         played = self._played(conn, steam_id)
         session = session_of(played, match_id)
         if not session:
