@@ -503,14 +503,13 @@
     "startedT": "T en première mi-temps",
     "player": "Joueur",
     "you": "toi",
-    "notReady": "Ce match n'est pas encore analysé.",
     "modes": {
       "premier": "Premier",
       "faceit": "FACEIT",
       "esea": "ESEA",
       "scrim": "Scrim"
     },
-    "duration": "{minutes} min",
+    "duration": "Durée : {minutes} min",
     "rounds": "Rounds",
     "roundsLegend": "plein = gagné, trait du bas = ton côté, encadré = à revoir",
     "roundsHint": "Chaque round s'ouvre en 2D.",
@@ -562,6 +561,50 @@
       "disconnections": "{count, plural, one {# déconnexion, que le jeu note comme une mort, n'est pas comptée comme une mort.} other {# déconnexions, que le jeu note comme des morts, ne sont pas comptées comme des morts.}}",
       "bots": "{count, plural, one {# kill sur un bot compte pour le tueur, sans mort pour personne.} other {# kills sur des bots comptent pour le tueur, sans mort pour personne.}}",
       "surrender": "Les {loser} ont abandonné pendant le temps d'achat après le round {after} : le round suivant n'a pas été joué, et le score officiel le compte pour les {winner}."
+    },
+    "teamScore": "Score :",
+    "context": {
+      "label": "Ce match",
+      "score": "Score",
+      "to": "à",
+      "urating": "Untraded Rating",
+      "level": "Niveau",
+      "toBreakdown": "Voir la décomposition de ton Untraded Rating :"
+    },
+    "state": {
+      "analysing": {
+        "title": "Analyse en cours",
+        "steps": "Où en est la démo",
+        "step": {
+          "pending": "En file d'attente",
+          "downloading": "Téléchargement de la démo",
+          "parsing": "Analyse de la démo"
+        },
+        "done": "(fait)",
+        "now": "(en cours)",
+        "coming": "Ce que la page montrera",
+        "parts": {
+          "rounds": "Chaque round, à revoir en 2D",
+          "priorities": "Les rounds que tes priorités te demandent de revoir",
+          "rating": "Ton Untraded Rating et sa décomposition",
+          "sides": "Tes chiffres côté CT et côté T",
+          "teams": "Les deux équipes, joueur par joueur"
+        },
+        "later": "Une démo s'analyse en général en quelques minutes.",
+        "reload": "Recharger la page"
+      },
+      "failed": {
+        "title": "Analyse en échec",
+        "text": "Cette démo n'a pas pu être analysée : la page n'a ni rounds, ni chiffres pour ce match.",
+        "report": "Pour nous signaler le problème, donne-nous le détail technique ci-dessous."
+      },
+      "unavailable": {
+        "title": "Match indisponible",
+        "text": "Ce match ne peut pas être analysé : sa démo n'est pas disponible, ou il n'entre pas dans les modes suivis (Premier, FACEIT, ESEA, scrims).",
+        "report": "Pour nous signaler une erreur, donne-nous le détail technique ci-dessous."
+      },
+      "notCounted": "Il ne compte ni dans tes sessions, ni dans ta Progression.",
+      "detail": "Détail technique, en anglais"
     }
   },
   "sessions": {

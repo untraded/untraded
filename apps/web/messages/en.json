@@ -503,14 +503,13 @@
     "startedT": "T in the first half",
     "player": "Player",
     "you": "you",
-    "notReady": "This match is not analysed yet.",
     "modes": {
       "premier": "Premier",
       "faceit": "FACEIT",
       "esea": "ESEA",
       "scrim": "Scrim"
     },
-    "duration": "{minutes} min",
+    "duration": "Length: {minutes} min",
     "rounds": "Rounds",
     "roundsLegend": "filled = won, bottom line = your side, framed = to review",
     "roundsHint": "Each round opens in 2D.",
@@ -562,6 +561,50 @@
       "disconnections": "{count, plural, one {# disconnection, which the game records as a death, is not counted as a death.} other {# disconnections, which the game records as deaths, are not counted as deaths.}}",
       "bots": "{count, plural, one {# kill on a bot counts for the killer, with no death for anyone.} other {# kills on bots count for the killer, with no death for anyone.}}",
       "surrender": "The {loser} side surrendered during the freeze time after round {after}: the next round was not played, and the official score counts it for the {winner} side."
+    },
+    "teamScore": "Score:",
+    "context": {
+      "label": "This match",
+      "score": "Score",
+      "to": "to",
+      "urating": "Untraded Rating",
+      "level": "Level",
+      "toBreakdown": "See the breakdown of your Untraded Rating:"
+    },
+    "state": {
+      "analysing": {
+        "title": "Analysis in progress",
+        "steps": "Where the demo stands",
+        "step": {
+          "pending": "Queued",
+          "downloading": "Downloading the demo",
+          "parsing": "Analysing the demo"
+        },
+        "done": "(done)",
+        "now": "(in progress)",
+        "coming": "What the page will show",
+        "parts": {
+          "rounds": "Every round, to review in 2D",
+          "priorities": "The rounds your priorities ask you to review",
+          "rating": "Your Untraded Rating and its breakdown",
+          "sides": "Your numbers on the CT and T sides",
+          "teams": "Both teams, player by player"
+        },
+        "later": "A demo usually takes a few minutes to analyse.",
+        "reload": "Reload the page"
+      },
+      "failed": {
+        "title": "Analysis failed",
+        "text": "This demo could not be analysed: the page has no rounds and no numbers for this match.",
+        "report": "To report the problem, give us the technical detail below."
+      },
+      "unavailable": {
+        "title": "Match unavailable",
+        "text": "This match cannot be analysed: its demo is not available, or it is not in a tracked mode (Premier, FACEIT, ESEA, scrims).",
+        "report": "To report a mistake, give us the technical detail below."
+      },
+      "notCounted": "It counts neither in your sessions nor in your Progress.",
+      "detail": "Technical detail"
     }
   },
   "sessions": {

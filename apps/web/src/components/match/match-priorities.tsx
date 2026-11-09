@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
+import { Panel } from "@/components/ui/panel";
 import type { MatchDetail } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { momentHref, type PriorityInMatch, sideOf, wonRound } from "@/lib/match";
@@ -24,35 +25,34 @@ export async function MatchPriorities({
   const t = await getTranslations("match");
   const a = await getTranslations("advice");
   return (
-    <section aria-labelledby="match-priorities" className="flex flex-col gap-2">
-      <h2 id="match-priorities" className="text-[0.8125rem] font-medium text-muted-foreground">
-        {t("priorities")}
-        {session && (
-          <>
-            {" · "}
-            <Link
-              href={`/sessions/${session.id}`}
-              className="text-link underline underline-offset-3"
-            >
-              {t("report", { date: session.day })}
-            </Link>
-          </>
-        )}
-      </h2>
+    <Panel
+      title={t("priorities")}
+      aside={
+        session && (
+          <Link
+            href={`/sessions/${encodeURIComponent(session.id)}`}
+            className="text-link underline underline-offset-3"
+          >
+            {t("report", { date: session.day })}
+          </Link>
+        )
+      }
+      flush
+    >
       {priorities.length === 0 ? (
-        <p className="rounded-md border border-border bg-card p-4 text-sm text-muted-foreground">
+        <p className="px-3.5 py-3 text-sm text-muted-foreground">
           {session ? t("noPriority") : t("noSession")}
         </p>
       ) : (
         <>
-          <ol className="flex flex-col rounded-md border border-border bg-card">
+          <ol className="flex flex-col">
             {priorities.map(({ advice, rounds }) => {
               const key = `rules.${advice.rule_id}.label`;
               const lost = rounds.filter((r) => wonRound(match, r.round) === false).length;
               return (
                 <li
                   key={advice.id}
-                  className="flex flex-col gap-2.5 border-t border-line-soft px-4 py-3 first:border-t-0"
+                  className="flex flex-col gap-2.5 border-t border-line-soft px-3.5 py-3 first:border-t-0"
                 >
                   <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
                     <span className="flex items-baseline gap-2.5 font-semibold">
@@ -99,9 +99,11 @@ export async function MatchPriorities({
               );
             })}
           </ol>
-          <p className="text-xs text-muted-foreground">{t("flaggedHint")}</p>
+          <p className="border-t border-line-soft px-3.5 py-2 text-xs text-muted-foreground">
+            {t("flaggedHint")}
+          </p>
         </>
       )}
-    </section>
+    </Panel>
   );
 }

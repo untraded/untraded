@@ -5,13 +5,14 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getLocale, getTimeZone, getTranslations } from "next-intl/server";
 import { cache, Suspense } from "react";
+import { MatchContext } from "@/components/match/match-context";
 import { MatchPriorities } from "@/components/match/match-priorities";
 import { MatchRounds } from "@/components/match/match-rounds";
 import { PrioritiesSkeleton } from "@/components/match/match-skeletons";
+import { MatchState } from "@/components/match/match-state";
 import { RatingCard } from "@/components/match/rating-card";
 import { SideSplit } from "@/components/match/side-split";
 import { TeamTable } from "@/components/match/team-table";
-import { ResultBadge } from "@/components/result-badge";
 import { Loading } from "@/components/skeleton";
 import type { Locale } from "@/i18n/locale";
 import {
@@ -23,7 +24,7 @@ import {
   getMe,
   type MatchDetail,
 } from "@/lib/api";
-import { dateTime, mapName, shortDay } from "@/lib/format";
+import { mapName, shortDay } from "@/lib/format";
 import {
   type FlaggedMoment,
   flaggedRounds,
@@ -54,10 +55,11 @@ const sessionOf = cache(async (matchId: string, playedAt: string | null) => {
 const NONE = new Map<number, FlaggedMoment>();
 
 /**
- * One match, seen from the player: the rounds (each opens the 2D viewer), the rounds of this match
- * that the session's priorities flag, the player's numbers on each side, then both teams. The
- * session's report is the slow part: the rounds are sent without their frames and the priorities
- * stream in when it comes.
+ * One match, seen from the player: the context bar (map, score, result, the player's rating),
+ * then the rounds (each opens the 2D viewer), the rounds of this match that the session's
+ * priorities flag, the player's rating and numbers on each side, then both teams. Before the
+ * analysis ends, where it stands instead. The session's report is the slow part: the rounds are
+ * sent without their frames and the priorities stream in when it comes.
  */
 export default async function MatchPage({ params }: Params) {
   const id = (await params).id;
@@ -79,106 +81,101 @@ export default async function MatchPage({ params }: Params) {
         ])
       : [null, null];
   const length = minutes(match.played_at, match.ended_at);
-  const mode = `modes.${match.mode}`;
-  const details = [
-    t.has(mode) ? t(mode) : null,
-    dateTime(match.played_at, locale, timeZone),
-    length === null ? null : t("duration", { minutes: length }),
-  ].filter(Boolean);
   const mine = match.my_team ?? "A";
   const theirs = mine === "A" ? "B" : "A";
 
   return (
-    <article className="flex flex-col gap-7">
-      <div className="flex flex-col gap-3">
-        <Link
-          href="/matches"
-          className="self-start text-[0.8125rem] text-link underline underline-offset-3"
-        >
-          {t("back")}
-        </Link>
-        <header className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-          <h1 className="text-2xl font-semibold">{mapName(match.map)}</h1>
-          {match.score_a !== null && match.score_b !== null && (
-            <p className="text-[1.75rem] leading-none font-semibold tabular-nums">
-              {match.my_team === "B" ? match.score_b : match.score_a}
-              <span className="px-0.5 text-muted-foreground">:</span>
-              {match.my_team === "B" ? match.score_a : match.score_b}
+    <>
+      <MatchContext
+        match={match}
+        // From the rating detail only, as the rating panel the bar links to.
+        rating={rating?.value ?? null}
+        level={rating?.value == null ? null : (rating.level ?? null)}
+        locale={locale}
+        timeZone={timeZone}
+      />
+      <article className="flex flex-col gap-6">
+        <div className="flex flex-wrap items-baseline gap-x-5 gap-y-2">
+          <Link href="/matches" className="text-[0.8125rem] text-link underline underline-offset-3">
+            {t("back")}
+          </Link>
+          {length !== null && (
+            <p className="text-[0.8125rem] text-muted-foreground">
+              {t("duration", { minutes: length })}
             </p>
           )}
-          <ResultBadge result={match.my_result} status={match.status} />
-          <p className="text-[0.8125rem] text-muted-foreground">{details.join(" · ")}</p>
-        </header>
-        {!ready && <p className="text-muted-foreground">{match.error ?? t("notReady")}</p>}
-        {match.unavailable.length > 0 && (
-          <details className="text-xs text-muted-foreground">
-            <summary className="cursor-pointer">
-              {t("notes.title", { count: match.unavailable.length })}
-            </summary>
-            <ul className="mt-1 flex list-disc flex-col gap-0.5 pl-5">
-              {match.unavailable.map((raw) => {
-                const note = demoNote(raw);
-                return (
-                  <li key={raw}>
-                    {note.kind === "other" ? (
-                      <span translate="no" className="font-mono">
-                        {note.text}
-                      </span>
-                    ) : note.kind === "surrender" ? (
-                      t("notes.surrender", {
-                        after: note.after,
-                        loser: note.winner === "CT" ? "T" : "CT",
-                        winner: note.winner,
-                      })
-                    ) : "count" in note ? (
-                      t(`notes.${note.kind}`, { count: note.count })
-                    ) : (
-                      t(`notes.${note.kind}`)
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          </details>
-        )}
-      </div>
-
-      {ready && match.rounds.length > 0 && (
-        <Suspense fallback={<MatchRounds match={match} flagged={NONE} />}>
-          <FlaggedRounds match={match} />
-        </Suspense>
-      )}
-
-      {ready && (
-        <div className="grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_22rem]">
-          <div className="flex min-w-0 flex-col gap-7">
-            {played && (
-              <Suspense
-                fallback={
-                  <Loading announce={false}>
-                    <PrioritiesSkeleton />
-                  </Loading>
-                }
-              >
-                <Priorities match={match} locale={locale} timeZone={timeZone} />
-              </Suspense>
-            )}
-            {played && <RatingCard rating={rating} locale={locale} />}
-            {played && (
-              <SideSplit
-                metrics={metrics?.metrics ?? null}
-                rounds={roundsBySide(match)}
-                locale={locale}
-              />
-            )}
-          </div>
-          <div className="flex min-w-0 flex-col gap-4">
-            <TeamTable match={match} team={mine} me={me.steam_id} locale={locale} />
-            <TeamTable match={match} team={theirs} me={me.steam_id} locale={locale} />
-          </div>
+          {match.unavailable.length > 0 && (
+            <details className="basis-full text-xs text-muted-foreground">
+              <summary className="cursor-pointer">
+                {t("notes.title", { count: match.unavailable.length })}
+              </summary>
+              <ul className="mt-1 flex list-disc flex-col gap-0.5 pl-5">
+                {match.unavailable.map((raw) => {
+                  const note = demoNote(raw);
+                  return (
+                    <li key={raw}>
+                      {note.kind === "other" ? (
+                        <span translate="no" className="font-mono">
+                          {note.text}
+                        </span>
+                      ) : note.kind === "surrender" ? (
+                        t("notes.surrender", {
+                          after: note.after,
+                          loser: note.winner === "CT" ? "T" : "CT",
+                          winner: note.winner,
+                        })
+                      ) : "count" in note ? (
+                        t(`notes.${note.kind}`, { count: note.count })
+                      ) : (
+                        t(`notes.${note.kind}`)
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </details>
+          )}
         </div>
-      )}
-    </article>
+
+        {!ready && <MatchState match={match} />}
+
+        {ready && match.rounds.length > 0 && (
+          <Suspense fallback={<MatchRounds match={match} flagged={NONE} />}>
+            <FlaggedRounds match={match} />
+          </Suspense>
+        )}
+
+        {ready && (
+          <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+            <div className="flex min-w-0 flex-col gap-6">
+              {played && (
+                <Suspense
+                  fallback={
+                    <Loading announce={false}>
+                      <PrioritiesSkeleton title={t("priorities")} />
+                    </Loading>
+                  }
+                >
+                  <Priorities match={match} locale={locale} timeZone={timeZone} />
+                </Suspense>
+              )}
+              {played && <RatingCard rating={rating} locale={locale} />}
+              {played && (
+                <SideSplit
+                  metrics={metrics?.metrics ?? null}
+                  rounds={roundsBySide(match)}
+                  locale={locale}
+                />
+              )}
+            </div>
+            <div className="flex min-w-0 flex-col gap-3.5">
+              <TeamTable match={match} team={mine} me={me.steam_id} locale={locale} />
+              <TeamTable match={match} team={theirs} me={me.steam_id} locale={locale} />
+            </div>
+          </div>
+        )}
+      </article>
+    </>
   );
 }
 
