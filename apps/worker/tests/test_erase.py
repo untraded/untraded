@@ -12,7 +12,8 @@ import psycopg
 import pytest
 from psycopg.types.json import Jsonb
 
-from untraded_worker.erase import erase_player
+from untraded_worker import queue
+from untraded_worker.erase import ErasePlayerJob, erase_player
 from untraded_worker.store import LocalStore
 
 pytestmark = pytest.mark.db
@@ -131,8 +132,8 @@ def test_a_player_is_erased_and_shared_matches_stay(
         assert count == (0,), table
     # In the shared match, they are a player like any other, out of the level references.
     assert db.execute(
-        "SELECT benchmark_opt_out FROM player WHERE steam_id = %s", (GONE,)
-    ).fetchone() == (True,)
+        "SELECT last_name, benchmark_opt_out FROM player WHERE steam_id = %s", (GONE,)
+    ).fetchone() == ("", True)
     assert db.execute("SELECT count(*) FROM workspace").fetchone() == (1,)  # OTHER's
 
     # Again: nothing left to do.
@@ -144,6 +145,78 @@ def test_an_invitation_alone_is_withdrawn(db: psycopg.Connection[Any], tmp_path:
     db.execute("SELECT request_erasure(%s)", (GONE,))
     erase_player(db, LocalStore(tmp_path), GONE)
     assert db.execute("SELECT count(*) FROM invitation").fetchone() == (0,)
+    assert db.execute("SELECT count(*) FROM player").fetchone() == (0,)  # nothing to refuse
+
+
+def test_with_no_match_left_only_the_refusal_stays(
+    db: psycopg.Connection[Any], tmp_path: Path
+) -> None:
+    store = LocalStore(tmp_path)
+    user(db, GONE)
+    match(db, store, [GONE, STRANGER], "demos/a.dem.bz2")
+    assert erase_player(db, store, GONE).matches == 1
+    assert db.execute(
+        "SELECT last_name, benchmark_opt_out FROM player WHERE steam_id = %s", (GONE,)
+    ).fetchone() == ("", True)
+
+    # A match parsed later for someone else names them, as `load_match` writes it.
+    db.execute(
+        "INSERT INTO player (steam_id, last_name) VALUES (%s, 'back') "
+        "ON CONFLICT (steam_id) DO UPDATE SET last_name = EXCLUDED.last_name",
+        (GONE,),
+    )
+    assert db.execute(
+        "SELECT benchmark_opt_out FROM player WHERE steam_id = %s", (GONE,)
+    ).fetchone() == (True,)
+
+    # Again, once the account is gone: the same.
+    erase_player(db, store, GONE)
+    assert db.execute(
+        "SELECT last_name, benchmark_opt_out FROM player WHERE steam_id = %s", (GONE,)
+    ).fetchone() == ("", True)
+
+
+def test_a_player_without_a_match_keeps_the_refusal(
+    db: psycopg.Connection[Any], tmp_path: Path
+) -> None:
+    user(db, GONE)  # signed up, and never played a match here
+    erase_player(db, LocalStore(tmp_path), GONE)
+    assert db.execute(
+        "SELECT last_name, benchmark_opt_out FROM player WHERE steam_id = %s", (GONE,)
+    ).fetchone() == ("", True)
+
+
+def test_the_jobs_of_their_deleted_matches_go(db: psycopg.Connection[Any], tmp_path: Path) -> None:
+    store = LocalStore(tmp_path)
+    user(db, GONE)
+    user(db, OTHER)
+    alone = match(db, store, [GONE, STRANGER], "demos/a.dem.bz2")
+    shared = match(db, store, [GONE, OTHER], "demos/b.dem.bz2")
+    for match_id in (alone, shared):
+        queue.enqueue(db, "download", {"match_id": str(match_id), "url": "https://demo"})
+    erase_player(db, store, GONE)
+    assert db.execute("SELECT payload->>'match_id' FROM job").fetchall() == [(str(shared),)]
+
+
+def test_the_jobs_naming_them_go(db: psycopg.Connection[Any], tmp_path: Path) -> None:
+    store = LocalStore(tmp_path)
+    user(db, GONE)
+    user(db, OTHER)
+    for steam_id in (GONE, OTHER):
+        queue.enqueue(db, "session", {"steam_id": str(steam_id), "match_id": str(uuid.uuid4())})
+    running = queue.claim(db, ["session"], "another-worker")  # the oldest: GONE's
+    assert running is not None
+    assert running.payload["steam_id"] == str(GONE)
+    queue.enqueue(db, "session", {"steam_id": str(GONE), "match_id": str(uuid.uuid4())})
+    db.execute("SELECT request_erasure(%s)", (GONE,))
+    job = queue.claim(db, ["erase_player"], "test")
+    assert job is not None
+
+    ErasePlayerJob(store)(db, job)
+    queue.complete(db, job)  # as the runner does, on a row now gone
+
+    left = db.execute("SELECT kind, status, payload->>'steam_id' FROM job ORDER BY id").fetchall()
+    assert left == [("session", "running", str(GONE)), ("session", "queued", str(OTHER))]
 
 
 def _brought(db: psycopg.Connection[Any], steam_id: int, match_id: uuid.UUID) -> None:

@@ -88,8 +88,9 @@ after a new replay format or a new win-probability model. Both log and skip a ma
 - `erase.py`: the `erase_player` job (`{"steam_id": ...}`), queued when a player asks for
   erasure or an admin erases them: their account with its sources, consents, sign-in sessions,
   votes, invitation and personal workspace; their play sessions, advice and aggregates; the
-  matches no other user played in (rows, Parquet and raw demo). In the other matches they stay
-  one of the ten players, left out of the level references.
+  matches no other user played in (rows, Parquet and raw demo); the jobs naming them or those
+  matches. In the other matches they stay one of the ten players, left out of the level
+  references. With no match left, only their Steam ID stays, as that refusal.
 - `analysis.py` and `load.py`: the analysis without a database, and its loading (idempotent:
   a reparse replaces the match's rows).
 

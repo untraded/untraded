@@ -199,6 +199,9 @@ followed by the collector. The worker's `erase_player` job then deletes:
 
 The matches other users played in stay, as those users' matches. The erased player is then one
 of the players there like anyone not registered, and is left out of the level references.
+With no match left, only their Steam ID stays, with no name or statistics, so that a match parsed
+later for someone else does not bring them back into those references. The jobs naming them or
+their deleted matches go too.
 Copies outside the database follow their own rhythm: the daily dumps expire (4 weeks at most),
 and an off-site copy you run keeps what you tell it to.
 
