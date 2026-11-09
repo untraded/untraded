@@ -5,10 +5,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
-import { RAIL_LABEL, SECTIONS, type Section, SIDEBAR_LABEL, sectionOf } from "./nav";
+import { FOLDED_ONLY, RAIL_TOOLTIP, SECTIONS, type Section, sectionOf } from "./nav";
 import { PreviewBadge } from "./preview-badge";
 
-/** A section link, marked when the current page belongs to it: in the sidebar or a phone tab. */
+/** A section link, marked when the current page belongs to it: on the rail or a phone tab. */
 export function NavLink({
   section,
   label,
@@ -19,7 +19,7 @@ export function NavLink({
   label: string;
   /** A word after the label, e.g. "Preview" for a mock-up. */
   badge?: string;
-  place: "sidebar" | "tab";
+  place: "rail" | "tab";
 }) {
   const current = sectionOf(usePathname()) === section;
   const { href, icon: Icon } = SECTIONS[section];
@@ -28,7 +28,7 @@ export function NavLink({
       <Link
         href={href}
         aria-current={current ? "page" : undefined}
-        className="group/tab flex flex-col items-center gap-0.5 pt-2 pb-1 text-[0.6875rem] text-muted-foreground aria-[current=page]:font-semibold aria-[current=page]:text-foreground"
+        className="group/tab flex flex-col items-center gap-0.5 pt-2 pb-1 text-[0.6875rem] text-chrome-muted aria-[current=page]:font-semibold aria-[current=page]:text-chrome-foreground"
       >
         <Icon aria-hidden="true" className="size-5 group-aria-[current=page]/tab:text-highlight" />
         {label}
@@ -38,23 +38,38 @@ export function NavLink({
   return (
     <Link
       href={href}
-      title={badge ? `${label} (${badge})` : label}
       aria-current={current ? "page" : undefined}
       className={cn(
-        "flex h-9 items-center gap-2.5 rounded-md text-[0.9375rem] whitespace-nowrap text-muted-foreground hover:bg-muted hover:text-foreground",
-        "aria-[current=page]:bg-highlight-soft aria-[current=page]:font-semibold aria-[current=page]:text-foreground",
-        "justify-center lg:justify-start lg:px-2.5 lg:group-data-[collapsed=true]/shell:justify-center lg:group-data-[collapsed=true]/shell:px-0",
-        "max-lg:h-auto max-lg:flex-col max-lg:gap-1 max-lg:px-1 max-lg:py-2",
+        "group/nav relative flex h-10 shrink-0 items-center justify-center rounded-md text-chrome-muted hover:bg-muted hover:text-chrome-foreground",
+        "aria-[current=page]:bg-highlight-soft aria-[current=page]:text-chrome-foreground",
+        // The current section also has a bar on its left edge: a shape, not only a colour.
+        "aria-[current=page]:before:absolute aria-[current=page]:before:inset-y-2 aria-[current=page]:before:left-0 aria-[current=page]:before:w-[3px] aria-[current=page]:before:rounded-full aria-[current=page]:before:bg-highlight forced-colors:aria-[current=page]:before:bg-[CanvasText]",
+        "md:group-data-[collapsed=false]/shell:justify-start md:group-data-[collapsed=false]/shell:gap-2.5 md:group-data-[collapsed=false]/shell:px-2.5",
       )}
     >
-      <Icon aria-hidden="true" className="size-[18px] shrink-0" />
-      <span className={cn(SIDEBAR_LABEL, RAIL_LABEL)}>
+      <Icon
+        aria-hidden="true"
+        className="size-[18px] shrink-0 group-aria-[current=page]/nav:text-highlight"
+      />
+      {badge && (
+        // On the folded rail, a dot on the icon says the section is a preview; its word is in the
+        // tooltip.
+        <span
+          aria-hidden="true"
+          className={cn(
+            "absolute top-2 right-2.5 size-1.5 rounded-full bg-chrome-muted",
+            FOLDED_ONLY,
+          )}
+        />
+      )}
+      <span className={RAIL_TOOLTIP}>
         {label}
+        {/* A space, so that the accessible name reads "Team Preview", not "TeamPreview". */}
         {badge && (
-          <PreviewBadge
-            label={badge}
-            className="ml-2 max-lg:mx-auto max-lg:mt-1 max-lg:block max-lg:w-fit"
-          />
+          <>
+            {" "}
+            <PreviewBadge label={badge} className="ml-1" />
+          </>
         )}
       </span>
     </Link>

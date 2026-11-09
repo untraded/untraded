@@ -12,10 +12,12 @@ import { NavLink } from "./nav-link";
 import { SidebarToggle } from "./sidebar-toggle";
 
 /**
- * The frame of every signed-in page. From 1024 px: a sidebar (240 px, foldable to its icons); from
- * 768 px, a rail of icons with their labels under them (88 px). Below: a slim top bar and four tabs
- * at the bottom of the screen. The sections a player uses come first;
- * how the numbers are calculated, the settings and the admin sit at the bottom.
+ * The frame of every signed-in page, in the "Instrument" direction. From 768 px: a dark rail of
+ * icons (58 px), each label a tooltip; the player can show the labels beside the icons (220 px),
+ * a choice kept in a cookie. Below 768 px: a slim top bar and four tabs at the bottom of the
+ * screen. Rail, top bar and tabs are the chrome: dark in both themes. The sections a player uses
+ * come first; how the numbers are calculated, the settings, the admin and the account sit at the
+ * bottom.
  */
 export async function AppShell({
   me,
@@ -30,22 +32,47 @@ export async function AppShell({
   return (
     <div
       data-collapsed={collapsed}
-      className="group/shell min-h-dvh md:grid md:grid-cols-[88px_minmax(0,1fr)] lg:grid-cols-[240px_minmax(0,1fr)] lg:data-[collapsed=true]:grid-cols-[60px_minmax(0,1fr)]"
+      className="group/shell min-h-dvh md:grid md:grid-cols-[58px_minmax(0,1fr)] md:data-[collapsed=false]:grid-cols-[220px_minmax(0,1fr)]"
     >
-      <aside className="sticky top-0 hidden h-dvh flex-col gap-0.5 border-r border-border bg-card px-1.5 py-3 md:flex lg:px-2.5">
-        <div className="flex items-center justify-center gap-2 px-1 pb-3 lg:justify-between lg:group-data-[collapsed=true]/shell:flex-col lg:group-data-[collapsed=true]/shell:justify-center">
+      {/* The first stop of the keyboard: past the rail, straight to the page. */}
+      <a
+        href="#content"
+        className="sr-only z-30 rounded-md bg-card text-sm font-semibold focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:px-3 focus:py-2"
+      >
+        {t("skip")}
+      </a>
+      <aside
+        data-chrome
+        className="sticky top-0 z-20 hidden h-dvh flex-col gap-0.5 px-2 py-3 md:flex"
+      >
+        <div className="flex flex-col items-center gap-2 pb-3 md:group-data-[collapsed=false]/shell:flex-row md:group-data-[collapsed=false]/shell:justify-between md:group-data-[collapsed=false]/shell:pl-1.5">
           <Link href="/" aria-label="Untraded" className="flex h-8 items-center rounded-md px-1">
-            {/* The logo when the sidebar is wide; folded, the compact sign alone, in its version
-                drawn for small sizes. */}
-            <LogoHorizontal className="hidden h-5 w-auto lg:block lg:group-data-[collapsed=true]/shell:hidden" />
-            <LogoSymbol16 className="size-4 lg:hidden lg:group-data-[collapsed=true]/shell:block" />
+            {/* Folded, the compact sign alone, in its version drawn for small sizes; unfolded, the
+                logo. */}
+            <LogoSymbol16 className="size-4 md:group-data-[collapsed=false]/shell:hidden" />
+            <LogoHorizontal className="hidden h-5 w-auto md:group-data-[collapsed=false]/shell:block" />
           </Link>
           <SidebarToggle
             collapsed={collapsed}
             labels={{ collapse: t("collapse"), expand: t("expand") }}
           />
         </div>
-        <div className="mb-3">
+        <nav aria-label={t("main")} className="flex flex-1 flex-col gap-0.5">
+          <NavLink section="home" label={t("home")} place="rail" />
+          <NavLink section="sessions" label={t("sessions")} place="rail" />
+          <NavLink section="matches" label={t("matches")} place="rail" />
+          <NavLink section="progress" label={t("progress")} place="rail" />
+          <NavLink section="upload" label={t("upload")} place="rail" />
+          {me.admin && (
+            <NavLink section="team" label={t("team")} badge={t("preview")} place="rail" />
+          )}
+          <div className="mt-auto flex flex-col gap-0.5">
+            <NavLink section="formulas" label={t("formulas")} place="rail" />
+            <NavLink section="settings" label={t("settings")} place="rail" />
+            {me.admin && <NavLink section="admin" label={t("admin")} place="rail" />}
+          </div>
+        </nav>
+        <div className="mt-2 border-t border-chrome-line pt-2">
           <AccountMenu
             name={me.display_name}
             labels={{
@@ -55,38 +82,33 @@ export async function AppShell({
             }}
           />
         </div>
-        <nav aria-label={t("main")} className="flex flex-1 flex-col gap-0.5">
-          <NavLink section="home" label={t("home")} place="sidebar" />
-          <NavLink section="sessions" label={t("sessions")} place="sidebar" />
-          <NavLink section="matches" label={t("matches")} place="sidebar" />
-          <NavLink section="progress" label={t("progress")} place="sidebar" />
-          <NavLink section="upload" label={t("upload")} place="sidebar" />
-          {me.admin && (
-            <NavLink section="team" label={t("team")} badge={t("preview")} place="sidebar" />
-          )}
-          <div className="mt-auto flex flex-col gap-0.5">
-            <NavLink section="formulas" label={t("formulas")} place="sidebar" />
-            <NavLink section="settings" label={t("settings")} place="sidebar" />
-            {me.admin && <NavLink section="admin" label={t("admin")} place="sidebar" />}
-          </div>
-        </nav>
       </aside>
 
-      <div className="min-w-0">
-        <header className="sticky top-0 z-10 flex h-13 items-center border-b border-border bg-card px-4 md:hidden">
+      {/* A size container, so that a context bar can run edge to edge of it (`cqw`). It is also
+          the containing block of any `position: fixed` inside it: put such elements outside. */}
+      <div className="@container min-w-0">
+        <header
+          data-chrome
+          className="sticky top-0 z-10 flex h-13 items-center border-b border-chrome-line px-4 md:hidden"
+        >
           <Link href="/" aria-label="Untraded" className="flex h-8 items-center">
             <LogoHorizontal className="h-5 w-auto" />
           </Link>
         </header>
-        <main className="mx-auto max-w-6xl px-4 pt-6 pb-24 md:px-8 md:pt-8 md:pb-12">
+        <main
+          id="content"
+          tabIndex={-1}
+          className="mx-auto max-w-6xl px-4 pt-6 pb-24 md:px-8 md:pt-8 md:pb-12"
+        >
           {me.demo && <DemoBanner />}
           {children}
         </main>
       </div>
 
       <nav
+        data-chrome
         aria-label={t("main")}
-        className="fixed inset-x-0 bottom-0 z-10 grid grid-cols-4 border-t border-border bg-card pb-[env(safe-area-inset-bottom)] md:hidden"
+        className="fixed inset-x-0 bottom-0 z-10 grid grid-cols-4 border-t border-chrome-line pb-[env(safe-area-inset-bottom)] md:hidden"
       >
         <NavLink section="home" label={t("home")} place="tab" />
         <NavLink section="sessions" label={t("sessions")} place="tab" />

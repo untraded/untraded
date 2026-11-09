@@ -61,12 +61,20 @@ export function sectionOf(pathname: string): Section | null {
 }
 
 /**
- * Sidebar labels: visible on wide screens unless the sidebar is folded (`data-collapsed` on the
- * shell), screen-reader only otherwise. Between 768 and 1024 px the sidebar is a rail of icons.
+ * The rail's labels. Folded (the default, `data-collapsed="true"` on the shell), a label is a
+ * tooltip beside its icon: drawn on hover and on keyboard focus, in CSS only, and always read by
+ * screen readers (it is faded out, never hidden, so it stays the link's accessible name). Unfolded,
+ * from 768 px, it sits in the row after the icon. The parent carries `group/nav` and `relative`.
+ * `TOOLTIP` alone stays a tooltip when the rail is unfolded. Faded out, it lets the pointer
+ * through to the page under it; shown, it takes the pointer, and a bridge over the gap (`before:`)
+ * lets the pointer move from the icon onto it without it closing.
  */
-export const SIDEBAR_LABEL = "sr-only lg:not-sr-only lg:group-data-[collapsed=true]/shell:sr-only";
+export const TOOLTIP =
+  "pointer-events-none absolute top-1/2 left-full z-30 ml-3 -translate-y-1/2 rounded-sm border border-chrome-line bg-chrome px-2 py-1 text-[0.8125rem] font-medium whitespace-nowrap text-chrome-foreground opacity-0 shadow-md transition-opacity group-hover/nav:pointer-events-auto group-hover/nav:opacity-100 group-focus-visible/nav:opacity-100 motion-reduce:transition-none before:absolute before:inset-y-0 before:right-full before:w-3";
 
-/** On the rail (768 to 1024 px), a section's label under its icon, small: icons alone were not
- * understood. */
-export const RAIL_LABEL =
-  "max-lg:not-sr-only max-lg:text-center max-lg:text-[0.6875rem] max-lg:leading-tight max-lg:whitespace-normal";
+export const RAIL_TOOLTIP =
+  `${TOOLTIP} ` +
+  "md:group-data-[collapsed=false]/shell:static md:group-data-[collapsed=false]/shell:ml-0 md:group-data-[collapsed=false]/shell:translate-y-0 md:group-data-[collapsed=false]/shell:border-0 md:group-data-[collapsed=false]/shell:bg-transparent md:group-data-[collapsed=false]/shell:p-0 md:group-data-[collapsed=false]/shell:text-[0.9375rem] md:group-data-[collapsed=false]/shell:text-inherit md:group-data-[collapsed=false]/shell:opacity-100 md:group-data-[collapsed=false]/shell:shadow-none md:group-data-[collapsed=false]/shell:before:hidden md:group-data-[collapsed=false]/shell:group-aria-[current=page]/nav:font-semibold";
+
+/** Hidden when the rail is unfolded: what stands in for a label on the folded rail. */
+export const FOLDED_ONLY = "md:group-data-[collapsed=false]/shell:hidden";
