@@ -324,6 +324,11 @@ export interface Comparison {
   basis: "value" | "per_round";
   session: number | null;
   reference: number | null;
+  /** The 10th and 90th percentile of the reference's values, in the unit and on the basis of
+   * `reference` (its median). Absent or `null` when the reference is too thin, or while the API
+   * predates them: the metric then keeps its gap bar. */
+  reference_p10?: number | null;
+  reference_p90?: number | null;
   delta: number | null;
   /** What a rate or an average stands on in this session: the rounds played, or its cases (the
    * opening duels for the opening success). `null` for totals, or when a count it rests on is

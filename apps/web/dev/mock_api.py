@@ -192,11 +192,41 @@ def match_detail(match: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+# Metrics that show the edge cases of the graduated ruler, whatever the random draw gives:
+# no landmarks (the gap bar stays), below the 10th percentile, above the 90th, and no reference.
+RULER_EDGES = {
+    "base.hs_pct": "no_spread",
+    "base.kast": "below",
+    "base.survival_pct": "above",
+    "trade.slow_trade_pct": "above",  # lower is better: above is worse
+    "duel.dry_peek_pct": "below",  # lower is better: below is better
+    "eco.equipment_lost_at_death": "no_reference",
+}
+
+
 def comparison(m: dict[str, str], enough: bool) -> dict[str, Any]:
     basis = "per_round" if m["unit"] in TOTALS else "value"
-    reference = rand.uniform(0.1, 1.4) if basis == "per_round" else rand.uniform(5, 90)
-    session = reference * rand.uniform(0.75, 1.25)
-    return {
+    if m["signed"]:
+        # Can be negative: the reference sits around zero.
+        reference = rand.uniform(-4, 4)
+        spread = rand.uniform(3, 8)
+    else:
+        reference = rand.uniform(0.1, 1.4) if basis == "per_round" else rand.uniform(5, 90)
+        spread = reference * rand.uniform(0.25, 0.5)
+    # Common values (10th to 90th percentile), a little skewed; the session mostly falls inside.
+    p10 = reference - spread * rand.uniform(0.7, 1.0)
+    p90 = reference + spread * rand.uniform(0.9, 1.4)
+    session = reference + rand.uniform(-1.1, 1.1) * spread
+    edge = RULER_EDGES.get(m["id"])
+    if edge == "below":
+        session = p10 - spread * rand.uniform(0.3, 0.8)
+    elif edge == "above":
+        session = p90 + spread * rand.uniform(0.3, 0.8)
+    if not m["signed"]:
+        # Percentages and rates stay positive.
+        p10 = max(p10, reference * 0.05)
+        session = max(session, 0.0)
+    value = {
         "metric_id": m["id"],
         "version": m["version"],
         "name": m["name"],
@@ -205,9 +235,16 @@ def comparison(m: dict[str, str], enough: bool) -> dict[str, Any]:
         "basis": basis,
         "session": round(session, 4),
         "reference": round(reference, 4) if enough else None,
+        "reference_p10": round(p10, 4) if enough else None,
+        "reference_p90": round(p90, 4) if enough else None,
         "delta": round(session - reference, 4) if enough else None,
         "signed": m["signed"],
     }
+    if edge == "no_spread":
+        del value["reference_p10"], value["reference_p90"]  # an API that predates them
+    elif edge == "no_reference":
+        value |= {"reference": None, "reference_p10": None, "reference_p90": None, "delta": None}
+    return value
 
 
 # Rates that rest on few cases in every session: under 5 (a clutch rate over 2 clutches, an opening
@@ -488,6 +525,8 @@ def headline(value: dict[str, Any], n: int, enough: bool) -> dict[str, Any]:
     return value | {
         "session": round(session, 4),
         "reference": round(reference, 4) if enough else None,
+        "reference_p10": round(reference * 0.86, 4) if enough else None,
+        "reference_p90": round(reference * 1.16, 4) if enough else None,
         "delta": round(session - reference, 4) if enough else None,
     }
 
