@@ -8,7 +8,7 @@ import { RAIL_TOOLTIP } from "./nav";
  * one for the other changes nothing on screen. At the foot of the rail: the initial alone, the
  * name in a tooltip; unfolded, the name beside it. */
 export const ACCOUNT_TRIGGER_CLASS =
-  "group/nav relative flex h-10 w-full shrink-0 items-center justify-center gap-2.5 rounded-md text-left text-chrome-foreground hover:bg-muted aria-expanded:bg-muted md:group-data-[collapsed=false]/shell:justify-start md:group-data-[collapsed=false]/shell:px-1.5";
+  "group/nav relative flex h-10 w-full touch-rail:h-12 shrink-0 items-center justify-center gap-2.5 rounded-md text-left text-chrome-foreground hover:bg-muted aria-expanded:bg-muted md:group-data-[collapsed=false]/shell:justify-start md:group-data-[collapsed=false]/shell:px-1.5";
 
 export function AccountTriggerFace({ name }: { name: string }) {
   return (
@@ -19,10 +19,11 @@ export function AccountTriggerFace({ name }: { name: string }) {
       >
         {name.slice(0, 1)}
       </span>
+      {/* No tooltip on a touch screen: the trigger's own label names it. */}
       <span
         className={cn(
           RAIL_TOOLTIP,
-          "md:group-data-[collapsed=false]/shell:min-w-0 md:group-data-[collapsed=false]/shell:truncate md:group-data-[collapsed=false]/shell:text-sm md:group-data-[collapsed=false]/shell:font-semibold",
+          "touch-rail:sr-only md:group-data-[collapsed=false]/shell:min-w-0 md:group-data-[collapsed=false]/shell:truncate md:group-data-[collapsed=false]/shell:text-sm md:group-data-[collapsed=false]/shell:font-semibold",
         )}
       >
         {name}

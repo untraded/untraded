@@ -23,7 +23,7 @@ export function SidebarToggle({
     <Button
       variant="ghost"
       size="icon-sm"
-      className="group/nav relative hidden text-chrome-muted hover:text-chrome-foreground md:inline-flex"
+      className="group/nav relative hidden text-chrome-muted touch-rail:size-10 hover:text-chrome-foreground md:inline-flex"
       // The label says what a press does; it changes with the state, so no `aria-expanded` too.
       aria-label={label}
       onClick={(event) => {
@@ -37,7 +37,7 @@ export function SidebarToggle({
       }}
     >
       <PanelLeft aria-hidden="true" />
-      <span aria-hidden="true" className={TOOLTIP}>
+      <span aria-hidden="true" className={`${TOOLTIP} touch-rail:hidden`}>
         {label}
       </span>
     </Button>

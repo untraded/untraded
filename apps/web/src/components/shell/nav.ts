@@ -76,5 +76,12 @@ export const RAIL_TOOLTIP =
   `${TOOLTIP} ` +
   "md:group-data-[collapsed=false]/shell:static md:group-data-[collapsed=false]/shell:ml-0 md:group-data-[collapsed=false]/shell:translate-y-0 md:group-data-[collapsed=false]/shell:border-0 md:group-data-[collapsed=false]/shell:bg-transparent md:group-data-[collapsed=false]/shell:p-0 md:group-data-[collapsed=false]/shell:text-[0.9375rem] md:group-data-[collapsed=false]/shell:text-inherit md:group-data-[collapsed=false]/shell:opacity-100 md:group-data-[collapsed=false]/shell:shadow-none md:group-data-[collapsed=false]/shell:before:hidden md:group-data-[collapsed=false]/shell:group-aria-[current=page]/nav:font-semibold";
 
+/**
+ * On a touch screen with the folded rail (`touch-rail`), the label sits under its icon, small, in
+ * its short form, like the phone's tabs; no tooltip. Added after `RAIL_TOOLTIP`, so these win.
+ */
+export const TOUCH_LABEL =
+  "touch-rail:static touch-rail:ml-0 touch-rail:translate-y-0 touch-rail:border-0 touch-rail:bg-transparent touch-rail:p-0 touch-rail:text-center touch-rail:text-[0.6875rem] touch-rail:font-normal touch-rail:leading-tight touch-rail:wrap-anywhere touch-rail:whitespace-normal touch-rail:text-inherit touch-rail:opacity-100 touch-rail:shadow-none touch-rail:transition-none touch-rail:before:hidden touch-rail:group-aria-[current=page]/nav:font-semibold";
+
 /** Hidden when the rail is unfolded: what stands in for a label on the folded rail. */
 export const FOLDED_ONLY = "md:group-data-[collapsed=false]/shell:hidden";

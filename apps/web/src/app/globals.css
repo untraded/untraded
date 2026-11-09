@@ -21,6 +21,29 @@
 }
 
 /*
+ * A touch screen with a rail (from 768 px, no hover, a coarse pointer), while the rail is folded:
+ * labels sit under the icons instead of in tooltips, which a finger cannot summon. `touch-rail`
+ * styles what is inside the shell; `touch-folded` styles the shell itself. The player's "show the
+ * labels" choice (`data-collapsed="false"`) turns both off. A mouse changes nothing. `touch-rail`
+ * matches anything inside the shell, page included: keep it to the shell's own parts.
+ */
+@custom-variant touch-rail {
+  @media (width >= 48rem) and (hover: none) and (pointer: coarse) {
+    &:where([data-collapsed="true"] *) {
+      @slot;
+    }
+  }
+}
+
+@custom-variant touch-folded {
+  @media (width >= 48rem) and (hover: none) and (pointer: coarse) {
+    &[data-collapsed="true"] {
+      @slot;
+    }
+  }
+}
+
+/*
  * Design tokens, as light-dark() pairs. Light: the "Match point" palette; dark: the "Papier"
  * palette, both in the "Instrument" direction (a dark rail, panels with a title band); one accent,
  * dark yellow. shadcn/ui names first, then ours:

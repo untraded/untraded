@@ -17,7 +17,18 @@
     "admin": "Admin",
     "account": "Compte : {name}",
     "preview": "Aperçu",
-    "skip": "Aller au contenu"
+    "skip": "Aller au contenu",
+    "short": {
+      "home": "Accueil",
+      "sessions": "Sessions",
+      "matches": "Matchs",
+      "progress": "Progrès",
+      "upload": "Envoyer",
+      "team": "Équipe",
+      "formulas": "Calcul",
+      "settings": "Réglages",
+      "admin": "Admin"
+    }
   },
   "dashboard": {
     "title": "Accueil",
