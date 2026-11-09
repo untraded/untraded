@@ -13,8 +13,9 @@ import { SidebarToggle } from "./sidebar-toggle";
 
 /**
  * The frame of every signed-in page, in the "Instrument" direction. From 768 px: a dark rail of
- * icons (58 px), each label a tooltip; the player can show the labels beside the icons (220 px),
- * a choice kept in a cookie. Below 768 px: a slim top bar and four tabs at the bottom of the
+ * icons (58 px), each label a tooltip; on a touch screen (no hover), a short label under each icon
+ * instead (72 px). The player can show the labels beside the icons (220 px), a choice kept in a
+ * cookie. Below 768 px: a slim top bar and four tabs at the bottom of the
  * screen. Rail, top bar and tabs are the chrome: dark in both themes. The sections a player uses
  * come first; how the numbers are calculated, the settings, the admin and the account sit at the
  * bottom.
@@ -32,7 +33,7 @@ export async function AppShell({
   return (
     <div
       data-collapsed={collapsed}
-      className="group/shell min-h-dvh md:grid md:grid-cols-[58px_minmax(0,1fr)] md:data-[collapsed=false]:grid-cols-[220px_minmax(0,1fr)]"
+      className="group/shell min-h-dvh md:grid md:grid-cols-[58px_minmax(0,1fr)] md:data-[collapsed=false]:grid-cols-[220px_minmax(0,1fr)] touch-folded:grid-cols-[72px_minmax(0,1fr)]"
     >
       {/* The first stop of the keyboard: past the rail, straight to the page. */}
       <a
@@ -43,7 +44,7 @@ export async function AppShell({
       </a>
       <aside
         data-chrome
-        className="sticky top-0 z-20 hidden h-dvh flex-col gap-0.5 px-2 py-3 md:flex"
+        className="sticky top-0 z-20 hidden h-dvh flex-col gap-0.5 px-2 py-3 md:flex touch-rail:overflow-y-auto touch-rail:overscroll-contain"
       >
         <div className="flex flex-col items-center gap-2 pb-3 md:group-data-[collapsed=false]/shell:flex-row md:group-data-[collapsed=false]/shell:justify-between md:group-data-[collapsed=false]/shell:pl-1.5">
           <Link href="/" aria-label="Untraded" className="flex h-8 items-center rounded-md px-1">
@@ -58,18 +59,46 @@ export async function AppShell({
           />
         </div>
         <nav aria-label={t("main")} className="flex flex-1 flex-col gap-0.5">
-          <NavLink section="home" label={t("home")} place="rail" />
-          <NavLink section="sessions" label={t("sessions")} place="rail" />
-          <NavLink section="matches" label={t("matches")} place="rail" />
-          <NavLink section="progress" label={t("progress")} place="rail" />
-          <NavLink section="upload" label={t("upload")} place="rail" />
+          <NavLink section="home" label={t("home")} short={t("short.home")} place="rail" />
+          <NavLink
+            section="sessions"
+            label={t("sessions")}
+            short={t("short.sessions")}
+            place="rail"
+          />
+          <NavLink section="matches" label={t("matches")} short={t("short.matches")} place="rail" />
+          <NavLink
+            section="progress"
+            label={t("progress")}
+            short={t("short.progress")}
+            place="rail"
+          />
+          <NavLink section="upload" label={t("upload")} short={t("short.upload")} place="rail" />
           {me.admin && (
-            <NavLink section="team" label={t("team")} badge={t("preview")} place="rail" />
+            <NavLink
+              section="team"
+              label={t("team")}
+              short={t("short.team")}
+              badge={t("preview")}
+              place="rail"
+            />
           )}
           <div className="mt-auto flex flex-col gap-0.5">
-            <NavLink section="formulas" label={t("formulas")} place="rail" />
-            <NavLink section="settings" label={t("settings")} place="rail" />
-            {me.admin && <NavLink section="admin" label={t("admin")} place="rail" />}
+            <NavLink
+              section="formulas"
+              label={t("formulas")}
+              short={t("short.formulas")}
+              place="rail"
+            />
+            <NavLink
+              section="settings"
+              label={t("settings")}
+              short={t("short.settings")}
+              place="rail"
+            />
+            {me.admin && (
+              <NavLink section="admin" label={t("admin")} short={t("short.admin")} place="rail" />
+            )}
           </div>
         </nav>
         <div className="mt-2 border-t border-chrome-line pt-2">

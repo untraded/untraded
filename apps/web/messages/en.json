@@ -17,7 +17,18 @@
     "admin": "Admin",
     "account": "Account: {name}",
     "preview": "Preview",
-    "skip": "Skip to content"
+    "skip": "Skip to content",
+    "short": {
+      "home": "Home",
+      "sessions": "Sessions",
+      "matches": "Matches",
+      "progress": "Progress",
+      "upload": "Upload",
+      "team": "Team",
+      "formulas": "Formulas",
+      "settings": "Settings",
+      "admin": "Admin"
+    }
   },
   "dashboard": {
     "title": "Home",
