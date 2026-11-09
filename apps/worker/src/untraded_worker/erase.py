@@ -18,7 +18,8 @@ unless another consenting player is in the match. Database dumps keep them until
 (4 weeks at most).
 
 The API marks the account deleted when the erasure is asked: they can no longer sign in, and
-the collector stops following them, before this job runs.
+the collector stops following them, before this job runs. A `session` job still queued then writes
+nothing for them.
 """
 
 from __future__ import annotations
@@ -82,7 +83,11 @@ class Erased:
 def erase_player(conn: psycopg.Connection[Any], store: LocalStore, steam_id: int) -> Erased:
     """Erases the player in one transaction, then their files. Running it again is harmless."""
     with conn.transaction():
-        user = conn.execute("SELECT id FROM app_user WHERE steam_id = %s", (steam_id,)).fetchone()
+        # Locked first: a `session` job holding the account finishes, and everything it wrote is
+        # seen below; a job starting now waits, then finds no account.
+        user = conn.execute(
+            "SELECT id FROM app_user WHERE steam_id = %s FOR UPDATE", (steam_id,)
+        ).fetchone()
         if user is not None:
             others = conn.execute(
                 "SELECT count(*) FROM workspace WHERE created_by = %s AND kind <> 'personal'",
