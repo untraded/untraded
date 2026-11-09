@@ -180,3 +180,16 @@ def test_a_spread_needs_enough_players_as_well_as_enough_values() -> None:
     # 19 players x 30 matches = 570 values, but fewer players than the minimum.
     assert levels.aggregate(rows(19, 30, 18_000))["p10"].null_count() == 2
     assert levels.aggregate(rows(20, 15, 18_000))["p10"].null_count() == 0
+
+
+def test_a_spread_is_not_published_when_one_player_holds_most_of_the_values() -> None:
+    # 19 players with 2 matches each and one with 300: 20 players and 338 values, but a single
+    # player's own percentiles would be published.
+    light = rows(19, 2, 18_000)
+    heavy = rows(1, 300, 18_000).with_columns(
+        (pl.col("steam_id") + 100).alias("steam_id"),
+        (pl.col("match_id") + "-heavy").alias("match_id"),
+    )
+    found = levels.aggregate(pl.concat([light, heavy]))
+    assert found["p10"].null_count() == 2
+    assert found["value"].null_count() == 0  # the reference itself is published as before

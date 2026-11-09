@@ -61,7 +61,7 @@ WHERE session_id = %s AND metric_id = %s AND version = %s
 
 UPDATE_LEVEL = """
 UPDATE play_session_metric SET reference_p10 = %s, reference_p90 = %s
-WHERE session_id = %s AND metric_id = %s AND basis = %s
+WHERE session_id = %s AND metric_id = %s AND version = %s AND basis = %s
   AND reference IS NOT NULL AND reference_p10 IS NULL AND reference_p90 IS NULL
 """
 
@@ -93,44 +93,47 @@ def backfill(
                 "SELECT match_id FROM play_session_match WHERE session_id = %s", (session_id,)
             ).fetchall()
         ]
-        with conn.transaction():
-            if kind == "self":
-                if steam_id not in played:
-                    played[steam_id] = job._played(conn, steam_id)
-                window = [
-                    m
-                    for m in played[steam_id]
-                    if m.id not in members and first <= m.started_at.date() <= last
-                ]
-                for m in window:
-                    if (steam_id, m.id) not in per_match:
-                        per_match[(steam_id, m.id)] = reference.match_values(
-                            job._tables(m), steam_id
-                        )
-                found = reference.spread(
-                    [v for m in window if (v := per_match[(steam_id, m.id)]) is not None],
-                    min_matches=min_spread_matches,
-                ).drop_nulls(["reference_p10", "reference_p90"])
-                params = [
-                    (_finite(p10), _finite(p90), session_id, metric, version)
-                    for metric, version, p10, p90 in found.iter_rows()
-                ]
-                sql = UPDATE_SELF
-            else:
-                level = levels.level_reference(conn, session_rank(conn, steam_id, members))
-                params = [
-                    (_finite(p10), _finite(p90), session_id, metric, basis)
-                    for metric, basis, p10, p90 in level.select(
-                        "metric_id", "basis", "p10", "p90"
-                    ).iter_rows()
-                    if p10 is not None and p90 is not None
-                ]
-                sql = UPDATE_LEVEL
-            changed = 0
-            with conn.cursor() as cursor:
-                for row in params:
-                    cursor.execute(sql, row)
-                    changed += cursor.rowcount
-            filled += changed > 0
+        try:
+            with conn.transaction():
+                if kind == "self":
+                    if steam_id not in played:
+                        played[steam_id] = job._played(conn, steam_id)
+                    window = [
+                        m
+                        for m in played[steam_id]
+                        if m.id not in members and first <= m.started_at.date() <= last
+                    ]
+                    for m in window:
+                        if (steam_id, m.id) not in per_match:
+                            per_match[(steam_id, m.id)] = reference.match_values(
+                                job._tables(m), steam_id
+                            )
+                    found = reference.spread(
+                        [v for m in window if (v := per_match[(steam_id, m.id)]) is not None],
+                        min_matches=min_spread_matches,
+                    ).drop_nulls(["reference_p10", "reference_p90"])
+                    params: list[tuple[Any, ...]] = [
+                        (_finite(p10), _finite(p90), session_id, metric, version)
+                        for metric, version, p10, p90 in found.iter_rows()
+                    ]
+                    sql = UPDATE_SELF
+                else:
+                    level = levels.level_reference(conn, session_rank(conn, steam_id, members))
+                    params = [
+                        (_finite(p10), _finite(p90), session_id, metric, version, basis)
+                        for metric, version, basis, p10, p90 in level.select(
+                            "metric_id", "version", "basis", "p10", "p90"
+                        ).iter_rows()
+                        if p10 is not None and p90 is not None
+                    ]
+                    sql = UPDATE_LEVEL
+                changed = 0
+                with conn.cursor() as cursor:
+                    for row in params:
+                        cursor.execute(sql, row)
+                        changed += cursor.rowcount
+                filled += changed > 0
+        except Exception:  # an unreadable match must not stop the other sessions
+            log.exception("spread of session %s skipped", session_id)
     log.info("spread filled for %s of %s session(s)", filled, len(sessions))
     return filled

@@ -233,6 +233,7 @@ WHERE m.session_id = ANY(%(sessions)s)
 
 
 def _comparison(row: tuple[Any, ...], cases: int | None) -> Comparison:
+    band = row[8] is not None and row[13] is not None and row[14] is not None
     return Comparison(
         metric_id=row[1],
         version=row[2],
@@ -243,8 +244,8 @@ def _comparison(row: tuple[Any, ...], cases: int | None) -> Comparison:
         session=row[7],
         reference=row[8],
         # Never a band around a reference that is not shown.
-        reference_p10=row[13] if row[8] is not None else None,
-        reference_p90=row[14] if row[8] is not None else None,
+        reference_p10=row[13] if band else None,
+        reference_p90=row[14] if band else None,
         delta=row[9],
         cases=cases,
         signed=row[10],

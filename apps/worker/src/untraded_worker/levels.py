@@ -17,7 +17,8 @@ widening the band one step on each side until there are `MIN_PLAYER_MATCHES` row
 - the spread (`p10`, `p90`) is the 10th and 90th percentile of the per-match values (totals per
   round), linear interpolation (numpy's default). It is published only for a metric with at
   least `MIN_PLAYER_MATCHES` values from at least `MIN_PLAYERS` players: no more precise than the
-  rest of the band. A (player, match) row weighs as one, as for the median.
+  rest of the band, and no player holds more than `MAX_PLAYER_SHARE` of the values. A (player,
+  match) row weighs as one, as for the median.
 
 Rows of matches the player played for fewer than `MIN_ROUNDS` rounds (a quick abandon) are left
 out. The worker recomputes everything when idle, every `EVERY`.
@@ -38,6 +39,9 @@ BAND = 2500
 MIN_PLAYER_MATCHES = 300
 MIN_PLAYERS = 20
 MIN_ROUNDS = 10
+MAX_PLAYER_SHARE = 0.2
+"""No player holds more than this share of the values a spread rests on: with 20 players, one
+of them with most of the rows would have their own percentiles published."""
 EVERY = dt.timedelta(hours=1)
 
 log = logging.getLogger("untraded.worker")
@@ -75,9 +79,14 @@ def aggregate(rows: pl.DataFrame) -> pl.DataFrame:
         .fill_nan(None)
         .alias("per_match")
     )
+    rows = rows.with_columns(
+        pl.col("per_match").count().over("metric_id", "version", "steam_id").alias("player_values")
+    )
     known = pl.col("steam_id").filter(pl.col("per_match").is_not_null())
-    publishable = (pl.col("per_match").count() >= MIN_PLAYER_MATCHES) & (
-        known.n_unique() >= MIN_PLAYERS
+    publishable = (
+        (pl.col("per_match").count() >= MIN_PLAYER_MATCHES)
+        & (known.n_unique() >= MIN_PLAYERS)
+        & (pl.col("player_values").max() <= MAX_PLAYER_SHARE * pl.col("per_match").count())
     )
     return (
         rows.group_by("metric_id", "version", "total")
@@ -171,8 +180,8 @@ def level_reference(
 ) -> pl.DataFrame:
     """The reference of the band of `rank` (empty when none is published)."""
     columns = [
-        "metric_id", "basis", "value", "p10", "p90", "used_low", "used_high", "player_matches",
-        "rounds",
+        "metric_id", "version", "basis", "value", "p10", "p90", "used_low", "used_high",
+        "player_matches", "rounds",
     ]  # fmt: skip
     if rank is None or rank <= 0:
         return pl.DataFrame(schema=columns)

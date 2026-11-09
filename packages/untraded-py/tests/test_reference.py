@@ -225,3 +225,10 @@ def test_no_spread_without_a_reference() -> None:
     assert not result.enough
     assert result.values["reference_p10"].null_count() == result.values.height
     assert result.values["reference_p90"].null_count() == result.values.height
+
+
+def test_an_infinite_value_is_not_a_percentile() -> None:
+    values = [float("inf"), float("-inf"), *[float(v) for v in range(10)]]
+    found = spread_of(values)
+    assert found["reference_p10"][0] == pytest.approx(0.9)
+    assert found["reference_p90"][0] == pytest.approx(8.1)

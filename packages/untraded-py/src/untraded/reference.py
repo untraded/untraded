@@ -135,7 +135,12 @@ def compare_to_self(
         reference_values, reference_rounds = _values(reference, player, params)
         enough = len(reference) >= min_matches and reference_rounds >= min_rounds
         if enough:
-            per_match = [match_values(m, player, params) for m in reference]
+            # One full computation per match: only when the spread can be shown at all.
+            per_match = (
+                [match_values(m, player, params) for m in reference]
+                if len(reference) >= min_spread_matches
+                else []
+            )
             values = (
                 session_values.rename({"value": "session"})
                 .join(
@@ -147,6 +152,13 @@ def compare_to_self(
                     spread([v for v in per_match if v is not None], min_matches=min_spread_matches),
                     on=["metric", "version"],
                     how="left",
+                )
+                .with_columns(
+                    # A band around a reference that is not there is not shown.
+                    *(
+                        pl.when(pl.col("reference").is_finite()).then(pl.col(c)).alias(c)
+                        for c in ("reference_p10", "reference_p90")
+                    )
                 )
             )
     values = values.with_columns((pl.col("session") - pl.col("reference")).alias("delta"))
@@ -196,15 +208,17 @@ def spread(
     `metric`, `version`, `reference_p10`, `reference_p90`.
 
     Linear interpolation between the order statistics (numpy's default, `method="linear"`).
-    Missing and NaN values are left out; a metric with fewer than `min_matches` values has no
-    spread (null), as does everything when there are fewer than `min_matches` matches."""
+    Missing, NaN and infinite values are left out; a metric with fewer than `min_matches` values
+    has no spread (null), as does everything when there are fewer than `min_matches` matches."""
     schema = {"metric": pl.String, "version": pl.String} | {
         "reference_p10": pl.Float64,
         "reference_p90": pl.Float64,
     }
     if len(per_match) < min_matches or not per_match:
         return pl.DataFrame(schema=schema)
-    values = pl.concat(per_match).with_columns(pl.col("value").fill_nan(None))
+    values = pl.concat(per_match).with_columns(
+        pl.when(pl.col("value").is_finite()).then(pl.col("value")).alias("value")
+    )
     return (
         values.drop_nulls("value")
         .group_by("metric", "version")
