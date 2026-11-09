@@ -11,7 +11,7 @@ After each session, Untraded gives up to **three priorities**. Each comes with:
 - an action;
 - an indicator to follow.
 
-The other rules that fired are not lost: they appear under the priorities as **other points**, with the same evidence, actions and vote.
+The other rules that fired are not lost: they appear under the priorities as **other points**, with the same evidence, actions and vote. Recomputing a session keeps the votes on the findings that still fire, at the same rule version and on the same spot.
 
 The rules are open, like the metrics: `untraded.advice` (MIT).
 

@@ -238,7 +238,10 @@ git pull && docker compose up -d --build
 `migrate` applies any new migration before the services start, and sessions are recomputed as
 new matches arrive. The files derived from the Parquet are not rewritten by themselves: after an
 update that changes them, write them for the matches parsed before. Each command skips the
-matches that already have them; `--force` rewrites every match.
+matches that already have them; `--force` rewrites every match. Recomputing a session keeps
+the votes on the findings that still fire, at the same rule version; a finding that no longer
+fires, a new version of its rule, or a session withdrawn because one of its matches no longer
+counts for the player, loses its votes.
 
 ```bash
 docker compose exec worker untraded-worker reanalyze         # new metrics or versions (the Untraded Rating)
