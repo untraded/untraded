@@ -3,7 +3,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { cn } from "@/lib/cn";
 import type { GapKind, Trend } from "@/lib/format";
 
@@ -25,6 +25,8 @@ export interface GapRow {
   cases: string | null;
   gapText: string;
   trend: Trend;
+  /** The graduated ruler and its words, drawn on the server; `null` keeps the gap bar. */
+  ruler: { chart: ReactNode; word: string; gapNote: string; tone: Trend } | null;
 }
 
 const ARROW: Record<Trend, string> = { better: "▲", worse: "▼", same: "=" };
@@ -129,9 +131,13 @@ function Group({
   withFamily?: boolean;
   compare?: boolean;
 }) {
-  const grid = compare
-    ? "grid-cols-[minmax(0,1fr)_4rem] sm:grid-cols-[minmax(0,1.3fr)_5rem_minmax(7rem,1.4fr)_5rem]"
-    : "grid-cols-[minmax(0,1fr)_5rem]";
+  // A group with a ruler gives the scale and the verdict more room; one without keeps its layout.
+  const rulers = compare && rows.some((row) => row.ruler);
+  const grid = !compare
+    ? "grid-cols-[minmax(0,1fr)_5rem]"
+    : rulers
+      ? "grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[minmax(0,1.1fr)_5.5rem_minmax(11rem,2fr)_8.5rem]"
+      : "grid-cols-[minmax(0,1fr)_4rem] sm:grid-cols-[minmax(0,1.3fr)_5rem_minmax(7rem,1.4fr)_5rem]";
   return (
     <div>
       {title && <h3 className="mt-2 mb-1 text-sm font-semibold">{title}</h3>}
@@ -183,7 +189,12 @@ function Group({
                 </span>
                 {note && <span className="block text-xs text-muted-foreground">{note}</span>}
               </span>
-              <span className={cn("text-right font-semibold", compare && "hidden sm:block")}>
+              <span
+                className={cn(
+                  "text-right font-semibold",
+                  compare && !row.ruler && "hidden sm:block",
+                )}
+              >
                 {row.value}
                 {compare && (
                   <span className="block text-xs font-normal text-muted-foreground">
@@ -191,7 +202,20 @@ function Group({
                   </span>
                 )}
               </span>
-              {compare && (
+              {compare && row.ruler && (
+                <>
+                  <span className="col-span-2 sm:col-span-1">{row.ruler.chart}</span>
+                  <span className="col-span-2 flex flex-wrap items-baseline gap-x-2 text-[0.8125rem] sm:col-span-1 sm:block sm:text-right">
+                    <span className={cn("font-semibold", TONE[row.ruler.tone])}>
+                      {row.ruler.word}
+                    </span>
+                    <span className="text-xs text-muted-foreground tabular-nums sm:block">
+                      {row.ruler.gapNote}
+                    </span>
+                  </span>
+                </>
+              )}
+              {compare && !row.ruler && (
                 <>
                   <span
                     aria-hidden="true"

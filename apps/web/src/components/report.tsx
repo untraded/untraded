@@ -7,6 +7,7 @@ import { getLocale, getTimeZone, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { FollowUpList } from "@/components/follow-up";
 import { type GapRow, MetricGaps } from "@/components/metric-gaps";
+import { PositionRuler, RulerLegend } from "@/components/position-ruler";
 import { Priorities } from "@/components/priorities";
 import { describeReference } from "@/components/reference";
 import { ResultBadge } from "@/components/result-badge";
@@ -34,6 +35,7 @@ import {
 } from "@/lib/format";
 import { shown } from "@/lib/hidden-metrics";
 import { catalogFor } from "@/lib/metric-docs-files";
+import { position, zoneTrend } from "@/lib/position";
 
 const FAMILIES = ["base", "rating", "duel", "trade", "clutch", "util", "eco", "pos"];
 const STANDOUT = 5;
@@ -83,14 +85,29 @@ export async function Report({
       const { kind, gap: value } = compare(c, report.rounds);
       const name = names[c.metric_id] ?? c.name;
       const perRound = c.basis === "per_round" ? t("perRound") : null;
+      const valueText = metric(c.session, c.unit, c.basis, locale);
+      const referenceText = metric(c.reference, c.unit, c.basis, locale);
+      // A metric compared as a gap gets its ruler when the reference gives its landmarks.
+      const where =
+        kind === "ranked" || kind === "units"
+          ? position(c.session, c.reference, c.reference_p10, c.reference_p90, c.better)
+          : null;
+      // The unit of a signed gap is said once, under the name ("per round"): not again in the gap.
+      const signedGap = delta(c.delta, c.unit, c.basis, locale);
+      const gapText =
+        kind === "units"
+          ? [signedGap, perRound].filter(Boolean).join(" ")
+          : gapPercent(value, locale);
+      const rulerGap = kind === "units" ? signedGap : gapText;
+      const zoneName = where ? t(`zone.${where.zone}`) : "";
       return {
         id: c.metric_id,
         name,
         formula: formulas("open", { name }),
         family: families(family(c.metric_id)),
         perRound,
-        value: metric(c.session, c.unit, c.basis, locale),
-        reference: t("vsReference", { value: metric(c.reference, c.unit, c.basis, locale) }),
+        value: valueText,
+        reference: t("vsReference", { value: referenceText }),
         gap: value,
         kind,
         // What a rate stands on, said when it is little: under the name if ranked, in place of the
@@ -100,11 +117,28 @@ export async function Report({
             ? t("casesOf", { count: c.cases })
             : null,
         // A signed metric reads as its difference in units; every other one as a share.
-        gapText:
-          kind === "units"
-            ? [delta(c.delta, c.unit, c.basis, locale), perRound].filter(Boolean).join(" ")
-            : gapPercent(value, locale),
+        gapText,
         trend: kind === "units" ? trend(c) : gapTrend(value),
+        ruler: where
+          ? {
+              chart: (
+                <PositionRuler
+                  position={where}
+                  tone={zoneTrend(where.zone)}
+                  label={t("rulerLabel", {
+                    name,
+                    value: valueText,
+                    reference: referenceText,
+                    zone: zoneName,
+                    gap: rulerGap,
+                  })}
+                />
+              ),
+              word: zoneName,
+              gapNote: t("rulerGap", { gap: rulerGap }),
+              tone: zoneTrend(where.zone),
+            }
+          : null,
       };
     });
   const byGap = (a: GapRow, b: GapRow) =>
@@ -256,6 +290,15 @@ export async function Report({
               : t("metricsLeadNone", { count: rows.length })}
           </p>
         </div>
+        {rows.some((row) => row.ruler) && named.short && (
+          <RulerLegend
+            title={t("rulerLegend")}
+            dot={t("rulerDot")}
+            median={t("rulerMedian")}
+            band={t("rulerBand")}
+            note={t("rulerNote", { reference: named.short })}
+          />
+        )}
         <MetricGaps
           families={groups}
           standout={standout}
