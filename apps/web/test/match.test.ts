@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { Advice, MatchDetail, MetricValue, Round } from "../src/lib/api";
 import {
   bySide,
+  errorSummary,
   flaggedRounds,
   minutes,
   momentHref,
@@ -116,5 +117,24 @@ describe("match", () => {
     expect(minutes("2026-10-20T12:00:00Z", "2026-10-20T12:38:20Z")).toBe(38);
     expect(minutes(null, "2026-10-20T12:38:00Z")).toBeNull();
     expect(minutes("2026-10-20T12:38:00Z", "2026-10-20T12:00:00Z")).toBeNull();
+  });
+});
+
+describe("errorSummary", () => {
+  it("keeps the first line only, without addresses or paths, cut short", () => {
+    expect(errorSummary("demo is truncated")).toBe("demo is truncated");
+    expect(errorSummary('ParseError: the parser failed\n  File "/app/x.py", line 3')).toBe(
+      "ParseError: the parser failed",
+    );
+    expect(errorSummary("https://cdn.example/m.dem.bz2?token=secret: HTTP 404")).toBe(
+      "[url]: HTTP 404",
+    );
+    expect(errorSummary("not an http(s) URL: 'ftp://a/b?k=1'")).toBe("not an http(s) URL: '[url]'");
+    expect(errorSummary("No such file: '/app/store/demos/ab12.dem'")).toBe(
+      "No such file: '[path]'",
+    );
+    expect(errorSummary("x".repeat(300))).toHaveLength(200);
+    expect(errorSummary(null)).toBeNull();
+    expect(errorSummary("\n  traceback")).toBeNull();
   });
 });

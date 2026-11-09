@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 The Untraded Authors
 // SPDX-License-Identifier: AGPL-3.0-only
 import { getTranslations } from "next-intl/server";
+import { Panel } from "@/components/ui/panel";
 import type { Locale } from "@/i18n/locale";
 import type { MatchDetail } from "@/lib/api";
 import { cn } from "@/lib/cn";
@@ -31,25 +32,30 @@ export async function TeamTable({
     : t(team === "A" ? "teamA" : "teamB");
   const name = (team === "A" ? match.team_a_name : match.team_b_name) ?? fallback;
   const score = team === "A" ? match.score_a : match.score_b;
-  const id = `team-${team}`;
   return (
-    <section
-      aria-labelledby={id}
-      className="overflow-x-auto rounded-md border border-border bg-card"
-    >
-      <h2 id={id} className="flex items-baseline justify-between gap-3 px-3 py-2 text-sm">
-        <span>
-          <span className="font-medium">{name}</span>{" "}
-          <span className="text-xs text-muted-foreground">
+    <Panel
+      title={
+        <>
+          {name}{" "}
+          <span className="text-xs font-normal text-muted-foreground">
             {t(team === "A" ? "startedCt" : "startedT")}
           </span>
+        </>
+      }
+      aside={
+        <span className="text-base font-semibold text-foreground tabular-nums">
+          <span className="sr-only">{t("teamScore")} </span>
+          {score ?? "–"}
         </span>
-        <span className="text-lg font-semibold tabular-nums">{score ?? "–"}</span>
-      </h2>
+      }
+      flush
+      // Clipped to the panel's lower corners: the player's row is often the last one.
+      bodyClassName="overflow-x-auto rounded-b-[3px]"
+    >
       <table className="w-full text-[0.8125rem] tabular-nums">
         <thead className="text-xs text-muted-foreground">
-          <tr className="border-t border-border">
-            <th scope="col" className="px-3 py-1.5 text-left font-medium">
+          <tr>
+            <th scope="col" className="px-3.5 py-1.5 text-left font-medium">
               {t("player")}
             </th>
             <th scope="col" className="px-2 py-1.5 text-right font-medium">
@@ -63,7 +69,7 @@ export async function TeamTable({
                 {m("uratingShort")}
               </abbr>
             </th>
-            <th scope="col" className="px-3 py-1.5 text-right font-medium">
+            <th scope="col" className="px-3.5 py-1.5 text-right font-medium">
               {m("level")}
             </th>
           </tr>
@@ -79,7 +85,7 @@ export async function TeamTable({
                 <th
                   scope="row"
                   className={cn(
-                    "max-w-40 truncate px-3 py-1.5 text-left",
+                    "max-w-40 truncate px-3.5 py-1.5 text-left",
                     mine ? "font-semibold" : "font-normal",
                   )}
                 >
@@ -99,7 +105,7 @@ export async function TeamTable({
                 <td className="px-2 py-1.5 text-right font-semibold">
                   {number(player.line.untraded, locale, 2)}
                 </td>
-                <td className="px-3 py-1.5 text-right text-muted-foreground">
+                <td className="px-3.5 py-1.5 text-right text-muted-foreground">
                   {number(player.line.level, locale, 2)}
                 </td>
               </tr>
@@ -107,6 +113,6 @@ export async function TeamTable({
           })}
         </tbody>
       </table>
-    </section>
+    </Panel>
   );
 }

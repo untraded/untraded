@@ -124,3 +124,21 @@ export function momentHref(
   const query = `t=${moment.tick}&e=${moment.event}&p=${encodeURIComponent(moment.rule)}`;
   return `/matches/${matchId}/rounds/${round}?${query}`;
 }
+
+/** An address, without the punctuation that may close it (`url: …`, `'url'`, `(url)`). */
+const ADDRESS = /\b[a-z][a-z0-9+.-]*:\/\/[^\s'"<>()]*[^\s'"<>().,:;]/gi;
+/** An absolute path on the server, after a space, a quote, a bracket or `=`. */
+const PATH = /(?<=^|[\s'"(=])\/[^\s'"()]+/g;
+const LONGEST_ERROR = 200;
+
+/**
+ * What the page shows of the worker's error on a match that failed or is unavailable: its first
+ * line (the type and the message, never the traceback under it), with any address replaced by
+ * `[url]` (a download address may carry a signed token) and any server path by `[path]`, cut
+ * short. `null` when nothing is left.
+ */
+export function errorSummary(error: string | null): string | null {
+  const first = error?.split("\n", 1)[0]?.replace(ADDRESS, "[url]").replace(PATH, "[path]").trim();
+  if (!first) return null;
+  return first.length > LONGEST_ERROR ? `${first.slice(0, LONGEST_ERROR - 1)}…` : first;
+}

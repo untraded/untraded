@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 The Untraded Authors
 // SPDX-License-Identifier: AGPL-3.0-only
 import { getTranslations } from "next-intl/server";
+import { Panel } from "@/components/ui/panel";
 import type { Locale } from "@/i18n/locale";
 import type { MetricValue } from "@/lib/api";
 import { number, percent } from "@/lib/format";
@@ -61,22 +62,19 @@ export async function SideSplit({
   });
 
   return (
-    <section aria-labelledby="match-sides" className="flex flex-col gap-2">
-      <h2 id="match-sides" className="text-[0.8125rem] font-medium text-muted-foreground">
-        {t("bySide")}
-      </h2>
+    <Panel title={t("bySide")} flush>
       {has ? (
-        <table className="w-full overflow-hidden rounded-md border border-border bg-card text-sm tabular-nums">
+        <table className="w-full text-sm tabular-nums">
           <thead>
             <tr className="text-xs text-muted-foreground">
-              <th scope="col" className="px-4 py-2 text-left font-medium">
+              <th scope="col" className="px-3.5 py-2 text-left font-medium">
                 <span className="sr-only">{s("metric")}</span>
               </th>
               <th scope="col" className="w-24 px-3 py-2 text-right font-semibold">
                 <span className="text-side-ct">CT</span>
                 <span className="block font-normal">{t("sideRounds", { rounds: rounds.CT })}</span>
               </th>
-              <th scope="col" className="w-24 px-4 py-2 text-right font-semibold">
+              <th scope="col" className="w-24 px-3.5 py-2 text-right font-semibold">
                 <span className="text-side-t">T</span>
                 <span className="block font-normal">{t("sideRounds", { rounds: rounds.T })}</span>
               </th>
@@ -85,20 +83,18 @@ export async function SideSplit({
           <tbody>
             {rows.map((row) => (
               <tr key={row.name} className="border-t border-line-soft">
-                <th scope="row" className="px-4 py-2 text-left font-normal">
+                <th scope="row" className="px-3.5 py-2 text-left font-normal">
                   {row.name}
                 </th>
                 <td className="px-3 py-2 text-right">{row.ct}</td>
-                <td className="px-4 py-2 text-right">{row.t}</td>
+                <td className="px-3.5 py-2 text-right">{row.t}</td>
               </tr>
             ))}
           </tbody>
         </table>
       ) : (
-        <p className="rounded-md border border-border bg-card p-4 text-sm text-muted-foreground">
-          {t("sideMissing")}
-        </p>
+        <p className="px-3.5 py-3 text-sm text-muted-foreground">{t("sideMissing")}</p>
       )}
-    </section>
+    </Panel>
   );
 }

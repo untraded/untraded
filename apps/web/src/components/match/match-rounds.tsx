@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
+import { Panel } from "@/components/ui/panel";
 import type { MatchDetail, Round } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { type FlaggedMoment, momentHref } from "@/lib/match";
@@ -73,15 +74,11 @@ export async function MatchRounds({
   };
 
   return (
-    <section aria-labelledby="match-rounds" className="flex flex-col gap-2">
-      <div className="flex flex-wrap justify-between gap-x-4 gap-y-1 text-[0.8125rem] text-muted-foreground">
-        <h2 id="match-rounds" className="font-medium">
-          {t("rounds")}
-        </h2>
-        <span>
-          {t("roundsLegend")}. {t("roundsHint")}
-        </span>
-      </div>
+    <Panel
+      title={t("rounds")}
+      aside={<span>{t("roundsLegend")}</span>}
+      bodyClassName="flex flex-col gap-2.5"
+    >
       <div className="flex flex-col gap-1.5 sm:hidden">
         {halves.map((half) => (
           <div key={half[0]?.round} className="flex flex-col gap-0.5">
@@ -130,6 +127,7 @@ export async function MatchRounds({
           {halves.flatMap((half, i) => half.map((round, j) => cell(round, i > 0 && j === 0)))}
         </div>
       </div>
-    </section>
+      <p className="text-xs text-muted-foreground">{t("roundsHint")}</p>
+    </Panel>
   );
 }
