@@ -7,6 +7,7 @@
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { cache } from "react";
+import { refusedAddress } from "@/lib/address";
 
 export const SESSION_COOKIE = "untraded_session";
 
@@ -219,7 +220,8 @@ async function sessionHeader(): Promise<Record<string, string>> {
 export class ApiError extends Error {}
 
 /**
- * GET from the API. `null` when not signed in; `notFound()` on 404. Called once per path within
+ * GET from the API. `null` when not signed in; `notFound()` on 404, and on an address the API
+ * cannot read (`refusedAddress`). Called once per path within
  * one request: the layout, the page and its metadata all ask for `/me`, the page and its metadata
  * for the match (React `cache`, which lives as long as the request: nothing is kept for another
  * user).
@@ -231,6 +233,9 @@ export const apiGet = cache(async function apiGet<T>(path: string): Promise<T | 
   });
   if (response.status === 401) return null;
   if (response.status === 404) notFound();
+  if (response.status === 422 && refusedAddress(422, await response.json().catch(() => null))) {
+    notFound();
+  }
   if (!response.ok) throw new ApiError(`API ${path}: HTTP ${response.status}`);
   return (await response.json()) as T;
 });
