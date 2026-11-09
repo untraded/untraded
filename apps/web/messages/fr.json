@@ -135,6 +135,7 @@
     "title": "Progression",
     "lead": "Tes chiffres clés session après session, face à ta référence, et ce que deviennent tes priorités.",
     "period": "Période",
+    "context": "Période et légende",
     "periods": {
       "last10": "10 sessions",
       "days30": "30 jours",
@@ -145,8 +146,8 @@
     "date": "Session",
     "you": "toi",
     "reference": "ta référence",
-    "betterBy": "mieux de {gap} sur la période",
-    "worseBy": "moins bien de {gap} sur la période",
+    "betterBy": "mieux : {gap} sur la période",
+    "worseBy": "moins bien : {gap} sur la période",
     "stable": "stable sur la période",
     "latest": "dernière session",
     "ref": "réf. {value}",
@@ -487,6 +488,7 @@
     "status": "État",
     "older": "Matchs plus anciens",
     "newer": "Matchs plus récents",
+    "pageOf": "Matchs {from} à {to}",
     "urating": "Untraded Rating",
     "uratingShort": "UR",
     "beta": "bêta"

@@ -1,13 +1,22 @@
 // SPDX-FileCopyrightText: 2026 The Untraded Authors
 // SPDX-License-Identifier: AGPL-3.0-only
-import { ChevronLeft, ChevronRight, Upload } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  CircleSlash,
+  Hourglass,
+  type LucideIcon,
+  TriangleAlert,
+  Upload,
+} from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getLocale, getTimeZone, getTranslations } from "next-intl/server";
 import { buttonVariants } from "@/components/ui/button";
+import { Panel } from "@/components/ui/panel";
 import type { Locale } from "@/i18n/locale";
-import { getMatches, getMe, type MatchSummary } from "@/lib/api";
+import { getMatches, getMe, type MatchStatus, type MatchSummary } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import {
   byPeriod,
@@ -29,11 +38,22 @@ const PAGE = 30;
  * nine columns, and rows keep their two-line layout): when, map, score, K–D, ADR, KAST, UD,
  * rating, chevron. */
 const COLUMNS =
-  "lg:grid-cols-[8.5rem_minmax(0,1fr)_5.5rem_5.5rem_3rem_3.5rem_3rem_4.5rem_1rem] lg:items-center lg:gap-x-4";
+  "lg:grid-cols-[8.5rem_minmax(0,1fr)_5.5rem_5.5rem_3rem_3.5rem_3rem_3.5rem_1rem] lg:items-center lg:gap-x-4";
+
+/** A match not (yet) analysed says why with an icon beside the word, never the word alone in a
+ * column of numbers: waiting, failed, or left out. */
+const WAITING: Record<Exclude<MatchStatus, "ready">, LucideIcon> = {
+  pending: Hourglass,
+  downloading: Hourglass,
+  parsing: Hourglass,
+  failed: TriangleAlert,
+  unavailable: CircleSlash,
+};
 
 /**
  * The player's matches, newest first, grouped by period (today, yesterday, this week, last week,
- * the last 30 days, older) with each period's record. Each row opens the match.
+ * the last 30 days, older): one panel per period, its record in the band. Each row opens the
+ * match.
  */
 export default async function Matches({
   searchParams,
@@ -51,7 +71,7 @@ export default async function Matches({
   const now = new Date().toISOString();
   const pager = "h-8 gap-1.5 text-[0.8125rem]";
   return (
-    <section className="flex flex-col gap-5">
+    <section className="flex flex-col gap-4">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold md:text-[1.75rem]">{t("title")}</h1>
         {/* In the read-only demo, dimmed with why: it opens the page's preview. */}
@@ -73,18 +93,15 @@ export default async function Matches({
         </div>
       </header>
       {list.items.length === 0 && <p className="text-muted-foreground">{t("empty")}</p>}
-      {byPeriod(list.items, now, timeZone).map((group, index) => {
+      {byPeriod(list.items, now, timeZone).map((group) => {
         const count = (result: "win" | "loss" | "tie") =>
           group.items.filter((m) => m.my_result === result).length;
-        const id = `period-${group.period}-${index}`;
         return (
-          <section key={id} aria-labelledby={id}>
-            <h2
-              id={id}
-              className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3 text-sm font-semibold text-muted-foreground"
-            >
-              {t(`periods.${group.period}`)}{" "}
-              <span className="font-normal">
+          <Panel
+            key={group.items[0]?.id ?? group.period}
+            title={t(`periods.${group.period}`)}
+            aside={
+              <span className="tabular-nums">
                 {t("periodSummary", {
                   matches: group.items.length,
                   record: s("record", {
@@ -94,16 +111,16 @@ export default async function Matches({
                   }),
                 })}
               </span>
-            </h2>
-            <div className="rounded-lg border border-border bg-card">
-              {index === 0 && <ColumnHeads />}
-              <ul>
-                {group.items.map((match) => (
-                  <MatchRow key={match.id} match={match} period={group.period} />
-                ))}
-              </ul>
-            </div>
-          </section>
+            }
+            flush
+          >
+            <ColumnHeads />
+            <ul>
+              {group.items.map((match) => (
+                <MatchRow key={match.id} match={match} period={group.period} />
+              ))}
+            </ul>
+          </Panel>
         );
       })}
       {(offset > 0 || list.items.length === PAGE) && (
@@ -120,7 +137,7 @@ export default async function Matches({
             <span />
           )}
           <span className="text-[0.8125rem] text-muted-foreground">
-            {s("pageOf", { from: offset + 1, to: offset + list.items.length })}
+            {t("pageOf", { from: offset + 1, to: offset + list.items.length })}
           </span>
           {list.items.length === PAGE ? (
             <Link
@@ -139,15 +156,15 @@ export default async function Matches({
   );
 }
 
-/** The column names, above the first period on wider screens (hidden from screen readers: each
- * row names its numbers). */
+/** The column names, at the top of each period's panel on wider screens (hidden from screen
+ * readers: each row names its numbers). */
 async function ColumnHeads() {
   const t = await getTranslations("matches");
   return (
     <div
       aria-hidden="true"
       className={cn(
-        "hidden border-b border-border px-4 py-2 text-xs font-medium text-muted-foreground lg:grid",
+        "hidden border-b border-line-soft px-4 py-1.5 text-xs font-medium text-muted-foreground lg:grid",
         COLUMNS,
       )}
     >
@@ -160,7 +177,9 @@ async function ColumnHeads() {
       <span className="text-right" title={t("untraded")}>
         {t("untradedShort")}
       </span>
-      <span className="text-right">{t("urating")}</span>
+      <span className="text-right" title={t("urating")}>
+        {t("uratingShort")}
+      </span>
       <span />
     </div>
   );
@@ -170,7 +189,6 @@ async function MatchRow({ match, period }: { match: MatchSummary; period: Period
   const t = await getTranslations("matches");
   const s = await getTranslations("sessions");
   const results = await getTranslations("result");
-  const status = await getTranslations("status");
   const locale = (await getLocale()) as Locale;
   const timeZone = await getTimeZone();
   const at = match.played_at;
@@ -191,7 +209,7 @@ async function MatchRow({ match, period }: { match: MatchSummary; period: Period
       <Link
         href={`/matches/${match.id}`}
         className={cn(
-          "grid grid-cols-[minmax(0,1fr)_auto_1rem] gap-x-3 gap-y-1 px-3.5 py-2.5 hover:bg-muted lg:px-4",
+          "grid grid-cols-[minmax(0,1fr)_auto_1rem] gap-x-3 gap-y-1 px-3.5 py-2.5 hover:bg-muted lg:px-4 lg:py-2",
           COLUMNS,
         )}
       >
@@ -219,10 +237,7 @@ async function MatchRow({ match, period }: { match: MatchSummary; period: Period
             {mine} – {theirs}
           </span>
         ) : (
-          <span className="col-start-2 row-start-1 text-right text-[0.8125rem] text-muted-foreground lg:col-span-6 lg:col-start-3 lg:text-left">
-            <span className="lg:hidden">{status(match.status)}</span>
-            <span className="hidden lg:inline">{t(`waiting.${match.status}`)}</span>
-          </span>
+          <Waiting status={match.status} />
         )}
         {line && (
           <>
@@ -261,5 +276,25 @@ async function MatchRow({ match, period }: { match: MatchSummary; period: Period
         />
       </Link>
     </li>
+  );
+}
+
+/** Where a match not analysed says so: the state in a word on phones, in a sentence on wide
+ * screens (in place of the numbers), with its icon. A failure reads in the text colour. */
+async function Waiting({ status }: { status: MatchStatus }) {
+  const t = await getTranslations("matches");
+  const word = await getTranslations("status");
+  const Icon = status === "ready" ? null : WAITING[status];
+  return (
+    <span
+      className={cn(
+        "col-start-2 row-start-1 flex items-center justify-end gap-1.5 text-[0.8125rem] lg:col-span-6 lg:col-start-3 lg:justify-start",
+        status === "failed" ? "text-foreground" : "text-muted-foreground",
+      )}
+    >
+      {Icon && <Icon aria-hidden="true" className="size-3.5 shrink-0" />}
+      <span className="lg:hidden">{word(status)}</span>
+      <span className="hidden lg:inline">{t(`waiting.${status}`)}</span>
+    </span>
   );
 }

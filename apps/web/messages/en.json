@@ -135,6 +135,7 @@
     "title": "Progress",
     "lead": "Your key figures session after session, against your reference, and what becomes of your priorities.",
     "period": "Period",
+    "context": "Period and legend",
     "periods": {
       "last10": "10 sessions",
       "days30": "30 days",
@@ -145,8 +146,8 @@
     "date": "Session",
     "you": "you",
     "reference": "your reference",
-    "betterBy": "better by {gap} over the period",
-    "worseBy": "worse by {gap} over the period",
+    "betterBy": "better: {gap} over the period",
+    "worseBy": "worse: {gap} over the period",
     "stable": "stable over the period",
     "latest": "last session",
     "ref": "ref. {value}",
@@ -487,6 +488,7 @@
     "status": "Status",
     "older": "Older matches",
     "newer": "Newer matches",
+    "pageOf": "Matches {from} to {to}",
     "urating": "Untraded Rating",
     "uratingShort": "UR",
     "beta": "beta"

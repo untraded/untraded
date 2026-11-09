@@ -6,12 +6,15 @@ import { redirect } from "next/navigation";
 import { getLocale, getTimeZone, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { FollowUpList, FollowUpSkeleton } from "@/components/follow-up";
+import { Legend } from "@/components/progress/legend";
 import { type ChartPoint, ProgressChart } from "@/components/progress/progress-chart";
 import { Loading } from "@/components/skeleton";
+import { ContextBar } from "@/components/ui/context-bar";
+import { Panel } from "@/components/ui/panel";
 import type { Locale } from "@/i18n/locale";
 import { findSession, sessionsBack } from "@/lib/api";
 import { cn } from "@/lib/cn";
-import { gapTrend, metric, percent, shortDay, trendClass } from "@/lib/format";
+import { gapPercent, gapTrend, metric, shortDay, trendClass } from "@/lib/format";
 import {
   change,
   geometry,
@@ -42,6 +45,8 @@ const ARROW = { better: "▲", worse: "▼", same: "=" } as const;
 /**
  * The player's key figures session after session against their reference, over a period (the
  * last 10 sessions, 30 days, 3 months or all), then the previous priorities and their indicator.
+ * The period is the page's context: it sits in the context bar, with the sessions it holds and
+ * the legend, since it governs all four panels at once (and stays in view on wide screens).
  */
 export default async function Progress({
   searchParams,
@@ -66,16 +71,11 @@ export default async function Progress({
   const last = sessions.at(-1);
 
   return (
-    <section className="flex flex-col gap-5">
-      <header className="flex flex-col gap-1.5">
-        <h1 className="text-2xl font-semibold md:text-[1.75rem]">{t("title")}</h1>
-        <p className="max-w-prose text-sm text-muted-foreground">{t("lead")}</p>
-      </header>
-
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+    <>
+      <ContextBar label={t("context")}>
         <nav
           aria-label={t("period")}
-          className="inline-flex overflow-hidden rounded-md border border-border"
+          className="inline-flex shrink-0 overflow-hidden rounded-sm border border-border"
         >
           {PERIODS.map((p) => (
             <Link
@@ -83,7 +83,7 @@ export default async function Progress({
               href={p === "days30" ? "/progress" : `/progress?period=${p}`}
               aria-current={p === period ? "page" : undefined}
               className={cn(
-                "flex h-8 items-center border-l border-border bg-card px-3 text-[0.8125rem] first:border-l-0 hover:bg-muted",
+                "flex h-8 items-center border-l border-border px-3 text-[0.8125rem] first:border-l-0 hover:bg-muted xl:h-7 xl:px-2.5 xl:text-xs",
                 p === period && "bg-highlight-soft font-semibold hover:bg-highlight-soft",
               )}
             >
@@ -92,7 +92,7 @@ export default async function Progress({
           ))}
         </nav>
         {first && last && (
-          <span className="text-[0.8125rem] text-muted-foreground">
+          <span className="text-[0.8125rem] text-muted-foreground tabular-nums xl:min-w-0 xl:truncate">
             {t("range", {
               count: sessions.length,
               from: shortDay(first.started_at, locale, timeZone),
@@ -100,46 +100,38 @@ export default async function Progress({
             })}
           </span>
         )}
-        <span aria-hidden="true" className="flex gap-3.5 text-xs text-muted-foreground sm:ml-auto">
-          <span className="inline-flex items-center gap-1.5">
-            <span className="w-4 border-t-2 border-foreground" />
-            {t("you")}
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="w-4 border-t-2 border-dashed border-muted-foreground" />
-            {t("reference")}
-          </span>
-        </span>
-      </div>
+        <Legend you={t("you")} reference={t("reference")} />
+      </ContextBar>
+      <section className="flex flex-col gap-4">
+        <header className="flex flex-col gap-1.5">
+          <h1 className="text-2xl font-semibold md:text-[1.75rem]">{t("title")}</h1>
+          <p className="max-w-prose text-sm text-muted-foreground">{t("lead")}</p>
+        </header>
 
-      {sessions.length === 0 ? (
-        <p className="rounded-lg border border-border bg-card p-4 text-muted-foreground">
-          {all.length === 0 ? t("noSession") : t("noSessionInPeriod")}
-        </p>
-      ) : (
-        <div className="grid gap-3.5 md:grid-cols-2">
-          {KEY_FIGURES.map((id) => {
-            const line = series(sessions, id);
-            return line ? (
-              <FigureCard
-                key={id}
-                line={line}
-                name={m(NAMES[id])}
-                perRound={line.basis === "per_round" ? s("perRound") : null}
-                locale={locale}
-                timeZone={timeZone}
-              />
-            ) : null;
-          })}
-        </div>
-      )}
+        {sessions.length === 0 ? (
+          <p className="rounded-lg border border-border bg-card px-3.5 py-3 text-muted-foreground">
+            {all.length === 0 ? t("noSession") : t("noSessionInPeriod")}
+          </p>
+        ) : (
+          <div className="grid gap-3.5 md:grid-cols-2">
+            {KEY_FIGURES.map((id) => {
+              const line = series(sessions, id);
+              return line ? (
+                <FigureCard
+                  key={id}
+                  line={line}
+                  name={m(NAMES[id])}
+                  perRound={line.basis === "per_round" ? s("perRound") : null}
+                  locale={locale}
+                  timeZone={timeZone}
+                />
+              ) : null;
+            })}
+          </div>
+        )}
 
-      <section aria-labelledby="progress-priorities" className="flex flex-col gap-2">
-        <h2 id="progress-priorities" className="text-sm font-semibold text-muted-foreground">
-          {t("priorities")}
-        </h2>
-        <div className="rounded-lg border border-border bg-card p-4">
-          {/* One priority's size: the usual case, and the box ends the page, so a report with
+        <Panel title={t("priorities")}>
+          {/* One priority's size: the usual case, and the panel ends the page, so a report with
               none (one line) or more only moves what is below it, which is nothing. */}
           <Suspense
             fallback={
@@ -150,9 +142,9 @@ export default async function Progress({
           >
             <PreviousPriorities session={all[0]?.id ?? null} locale={locale} />
           </Suspense>
-        </div>
+        </Panel>
       </section>
-    </section>
+    </>
   );
 }
 
@@ -211,25 +203,32 @@ async function FigureCard({
     to: points.at(-1)?.value ?? "",
   });
   return (
-    <article className="@container rounded-lg border border-border bg-card px-4 pt-3.5 pb-2.5">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
-        <h2 className="font-semibold">
+    <Panel
+      className="@container"
+      bodyClassName="px-3.5 pt-2.5 pb-2"
+      title={
+        <>
           {name}
           {perRound && (
             <span className="ml-1.5 text-xs font-normal text-muted-foreground">{perRound}</span>
           )}
-        </h2>
-        {moved !== null && (
-          <span className={cn("text-[0.8125rem] whitespace-nowrap", trendClass(trend))}>
+        </>
+      }
+      aside={
+        moved !== null && (
+          // The change over the period, oriented as in the report (a + is always better), with
+          // its arrow and its word: never the colour alone.
+          <span className={cn("whitespace-nowrap tabular-nums", trendClass(trend))}>
             <span aria-hidden="true">{ARROW[trend]}</span>{" "}
             {trend === "same"
               ? t("stable")
               : t(trend === "better" ? "betterBy" : "worseBy", {
-                  gap: percent(Math.abs(moved), locale),
+                  gap: gapPercent(moved, locale),
                 })}
           </span>
-        )}
-      </div>
+        )
+      }
+    >
       <div className="flex flex-wrap items-baseline justify-between gap-x-3">
         <span className="text-2xl font-semibold tabular-nums">{format(newest?.value ?? null)}</span>
         <span className="text-[0.8125rem] text-muted-foreground tabular-nums">
@@ -279,6 +278,6 @@ async function FigureCard({
       ) : (
         <p className="py-6 text-[0.8125rem] text-muted-foreground">{t("tooFew")}</p>
       )}
-    </article>
+    </Panel>
   );
 }
