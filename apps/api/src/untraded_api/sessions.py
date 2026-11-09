@@ -50,6 +50,13 @@ class Comparison(BaseModel):
     session: float | None
     reference: float | None
     """Null when the reference is not shown (too little history)."""
+    reference_p10: float | None
+    reference_p90: float | None
+    """The 10th and 90th percentiles of the reference's per-match values (linear interpolation),
+    in the same unit and basis as `reference`: the range of an ordinary match. Null when
+    `reference` is null, or when the reference rests on too few matches (fewer than
+    `reference.min_spread_matches`). A session is about two matches, so it is less dispersed
+    than one match: read its place in the band with care."""
     delta: float | None
     cases: int | None
     """What a rate or an average stands on in this session: the rounds played, or its cases
@@ -217,7 +224,7 @@ SESSION_MATCHES = (
 
 COMPARISONS = """
 SELECT m.session_id, m.metric_id, m.version, d.name, d.unit, d.better, m.basis, m.session,
-       m.reference, m.delta, d.signed, d.cases, s.rounds
+       m.reference, m.delta, d.signed, d.cases, s.rounds, m.reference_p10, m.reference_p90
 FROM play_session_metric m
 JOIN metric_definition d USING (metric_id, version)
 JOIN play_session s ON s.id = m.session_id
@@ -235,6 +242,9 @@ def _comparison(row: tuple[Any, ...], cases: int | None) -> Comparison:
         basis=row[6],
         session=row[7],
         reference=row[8],
+        # Never a band around a reference that is not shown.
+        reference_p10=row[13] if row[8] is not None else None,
+        reference_p90=row[14] if row[8] is not None else None,
         delta=row[9],
         cases=cases,
         signed=row[10],

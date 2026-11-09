@@ -123,5 +123,60 @@ def test_level_references_are_computed_from_the_database(conn: psycopg.Connectio
     ref = levels.level_reference(conn, 19_000)
     assert ref.row(0, named=True)["value"] == pytest.approx(1.0)  # the opted-out 40s are left out
     assert ref.row(0, named=True)["player_matches"] == 16 * 20
+    # 320 values from 20 players, 20 kills in 20 rounds: the spread is published, and the
+    # opted-out player's 2 kills a round and the sent demo's 200 are not in it.
+    assert (ref.row(0, named=True)["p10"], ref.row(0, named=True)["p90"]) == (
+        pytest.approx(1.0),
+        pytest.approx(1.0),
+    )
     assert levels.level_reference(conn, 3_000).is_empty()
     assert levels.level_reference(conn, None).is_empty()
+
+
+def test_the_spread_is_the_percentiles_of_the_per_match_values() -> None:
+    found = levels.levels(rows(25, 15, 18_000, kills=20, kast=70))  # kast 70..94, 15 times each
+    band = found.filter(pl.col("band_low") == 17_500)
+    spread = {m: (p10, p90) for m, p10, p90 in band.select("metric_id", "p10", "p90").iter_rows()}
+    # 375 values: the 10th percentile is at index 37.4 (value 72), the 90th at 336.6 (value 92).
+    assert spread[KAST] == (pytest.approx(72.0), pytest.approx(92.0))
+    # A total is spread per round (20 kills in 20 rounds, everywhere).
+    assert spread[KILLS] == (pytest.approx(1.0), pytest.approx(1.0))
+
+
+def test_a_total_is_spread_per_round_whatever_the_match_length() -> None:
+    long = pl.col("match_id").hash() % 2 == 0
+    data = rows(25, 15, 18_000, kills=20).with_columns(
+        pl.when(long).then(pl.col("rounds") * 2).otherwise(pl.col("rounds")).alias("rounds"),
+        pl.when(long & (pl.col("metric_id") == KILLS))
+        .then(pl.col("value") * 2)
+        .otherwise(pl.col("value"))
+        .alias("value"),
+    )
+    # Half the matches run twice the rounds with twice the kills: still one kill a round.
+    found = levels.levels(data).filter(pl.col("metric_id") == KILLS).row(0, named=True)
+    assert found["p10"] == pytest.approx(1.0)
+    assert found["p90"] == pytest.approx(1.0)
+
+
+def test_a_metric_known_for_few_players_has_a_value_but_no_spread() -> None:
+    data = rows(25, 15, 18_000)
+    # KAST is known for 5 players only (75 values): under both minimums.
+    data = data.with_columns(
+        pl.when((pl.col("metric_id") == KAST) & (pl.col("steam_id") >= 18_000_000 + 5))
+        .then(None)
+        .otherwise(pl.col("value"))
+        .alias("value")
+    )
+    band = levels.levels(data).filter(pl.col("band_low") == 17_500)
+    kast = band.filter(pl.col("metric_id") == KAST).row(0, named=True)
+    assert kast["value"] is not None
+    assert kast["p10"] is None
+    assert kast["p90"] is None
+    kills = band.filter(pl.col("metric_id") == KILLS).row(0, named=True)
+    assert kills["p10"] is not None  # the others are published as before
+
+
+def test_a_spread_needs_enough_players_as_well_as_enough_values() -> None:
+    # 19 players x 30 matches = 570 values, but fewer players than the minimum.
+    assert levels.aggregate(rows(19, 30, 18_000))["p10"].null_count() == 2
+    assert levels.aggregate(rows(20, 15, 18_000))["p10"].null_count() == 0

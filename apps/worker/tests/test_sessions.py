@@ -12,9 +12,10 @@ import polars as pl
 import psycopg
 import pytest
 
+from untraded import reference
 from untraded.advice import Finding
 from untraded.metrics import REGISTRY
-from untraded_worker import advice, queue
+from untraded_worker import advice, queue, spread
 from untraded_worker.analysis import Analysis
 from untraded_worker.load import load_match
 from untraded_worker.sessions import (
@@ -350,6 +351,135 @@ def test_without_history_the_level_reference_steps_in(
     assert delta == pytest.approx(session - 0.5)
     assert metrics["base.kast"][2] == 60.0
     assert metrics["base.adr"][2] is None  # no level value for it: no reference
+
+
+def level_references(db: psycopg.Connection[Any], *, spread_of_kills: bool) -> None:
+    """A level reference for the band of 18,200, with a spread for the kills only (or none)."""
+    kills, kast = REGISTRY["base.kills"], REGISTRY["base.kast"]
+    db.execute(
+        """
+        INSERT INTO level_reference (mode, band_low, band_high, used_low, used_high, metric_id,
+            version, basis, value, p10, p90, player_matches, players, rounds)
+        VALUES ('premier', 17500, 20000, 15000, 22500, %s, %s, 'per_round', 0.5, %s, %s, 812, 140,
+                17000),
+               ('premier', 17500, 20000, 15000, 22500, %s, %s, 'value', 60.0, NULL, NULL, 812,
+                140, 17000)
+        """,
+        (
+            kills.id,
+            kills.version,
+            0.2 if spread_of_kills else None,
+            0.9 if spread_of_kills else None,
+            kast.id,
+            kast.version,
+        ),
+    )
+
+
+def spreads(db: psycopg.Connection[Any]) -> dict[str, tuple[Any, ...]]:
+    return {
+        r[0]: r[1:]
+        for r in db.execute(
+            "SELECT metric_id, reference, reference_p10, reference_p90 FROM play_session_metric"
+        ).fetchall()
+    }
+
+
+@pytest.mark.db
+def test_the_level_spread_is_stored_with_the_reference(
+    db: psycopg.Connection[Any], tmp_path: Path, analysis: Analysis
+) -> None:
+    store = LocalStore(tmp_path)
+    match_id = add_match(db, store, analysis, at(20))
+    db.execute("UPDATE match_player SET rank = 18200 WHERE steam_id = %s", (ME,))
+    level_references(db, spread_of_kills=True)
+    run(SessionJob(store), db, match_id)
+    found = spreads(db)
+    assert found["base.kills"] == (0.5, 0.2, 0.9)
+    assert found["base.kast"] == (60.0, None, None)  # a reference without a spread
+    assert found["base.adr"] == (None, None, None)  # no reference: no band
+
+
+@pytest.mark.db
+def test_the_spread_of_the_days_before_is_stored(
+    db: psycopg.Connection[Any],
+    tmp_path: Path,
+    analysis: Analysis,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(reference, "MIN_SPREAD_ROUNDS", 5)  # the fixture plays 5 rounds
+    store = LocalStore(tmp_path)
+    for days in (-5, -4, -3):
+        add_match(db, store, analysis, at(20, days=days))
+    match_id = add_match(db, store, analysis, at(20))
+    # Three matches are not enough for the default minimum (10): the reference, but no band.
+    run(SessionJob(store, min_matches=2, min_rounds=5), db, match_id)
+    found = spreads(db)["base.kills"]
+    assert found[0] is not None
+    assert found[1:] == (None, None)
+    # With a minimum of 3, the band is there; identical matches: it is the value itself.
+    run(SessionJob(store, min_matches=2, min_rounds=5, min_spread_matches=3), db, match_id)
+    reference_value, p10, p90 = spreads(db)["base.kills"]
+    assert p10 == pytest.approx(reference_value)
+    assert p90 == pytest.approx(reference_value)
+
+
+@pytest.mark.db
+def test_backfill_fills_the_spread_of_old_sessions_without_recomputing_them(
+    db: psycopg.Connection[Any],
+    tmp_path: Path,
+    analysis: Analysis,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(reference, "MIN_SPREAD_ROUNDS", 5)
+    store = LocalStore(tmp_path)
+    for days in (-5, -4, -3):
+        add_match(db, store, analysis, at(20, days=days))
+    match_id = add_match(db, store, analysis, at(20))
+    run(SessionJob(store, min_matches=2, min_rounds=5), db, match_id)  # a session without a band
+    before = db.execute(
+        "SELECT s.id, s.computed_at, m.metric_id, m.session, m.reference, m.delta "
+        "FROM play_session s JOIN play_session_metric m ON m.session_id = s.id "
+        "ORDER BY m.metric_id"
+    ).fetchall()
+    assert spreads(db)["base.kills"][1:] == (None, None)
+
+    # Too few matches for the default minimum: nothing to fill, nothing touched.
+    assert spread.backfill(db, store, refresh_levels=False) == 0
+    assert spreads(db)["base.kills"][1:] == (None, None)
+
+    assert spread.backfill(db, store, min_spread_matches=3, refresh_levels=False) == 1
+    value, p10, p90 = spreads(db)["base.kills"]
+    assert p10 == pytest.approx(value)
+    assert p90 == pytest.approx(value)
+    # Only the two columns changed: same session, same computation, same numbers.
+    after = db.execute(
+        "SELECT s.id, s.computed_at, m.metric_id, m.session, m.reference, m.delta "
+        "FROM play_session s JOIN play_session_metric m ON m.session_id = s.id "
+        "ORDER BY m.metric_id"
+    ).fetchall()
+    assert after == before
+    # Run again: nothing left to fill, and nothing overwritten.
+    db.execute("UPDATE play_session_metric SET reference_p10 = -1 WHERE metric_id = 'base.kills'")
+    assert spread.backfill(db, store, min_spread_matches=3, refresh_levels=False) == 0
+    assert spreads(db)["base.kills"][1] == -1
+
+
+@pytest.mark.db
+def test_backfill_fills_a_session_against_a_level_from_its_band(
+    db: psycopg.Connection[Any], tmp_path: Path, analysis: Analysis
+) -> None:
+    store = LocalStore(tmp_path)
+    match_id = add_match(db, store, analysis, at(20))
+    db.execute("UPDATE match_player SET rank = 18200 WHERE steam_id = %s", (ME,))
+    level_references(db, spread_of_kills=False)  # the session as written before the migration
+    run(SessionJob(store), db, match_id)
+    assert spreads(db)["base.kills"] == (0.5, None, None)
+    db.execute("UPDATE level_reference SET p10 = 0.2, p90 = 0.9 WHERE basis = 'per_round'")
+    assert spread.backfill(db, store, refresh_levels=False) == 1
+    assert spreads(db)["base.kills"] == (0.5, 0.2, 0.9)
+    assert spreads(db)["base.kast"] == (60.0, None, None)
+    assert spread.backfill(db, store, refresh_levels=False) == 0
 
 
 @pytest.mark.db

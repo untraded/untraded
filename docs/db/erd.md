@@ -1,6 +1,6 @@
 # Phase 2 database: entity-relationship diagram
 
-The decisions behind the schema are in [ADR 0011](../adr/0011-phase-2-database-schema.md). The migrations in [`db/`](../../db/src/untraded_db/migrations/versions/) are the source of truth (ADR 0006); this page shows the schema **after the last one, 0014**. [schema.sql](schema.sql) is the reference schema of ADR 0011, kept identical to migration 0001, which a test checks (`db/tests/test_migrations.py`): it does not hold the later migrations.
+The decisions behind the schema are in [ADR 0011](../adr/0011-phase-2-database-schema.md). The migrations in [`db/`](../../db/src/untraded_db/migrations/versions/) are the source of truth (ADR 0006); this page shows the schema **after the last one, 0015**. [schema.sql](schema.sql) is the reference schema of ADR 0011, kept identical to migration 0001, which a test checks (`db/tests/test_migrations.py`): it does not hold the later migrations.
 
 Every table and column is shown. Solid lines are foreign keys; dotted lines are links by Steam id that have no foreign key constraint (event and metric rows keep the Steam ids of every player of a match). Types: `char1` is `char(1)`, `char64` is `char(64)`, `text_array` is `text[]`, `double` is `double precision`.
 
@@ -20,6 +20,7 @@ Every table and column is shown. Solid lines are foreign keys; dotted lines are 
 | 0012 Untraded Rating | `metric_wide_current.untraded` |
 | 0013 blinded bots | `blind.victim` nullable |
 | 0014 other findings | `advice.priority` from 1, no upper bound |
+| 0015 reference spread | `play_session_metric.reference_p10`, `reference_p90`; `level_reference.p10`, `p90` |
 
 ## Tenancy and players
 
@@ -427,6 +428,8 @@ erDiagram
         text version PK, FK
         text basis "value | per_round"
         double value
+        double p10 "10th percentile of per-match values"
+        double p90
         integer player_matches
         integer players
         integer rounds
@@ -462,6 +465,8 @@ erDiagram
         double session
         double reference "null when not enough"
         double delta
+        double reference_p10 "10th percentile of per-match values"
+        double reference_p90
     }
     advice {
         uuid id PK

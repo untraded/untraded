@@ -13,7 +13,11 @@ For each Premier rating band of `BAND` points, the (player, match) rows of that 
 widening the band one step on each side until there are `MIN_PLAYER_MATCHES` rows and
 `MIN_PLAYERS` players. Then, per metric:
 - totals (kills, damage...) are compared per round: sum of the totals ÷ sum of the rounds;
-- the others (rates, ratios, medians) take the median of the per-match values.
+- the others (rates, ratios, medians) take the median of the per-match values;
+- the spread (`p10`, `p90`) is the 10th and 90th percentile of the per-match values (totals per
+  round), linear interpolation (numpy's default). It is published only for a metric with at
+  least `MIN_PLAYER_MATCHES` values from at least `MIN_PLAYERS` players: no more precise than the
+  rest of the band. A (player, match) row weighs as one, as for the median.
 
 Rows of matches the player played for fewer than `MIN_ROUNDS` rounds (a quick abandon) are left
 out. The worker recomputes everything when idle, every `EVERY`.
@@ -28,7 +32,7 @@ from typing import Any
 import polars as pl
 import psycopg
 
-from untraded.reference import is_total
+from untraded.reference import SPREAD_HIGH, SPREAD_LOW, is_total
 
 BAND = 2500
 MIN_PLAYER_MATCHES = 300
@@ -60,16 +64,34 @@ def band_of(rank: int) -> int:
 
 def aggregate(rows: pl.DataFrame) -> pl.DataFrame:
     """One reference value per metric over `rows` (`steam_id`, `match_id`, `rounds`, `metric_id`,
-    `version`, `value`)."""
+    `version`, `value`), and its spread (`p10`, `p90`)."""
     totals = {m: is_total(m) for m in rows["metric_id"].unique().to_list()}
+    rows = rows.with_columns(
+        pl.col("metric_id").replace_strict(totals).alias("total")
+    ).with_columns(
+        pl.when(pl.col("total"))
+        .then(pl.col("value") / pl.col("rounds"))
+        .otherwise(pl.col("value"))
+        .fill_nan(None)
+        .alias("per_match")
+    )
+    known = pl.col("steam_id").filter(pl.col("per_match").is_not_null())
+    publishable = (pl.col("per_match").count() >= MIN_PLAYER_MATCHES) & (
+        known.n_unique() >= MIN_PLAYERS
+    )
     return (
-        rows.group_by("metric_id", "version")
+        rows.group_by("metric_id", "version", "total")
         .agg(
             pl.col("value").sum().alias("sum"),
             pl.col("rounds").sum().alias("rounds"),
             pl.col("value").drop_nulls().median().alias("median"),
+            pl.when(publishable)
+            .then(pl.col("per_match").quantile(SPREAD_LOW, "linear"))
+            .alias("p10"),
+            pl.when(publishable)
+            .then(pl.col("per_match").quantile(SPREAD_HIGH, "linear"))
+            .alias("p90"),
         )
-        .with_columns(pl.col("metric_id").replace_strict(totals).alias("total"))
         .select(
             "metric_id",
             "version",
@@ -81,6 +103,8 @@ def aggregate(rows: pl.DataFrame) -> pl.DataFrame:
             .then(pl.col("sum") / pl.col("rounds"))
             .otherwise(pl.col("median"))
             .alias("value"),
+            "p10",
+            "p90",
         )
     )
 
@@ -130,7 +154,7 @@ def compute_levels(conn: psycopg.Connection[Any], mode: str = "premier") -> int:
         if not found.is_empty():
             columns = [
                 "band_low", "band_high", "used_low", "used_high", "metric_id", "version",
-                "basis", "value", "player_matches", "players", "rounds",
+                "basis", "value", "p10", "p90", "player_matches", "players", "rounds",
             ]  # fmt: skip
             with conn.cursor().copy(
                 "COPY level_reference (mode, " + ", ".join(columns) + ") FROM STDIN"
@@ -146,7 +170,10 @@ def level_reference(
     conn: psycopg.Connection[Any], rank: int | None, mode: str = "premier"
 ) -> pl.DataFrame:
     """The reference of the band of `rank` (empty when none is published)."""
-    columns = ["metric_id", "basis", "value", "used_low", "used_high", "player_matches", "rounds"]
+    columns = [
+        "metric_id", "basis", "value", "p10", "p90", "used_low", "used_high", "player_matches",
+        "rounds",
+    ]  # fmt: skip
     if rank is None or rank <= 0:
         return pl.DataFrame(schema=columns)
     rows = conn.execute(

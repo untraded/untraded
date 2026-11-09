@@ -81,7 +81,8 @@ def session_id() -> uuid.UUID:
                 basis = "per_round" if metric in TOTALS else "value"
                 conn.execute(
                     "INSERT INTO play_session_metric (session_id, metric_id, version, basis, "
-                    "session, reference, delta) VALUES (%s, %s, %s, %s, 1.5, 1.0, 0.5)",
+                    "session, reference, delta, reference_p10, reference_p90) "
+                    "VALUES (%s, %s, %s, %s, 1.5, 1.0, 0.5, 0.25, 1.75)",
                     (session[0], metric, REGISTRY[metric].version, basis),
                 )
             found[steam_id] = session[0]
@@ -338,3 +339,52 @@ def test_the_previous_priorities_are_followed(client: TestClient, session_id: uu
     assert (follow["then"], follow["now"], follow["reference"]) == (2.0, 1.5, 1.0)
     assert [p["value"] for p in follow["history"]] == [2.0, 1.5]  # oldest first
     assert follow["history"][-1]["session_id"] == str(session_id)
+
+
+def test_the_report_gives_the_spread_of_the_reference(
+    client: TestClient, session_id: uuid.UUID
+) -> None:
+    report = as_player(client, ME).get(f"/sessions/{session_id}").json()
+    for metric in report["metrics"]:
+        assert (metric["reference_p10"], metric["reference_p90"]) == (0.25, 1.75)
+    # The list of sessions shows it on its headlines too.
+    [session] = as_player(client, ME).get("/sessions").json()["items"][:1]
+    assert [(h["reference_p10"], h["reference_p90"]) for h in session["headlines"]] == [
+        (0.25, 1.75)
+    ] * len(HEADLINES)
+
+
+def test_no_spread_without_a_reference_or_a_stored_spread(
+    client: TestClient, session_id: uuid.UUID
+) -> None:
+    with psycopg.connect(URL, autocommit=True) as conn:
+        conn.execute(
+            "UPDATE play_session_metric SET reference = NULL, delta = NULL "
+            "WHERE session_id = %s AND metric_id = 'base.adr'",
+            (session_id,),
+        )
+        conn.execute(
+            "UPDATE play_session_metric SET reference_p10 = NULL, reference_p90 = NULL "
+            "WHERE session_id = %s AND metric_id = 'base.kast'",
+            (session_id,),
+        )
+        try:
+            metrics = {
+                m["metric_id"]: m
+                for m in as_player(client, ME).get(f"/sessions/{session_id}").json()["metrics"]
+            }
+        finally:
+            conn.execute(
+                "UPDATE play_session_metric SET reference = 1.0, delta = 0.5, "
+                "reference_p10 = 0.25, reference_p90 = 1.75 WHERE session_id = %s "
+                "AND metric_id IN ('base.adr', 'base.kast')",
+                (session_id,),
+            )
+    # A band is never shown around a reference that is not shown, nor when it was not stored.
+    assert (metrics["base.adr"]["reference"], metrics["base.adr"]["reference_p10"]) == (None, None)
+    assert metrics["base.adr"]["reference_p90"] is None
+    assert metrics["base.kast"]["reference"] == 1.0
+    assert (metrics["base.kast"]["reference_p10"], metrics["base.kast"]["reference_p90"]) == (
+        None,
+        None,
+    )

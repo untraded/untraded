@@ -5,6 +5,8 @@ UNTRADED_UPLOADS_DIR, UNTRADED_UPLOAD_MAX_DEMO_GB, UNTRADED_DEMO_RETENTION_DAYS)
 `untraded-worker replays`: write the 2D viewer's round replays of the matches parsed before.
 `untraded-worker swings`: write the `swing` table of the matches parsed before.
 `untraded-worker reanalyze`: analyse the matches parsed before again (new metrics or versions).
+`untraded-worker backfill-spread`: fill the spread of the references of the sessions written
+before it existed, without recomputing any session (none changes its id).
 `untraded-worker retry-failed`: put the failed matches back in the queue, after a fix.
 `untraded-worker import-demo <dir>`: load the demo account (`untraded demo build`)."""
 
@@ -28,6 +30,7 @@ from untraded_worker import (
     replays,
     retention,
     retry,
+    spread,
     store_dir,
     swings,
     uploads_dir,
@@ -56,6 +59,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     swing.add_argument("--force", action="store_true", help="rewrite existing swing tables too")
     again_all = actions.add_parser("reanalyze", help="analyse the matches parsed before again")
     again_all.add_argument("--force", action="store_true", help="every match, not only stale ones")
+    actions.add_parser(
+        "backfill-spread",
+        help="fill reference_p10 and reference_p90 of existing sessions (nothing else changes)",
+    )
     actions.add_parser("retry-failed", help="put the failed matches back in the queue")
     demo_parser = actions.add_parser("import-demo", help="load the demo account's matches")
     demo_parser.add_argument("directory", type=Path, help="written by `untraded demo build`")
@@ -74,6 +81,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         with psycopg.connect(conninfo(), autocommit=True) as conn:
             done = reanalyze.backfill(conn, store, force=args.force)
         logging.info("%s match(es) analysed again", done)
+        return 0
+    if args.action == "backfill-spread":
+        with psycopg.connect(conninfo(), autocommit=True) as conn:
+            done = spread.backfill(conn, store)
+        logging.info("spread filled for %s session(s)", done)
         return 0
     if args.action == "retry-failed":
         with psycopg.connect(conninfo(), autocommit=True) as conn:

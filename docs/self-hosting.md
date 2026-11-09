@@ -249,6 +249,7 @@ counts for the player, loses its votes.
 ```bash
 docker compose exec worker untraded-worker reanalyze         # new metrics or versions (the Untraded Rating)
 docker compose exec worker untraded-worker reanalyze --force # every match; once when updating past the rule on whom a sent demo counts for
+docker compose exec worker untraded-worker backfill-spread   # once after migration 0015: the spread of older sessions' references (no session is recomputed)
 docker compose exec worker untraded-worker swings --force    # a new win-probability model
 docker compose exec worker untraded-worker replays --force   # a new round replay format (2D viewer)
 ```

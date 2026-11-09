@@ -5,12 +5,13 @@
 from __future__ import annotations
 
 import datetime as dt
+from collections.abc import Sequence
 from pathlib import Path
 
 import polars as pl
 import pytest
 
-from untraded import fixtures
+from untraded import fixtures, reference
 from untraded.derive import derive
 from untraded.metrics import REGISTRY, Dataset, compute
 from untraded.metrics.dataset import MatchTables
@@ -115,3 +116,112 @@ def test_totals_are_exactly_the_metrics_that_add_up_over_matches() -> None:
         same = bool(((rows["value_twice"] - rows["value"]).abs() < 1e-6).all())
         assert doubled != same, metric
         assert is_total(metric) == doubled, f"{metric}: total={is_total(metric)}"
+
+
+def per_match(values: Sequence[float | None], version: str = "1.0.0") -> list[pl.DataFrame]:
+    return [
+        pl.DataFrame(
+            {"metric": ["m"], "version": [version], "value": [v]},
+            schema_overrides={"value": pl.Float64},
+        )
+        for v in values
+    ]
+
+
+def spread_of(values: Sequence[float | None]) -> pl.DataFrame:
+    return reference.spread(per_match(values), min_matches=10)
+
+
+def test_the_spread_is_the_linear_interpolation_of_the_per_match_values() -> None:
+    # 11 values: the 10th percentile sits at index 1, the 90th at index 9 (numpy's default).
+    found = spread_of([float(v) for v in range(11)][::-1])
+    assert found.row(0, named=True) == {
+        "metric": "m",
+        "version": "1.0.0",
+        "reference_p10": 1.0,
+        "reference_p90": 9.0,
+    }
+    # 12 values 0..11: positions 1.1 and 9.9 are between two order statistics.
+    found = spread_of([float(v) for v in range(12)])
+    assert found["reference_p10"][0] == pytest.approx(1.1)
+    assert found["reference_p90"][0] == pytest.approx(9.9)
+
+
+def test_the_spread_needs_enough_matches_with_a_value() -> None:
+    assert reference.spread(per_match([1.0] * 9), min_matches=10).is_empty()
+    assert reference.spread([], min_matches=10).is_empty()
+    # 12 matches but only 9 with a value (missing and NaN are left out): no spread for it.
+    values: list[float | None] = [None, float("nan"), None, *[float(v) for v in range(9)]]
+    found = spread_of(values)
+    assert found["reference_p10"].null_count() == 1
+    assert found["reference_p90"].null_count() == 1
+    # And 10 values with a NaN among them: the NaN is not a value.
+    found = spread_of([float("nan"), *[float(v) for v in range(10)]])
+    assert found["reference_p10"][0] == pytest.approx(0.9)
+
+
+def test_the_spread_keeps_a_metric_version_apart() -> None:
+    old = per_match([1.0] * 10, "1.0.0")
+    new = per_match([5.0] * 10, "2.0.0")
+    found = reference.spread([*old, *new], min_matches=10)
+    assert dict(zip(found["version"], found["reference_p10"], strict=True)) == {
+        "1.0.0": 1.0,
+        "2.0.0": 5.0,
+    }
+
+
+def test_a_match_played_for_a_few_rounds_has_no_values(monkeypatch: pytest.MonkeyPatch) -> None:
+    tables = match("a", SESSION_DAY)  # 5 rounds
+    assert reference.match_values(tables, PLAYER) is None  # under the 10 rounds minimum
+    monkeypatch.setattr(reference, "MIN_SPREAD_ROUNDS", 5)
+    values = reference.match_values(tables, PLAYER)
+    assert values is not None
+    # Totals are per round, as in the comparison.
+    kills = values.filter(pl.col("metric") == "base.kills")["value"][0]
+    pooled = compute(Dataset.from_matches([tables])).filter(
+        (pl.col("steamid") == PLAYER) & (pl.col("metric") == "base.kills")
+    )["value"][0]
+    assert kills == pytest.approx(pooled / 5)
+
+
+def test_the_comparison_carries_the_spread_of_the_reference(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(reference, "MIN_SPREAD_ROUNDS", 5)
+    matches = [match("session", SESSION_DAY), *history(list(range(1, 11)))]  # 10 reference matches
+    result = compare_to_self(matches, PLAYER, {"session"}, min_matches=1, min_rounds=1)
+    shown = result.values.filter(pl.col("reference_p10").is_not_null())
+    assert shown.height > 0
+    # The same match ten times: every percentile is the match's own value, in the reference's
+    # unit (per round for totals).
+    for row in shown.iter_rows(named=True):
+        assert row["reference_p10"] == pytest.approx(row["reference"])
+        assert row["reference_p90"] == pytest.approx(row["reference"])
+    kills = result.values.filter(pl.col("metric") == "base.kills").row(0, named=True)
+    assert kills["basis"] == "per_round"
+    assert kills["reference_p10"] == pytest.approx(kills["reference"])  # per round, not a count
+
+
+def test_the_spread_is_not_shown_below_the_minimum_of_matches(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(reference, "MIN_SPREAD_ROUNDS", 5)
+    matches = [match("session", SESSION_DAY), *history(list(range(1, 10)))]  # 9 reference matches
+    result = compare_to_self(matches, PLAYER, {"session"}, min_matches=1, min_rounds=1)
+    assert result.enough
+    assert result.values["reference"].null_count() < result.values.height
+    assert result.values["reference_p10"].null_count() == result.values.height
+    assert result.values["reference_p90"].null_count() == result.values.height
+    # The minimum is a parameter.
+    lower = compare_to_self(
+        matches, PLAYER, {"session"}, min_matches=1, min_rounds=1, min_spread_matches=9
+    )
+    assert lower.values["reference_p10"].null_count() < lower.values.height
+
+
+def test_no_spread_without_a_reference() -> None:
+    matches = [match("session", SESSION_DAY), *history([1, 2])]
+    result = compare_to_self(matches, PLAYER, {"session"})  # not enough matches
+    assert not result.enough
+    assert result.values["reference_p10"].null_count() == result.values.height
+    assert result.values["reference_p90"].null_count() == result.values.height
