@@ -33,6 +33,7 @@ The connection comes from `UNTRADED_DATABASE_URL`, for example `postgresql+psyco
 | 0012 | the Untraded Rating in the wide view of the current values (`metric_wide_current.untraded`) |
 | 0013 | a flash that blinds a bot: `blind.victim` may be null, like `kill.victim` |
 | 0014 | every finding of a session is kept: `advice.priority` goes past 3 for the other findings |
+| 0015 | the spread of a reference: `reference_p10`, `reference_p90` (`play_session_metric`), `p10`, `p90` (`level_reference`) |
 
 - **Migration 0001** is the reference schema validated in ADR 0011, frozen: `docs/db/schema.sql` must stay identical to it, which a test checks.
 - **Later changes** are new migrations, never edits of an applied one. They form one line from 0001, and each one goes down and up again (`db/tests`).

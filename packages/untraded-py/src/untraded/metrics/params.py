@@ -17,7 +17,7 @@ from typing import Literal
 from untraded.derive.buys import BuyThresholds
 from untraded.derive.players import SETUP_OFFSET_S
 from untraded.metrics.registry import ParamValue
-from untraded.reference import MIN_MATCHES, MIN_ROUNDS, WINDOW_DAYS
+from untraded.reference import MIN_MATCHES, MIN_ROUNDS, MIN_SPREAD_MATCHES, WINDOW_DAYS
 
 Stage = Literal["metric", "derive", "reference"]
 
@@ -165,6 +165,14 @@ PARAMETERS: dict[str, Parameter] = {
             MIN_ROUNDS,
             "rounds",
             "Below this many rounds played in the window, the reference is not shown.",
+            stage="reference",
+        ),
+        Parameter(
+            "reference.min_spread_matches",
+            MIN_SPREAD_MATCHES,
+            "matches",
+            "Below this many matches in the window, the spread of the reference (its 10th and "
+            "90th percentiles over per-match values) is not shown.",
             stage="reference",
         ),
     )

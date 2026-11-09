@@ -25,7 +25,10 @@ A session is compared with, in this order:
    - a band needs at least 300 (player, match) rows and **20 distinct players**, and is widened one step on each side until it has them;
    - totals are compared per round (sum ÷ rounds), the other metrics by the median of the per-match values;
    - a match the player left in fewer than 10 rounds does not count;
+   - the **spread** (`p10`, `p90`) is the 10th and 90th percentile of the per-match values (totals per round), by linear interpolation, published only for a metric with at least 300 values from at least 20 players, an effective number of players of at least 15 (20 equal contributors count 20, a few heavy ones count few) and none holding more than 10 % (so no player's own percentiles are published); infinite values are left out;
 3. else nothing: the report shows the session alone and says what is missing.
+
+Each metric of the report also carries the **spread** of its reference, `reference_p10` and `reference_p90` (same unit and basis as `reference`): the range of an ordinary match, from the per-match values of the player's own matches (at least 10), or of the level's pooled rows. It is `null` when the reference is not shown or rests on too few matches. Findings do not use it. A session is about two matches and so less dispersed than one match: read its place in the band with care.
 
 The report always names its reference ("your 14 matches from … to …", or "Premier players rated 15,000–22,500, 812 player-matches").
 

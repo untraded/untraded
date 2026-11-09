@@ -13,7 +13,13 @@ For each Premier rating band of `BAND` points, the (player, match) rows of that 
 widening the band one step on each side until there are `MIN_PLAYER_MATCHES` rows and
 `MIN_PLAYERS` players. Then, per metric:
 - totals (kills, damage...) are compared per round: sum of the totals ÷ sum of the rounds;
-- the others (rates, ratios, medians) take the median of the per-match values.
+- the others (rates, ratios, medians) take the median of the per-match values;
+- the spread (`p10`, `p90`) is the 10th and 90th percentile of the per-match values (totals per
+  round), linear interpolation (numpy's default). It is published only for a metric with at
+  least `MIN_PLAYER_MATCHES` values from at least `MIN_PLAYERS` players, an effective
+  number of players (`MIN_EFFECTIVE_PLAYERS`) and none holding more than `MAX_PLAYER_SHARE` of
+  them: no more precise than the rest of the band, and never one player's own percentiles.
+  Infinite values are left out. A (player, match) row weighs as one, as for the median.
 
 Rows of matches the player played for fewer than `MIN_ROUNDS` rounds (a quick abandon) are left
 out. The worker recomputes everything when idle, every `EVERY`.
@@ -28,13 +34,24 @@ from typing import Any
 import polars as pl
 import psycopg
 
-from untraded.reference import is_total
+from untraded.reference import SPREAD_HIGH, SPREAD_LOW, is_total
 
 BAND = 2500
 MIN_PLAYER_MATCHES = 300
 MIN_PLAYERS = 20
 MIN_ROUNDS = 10
+MAX_PLAYER_SHARE = 0.10
+"""No player holds more than this share of the values a spread rests on: one heavy contributor
+among 20 players would have their own percentiles published. It also means at least 10 players."""
+MIN_EFFECTIVE_PLAYERS = 15
+"""The effective number of players behind a spread, (sum of the values)² ÷ (sum of each player's
+values squared), is at least this: 20 players with equal shares are 20, five players with most
+of the rows and fifteen with one each are about 5, ten heavy ones and ten with a few about 12.
+A head count alone would not tell, and a share of the values relative to the pool would stop
+publishing as the pool grows (most players of a band appear once)."""
 EVERY = dt.timedelta(hours=1)
+LOCK = 0x756E7472_00000001
+"""Advisory lock key held while `level_reference` is rewritten."""
 
 log = logging.getLogger("untraded.worker")
 
@@ -60,16 +77,48 @@ def band_of(rank: int) -> int:
 
 def aggregate(rows: pl.DataFrame) -> pl.DataFrame:
     """One reference value per metric over `rows` (`steam_id`, `match_id`, `rounds`, `metric_id`,
-    `version`, `value`)."""
+    `version`, `value`), and its spread (`p10`, `p90`)."""
     totals = {m: is_total(m) for m in rows["metric_id"].unique().to_list()}
+    rows = (
+        rows.with_columns(pl.col("metric_id").replace_strict(totals).alias("total"))
+        .with_columns(
+            pl.when(pl.col("total"))
+            .then(pl.col("value") / pl.col("rounds"))
+            .otherwise(pl.col("value"))
+            .alias("per_match")
+        )
+        .with_columns(
+            # Missing, NaN and infinite: no value.
+            pl.when(pl.col("per_match").is_finite()).then(pl.col("per_match")).alias("per_match")
+        )
+    )
+    rows = rows.with_columns(
+        pl.col("per_match").count().over("metric_id", "version", "steam_id").alias("player_values")
+    )
+    values = pl.col("per_match").count()
+    known = pl.col("steam_id").filter(pl.col("per_match").is_not_null())
+    # Each player's row carries that player's number of values: summed over the rows with a
+    # value, it is the sum over players of their values squared.
+    squares = pl.col("player_values").filter(pl.col("per_match").is_not_null()).sum()
+    publishable = (
+        (values >= MIN_PLAYER_MATCHES)
+        & (known.n_unique() >= MIN_PLAYERS)
+        & (values * values >= MIN_EFFECTIVE_PLAYERS * squares)
+        & (pl.col("player_values").max() <= MAX_PLAYER_SHARE * values)
+    )
     return (
-        rows.group_by("metric_id", "version")
+        rows.group_by("metric_id", "version", "total")
         .agg(
             pl.col("value").sum().alias("sum"),
             pl.col("rounds").sum().alias("rounds"),
             pl.col("value").drop_nulls().median().alias("median"),
+            pl.when(publishable)
+            .then(pl.col("per_match").quantile(SPREAD_LOW, "linear"))
+            .alias("p10"),
+            pl.when(publishable)
+            .then(pl.col("per_match").quantile(SPREAD_HIGH, "linear"))
+            .alias("p90"),
         )
-        .with_columns(pl.col("metric_id").replace_strict(totals).alias("total"))
         .select(
             "metric_id",
             "version",
@@ -81,6 +130,8 @@ def aggregate(rows: pl.DataFrame) -> pl.DataFrame:
             .then(pl.col("sum") / pl.col("rounds"))
             .otherwise(pl.col("median"))
             .alias("value"),
+            "p10",
+            "p90",
         )
     )
 
@@ -117,20 +168,23 @@ def levels(rows: pl.DataFrame) -> pl.DataFrame:
 
 
 def compute_levels(conn: psycopg.Connection[Any], mode: str = "premier") -> int:
-    """Recomputes the level references of `mode`; returns how many bands are published."""
-    cursor = conn.execute(ROWS, {"mode": mode, "min_rounds": MIN_ROUNDS})
-    rows = pl.DataFrame(
-        cursor.fetchall(),
-        schema=["rank", "steam_id", "match_id", "rounds", "metric_id", "version", "value"],
-        orient="row",
-    )
-    found = levels(rows)
+    """Recomputes the level references of `mode`; returns how many bands are published. Two
+    recomputations (the worker's, and `backfill-spread`) wait for each other: they would both
+    write the same primary keys."""
     with conn.transaction():
+        conn.execute("SELECT pg_advisory_xact_lock(%s)", (LOCK,))
+        cursor = conn.execute(ROWS, {"mode": mode, "min_rounds": MIN_ROUNDS})
+        rows = pl.DataFrame(
+            cursor.fetchall(),
+            schema=["rank", "steam_id", "match_id", "rounds", "metric_id", "version", "value"],
+            orient="row",
+        )
+        found = levels(rows)
         conn.execute("DELETE FROM level_reference WHERE mode = %s", (mode,))
         if not found.is_empty():
             columns = [
                 "band_low", "band_high", "used_low", "used_high", "metric_id", "version",
-                "basis", "value", "player_matches", "players", "rounds",
+                "basis", "value", "p10", "p90", "player_matches", "players", "rounds",
             ]  # fmt: skip
             with conn.cursor().copy(
                 "COPY level_reference (mode, " + ", ".join(columns) + ") FROM STDIN"
@@ -146,7 +200,10 @@ def level_reference(
     conn: psycopg.Connection[Any], rank: int | None, mode: str = "premier"
 ) -> pl.DataFrame:
     """The reference of the band of `rank` (empty when none is published)."""
-    columns = ["metric_id", "basis", "value", "used_low", "used_high", "player_matches", "rounds"]
+    columns = [
+        "metric_id", "version", "basis", "value", "p10", "p90", "used_low", "used_high",
+        "player_matches", "rounds",
+    ]  # fmt: skip
     if rank is None or rank <= 0:
         return pl.DataFrame(schema=columns)
     rows = conn.execute(

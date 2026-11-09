@@ -47,7 +47,8 @@ class ChosenReference:
     kind: str
     """`self` (the player's own 30 days), `level` (players of the same rating band) or `none`."""
     values: pl.DataFrame
-    """`metric`, `version`, `basis`, `session`, `reference`, `delta`."""
+    """`metric`, `version`, `basis`, `session`, `reference`, `delta`, `reference_p10`,
+    `reference_p90`."""
     matches: int
     """Reference matches (`self`) or (player, match) rows pooled (`level`)."""
     rounds: int
@@ -62,6 +63,21 @@ class PlayedMatch:
     started_at: dt.datetime
     ended_at: dt.datetime
     prefix: str
+
+
+def session_rank(
+    conn: psycopg.Connection[Any], steam_id: int, match_ids: Sequence[uuid.UUID]
+) -> int | None:
+    """The player's Premier rating in the most recent rated match among `match_ids`."""
+    ranked = conn.execute(
+        """
+        SELECT mp.rank FROM match_player mp JOIN match m ON m.id = mp.match_id
+        WHERE mp.steam_id = %s AND mp.match_id = ANY(%s) AND mp.rank > 0
+        ORDER BY m.played_at DESC LIMIT 1
+        """,
+        (steam_id, list(match_ids)),
+    ).fetchone()
+    return int(ranked[0]) if ranked else None
 
 
 def sessions_of(matches: Sequence[PlayedMatch]) -> list[list[PlayedMatch]]:
@@ -140,6 +156,7 @@ class SessionJob:
     window_days: int = reference.WINDOW_DAYS
     min_matches: int = reference.MIN_MATCHES
     min_rounds: int = reference.MIN_ROUNDS
+    min_spread_matches: int = reference.MIN_SPREAD_MATCHES
 
     def __call__(self, conn: psycopg.Connection[Any], job: Job) -> None:
         steam_id = int(job.payload["steam_id"])
@@ -164,6 +181,7 @@ class SessionJob:
             window_days=self.window_days,
             min_matches=self.min_matches,
             min_rounds=self.min_rounds,
+            min_spread_matches=self.min_spread_matches,
         )
         chosen = self._reference(conn, steam_id, session, comparison)
         # Read before `_save`: deleting the sessions it replaces deletes their votes.
@@ -215,15 +233,7 @@ class SessionJob:
                 comparison.reference_matches,
                 comparison.reference_rounds,
             )
-        ranked = conn.execute(
-            """
-            SELECT mp.rank FROM match_player mp JOIN match m ON m.id = mp.match_id
-            WHERE mp.steam_id = %s AND mp.match_id = ANY(%s) AND mp.rank > 0
-            ORDER BY m.played_at DESC LIMIT 1
-            """,
-            (steam_id, [m.id for m in session]),
-        ).fetchone()
-        level = levels.level_reference(conn, ranked[0] if ranked else None)
+        level = levels.level_reference(conn, session_rank(conn, steam_id, [m.id for m in session]))
         values = comparison.values.select("metric", "version", "basis", "session")
         if level.is_empty():
             return ChosenReference(
@@ -231,6 +241,8 @@ class SessionJob:
                 values.with_columns(
                     pl.lit(None, pl.Float64).alias("reference"),
                     pl.lit(None, pl.Float64).alias("delta"),
+                    pl.lit(None, pl.Float64).alias("reference_p10"),
+                    pl.lit(None, pl.Float64).alias("reference_p90"),
                 ),
                 # What the player has so far: the report says how far from enough it is.
                 comparison.reference_matches,
@@ -239,11 +251,22 @@ class SessionJob:
         first = level.row(0, named=True)
         joined = values.join(
             level.select(
-                pl.col("metric_id").alias("metric"), "basis", pl.col("value").alias("reference")
+                pl.col("metric_id").alias("metric"),
+                "basis",
+                pl.col("value").alias("reference"),
+                pl.col("p10").alias("reference_p10"),
+                pl.col("p90").alias("reference_p90"),
             ),
             on=["metric", "basis"],
             how="left",
-        ).with_columns((pl.col("session") - pl.col("reference")).alias("delta"))
+        ).with_columns(
+            (pl.col("session") - pl.col("reference")).alias("delta"),
+            # A spread without a reference to go with it is not shown.
+            *(
+                pl.when(pl.col("reference").is_not_null()).then(pl.col(c)).alias(c)
+                for c in ("reference_p10", "reference_p90")
+            ),
+        )
         return ChosenReference(
             "level",
             joined,
@@ -326,6 +349,15 @@ class SessionJob:
                         "min_rounds": self.min_rounds,
                         "gap_minutes": GAP.total_seconds() / 60,
                     }
+                    # `backfill-spread` leaves alone a session that carries this key. A session
+                    # against a level may have been written before the band's spread was
+                    # computed (the first hourly recomputation after an update): it stays
+                    # open to the backfill.
+                    | (
+                        {"min_spread_matches": self.min_spread_matches}
+                        if chosen.kind != "level"
+                        else {}
+                    )
                 ),
                 chosen.kind,
                 chosen.level_low,
@@ -338,10 +370,20 @@ class SessionJob:
             "INSERT INTO play_session_match (session_id, match_id) VALUES (%s, %s)",
             [(session_id, match_id) for match_id in ids],
         )
-        values = chosen.values.select("metric", "version", "basis", "session", "reference", "delta")
+        values = chosen.values.select(
+            "metric",
+            "version",
+            "basis",
+            "session",
+            "reference",
+            "delta",
+            "reference_p10",
+            "reference_p90",
+        )
         conn.cursor().executemany(
             "INSERT INTO play_session_metric (session_id, metric_id, version, basis, session, "
-            "reference, delta) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+            "reference, delta, reference_p10, reference_p90) "
+            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
             [(session_id, *(_finite(v) for v in row)) for row in values.iter_rows()],
         )
         return uuid.UUID(str(session_id))

@@ -45,6 +45,7 @@ def test_the_migrations_form_one_line_from_0001() -> None:
         "0012",
         "0013",
         "0014",
+        "0015",
     ]
 
 
@@ -55,4 +56,4 @@ def test_the_migrations_go_down_and_up_again() -> None:
     command.downgrade(cfg, "0001")
     command.upgrade(cfg, "head")
     with psycopg.connect(TEST_URL.replace("postgresql+psycopg://", "postgresql://", 1)) as conn:
-        assert conn.execute("SELECT version_num FROM alembic_version").fetchall() == [("0014",)]
+        assert conn.execute("SELECT version_num FROM alembic_version").fetchall() == [("0015",)]

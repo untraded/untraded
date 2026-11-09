@@ -19,6 +19,7 @@ Metric parameters are applied when a metric is computed: `compute(dataset, param
 | `pos.recurring_min_rounds` | 32 | rounds | metric | 🎯 | Rounds the player must have played on a map and side before a zone can be recurring. | [`pos.recurring_death_spot`](pos.recurring_death_spot.md) |
 | `reference.min_matches` | 5 | matches | reference |  | Below this many matches in the window, the reference is not shown. | the self reference |
 | `reference.min_rounds` | 100 | rounds | reference |  | Below this many rounds played in the window, the reference is not shown. | the self reference |
+| `reference.min_spread_matches` | 10 | matches | reference |  | Below this many matches in the window, the spread of the reference (its 10th and 90th percentiles over per-match values) is not shown. | the self reference |
 | `reference.window_days` | 30 | days | reference |  | The player's own reference covers this many days before the session, the session excluded. | the self reference |
 | `setup.offset_s` | 20.0 | s | derive |  | The setup zone is read this long after freeze-time end (`pos.setup_zone_t20`). | the round model |
 | `trade.opportunity_distance` | 1300.0 | units | metric | 🎯 | A living teammate of the victim within this straight-line distance of the killer, who saw the killer within the trade window, had a trade opportunity. | [`trade.death_opportunities`](trade.death_opportunities.md), [`trade.kill_conversion_pct`](trade.kill_conversion_pct.md), [`trade.kill_opportunities`](trade.kill_opportunities.md) |
