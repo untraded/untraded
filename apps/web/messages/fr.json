@@ -124,6 +124,7 @@
     "title": "Progression",
     "lead": "Tes chiffres clés session après session, face à ta référence, et ce que deviennent tes priorités.",
     "period": "Période",
+    "context": "Période affichée",
     "periods": {
       "last10": "10 sessions",
       "days30": "30 jours",
@@ -476,6 +477,7 @@
     "status": "État",
     "older": "Matchs plus anciens",
     "newer": "Matchs plus récents",
+    "pageOf": "Matchs {from} à {to}",
     "urating": "Untraded Rating",
     "uratingShort": "UR",
     "beta": "bêta"
