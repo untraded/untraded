@@ -1036,6 +1036,27 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/sessions":
             items = [summary(s) for s in SESSIONS[offset : offset + 20]]
             return self.reply(200, {"items": items, "limit": 20, "offset": offset})
+        # As FastAPI: an id that is not a UUID is refused before any lookup.
+        if found := re.fullmatch(r"/(sessions|matches)/([^/]+)(/.*)?", path):
+            try:
+                uuid.UUID(found[2])
+            except ValueError:
+                return self.reply(
+                    422,
+                    {
+                        "detail": [
+                            {
+                                "type": "uuid_parsing",
+                                "loc": [
+                                    "path",
+                                    {"sessions": "session_id"}.get(found[1], "match_id"),
+                                ],
+                                "msg": "Input should be a valid UUID",
+                                "input": found[2],
+                            }
+                        ]
+                    },
+                )
         if found := re.fullmatch(r"/sessions/([0-9a-f-]+)", path):
             for n, session in enumerate(SESSIONS):
                 if session["id"] == found[1]:
