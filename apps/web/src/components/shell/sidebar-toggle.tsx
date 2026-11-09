@@ -6,9 +6,10 @@ import { PanelLeft } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { SIDEBAR_COOKIE } from "@/i18n/locale";
+import { TOOLTIP } from "./nav";
 
-/** Folds the sidebar to its icons, or unfolds it. The choice is kept in a cookie, so the server
- * renders the next page the same way (no jump on load). */
+/** Shows the rail's labels beside its icons, or folds them back into tooltips. The choice is kept
+ * in a cookie, so the server renders the next page the same way (no jump on load). */
 export function SidebarToggle({
   collapsed: initial,
   labels,
@@ -22,10 +23,9 @@ export function SidebarToggle({
     <Button
       variant="ghost"
       size="icon-sm"
-      className="hidden text-muted-foreground lg:inline-flex"
+      className="group/nav relative hidden text-chrome-muted hover:text-chrome-foreground md:inline-flex"
+      // The label says what a press does; it changes with the state, so no `aria-expanded` too.
       aria-label={label}
-      title={label}
-      aria-expanded={!collapsed}
       onClick={(event) => {
         const next = !collapsed;
         setCollapsed(next);
@@ -37,6 +37,9 @@ export function SidebarToggle({
       }}
     >
       <PanelLeft aria-hidden="true" />
+      <span aria-hidden="true" className={TOOLTIP}>
+        {label}
+      </span>
     </Button>
   );
 }

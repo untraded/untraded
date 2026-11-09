@@ -6,6 +6,7 @@ import { setTone, vote } from "@/app/actions";
 import { Choice } from "@/components/choice";
 import { RoundStrip, type StripCell } from "@/components/round-strip";
 import { Button } from "@/components/ui/button";
+import { Panel } from "@/components/ui/panel";
 import { type Locale, TONES, type Tone } from "@/i18n/locale";
 import type { Advice, AdviceEvent, MatchDetail } from "@/lib/api";
 import { cn } from "@/lib/cn";
@@ -41,9 +42,10 @@ export async function Priorities({
 }) {
   const t = await getTranslations("advice");
   return (
-    <section className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold">{t("title")}</h2>
+    <Panel
+      title={t("title")}
+      flush
+      aside={
         <Choice
           action={setTone}
           name="tone"
@@ -51,13 +53,12 @@ export async function Priorities({
           value={tone}
           options={TONES.map((option) => ({ value: option, label: t(option) }))}
         />
-      </div>
+      }
+    >
       {advice.length === 0 ? (
-        <p className="rounded-lg border border-border bg-card p-4 text-muted-foreground">
-          {hasReference ? t("none") : t("noReference")}
-        </p>
+        <p className="p-4 text-muted-foreground">{hasReference ? t("none") : t("noReference")}</p>
       ) : (
-        <ol className="flex flex-col gap-3">
+        <ol className="divide-y divide-line-soft">
           {advice.map((item, index) => (
             <Priority
               key={item.id}
@@ -75,15 +76,15 @@ export async function Priorities({
       {others.length > 0 && (
         // A named group: each finding inside is a `group` of its own, and its chevron must follow
         // its own fold, not this one.
-        <details className="group/others">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg px-4 py-2.5 font-semibold text-muted-foreground hover:bg-muted/40 hover:text-foreground sm:px-5 [&::-webkit-details-marker]:hidden">
+        <details className="group/others border-t border-border">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-2.5 font-semibold text-muted-foreground hover:bg-muted/40 hover:text-foreground sm:px-5 [&::-webkit-details-marker]:hidden">
             {t("others", { count: others.length })}
             <ChevronDown
               aria-hidden="true"
               className="size-4 transition-transform group-open/others:rotate-180"
             />
           </summary>
-          <ul className="mt-3 flex flex-col gap-3">
+          <ul className="divide-y divide-line-soft border-t border-line-soft">
             {others.map((item) => (
               <Priority
                 key={item.id}
@@ -100,7 +101,7 @@ export async function Priorities({
           </ul>
         </details>
       )}
-    </section>
+    </Panel>
   );
 }
 
@@ -144,10 +145,10 @@ async function Priority({
   }
   return (
     <li>
-      <details open={open} className="group rounded-lg border border-border bg-card">
+      <details open={open} className="group">
         <summary
           className={cn(
-            "grid cursor-pointer list-none rounded-lg hover:bg-muted/40 gap-x-3 gap-y-0.5 p-4 sm:px-5 [&::-webkit-details-marker]:hidden",
+            "grid cursor-pointer list-none hover:bg-muted/40 gap-x-3 gap-y-0.5 p-4 sm:px-5 [&::-webkit-details-marker]:hidden",
             numbered
               ? "grid-cols-[1.25rem_minmax(0,1fr)_1.25rem]"
               : "grid-cols-[minmax(0,1fr)_1.25rem]",

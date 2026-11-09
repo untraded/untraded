@@ -29,7 +29,7 @@ export function PositionRuler({
       <span aria-hidden="true" className="absolute inset-x-0 top-[13px] h-0.5 bg-line-soft" />
       <span
         aria-hidden="true"
-        className="absolute top-[9px] h-2.5 rounded-[2px] bg-border"
+        className="absolute top-[9px] h-2.5 rounded-[2px] bg-band"
         style={{
           left: `${position.bandFrom}%`,
           width: `${position.bandTo - position.bandFrom}%`,
@@ -82,7 +82,7 @@ export function RulerLegend({
             {median}
           </li>
           <li className="flex items-center gap-1.5">
-            <span aria-hidden="true" className="h-2 w-[18px] rounded-[2px] bg-border" />
+            <span aria-hidden="true" className="h-2 w-[18px] rounded-[2px] bg-band" />
             {band}
           </li>
         </ul>

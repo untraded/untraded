@@ -39,7 +39,7 @@ export function AccountMenuPopup({
       >
         <AccountTriggerFace name={name} />
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="min-w-48">
+      <DropdownMenuContent side="right" align="end" sideOffset={8} className="min-w-48">
         <DropdownMenuItem render={<Link href={SECTIONS.settings.href} />}>
           <Settings aria-hidden="true" />
           {labels.settings}

@@ -10,13 +10,14 @@
     "sessions": "Sessions",
     "settings": "Settings",
     "more": "More",
-    "collapse": "Collapse the sidebar",
-    "expand": "Expand the sidebar",
+    "collapse": "Hide the labels",
+    "expand": "Show the labels",
     "main": "Main navigation",
     "home": "Home",
     "admin": "Admin",
     "account": "Account: {name}",
-    "preview": "Preview"
+    "preview": "Preview",
+    "skip": "Skip to content"
   },
   "dashboard": {
     "title": "Home",
@@ -633,7 +634,14 @@
     },
     "topPriority": "Priority 1:",
     "nothingStandsOut": "Nothing stands out",
-    "pageOf": "Sessions {from} to {to}"
+    "pageOf": "Sessions {from} to {to}",
+    "context": {
+      "label": "Session context",
+      "urating": "Untraded Rating",
+      "adr": "ADR",
+      "kast": "KAST",
+      "gap": "gap to the reference:"
+    }
   },
   "families": {
     "base": "Basics",

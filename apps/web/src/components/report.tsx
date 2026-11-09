@@ -4,13 +4,13 @@ import { Info, Scale } from "lucide-react";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { getLocale, getTimeZone, getTranslations } from "next-intl/server";
-import type { ReactNode } from "react";
 import { FollowUpList } from "@/components/follow-up";
 import { type GapRow, MetricGaps } from "@/components/metric-gaps";
 import { PositionRuler, RulerLegend } from "@/components/position-ruler";
 import { Priorities } from "@/components/priorities";
 import { describeReference } from "@/components/reference";
 import { ResultBadge } from "@/components/result-badge";
+import { Panel } from "@/components/ui/panel";
 import { type Locale, pickTone, TONE_COOKIE } from "@/i18n/locale";
 import { findMatch, type MatchDetail, type SessionReport } from "@/lib/api";
 import {
@@ -210,7 +210,7 @@ export async function Report({
           readOnly={readOnly}
         />
         <aside className="flex flex-col gap-3.5">
-          <Box title={t("keyFigures")}>
+          <Panel title={t("keyFigures")}>
             <ul className="grid gap-x-4 sm:grid-cols-2 lg:grid-cols-1">
               {report.headlines.map((c) => {
                 const moved = gapTrend(gap(c));
@@ -247,13 +247,13 @@ export async function Report({
                 );
               })}
             </ul>
-          </Box>
+          </Panel>
           {report.follow_up.length > 0 && (
-            <Box title={advice("followTitle")}>
+            <Panel title={advice("followTitle")}>
               <FollowUpList items={report.follow_up} locale={locale} />
-            </Box>
+            </Panel>
           )}
-          <Box title={t("sessionMatches")}>
+          <Panel title={t("sessionMatches")}>
             <ul>
               {report.match_list.map((match) => (
                 <li key={match.id} className="border-t border-line-soft first:border-t-0">
@@ -277,14 +277,13 @@ export async function Report({
                 </li>
               ))}
             </ul>
-          </Box>
+          </Panel>
         </aside>
       </div>
 
-      <section className="flex flex-col gap-3">
+      <Panel title={t("allMetrics")} bodyClassName="flex flex-col gap-3">
         <div>
-          <h2 className="text-lg font-semibold">{t("allMetrics")}</h2>
-          <p className="mt-0.5 text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             {named.short && reference.enough
               ? `${t("metricsLead", { count: rows.length, reference: named.short })} ${t("metricsRule", { min: MIN_CASES })}`
               : t("metricsLeadNone", { count: rows.length })}
@@ -318,16 +317,7 @@ export async function Report({
             standoutEmpty: t("standoutEmpty"),
           }}
         />
-      </section>
+      </Panel>
     </article>
-  );
-}
-
-function Box({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className="rounded-lg border border-border bg-card px-4 py-3.5">
-      <h2 className="mb-2.5 text-sm font-semibold">{title}</h2>
-      {children}
-    </section>
   );
 }

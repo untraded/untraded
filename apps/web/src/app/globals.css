@@ -22,36 +22,41 @@
 
 /*
  * Design tokens, as light-dark() pairs. Light: the "Match point" palette; dark: the "Papier"
- * palette; one accent, dark yellow. shadcn/ui names first, then ours:
+ * palette, both in the "Instrument" direction (a dark rail, panels with a title band); one accent,
+ * dark yellow. shadcn/ui names first, then ours:
+ * - panel-head: a panel's title band, one step above the panel, with a rule under it;
+ * - band: the reference band of a position ruler (a mark, so it needs more contrast than a rule);
  * - highlight: the brand accent, for actions and selection only, never to mark data;
  * - link, line-soft (row separators);
  * - win and loss: results, and gaps that are better or worse (never colour alone: add a sign);
  * - ct and t: the sides, as the `side-ct` and `side-t` colours (a colour named `t` would
  *   collide with Tailwind's `border-t`, which would then also paint top borders).
- * Every text colour passes WCAG AA on the background and on cards.
+ * Every text colour passes WCAG AA on the background, on cards and on panel heads.
  */
 :root {
   color-scheme: light dark;
-  --background: light-dark(#f2f4f7, #1b1d1e);
-  --foreground: light-dark(#111821, #e9eaea);
-  --card: light-dark(#ffffff, #222527);
-  --card-foreground: light-dark(#111821, #e9eaea);
-  --popover: light-dark(#ffffff, #222527);
-  --popover-foreground: light-dark(#111821, #e9eaea);
+  --background: light-dark(#edf0f3, #161819);
+  --foreground: light-dark(#111821, #eeeeee);
+  --card: light-dark(#ffffff, #1f2224);
+  --card-foreground: light-dark(#111821, #eeeeee);
+  --popover: light-dark(#ffffff, #1f2224);
+  --popover-foreground: light-dark(#111821, #eeeeee);
+  --panel-head: light-dark(#f3f5f8, #24282a);
   --primary: light-dark(#d4a72c, #d9b44a);
   --primary-foreground: light-dark(#111821, #1b1d1e);
   --primary-hover: light-dark(#c39a22, #e5c466);
   --secondary: light-dark(#e8ecf1, #2b2f31);
-  --secondary-foreground: light-dark(#111821, #e9eaea);
+  --secondary-foreground: light-dark(#111821, #eeeeee);
   --muted: light-dark(#e8ecf1, #2b2f31);
-  --muted-foreground: light-dark(#536072, #a1a6a8);
+  --muted-foreground: light-dark(#536072, #a4a9ab);
   --accent: light-dark(#e8ecf1, #2b2f31);
-  --accent-foreground: light-dark(#111821, #e9eaea);
+  --accent-foreground: light-dark(#111821, #eeeeee);
   --destructive: light-dark(#c2382c, #ff7b6b);
-  --border: light-dark(#d1d8e1, #3a3f42);
+  --border: light-dark(#d6dce3, #2e3336);
   --input: light-dark(#d1d8e1, #3a3f42);
+  --band: light-dark(#d1d8e1, #3a3f42);
   --ring: light-dark(#9a7400, #e3c46a);
-  --line-soft: light-dark(#e4e8ee, #2c3033);
+  --line-soft: light-dark(#e6e9ed, #2a2e30);
   --highlight: light-dark(#9a7400, #d9b44a);
   --highlight-soft: light-dark(#f6ecc8, #3a3220);
   --link: light-dark(#7a5c00, #e3c46a);
@@ -59,7 +64,16 @@
   --loss: light-dark(#c2382c, #ff7b6b);
   --ct: light-dark(#2b5bb8, #6ba8ff);
   --t: light-dark(#985d06, #efa44e);
-  --radius: 6px;
+  --radius: 4px;
+  /*
+   * The chrome: the rail, and on a phone the top bar and the tabs. It stays dark in both themes.
+   * Its own colours follow the page's theme (a little bluer and lighter in light), set per theme
+   * below.
+   */
+  --chrome: #1b1f24;
+  --chrome-foreground: #e9eaea;
+  --chrome-muted: #a7b0bb;
+  --chrome-line: #2c3238;
 }
 
 :root[data-theme="light"] {
@@ -68,6 +82,42 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
+  --chrome: #101213;
+  --chrome-foreground: #eeeeee;
+  --chrome-muted: #a4a9ab;
+  --chrome-line: #24282a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --chrome: #101213;
+    --chrome-foreground: #eeeeee;
+    --chrome-muted: #a4a9ab;
+    --chrome-line: #24282a;
+  }
+}
+
+/*
+ * Inside the chrome, the tokens it uses take their dark value in both themes: hover, selection,
+ * focus ring, badges. Written out, not left to `color-scheme`: Tailwind's CSS compiler turns
+ * light-dark() into variables resolved once on <html>, so a nested `color-scheme` alone would not
+ * switch them. Keep in step with the dark values above.
+ */
+@layer base {
+  [data-chrome] {
+    color-scheme: dark;
+    background-color: var(--chrome);
+    color: var(--chrome-foreground);
+    --foreground: #eeeeee;
+    --muted: #2b2f31;
+    --muted-foreground: #a4a9ab;
+    --accent: #2b2f31;
+    --accent-foreground: #eeeeee;
+    --border: #3a3f42;
+    --highlight: #d9b44a;
+    --highlight-soft: #3a3220;
+    --ring: #e3c46a;
+  }
 }
 
 @theme inline {
@@ -80,6 +130,7 @@
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
+  --color-panel-head: var(--panel-head);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary-hover: var(--primary-hover);
@@ -93,6 +144,11 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-band: var(--band);
+  --color-chrome: var(--chrome);
+  --color-chrome-foreground: var(--chrome-foreground);
+  --color-chrome-muted: var(--chrome-muted);
+  --color-chrome-line: var(--chrome-line);
   --color-line-soft: var(--line-soft);
   --color-highlight: var(--highlight);
   --color-highlight-soft: var(--highlight-soft);
@@ -101,11 +157,11 @@
   --color-loss: var(--loss);
   --color-side-ct: var(--ct);
   --color-side-t: var(--t);
-  /* Corners: 3 px for small controls, 4 px for buttons and fields, 6 px for blocks. */
-  --radius-sm: calc(var(--radius) * 0.5);
-  --radius-md: calc(var(--radius) * 0.67);
+  /* Corners: 3 px for small controls, 4 px for buttons, fields and panels, 6 px for sheets. */
+  --radius-sm: 3px;
+  --radius-md: var(--radius);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.34);
+  --radius-xl: 6px;
 }
 
 @layer base {
@@ -119,6 +175,16 @@
   }
   html {
     @apply font-sans;
+  }
+  /* A sticky context bar must not hide what the keyboard focuses or a link jumps to. */
+  @media (width >= 80rem) {
+    html:has([data-context-bar]) {
+      scroll-padding-top: 5rem;
+    }
+  }
+  /* The skip link's target takes focus without drawing a ring around the whole page. */
+  #content:focus {
+    outline: none;
   }
   /* Keyboard focus, always visible: shadcn/ui components draw their own ring, everything else
    * (links, choices, chips, rounds) gets this outline. */

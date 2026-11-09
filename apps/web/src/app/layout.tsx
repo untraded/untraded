@@ -47,7 +47,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       <body>
         <TimeZoneSync current={timeZone} />
         {me ? (
-          <AppShell me={me} collapsed={store.get(SIDEBAR_COOKIE)?.value === "collapsed"}>
+          <AppShell me={me} collapsed={store.get(SIDEBAR_COOKIE)?.value !== "expanded"}>
             {children}
           </AppShell>
         ) : (
