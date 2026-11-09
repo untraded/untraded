@@ -6,10 +6,10 @@ A rule watches one metric. It fires when the session is worse than the reference
 `advice.min_gap_pct` (relative, in the metric's `better` direction), the session holds at least
 `advice.min_events` events that prove it, **and** chance alone rarely gives that many events at the
 reference's rate (`chance` below `advice.max_chance`). Below `advice.strong_chance`, the finding is
-a clear signal and goes first. Its evidence is the very events the metric counts (deaths,
-opportunities, flashes...), with the match, round and tick of each, so a player can open them in
-the demo. Pattern rules (`history=True`) look at the session and the days before it together, such
-as a zone where the player keeps dying.
+marked as a clear signal, which does not change its rank. Its evidence is the very events the
+metric counts (deaths, opportunities, flashes...), with the match, round and tick of each, so a
+player can open them in the demo. Pattern rules (`history=True`) look at the session and the days
+before it together, such as a zone where the player keeps dying.
 
 A finding costs the rounds it touches, weighted by those the team lost: `rounds_lost +
 advice.won_round_weight * (rounds_touched - rounds_lost)`. The open rating (phase 2, step 5)
@@ -298,7 +298,8 @@ def _events(finding: Finding) -> set[tuple[Any, ...]]:
 def split_findings(
     findings: Iterable[Finding], limit: int = PRIORITIES, overlap: float = 0.5
 ) -> tuple[list[Finding], list[Finding]]:
-    """The priorities and the other findings, clear signals first, then costliest first.
+    """The priorities and the other findings, costliest first. How clear a signal is says how sure
+    the finding is, not what it costs, so it does not change the order.
 
     The priorities are the first `limit` findings in that order. Two findings whose events mostly
     repeat each other (more than `overlap` of the smaller one) are not both priorities: two rules
@@ -307,7 +308,7 @@ def split_findings(
     the others, including findings skipped for their overlap."""
     kept: list[Finding] = []
     others: list[Finding] = []
-    for candidate in sorted(findings, key=lambda f: (not f.strong, -f.cost, -f.events, f.rule)):
+    for candidate in sorted(findings, key=lambda f: (-f.cost, -f.events, f.rule)):
         events = _events(candidate)
         if len(kept) >= limit or any(
             len(events & _events(k)) > overlap * min(len(events), len(_events(k))) for k in kept

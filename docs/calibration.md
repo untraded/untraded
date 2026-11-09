@@ -105,7 +105,22 @@ The code is `untraded.calibration`. Each function measures what a threshold shou
 
 - **Reading**: a flash that blinds an enemy and leads to no kill is the normal case (87 %), so it says little about a mistake: this candidate is dropped. Self-flashes and grenades never thrown vary more than the model expects. Self-flashes are the first rule to stand out from noise on real sessions (5 of 34, or 15 %, against 5 % below 0.01), on few sessions.
 - **Decision**: the default thresholds, except self-flashes (0.1 and 0.01) and grenades never thrown (0.05 and 0.005). HE on teammates never fired on a real session here, and stays: it costs no noise, and it says something when it happens. These counts use the rate of the earlier matches; the engine compares percentages by the median of per-match values, so it fires somewhat less.
-- **Effect** on the 34 real sessions, compared with batch 1: findings per session 1.85 → 2.47, priorities 1.71 → 2.00, sessions with no priority 3 → 1, priorities changed in 14. **Limit**: a clear signal goes first whatever it costs, so 3 self-flashes can come before 40 untraded deaths. Self-flashes come first in 3 sessions, grenades never thrown in 4.
+- **Effect** on the 34 real sessions, compared with batch 1: findings per session 1.85 → 2.47, priorities 1.71 → 2.00, sessions with no priority 3 → 1, priorities changed in 14. At that point a clear signal still came first; see the next section.
+
+### Order of the priorities: cost alone
+
+- **Problem**: a clear signal came first whatever it cost. One report put 11 rounds of self-flashes, 3 of them lost, ahead of 19 duels lost without damage, 17 of them lost. How rare a gap is says how sure a finding is, not how much it matters.
+- **Method**: the three orders compared on the same 34 real sessions, 5 players and 47 matches.
+
+  | Order | Rounds lost, first priority (mean) | Rounds lost, all priorities | Sessions where a priority loses fewer rounds than a later one | Clear signals among the priorities (of 22 found) |
+  |---|---:|---:|---:|---:|
+  | Clear signals, then cost | 5.97 | 350 | 5 | 21 |
+  | **Cost** | **8.15** | **376** | **0** | **19** |
+  | Rounds lost, then cost | 8.15 | 378 | 0 | not counted |
+
+- **Reading**: cost and rounds lost give the same order in 33 sessions of 34. Cost also keeps the weight of won rounds that the rest of the engine uses.
+- **Decision**: cost alone, and the clear signal stays a mark on the finding. The order changes in 7 sessions, always at the first priority; the set of priorities changes in 1.
+- **Limits**: in that session, 2 clear signals leave the priorities and stay among the other points, with their mark. A round is not yet weighed by what it cost in the ledger. 34 sessions from 5 players are few.
 
 ### `pos.recurring_death_share` = 0.25, `pos.recurring_min_rounds` = 8 → **32** rounds
 
