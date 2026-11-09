@@ -61,11 +61,13 @@ export function position(
   const end = high + OVERSHOOT * right;
 
   // Piecewise linear through the landmarks: 10 at p10, 50 at the median, 90 at p90.
+  // Strictly outside the band first; inside it, a value on the median is always 50, even when the
+  // median sits on an edge of the band (many metrics are zero for at least a tenth of players).
   let raw: number;
-  if (value <= low) raw = Math.max(1, (10 * (value - start)) / (low - start));
-  else if (value <= median) raw = 10 + (40 * (value - low)) / (median - low);
-  else if (value <= high) raw = 50 + (40 * (value - median)) / (high - median);
-  else raw = Math.min(99, 90 + (9 * (value - high)) / (end - high));
+  if (value < low) raw = Math.max(1, (10 * (value - start)) / (low - start));
+  else if (value > high) raw = Math.min(99, 90 + (9 * (value - high)) / (end - high));
+  else if (value <= median) raw = median > low ? 10 + (40 * (value - low)) / (median - low) : 50;
+  else raw = 50 + (40 * (value - median)) / (high - median);
 
   const flip = better === "lower";
   const percentile = flip ? 100 - raw : raw;

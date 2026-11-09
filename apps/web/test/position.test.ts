@@ -76,6 +76,15 @@ describe("position", () => {
     expect(q?.zone).toBe(1);
   });
 
+  it("puts a value on the median at 50 even when the median is on an edge of the band", () => {
+    expect(position(0, 0, 0, 2, "higher")?.percentile).toBe(50);
+    expect(position(0, 0, 0, 2, "higher")?.zone).toBe(2);
+    expect(position(0, 0, 0, 2, "lower")?.zone).toBe(2);
+    expect(position(2, 2, 0, 2, "higher")?.percentile).toBe(50);
+    expect(position(1, 0, 0, 2, "higher")?.percentile).toBe(70);
+    expect(position(-1, 0, 0, 2, "higher")?.zone).toBeLessThan(2);
+  });
+
   it("handles negative values", () => {
     const p = position(-3, 0, -8, 6, "higher");
     expect(p?.zone).toBe(2);
