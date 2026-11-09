@@ -193,3 +193,52 @@ def test_a_spread_is_not_published_when_one_player_holds_most_of_the_values() ->
     found = levels.aggregate(pl.concat([light, heavy]))
     assert found["p10"].null_count() == 2
     assert found["value"].null_count() == 0  # the reference itself is published as before
+
+
+def uneven(matches_per_player: list[int]) -> pl.DataFrame:
+    """One player a row of `matches_per_player`, that many matches each, KAST only."""
+    data = []
+    for p, n in enumerate(matches_per_player):
+        for m in range(n):
+            data.append((18_000, 18_000_000 + p, f"{p}-{m}", 20, KAST, "1.1.0", 70.0 + p))
+    return pl.DataFrame(
+        data,
+        schema=["rank", "steam_id", "match_id", "rounds", "metric_id", "version", "value"],
+        orient="row",
+    )
+
+
+def test_a_spread_needs_twenty_players_who_count_as_many() -> None:
+    # Five players with 60 values, fifteen with one: 20 players and 315 values, but five people.
+    assert levels.aggregate(uneven([60] * 5 + [1] * 15))["p10"][0] is None
+    # Ten with 30 and ten with 1 (effective number 10.7), ten with 27 and ten with 3 (12.2): nobody
+    # over a tenth, but about ten people.
+    assert levels.aggregate(uneven([30] * 10 + [1] * 10))["p10"][0] is None
+    assert levels.aggregate(uneven([27] * 10 + [3] * 10))["p10"][0] is None
+    # Twenty players with equal shares: published.
+    assert levels.aggregate(uneven([16] * 20))["p10"][0] is not None
+
+
+def test_a_large_band_of_mostly_one_off_players_still_publishes() -> None:
+    # Twenty regulars with 30 values and 2,400 players seen once: 3,000 values. A share of the
+    # pool would have made the spread vanish as the band grew.
+    assert levels.aggregate(uneven([30] * 20 + [1] * 2400))["p10"][0] is not None
+
+
+def test_the_share_of_a_player_is_capped_exactly_at_a_tenth() -> None:
+    # 400 values: one player holds 40 (exactly a tenth, allowed), the 20 others 18 each.
+    assert levels.aggregate(uneven([40] + [18] * 20))["p10"][0] is not None
+    # One match more for them: 41 of 401 is over a tenth.
+    assert levels.aggregate(uneven([41] + [18] * 20))["p10"][0] is None
+
+
+def test_an_infinite_value_is_not_in_the_spread() -> None:
+    data = rows(25, 15, 18_000, kills=20, kast=70).with_columns(
+        pl.when((pl.col("steam_id") >= 18_000_000 + 21) & (pl.col("metric_id") == KAST))
+        .then(float("inf"))
+        .otherwise(pl.col("value"))
+        .alias("value")
+    )
+    kast = levels.aggregate(data).filter(pl.col("metric_id") == KAST).row(0, named=True)
+    assert kast["p90"] is not None
+    assert kast["p90"] < 100  # the top 16 % are infinite: not the 90th percentile

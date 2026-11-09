@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import dataclasses
 import datetime as dt
+import shutil
 import uuid
 from pathlib import Path
 from typing import Any
@@ -353,6 +354,13 @@ def test_without_history_the_level_reference_steps_in(
     assert metrics["base.adr"][2] is None  # no level value for it: no reference
 
 
+def as_written_before_the_spread(db: psycopg.Connection[Any]) -> None:
+    """The sessions as the worker wrote them before migration 0015: no spread, and no
+    `min_spread_matches` in their parameters (the session job writes it now)."""
+    db.execute("UPDATE play_session SET params = params - 'min_spread_matches'")
+    db.execute("UPDATE play_session_metric SET reference_p10 = NULL, reference_p90 = NULL")
+
+
 def level_references(db: psycopg.Connection[Any], *, spread_of_kills: bool) -> None:
     """A level reference for the band of 18,200, with a spread for the kills only (or none)."""
     kills, kast = REGISTRY["base.kills"], REGISTRY["base.kast"]
@@ -436,7 +444,8 @@ def test_backfill_fills_the_spread_of_old_sessions_without_recomputing_them(
     for days in (-5, -4, -3):
         add_match(db, store, analysis, at(20, days=days))
     match_id = add_match(db, store, analysis, at(20))
-    run(SessionJob(store, min_matches=2, min_rounds=5), db, match_id)  # a session without a band
+    run(SessionJob(store, min_matches=2, min_rounds=5), db, match_id)
+    as_written_before_the_spread(db)
     before = db.execute(
         "SELECT s.id, s.computed_at, m.metric_id, m.session, m.reference, m.delta "
         "FROM play_session s JOIN play_session_metric m ON m.session_id = s.id "
@@ -459,10 +468,18 @@ def test_backfill_fills_the_spread_of_old_sessions_without_recomputing_them(
         "ORDER BY m.metric_id"
     ).fetchall()
     assert after == before
-    # Run again: nothing left to fill, and nothing overwritten.
-    db.execute("UPDATE play_session_metric SET reference_p10 = -1 WHERE metric_id = 'base.kills'")
+    # Run again: the session is marked as visited, nothing is left to do.
     assert spread.backfill(db, store, min_spread_matches=3, refresh_levels=False) == 0
+    # Without the mark, a spread that is there is never overwritten, and a missing one is filled.
+    db.execute("UPDATE play_session SET params = params - 'min_spread_matches'")
+    db.execute("UPDATE play_session_metric SET reference_p10 = -1 WHERE metric_id = 'base.kills'")
+    db.execute(
+        "UPDATE play_session_metric SET reference_p10 = NULL, reference_p90 = NULL "
+        "WHERE metric_id = 'base.adr'"
+    )
+    assert spread.backfill(db, store, min_spread_matches=3, refresh_levels=False) == 1
     assert spreads(db)["base.kills"][1] == -1
+    assert spreads(db)["base.adr"][1] is not None
 
 
 @pytest.mark.db
@@ -474,6 +491,7 @@ def test_backfill_fills_a_session_against_a_level_from_its_band(
     db.execute("UPDATE match_player SET rank = 18200 WHERE steam_id = %s", (ME,))
     level_references(db, spread_of_kills=False)  # the session as written before the migration
     run(SessionJob(store), db, match_id)
+    as_written_before_the_spread(db)
     assert spreads(db)["base.kills"] == (0.5, None, None)
     db.execute("UPDATE level_reference SET p10 = 0.2, p90 = 0.9 WHERE basis = 'per_round'")
     assert spread.backfill(db, store, refresh_levels=False) == 1
@@ -728,3 +746,132 @@ def test_a_vote_is_only_kept_for_the_player_of_the_session(
     # Another player of the same match: their session does not read, or take, this vote.
     assert advice.votes_on_sessions_of(db, ME + 1, [match_id]) == []
     assert len(advice.votes_on_sessions_of(db, ME, [match_id])) == 1
+
+
+def count_match_values(monkeypatch: pytest.MonkeyPatch) -> list[int]:
+    """Counts the matches the spread is computed over (`reference.match_values` calls)."""
+    calls: list[int] = []
+    original = reference.match_values
+
+    def counting(*args: Any, **kwargs: Any) -> Any:
+        calls.append(1)
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(reference, "match_values", counting)
+    return calls
+
+
+@pytest.mark.db
+def test_backfill_reads_the_stored_window_and_leaves_the_session_out(
+    db: psycopg.Connection[Any],
+    tmp_path: Path,
+    analysis: Analysis,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(reference, "MIN_SPREAD_ROUNDS", 5)
+    store = LocalStore(tmp_path)
+    for days in (-5, -4, -3):  # in the window
+        add_match(db, store, analysis, at(20, days=days))
+    add_match(db, store, analysis, at(20, days=-40))  # before the window
+    first = add_match(db, store, analysis, at(20))
+    add_match(db, store, analysis, at(21.2))  # in the session
+    add_match(db, store, analysis, at(20, days=2))  # after it
+    run(SessionJob(store, min_matches=2, min_rounds=5), db, first)
+    as_written_before_the_spread(db)
+    calls = count_match_values(monkeypatch)
+    assert spread.backfill(db, store, min_spread_matches=3, refresh_levels=False) == 1
+    # The three matches of the window: not the older one, nor the session's, nor the later one.
+    assert len(calls) == 3
+
+
+@pytest.mark.db
+def test_backfill_skips_a_session_it_cannot_read_and_fills_the_others(
+    db: psycopg.Connection[Any],
+    tmp_path: Path,
+    analysis: Analysis,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(reference, "MIN_SPREAD_ROUNDS", 5)
+    store = LocalStore(tmp_path)
+    job = SessionJob(store, min_matches=2, min_rounds=5)
+    broken = [add_match(db, store, analysis, at(20, days=d)) for d in (-5, -4, -3)]
+    run(job, db, add_match(db, store, analysis, at(20)))  # session A, a month and more before B
+    for d in (95, 96, 97):
+        add_match(db, store, analysis, at(20, days=d))
+    run(job, db, add_match(db, store, analysis, at(20, days=100)))  # session B
+    as_written_before_the_spread(db)
+    shutil.rmtree(tmp_path / f"matches/{broken[0]}")  # A's reference can no longer be read
+
+    assert spread.backfill(db, store, min_spread_matches=3, refresh_levels=False) == 1
+    filled = {
+        r[0]: r[1:]
+        for r in db.execute(
+            "SELECT s.started_at, count(m.reference_p10), s.params ? 'min_spread_matches' "
+            "FROM play_session s JOIN play_session_metric m ON m.session_id = s.id "
+            "GROUP BY s.id ORDER BY s.started_at"
+        ).fetchall()
+    }
+    (a, b) = filled.values()
+    assert a[0] == 0  # the unreadable session: rolled back, nothing written
+    assert b[0] > 0  # the other one is filled
+    # Only the filled one is marked as visited: the next run tries the other again.
+    marked = db.execute(
+        "SELECT s.params ? 'min_spread_matches' FROM play_session s ORDER BY s.started_at"
+    ).fetchall()
+    assert marked == [(False,), (True,)]
+
+
+@pytest.mark.db
+def test_backfill_only_fills_the_current_version_of_a_metric(
+    db: psycopg.Connection[Any],
+    tmp_path: Path,
+    analysis: Analysis,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(reference, "MIN_SPREAD_ROUNDS", 5)
+    store = LocalStore(tmp_path)
+    for days in (-5, -4, -3):
+        add_match(db, store, analysis, at(20, days=days))
+    match_id = add_match(db, store, analysis, at(20))
+    run(SessionJob(store, min_matches=2, min_rounds=5), db, match_id)
+    as_written_before_the_spread(db)
+    # Make the kills row one of an older version of the metric.
+    db.execute(
+        "INSERT INTO metric_definition (metric_id, version, name, unit, kind, params, doc) "
+        "VALUES ('base.kills', '0.9.0', 'Kills', 'count', 'value', '{}', '')"
+    )
+    db.execute(
+        "UPDATE play_session_metric SET version = '0.9.0', reference_p10 = NULL, "
+        "reference_p90 = NULL WHERE metric_id = 'base.kills'"
+    )
+    spread.backfill(db, store, min_spread_matches=3, refresh_levels=False)
+    kills = db.execute(
+        "SELECT reference_p10 FROM play_session_metric WHERE metric_id = 'base.kills'"
+    ).fetchone()
+    assert kills == (None,)  # its reference was not computed by today's formula
+    other = db.execute(
+        "SELECT count(reference_p10) FROM play_session_metric WHERE metric_id <> 'base.kills'"
+    ).fetchone()
+    assert other is not None
+    assert other[0] > 0
+
+
+@pytest.mark.db
+def test_backfill_visits_nothing_the_second_time(
+    db: psycopg.Connection[Any],
+    tmp_path: Path,
+    analysis: Analysis,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(reference, "MIN_SPREAD_ROUNDS", 5)
+    store = LocalStore(tmp_path)
+    for days in (-5, -4, -3):
+        add_match(db, store, analysis, at(20, days=days))
+    match_id = add_match(db, store, analysis, at(20))
+    run(SessionJob(store, min_matches=2, min_rounds=5), db, match_id)
+    as_written_before_the_spread(db)
+    # A session is visited once, then left alone: a run that has nothing to do reads no match.
+    assert spread.backfill(db, store, min_spread_matches=3, refresh_levels=False) == 1
+    calls = count_match_values(monkeypatch)
+    assert spread.backfill(db, store, min_spread_matches=3, refresh_levels=False) == 0
+    assert calls == []

@@ -347,9 +347,17 @@ class SessionJob:
                         "window_days": self.window_days,
                         "min_matches": self.min_matches,
                         "min_rounds": self.min_rounds,
-                        "min_spread_matches": self.min_spread_matches,
                         "gap_minutes": GAP.total_seconds() / 60,
                     }
+                    # `backfill-spread` leaves alone a session that carries this key. A session
+                    # against a level may have been written before the band's spread was
+                    # computed (the first hourly recomputation after an update): it stays
+                    # open to the backfill.
+                    | (
+                        {"min_spread_matches": self.min_spread_matches}
+                        if chosen.kind != "level"
+                        else {}
+                    )
                 ),
                 chosen.kind,
                 chosen.level_low,

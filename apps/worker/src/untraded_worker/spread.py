@@ -6,8 +6,13 @@
 It writes `play_session_metric.reference_p10` and `reference_p90` and nothing else: no session is
 recomputed, so no session changes its id (a `reanalyze --force` would, and an old report link
 would lead to the 404 page), and the report, the priorities and the votes stay as they are. It
-can be run again: it only visits the metric rows that have a reference and no spread yet, and it
-never overwrites a spread.
+can be run again: it only visits sessions with a metric row of the current version that has a
+reference and no spread, never overwrites a spread, and marks each session it has visited
+(`params.min_spread_matches`, the key the session job writes too) so that one whose band cannot
+exist (a metric known for too few matches) is not read again: the command ends by visiting
+nothing. A session that failed, whose reference matches are not all readable now, or whose level
+has no band published yet is not marked, and is tried again. The session job does not mark a
+session against a level either, for the same reason (it may predate the band's spread).
 
 - A session against **the player's own days** gets the percentiles of the player's per-match
   values over the matches of its stored reference window (`reference_from` to `reference_to`, the
@@ -46,11 +51,18 @@ FROM play_session s
 JOIN app_user u ON u.steam_id = s.steam_id AND u.deleted_at IS NULL
 WHERE s.reference_kind IN ('self', 'level')
   AND (s.reference_kind = 'level' OR s.reference_matches >= %(min_matches)s)
+  AND NOT s.params ? 'min_spread_matches'
   AND EXISTS (
       SELECT 1 FROM play_session_metric m
+      JOIN metric_current c ON c.metric_id = m.metric_id AND c.version = m.version
       WHERE m.session_id = s.id AND m.reference IS NOT NULL AND m.reference_p10 IS NULL
   )
 ORDER BY s.steam_id, s.started_at
+"""
+
+MARK = """
+UPDATE play_session SET params = params || jsonb_build_object('min_spread_matches', %s::int)
+WHERE id = %s
 """
 
 UPDATE_SELF = """
@@ -108,6 +120,9 @@ def backfill(
                             per_match[(steam_id, m.id)] = reference.match_values(
                                 job._tables(m), steam_id
                             )
+                    # Fewer than the stored reference had: a match not ready right now, not a
+                    # session without a spread. Left open for a later run.
+                    visited = len(window) >= min_spread_matches
                     found = reference.spread(
                         [v for m in window if (v := per_match[(steam_id, m.id)]) is not None],
                         min_matches=min_spread_matches,
@@ -119,6 +134,7 @@ def backfill(
                     sql = UPDATE_SELF
                 else:
                     level = levels.level_reference(conn, session_rank(conn, steam_id, members))
+                    visited = not level.is_empty()  # no band published yet: try again later
                     params = [
                         (_finite(p10), _finite(p90), session_id, metric, version, basis)
                         for metric, version, basis, p10, p90 in level.select(
@@ -132,6 +148,10 @@ def backfill(
                     for row in params:
                         cursor.execute(sql, row)
                         changed += cursor.rowcount
+                # Visited: the spread rests on what it can rest on, a later run leaves the
+                # session alone (a session the job writes now carries the same key).
+                if visited:
+                    conn.execute(MARK, (min_spread_matches, session_id))
                 filled += changed > 0
         except Exception:  # an unreadable match must not stop the other sessions
             log.exception("spread of session %s skipped", session_id)

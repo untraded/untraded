@@ -16,9 +16,10 @@ widening the band one step on each side until there are `MIN_PLAYER_MATCHES` row
 - the others (rates, ratios, medians) take the median of the per-match values;
 - the spread (`p10`, `p90`) is the 10th and 90th percentile of the per-match values (totals per
   round), linear interpolation (numpy's default). It is published only for a metric with at
-  least `MIN_PLAYER_MATCHES` values from at least `MIN_PLAYERS` players: no more precise than the
-  rest of the band, and no player holds more than `MAX_PLAYER_SHARE` of the values. A (player,
-  match) row weighs as one, as for the median.
+  least `MIN_PLAYER_MATCHES` values from at least `MIN_PLAYERS` players, an effective
+  number of players (`MIN_EFFECTIVE_PLAYERS`) and none holding more than `MAX_PLAYER_SHARE` of
+  them: no more precise than the rest of the band, and never one player's own percentiles.
+  Infinite values are left out. A (player, match) row weighs as one, as for the median.
 
 Rows of matches the player played for fewer than `MIN_ROUNDS` rounds (a quick abandon) are left
 out. The worker recomputes everything when idle, every `EVERY`.
@@ -39,10 +40,18 @@ BAND = 2500
 MIN_PLAYER_MATCHES = 300
 MIN_PLAYERS = 20
 MIN_ROUNDS = 10
-MAX_PLAYER_SHARE = 0.2
-"""No player holds more than this share of the values a spread rests on: with 20 players, one
-of them with most of the rows would have their own percentiles published."""
+MAX_PLAYER_SHARE = 0.10
+"""No player holds more than this share of the values a spread rests on: one heavy contributor
+among 20 players would have their own percentiles published. It also means at least 10 players."""
+MIN_EFFECTIVE_PLAYERS = 15
+"""The effective number of players behind a spread, (sum of the values)² ÷ (sum of each player's
+values squared), is at least this: 20 players with equal shares are 20, five players with most
+of the rows and fifteen with one each are about 5, ten heavy ones and ten with a few about 12.
+A head count alone would not tell, and a share of the values relative to the pool would stop
+publishing as the pool grows (most players of a band appear once)."""
 EVERY = dt.timedelta(hours=1)
+LOCK = 0x756E7472_00000001
+"""Advisory lock key held while `level_reference` is rewritten."""
 
 log = logging.getLogger("untraded.worker")
 
@@ -70,23 +79,32 @@ def aggregate(rows: pl.DataFrame) -> pl.DataFrame:
     """One reference value per metric over `rows` (`steam_id`, `match_id`, `rounds`, `metric_id`,
     `version`, `value`), and its spread (`p10`, `p90`)."""
     totals = {m: is_total(m) for m in rows["metric_id"].unique().to_list()}
-    rows = rows.with_columns(
-        pl.col("metric_id").replace_strict(totals).alias("total")
-    ).with_columns(
-        pl.when(pl.col("total"))
-        .then(pl.col("value") / pl.col("rounds"))
-        .otherwise(pl.col("value"))
-        .fill_nan(None)
-        .alias("per_match")
+    rows = (
+        rows.with_columns(pl.col("metric_id").replace_strict(totals).alias("total"))
+        .with_columns(
+            pl.when(pl.col("total"))
+            .then(pl.col("value") / pl.col("rounds"))
+            .otherwise(pl.col("value"))
+            .alias("per_match")
+        )
+        .with_columns(
+            # Missing, NaN and infinite: no value.
+            pl.when(pl.col("per_match").is_finite()).then(pl.col("per_match")).alias("per_match")
+        )
     )
     rows = rows.with_columns(
         pl.col("per_match").count().over("metric_id", "version", "steam_id").alias("player_values")
     )
+    values = pl.col("per_match").count()
     known = pl.col("steam_id").filter(pl.col("per_match").is_not_null())
+    # Each player's row carries that player's number of values: summed over the rows with a
+    # value, it is the sum over players of their values squared.
+    squares = pl.col("player_values").filter(pl.col("per_match").is_not_null()).sum()
     publishable = (
-        (pl.col("per_match").count() >= MIN_PLAYER_MATCHES)
+        (values >= MIN_PLAYER_MATCHES)
         & (known.n_unique() >= MIN_PLAYERS)
-        & (pl.col("player_values").max() <= MAX_PLAYER_SHARE * pl.col("per_match").count())
+        & (values * values >= MIN_EFFECTIVE_PLAYERS * squares)
+        & (pl.col("player_values").max() <= MAX_PLAYER_SHARE * values)
     )
     return (
         rows.group_by("metric_id", "version", "total")
@@ -150,15 +168,18 @@ def levels(rows: pl.DataFrame) -> pl.DataFrame:
 
 
 def compute_levels(conn: psycopg.Connection[Any], mode: str = "premier") -> int:
-    """Recomputes the level references of `mode`; returns how many bands are published."""
-    cursor = conn.execute(ROWS, {"mode": mode, "min_rounds": MIN_ROUNDS})
-    rows = pl.DataFrame(
-        cursor.fetchall(),
-        schema=["rank", "steam_id", "match_id", "rounds", "metric_id", "version", "value"],
-        orient="row",
-    )
-    found = levels(rows)
+    """Recomputes the level references of `mode`; returns how many bands are published. Two
+    recomputations (the worker's, and `backfill-spread`) wait for each other: they would both
+    write the same primary keys."""
     with conn.transaction():
+        conn.execute("SELECT pg_advisory_xact_lock(%s)", (LOCK,))
+        cursor = conn.execute(ROWS, {"mode": mode, "min_rounds": MIN_ROUNDS})
+        rows = pl.DataFrame(
+            cursor.fetchall(),
+            schema=["rank", "steam_id", "match_id", "rounds", "metric_id", "version", "value"],
+            orient="row",
+        )
+        found = levels(rows)
         conn.execute("DELETE FROM level_reference WHERE mode = %s", (mode,))
         if not found.is_empty():
             columns = [
