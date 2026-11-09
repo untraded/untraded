@@ -641,6 +641,9 @@
       "adr": "ADR",
       "kast": "KAST",
       "gap": "gap to the reference:"
+    },
+    "figures": {
+      "untraded": "Untraded deaths per round"
     }
   },
   "families": {
