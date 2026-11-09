@@ -30,9 +30,10 @@ function PanelFrame({
 }) {
   return (
     <div className={cn("rounded-lg border border-border bg-card", className)}>
-      <div className="flex min-h-10 items-center justify-between gap-x-3 rounded-t-[3px] border-b border-border bg-panel-head px-3.5 py-1.5">
+      {/* Wraps like the band of `Panel`: the change sentence may drop under the title. */}
+      <div className="flex min-h-10 flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-t-[3px] border-b border-border bg-panel-head px-3.5 py-1.5">
         <h2 className="text-[0.8125rem] font-semibold">{title}</h2>
-        <SkeletonLine className="text-xs" width="w-36" />
+        <SkeletonLine className="text-xs" width="w-52" />
       </div>
       {children}
     </div>
