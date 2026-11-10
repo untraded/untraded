@@ -12,7 +12,7 @@ dependencies = [
     # Migrations are owned by Python, with Alembic (ADR 0006).
     "alembic==1.20.1",
     # PostgreSQL driver for SQLAlchemy and the services.
-    "psycopg[binary]==3.3.6",
+    "psycopg[binary]==3.3.8",
 ]
 
 [project.scripts]

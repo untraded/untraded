@@ -5,7 +5,7 @@ description = "Spike S0.2: what CS2 demos contain and what parsing them costs."
 requires-python = ">=3.14"
 dependencies = [
     "demoparser2==0.42.1",
-    "polars==2.0.0",
+    "polars==2.1.0",
     "pyarrow==26.0.0",
 ]
 
