@@ -75,13 +75,12 @@ export default async function SessionLoading() {
     <>
       {/* The context bar's place, so that the report does not jump when it arrives. */}
       <ContextBar label={t("context.label")}>
-        <SkeletonLine className="xl:shrink-0" width="w-36" />
-        <div className="flex gap-1.5">
+        <div className="flex gap-1.5 max-sm:hidden">
           {slots(2).map((i) => (
             <Skeleton key={i} className="h-7 w-36 rounded-sm" />
           ))}
         </div>
-        <div className="flex gap-6 lg:ml-auto">
+        <div className="flex gap-4 max-sm:w-full max-sm:justify-between sm:gap-6 lg:ml-auto">
           {slots(3).map((i) => (
             <Skeleton key={i} className="h-[2.375rem] w-20" />
           ))}

@@ -673,6 +673,8 @@
     "rulerGap": "{gap} vs la référence",
     "rulerLabel": "{name} : {value}, référence {reference}. {zone}, {gap} par rapport à la référence.",
     "rulerLegend": "Comment lire les règles",
+    "rulerNeedsMatches": "La position sur une échelle apparaît à partir de {min, plural, one {# match} other {# matchs}} dans ta référence (elle en compte {matches}) : d'ici là, chaque métrique garde sa barre d'écart.",
+    "rulerNeedsPlayers": "Pas encore assez de joueurs à ce niveau pour placer tes valeurs sur une échelle : chaque métrique garde sa barre d'écart.",
     "rulerDot": "toi, sur cette session",
     "rulerMedian": "médiane de la référence",
     "rulerBand": "valeurs courantes (de 10 à 90 %)",
@@ -696,7 +698,9 @@
       "urating": "Untraded Rating",
       "adr": "ADR",
       "kast": "KAST",
-      "gap": "écart à la référence :"
+      "gap": "écart à la référence :",
+      "matches": "{count, plural, one {# match} other {# matchs}}",
+      "toMatches": " : voir la liste des matchs de la session"
     },
     "figures": {
       "untraded": "Morts non tradées par round"
