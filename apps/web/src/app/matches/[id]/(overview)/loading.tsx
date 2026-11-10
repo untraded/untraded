@@ -3,18 +3,20 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import {
-  PrioritiesSkeleton,
   RatingSkeleton,
+  ReviewSkeleton,
   RoundsSkeleton,
+  SelfNormSkeleton,
   SidesSkeleton,
   TeamSkeleton,
 } from "@/components/match/match-skeletons";
 import { Loading, Skeleton, SkeletonLine, slots } from "@/components/skeleton";
 import { ContextBar } from "@/components/ui/context-bar";
 
-/** The match page while it loads: the context bar's place, the back link, the rounds, then the
- * player's panels beside both teams, laid out as the page (a ready match the player played, the
- * common case). Same columns and paddings as the page and `MatchContext`. */
+/** The match page while it loads: the context bar's place, the back link, the match against the
+ * player's previous matches beside what to review, the rounds, then the player's panels beside
+ * both teams, laid out as the page (a ready match the player played, the common case). Same
+ * columns and paddings as the page and `MatchContext`. */
 export default async function MatchLoading() {
   const t = await getTranslations("match");
   return (
@@ -40,10 +42,13 @@ export default async function MatchLoading() {
           </Link>
           <SkeletonLine className="text-[0.8125rem]" width="w-24" />
         </div>
+        <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+          <SelfNormSkeleton />
+          <ReviewSkeleton title={t("review.title")} />
+        </div>
         <RoundsSkeleton title={t("rounds")} />
         <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
           <div className="flex min-w-0 flex-col gap-6">
-            <PrioritiesSkeleton title={t("priorities")} />
             <RatingSkeleton title={t("rating.title")} />
             <SidesSkeleton title={t("bySide")} />
           </div>

@@ -122,7 +122,7 @@ export function momentHref(
   moment: { tick: number; event: number; rule: string },
 ): string {
   const query = `t=${moment.tick}&e=${moment.event}&p=${encodeURIComponent(moment.rule)}`;
-  return `/matches/${matchId}/rounds/${round}?${query}`;
+  return `/matches/${encodeURIComponent(matchId)}/rounds/${round}?${query}`;
 }
 
 /** An address, without the punctuation that may close it (`url: …`, `'url'`, `(url)`). */

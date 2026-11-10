@@ -6,11 +6,12 @@ import { redirect } from "next/navigation";
 import { getLocale, getTimeZone, getTranslations } from "next-intl/server";
 import { cache, Suspense } from "react";
 import { MatchContext } from "@/components/match/match-context";
-import { MatchPriorities } from "@/components/match/match-priorities";
+import { MatchReview } from "@/components/match/match-review";
 import { MatchRounds } from "@/components/match/match-rounds";
-import { PrioritiesSkeleton } from "@/components/match/match-skeletons";
+import { ReviewSkeleton, SelfNormSkeleton } from "@/components/match/match-skeletons";
 import { MatchState } from "@/components/match/match-state";
 import { RatingCard } from "@/components/match/rating-card";
+import { SelfNorm } from "@/components/match/self-norm";
 import { SideSplit } from "@/components/match/side-split";
 import { TeamTable } from "@/components/match/team-table";
 import { Loading } from "@/components/skeleton";
@@ -23,6 +24,7 @@ import {
   getMatch,
   getMe,
   type MatchDetail,
+  matchesBefore,
 } from "@/lib/api";
 import { mapName, shortDay } from "@/lib/format";
 import {
@@ -33,6 +35,7 @@ import {
   roundsBySide,
 } from "@/lib/match";
 import { demoNote } from "@/lib/notes";
+import { PREVIOUS_MATCHES } from "@/lib/self-norm";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -55,11 +58,13 @@ const sessionOf = cache(async (matchId: string, playedAt: string | null) => {
 const NONE = new Map<number, FlaggedMoment>();
 
 /**
- * One match, seen from the player: the context bar (map, score, result, the player's rating),
- * then the rounds (each opens the 2D viewer), the rounds of this match that the session's
- * priorities flag, the player's rating and numbers on each side, then both teams. Before the
- * analysis ends, where it stands instead. The session's report is the slow part: the rounds are
- * sent without their frames and the priorities stream in when it comes.
+ * One match, seen from the player, read at first sight: the context bar (map, score, result, the
+ * player's rating), then side by side the match's five figures against the player's previous
+ * matches and what to review (the session's priorities that flag rounds of this match), then the
+ * rounds (each opens the 2D viewer), the player's rating and numbers on each side, and both
+ * teams. Before the analysis ends, where it stands instead. The previous matches and the
+ * session's report are the slow parts: both panels stream in, and the rounds are sent without
+ * their frames until the report comes.
  */
 export default async function MatchPage({ params }: Params) {
   const id = (await params).id;
@@ -139,6 +144,29 @@ export default async function MatchPage({ params }: Params) {
 
         {!ready && <MatchState match={match} />}
 
+        {ready && played && (
+          <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+            <Suspense
+              fallback={
+                <Loading announce={false}>
+                  <SelfNormSkeleton />
+                </Loading>
+              }
+            >
+              <AgainstPrevious match={match} locale={locale} />
+            </Suspense>
+            <Suspense
+              fallback={
+                <Loading announce={false}>
+                  <ReviewSkeleton title={t("review.title")} />
+                </Loading>
+              }
+            >
+              <Review match={match} locale={locale} timeZone={timeZone} />
+            </Suspense>
+          </div>
+        )}
+
         {ready && match.rounds.length > 0 && (
           <Suspense fallback={<MatchRounds match={match} flagged={NONE} />}>
             <FlaggedRounds match={match} />
@@ -148,17 +176,6 @@ export default async function MatchPage({ params }: Params) {
         {ready && (
           <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
             <div className="flex min-w-0 flex-col gap-6">
-              {played && (
-                <Suspense
-                  fallback={
-                    <Loading announce={false}>
-                      <PrioritiesSkeleton title={t("priorities")} />
-                    </Loading>
-                  }
-                >
-                  <Priorities match={match} locale={locale} timeZone={timeZone} />
-                </Suspense>
-              )}
               {played && <RatingCard rating={rating} locale={locale} />}
               {played && (
                 <SideSplit
@@ -185,8 +202,14 @@ async function FlaggedRounds({ match }: { match: MatchDetail }) {
   return <MatchRounds match={match} flagged={flaggedRounds(priorities)} />;
 }
 
+/** The match's five figures against the player's previous ready matches. */
+async function AgainstPrevious({ match, locale }: { match: MatchDetail; locale: Locale }) {
+  const previous = await matchesBefore(match, PREVIOUS_MATCHES);
+  return <SelfNorm match={match} previous={previous} locale={locale} />;
+}
+
 /** The session's priorities that flag rounds of this match, with a link to its report. */
-async function Priorities({
+async function Review({
   match,
   locale,
   timeZone,
@@ -197,7 +220,7 @@ async function Priorities({
 }) {
   const { summary, priorities } = await sessionOf(match.id, match.played_at);
   return (
-    <MatchPriorities
+    <MatchReview
       match={match}
       priorities={priorities}
       session={

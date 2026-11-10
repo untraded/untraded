@@ -4,6 +4,15 @@
 // Where a value stands among the reference's usual values, for the graduated ruler. Pure (tested
 // without a browser).
 
+/**
+ * The fewest values a band needs: `reference.min_spread_matches` in `untraded.reference`
+ * (`MIN_SPREAD_MATCHES`), which the API does not expose. A percentile of a handful of values is the
+ * extreme of a handful of values. The report says it to explain a missing ruler, and the match page
+ * computes its own band from the player's previous matches with the same floor: keep it in step
+ * with the API.
+ */
+export const MIN_SPREAD_MATCHES = 10;
+
 /** Which way is an improvement, as the API says it. */
 export type Better = "higher" | "lower" | "neutral";
 
