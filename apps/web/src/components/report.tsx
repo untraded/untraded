@@ -10,6 +10,7 @@ import { PositionRuler, RulerLegend } from "@/components/position-ruler";
 import { Priorities } from "@/components/priorities";
 import { describeReference } from "@/components/reference";
 import { ResultBadge } from "@/components/result-badge";
+import { SESSION_MATCHES_ID } from "@/components/session-context";
 import { Panel } from "@/components/ui/panel";
 import { type Locale, pickTone, TONE_COOKIE } from "@/i18n/locale";
 import { findMatch, type MatchDetail, type SessionReport } from "@/lib/api";
@@ -40,6 +41,13 @@ import { position, zoneTrend } from "@/lib/position";
 const FAMILIES = ["base", "rating", "duel", "trade", "clutch", "util", "eco", "pos"];
 const STANDOUT = 5;
 const ARROW: Record<Trend, string> = { better: "▲", worse: "▼", same: "=" };
+/**
+ * The fewest matches a reference of the player's own days needs before the API gives a metric its
+ * 10th and 90th percentiles, and the ruler its band: `reference.min_spread_matches` in
+ * `untraded.reference` (`MIN_SPREAD_MATCHES`), which the API does not expose. Only said to the
+ * player, to explain why the rulers are missing: keep it in step with the API.
+ */
+const MIN_SPREAD_MATCHES = 10;
 
 /**
  * A session report: the priorities first with the context beside them (key figures against the
@@ -141,6 +149,16 @@ export async function Report({
           : null,
       };
     });
+  // Why no metric has its ruler, when the reference is the reason: too few of the player's own
+  // matches, or too few players at their level. Said only when some metric is compared at all.
+  const compared = rows.some((row) => row.kind === "ranked" || row.kind === "units");
+  const noBand = reference.enough && compared && !rows.some((row) => row.ruler);
+  const rulerMissing =
+    noBand && reference.kind === "self" && reference.matches < MIN_SPREAD_MATCHES
+      ? t("rulerNeedsMatches", { min: MIN_SPREAD_MATCHES, matches: reference.matches })
+      : noBand && reference.kind === "level"
+        ? t("rulerNeedsPlayers")
+        : null;
   const byGap = (a: GapRow, b: GapRow) =>
     (a.gap ?? Number.POSITIVE_INFINITY) - (b.gap ?? Number.POSITIVE_INFINITY);
   const groups = FAMILIES.map((key) => ({
@@ -253,31 +271,33 @@ export async function Report({
               <FollowUpList items={report.follow_up} locale={locale} />
             </Panel>
           )}
-          <Panel title={t("sessionMatches")}>
-            <ul>
-              {report.match_list.map((match) => (
-                <li key={match.id} className="border-t border-line-soft first:border-t-0">
-                  <Link
-                    href={`/matches/${match.id}`}
-                    className="-mx-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 rounded-md px-2 py-2 text-sm hover:bg-muted"
-                  >
-                    <span className="flex items-center gap-2">
-                      <span className="font-semibold">{mapName(match.map)}</span>
-                      <span className="text-muted-foreground">
-                        {score(match.score_a, match.score_b, match.my_team)}
+          <div id={SESSION_MATCHES_ID} className="scroll-mt-4">
+            <Panel title={t("sessionMatches")}>
+              <ul>
+                {report.match_list.map((match) => (
+                  <li key={match.id} className="border-t border-line-soft first:border-t-0">
+                    <Link
+                      href={`/matches/${match.id}`}
+                      className="-mx-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 rounded-md px-2 py-2 text-sm hover:bg-muted"
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className="font-semibold">{mapName(match.map)}</span>
+                        <span className="text-muted-foreground">
+                          {score(match.score_a, match.score_b, match.my_team)}
+                        </span>
                       </span>
-                    </span>
-                    <ResultBadge result={match.my_result} status={match.status} />
-                    <span className="col-span-2 text-xs text-muted-foreground">
-                      {columns("kd")} {killDiff(match.my_line)},{" "}
-                      {columns(match.my_line?.untraded == null ? "level" : "urating")}{" "}
-                      {number(match.my_line?.untraded ?? match.my_line?.level, locale, 2)}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </Panel>
+                      <ResultBadge result={match.my_result} status={match.status} />
+                      <span className="col-span-2 text-xs text-muted-foreground">
+                        {columns("kd")} {killDiff(match.my_line)},{" "}
+                        {columns(match.my_line?.untraded == null ? "level" : "urating")}{" "}
+                        {number(match.my_line?.untraded ?? match.my_line?.level, locale, 2)}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </Panel>
+          </div>
         </aside>
       </div>
 
@@ -288,6 +308,7 @@ export async function Report({
               ? `${t("metricsLead", { count: rows.length, reference: named.short })} ${t("metricsRule", { min: MIN_CASES })}`
               : t("metricsLeadNone", { count: rows.length })}
           </p>
+          {rulerMissing && <p className="mt-1 text-sm text-muted-foreground">{rulerMissing}</p>}
         </div>
         {rows.some((row) => row.ruler) && named.short && (
           <RulerLegend

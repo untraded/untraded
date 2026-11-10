@@ -673,6 +673,8 @@
     "rulerGap": "{gap} vs reference",
     "rulerLabel": "{name}: {value}, reference {reference}. {zone}, {gap} compared with the reference.",
     "rulerLegend": "How to read the rulers",
+    "rulerNeedsMatches": "The position on a scale appears from {min, plural, one {# match} other {# matches}} in your reference (it has {matches}): until then, each metric keeps its gap bar.",
+    "rulerNeedsPlayers": "Not enough players at this level yet to place your values on a scale: each metric keeps its gap bar.",
     "rulerDot": "you, this session",
     "rulerMedian": "reference median",
     "rulerBand": "common values (10 to 90%)",
@@ -696,7 +698,9 @@
       "urating": "Untraded Rating",
       "adr": "ADR",
       "kast": "KAST",
-      "gap": "gap to the reference:"
+      "gap": "gap to the reference:",
+      "matches": "{count, plural, one {# match} other {# matches}}",
+      "toMatches": "{count, plural, one {# match} other {# matches}}, {record}: see the list of the session's matches"
     },
     "figures": {
       "untraded": "Untraded deaths per round"

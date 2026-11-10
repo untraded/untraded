@@ -9,7 +9,9 @@ Everything is invented (players, scores, metrics) and seeded, so screens look th
 run to the next. It answers like `apps/api` (same JSON shapes, see `apps/web/src/lib/api.ts`):
 - signing in: `/api/auth/steam` sets the session cookie and goes back to the web (no Steam);
 - sessions cover the three references (own days, level, none), priorities with evidence,
-  👍/👎 (kept in memory), and the follow-up of the previous priorities;
+  👍/👎 (kept in memory), and the follow-up of the previous priorities; `SCENARIOS` adds a session
+  of four matches and references without the 10th and 90th percentiles (too few matches of the
+  player's own, too few players at their level);
 - matches cover every status (ready, analysing, unavailable...);
 - onboarding (consent, then the two codes) and the admin, with players in every state;
 - round replays for the 2D viewer, from the `premier-half` fixture (see `fixture_replays`).
@@ -500,7 +502,19 @@ def findings(
 
 
 VOTES: dict[str, int] = {}
-KINDS = ["level", "self", "self", "none", "self", "self"] + ["self"] * 17
+KINDS = ["level", "self", "self", "none", "self", "level"] + ["self"] * 17
+
+# Sessions that show the states of the report beyond the default (two matches, a reference with its
+# 10th and 90th percentiles): n -> (matches in the session, matches in the reference, landmarks).
+# 1: four matches (the context bar sums them up), a reference of 26 of the player's matches;
+# 4: a reference of 6 of their matches, under `reference.min_spread_matches` (10): no landmarks;
+# 5: a reference by level without landmarks (too few players at that level).
+SCENARIOS: dict[int, tuple[int, int, bool]] = {
+    1: (4, 26, True),
+    4: (2, 6, False),
+    5: (2, 140, False),
+}
+REFERENCE_MATCHES = {"self": 14, "level": 812, "none": 2}
 
 # The key figures follow a slow improvement (the newest session first), so the progress page
 # draws something readable: (newest value, oldest value, noise, newest reference, oldest one).
@@ -566,13 +580,19 @@ def played(match: dict[str, Any]) -> dict[str, Any]:
 def build_sessions() -> list[dict[str, Any]]:
     ready = [m for m in MATCHES if m["status"] == "ready"]
     found = []
+    start = 0
     for n in range(len(KINDS)):
-        group = ready[n * 2 : n * 2 + 2]
+        size, ref_matches, landmarks = SCENARIOS.get(n, (2, REFERENCE_MATCHES[KINDS[n]], True))
+        group = ready[start : start + size]
+        start += size
         if not group:
             break
         enough = KINDS[n] != "none"
         rounds = sum(m["rounds_played"] for m in group)
         values = with_cases([headline(comparison(m, enough), n, enough) for m in METRICS], rounds)
+        if not landmarks:
+            for value in values:
+                value |= {"reference_p10": None, "reference_p90": None}
         wins = sum(m["my_result"] == "win" for m in group)
         found.append(
             {
@@ -589,13 +609,14 @@ def build_sessions() -> list[dict[str, Any]]:
                 "_values": values,
                 "_matches": group,
                 "_kind": KINDS[n],
+                "_reference_matches": ref_matches,
             }
         )
     return found
 
 
 SESSIONS = build_sessions()
-PUBLIC = {"_values", "_matches", "_kind"}
+PUBLIC = {"_values", "_matches", "_kind", "_reference_matches"}
 
 
 def summary(session: dict[str, Any]) -> dict[str, Any]:
@@ -654,8 +675,8 @@ def report(n: int) -> dict[str, Any]:
             "level_high": 22500 if kind == "level" else None,
             "since": "2026-09-20",
             "until": "2026-10-19",
-            "matches": {"self": 14, "level": 812, "none": 2}[kind],
-            "rounds": {"self": 310, "level": 17000, "none": 41}[kind],
+            "matches": session["_reference_matches"],
+            "rounds": session["_reference_matches"] * 22,
             "enough": kind != "none",
             "min_matches": 5,
             "min_rounds": 100,
