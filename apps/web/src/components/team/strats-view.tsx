@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 "use client";
 
-import { Plus } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Panel } from "@/components/ui/panel";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { MEMBERS } from "@/lib/team-preview/data";
 import { newId, useTeamPreview } from "@/lib/team-preview/store";
@@ -29,6 +29,7 @@ import {
   inputClass,
   mapLabel,
   memberName,
+  Toolbar,
   useRights,
 } from "./parts";
 
@@ -47,9 +48,10 @@ export function StratsView() {
   const [side, setSide] = useState<Side | "all">("all");
   const [editing, setEditing] = useState<Strat | null>(null);
   const [adding, setAdding] = useState(false);
-  const shown = strats.filter(
+  // Only what the role may see counts, so that the total does not give hidden items away.
+  const visible = strats.filter((s) => rights.sees(s.access));
+  const shown = visible.filter(
     (s) =>
-      rights.sees(s.access) &&
       (map === "all" || s.map === map) &&
       (kind === "all" || s.kind === kind) &&
       (side === "all" || s.side === side),
@@ -58,87 +60,89 @@ export function StratsView() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <p className="max-w-prose text-sm text-muted-foreground">{t("strats.lead")}</p>
-        <Button onClick={() => setAdding(true)} disabled={!rights.canAdd} className="gap-1.5">
-          <Plus aria-hidden="true" />
-          {t("add")}
-        </Button>
-      </div>
-      <div className="flex flex-wrap gap-x-4 gap-y-2">
-        <Filter label={t("map")} value={map} options={MAPS} onChange={setMap} name={mapLabel} />
-        <Filter
-          masculine
-          label={t("side")}
-          value={side}
-          options={SIDES}
-          onChange={setSide}
-          name={(s) => s}
-        />
-        <Filter
-          masculine
-          label={t("kind")}
-          value={kind}
-          options={STRAT_KINDS}
-          onChange={setKind}
-          name={(k) => t(`strats.kinds.${k}`)}
-        />
-      </div>
+      <Toolbar
+        lead={t("strats.lead")}
+        shown={shown.length}
+        total={visible.length}
+        onAdd={() => setAdding(true)}
+        canAdd={rights.canAdd}
+        filters={
+          <>
+            <Filter label={t("map")} value={map} options={MAPS} onChange={setMap} name={mapLabel} />
+            <Filter
+              masculine
+              label={t("side")}
+              value={side}
+              options={SIDES}
+              onChange={setSide}
+              name={(s) => s}
+            />
+            <Filter
+              masculine
+              label={t("kind")}
+              value={kind}
+              options={STRAT_KINDS}
+              onChange={setKind}
+              name={(k) => t(`strats.kinds.${k}`)}
+            />
+          </>
+        }
+      />
       {shown.length === 0 ? (
-        <p className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
+        <p className="rounded-lg border border-dashed border-border px-3.5 py-3 text-sm text-muted-foreground">
           {t("empty")}
         </p>
       ) : (
-        <ul className="grid gap-3 lg:grid-cols-2">
+        <ul className="grid gap-4 lg:grid-cols-2">
           {shown.map((strat) => (
-            <li
-              key={strat.id}
-              className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4"
-            >
-              <div className="flex flex-col gap-1">
-                <span className="flex flex-wrap items-center gap-1">
-                  <Chip>{mapLabel(strat.map)}</Chip>
-                  <Chip tone={strat.side === "CT" ? "ct" : "t"}>{strat.side}</Chip>
-                  <Chip>{t(`strats.kinds.${strat.kind}`)}</Chip>
-                  {strat.local && (
-                    <span className="text-xs text-muted-foreground">{t("yours")}</span>
-                  )}
-                </span>
-                <h2 className="font-semibold">{text(strat.title, locale)}</h2>
-              </div>
-              <ul className="flex flex-col">
-                {strat.steps.map((step, i) => (
-                  <li
-                    // biome-ignore lint/suspicious/noArrayIndexKey: one player can have two steps
-                    key={i}
-                    className="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-x-2 border-t border-line-soft py-1.5 text-sm first:border-t-0"
-                  >
-                    <span className="font-semibold">{memberName(step.member)}</span>
-                    <span>{text(step.text, locale)}</span>
-                  </li>
-                ))}
-              </ul>
-              {text(strat.notes, locale) && (
-                <p className="rounded-md bg-muted px-3 py-2 text-sm">
-                  <span className="block text-xs font-medium text-muted-foreground">
-                    {t("strats.notes")}
-                  </span>
-                  {text(strat.notes, locale)}
-                </p>
-              )}
-              <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-line-soft pt-2.5">
-                <span className="flex flex-wrap items-center gap-2">
-                  {[...new Set(strat.tags)].map((tag) => (
-                    <span key={tag} className="text-xs text-muted-foreground">
-                      #{tag}
-                    </span>
+            <li key={strat.id} className="flex">
+              <Panel
+                title={text(strat.title, locale)}
+                aside={
+                  <>
+                    <Chip>{mapLabel(strat.map)}</Chip>
+                    <Chip tone={strat.side === "CT" ? "ct" : "t"}>{strat.side}</Chip>
+                    <Chip>{t(`strats.kinds.${strat.kind}`)}</Chip>
+                  </>
+                }
+                className="flex w-full flex-col"
+                bodyClassName="flex flex-1 flex-col gap-3"
+              >
+                {strat.local && <p className="-mb-1 text-xs text-muted-foreground">{t("yours")}</p>}
+                <ul className="flex flex-col">
+                  {strat.steps.map((step, i) => (
+                    <li
+                      // biome-ignore lint/suspicious/noArrayIndexKey: one player can have two steps
+                      key={i}
+                      className="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-x-2 border-t border-line-soft py-1.5 text-sm first:border-t-0"
+                    >
+                      <span className="font-semibold">{memberName(step.member)}</span>
+                      <span>{text(step.text, locale)}</span>
+                    </li>
                   ))}
-                  <AccessBadge access={strat.access} />
-                </span>
-                <Button variant="outline" size="sm" onClick={() => setEditing(strat)}>
-                  {t("access.title")}
-                </Button>
-              </div>
+                </ul>
+                {text(strat.notes, locale) && (
+                  <p className="rounded-md bg-muted px-3 py-2 text-sm">
+                    <span className="block text-xs font-medium text-muted-foreground">
+                      {t("strats.notes")}
+                    </span>
+                    {text(strat.notes, locale)}
+                  </p>
+                )}
+                <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-line-soft pt-2.5">
+                  <span className="flex flex-wrap items-center gap-2">
+                    {[...new Set(strat.tags)].map((tag) => (
+                      <span key={tag} className="text-xs text-muted-foreground">
+                        #{tag}
+                      </span>
+                    ))}
+                    <AccessBadge access={strat.access} />
+                  </span>
+                  <Button variant="outline" size="sm" onClick={() => setEditing(strat)}>
+                    {t("access.title")}
+                  </Button>
+                </div>
+              </Panel>
             </li>
           ))}
         </ul>

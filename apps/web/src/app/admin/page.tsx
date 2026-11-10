@@ -1,8 +1,10 @@
 // SPDX-FileCopyrightText: 2026 The Untraded Authors
 // SPDX-License-Identifier: AGPL-3.0-only
+
+import { CircleCheck, OctagonX, TriangleAlert } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getLocale, getTimeZone, getTranslations } from "next-intl/server";
 import {
   changeSource,
@@ -15,6 +17,7 @@ import { AdminHeader } from "@/components/admin/admin-header";
 import { InviteForm } from "@/components/admin/invite-form";
 import { ConfirmSubmit } from "@/components/confirm-submit";
 import { Button } from "@/components/ui/button";
+import { Panel } from "@/components/ui/panel";
 import type { Locale } from "@/i18n/locale";
 import {
   type AdminPlayer,
@@ -30,7 +33,6 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getTranslations("admin"))("players") };
 }
 
-/** Every player, from invited to followed, and what the admin can do about each. */
 const ERASE_NOTES = {
   missing: "eraseMissing",
   self: "eraseSelf",
@@ -43,6 +45,11 @@ const REQUEST_NOTES = {
   failed: "requestFailed",
 } as const;
 
+/**
+ * Every player, from invited to followed, and what the admin can do about each: invite, answer
+ * the requests, pause or remove a source, erase. A player who is not an admin gets the 404: the
+ * page does not say it exists.
+ */
 export default async function AdminPlayers({
   searchParams,
 }: {
@@ -50,11 +57,12 @@ export default async function AdminPlayers({
 }) {
   const me = await getMe();
   if (!me) redirect("/");
-  const t = await getTranslations("admin");
-  if (!me.admin) {
-    return <p className="text-muted-foreground">{t("forbidden")}</p>;
-  }
-  const [playerList, requestList] = await Promise.all([getAdminPlayers(), getInvitationRequests()]);
+  if (!me.admin) notFound();
+  const [playerList, requestList, t] = await Promise.all([
+    getAdminPlayers(),
+    getInvitationRequests(),
+    getTranslations("admin"),
+  ]);
   const players = playerList?.items ?? [];
   const requests = requestList?.items ?? [];
   const { erased, erase, request } = await searchParams;
@@ -65,63 +73,89 @@ export default async function AdminPlayers({
   const refused =
     erase && erase in ERASE_NOTES ? ERASE_NOTES[erase as keyof typeof ERASE_NOTES] : null;
   return (
-    <section className="flex flex-col gap-5">
-      <AdminHeader current="players" />
-      <InviteForm
-        labels={{
-          title: t("inviteTitle"),
-          steamId: t("steamId"),
-          steamIdHelp: t("steamIdHelp"),
-          displayName: t("displayName"),
-          submit: t("invite"),
-          invited: t("invited", { name: "{name}" }),
-          errors: {
-            steam_id: t("errorSteamId"),
-            display_name: t("errorDisplayName"),
-            exists: t("errorExists"),
-            failed: t("errorFailed"),
-          },
-        }}
-      />
-      {requests.length > 0 && <Requests requests={requests} note={requestNote} />}
-      {(erased || refused) && (
-        <p
-          role={refused ? "alert" : "status"}
-          className={cn(
-            "rounded-md border px-4 py-2.5 text-sm",
-            refused ? "border-destructive/40 text-destructive" : "border-border bg-card",
-          )}
-        >
-          {refused ? t(refused) : t("erased")}
-        </p>
-      )}
-      {players.length === 0 ? (
-        <p className="text-muted-foreground">{t("empty")}</p>
-      ) : (
-        <div className="rounded-lg border border-border bg-card">
-          <div
-            aria-hidden="true"
-            className="hidden grid-cols-[minmax(0,1.3fr)_7rem_minmax(0,1fr)_minmax(0,1.2fr)_5rem_minmax(0,1.4fr)] gap-4 border-b border-border px-4 py-2 text-xs text-muted-foreground lg:grid"
+    <>
+      <AdminHeader current="players">
+        <span className="tabular-nums">{t("playersCount", { count: players.length })}</span>
+        {requests.length > 0 && (
+          <a
+            href="#requests"
+            className="tabular-nums underline decoration-muted-foreground underline-offset-3 hover:decoration-foreground"
           >
-            <span>{t("player")}</span>
-            <span>{t("state")}</span>
-            <span>{t("consent")}</span>
-            <span>{t("lastCollect")}</span>
-            <span className="text-right">{t("matchesCol")}</span>
-            <span>{t("actions")}</span>
-          </div>
-          <ul>
-            {players.map((player) => (
-              <PlayerRow
-                key={player.steam_id}
-                player={player}
-                self={player.steam_id === me.steam_id}
-              />
-            ))}
-          </ul>
-        </div>
-      )}
-    </section>
+            {t("requestsCount", { count: requests.length })}
+          </a>
+        )}
+      </AdminHeader>
+      <div className="flex flex-col gap-4">
+        {(erased || refused) && (
+          <p
+            role={refused ? "alert" : "status"}
+            className={cn(
+              "flex items-start gap-2 rounded-lg border px-3.5 py-2.5 text-sm",
+              refused ? "border-destructive/40 text-destructive" : "border-border bg-card",
+            )}
+          >
+            {refused ? (
+              <OctagonX aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+            ) : (
+              <CircleCheck aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-win" />
+            )}
+            {refused ? t(refused) : t("erased")}
+          </p>
+        )}
+        <Panel title={t("inviteTitle")}>
+          <InviteForm
+            labels={{
+              steamId: t("steamId"),
+              steamIdHelp: t("steamIdHelp"),
+              displayName: t("displayName"),
+              submit: t("invite"),
+              invited: t("invited", { name: "{name}" }),
+              errors: {
+                steam_id: t("errorSteamId"),
+                display_name: t("errorDisplayName"),
+                exists: t("errorExists"),
+                failed: t("errorFailed"),
+              },
+            }}
+          />
+        </Panel>
+        {requests.length > 0 && <Requests requests={requests} note={requestNote} />}
+        <Panel
+          title={t("players")}
+          aside={
+            <span className="tabular-nums">{t("playersCount", { count: players.length })}</span>
+          }
+          flush
+        >
+          {players.length === 0 ? (
+            <p className="px-3.5 py-3 text-sm text-muted-foreground">{t("empty")}</p>
+          ) : (
+            <>
+              <div
+                aria-hidden="true"
+                className="hidden grid-cols-[minmax(0,1.3fr)_7rem_minmax(0,1fr)_minmax(0,1.2fr)_5rem_minmax(0,1.4fr)] gap-4 border-b border-line-soft px-3.5 py-1.5 text-xs font-medium text-muted-foreground lg:grid"
+              >
+                <span>{t("player")}</span>
+                <span>{t("state")}</span>
+                <span>{t("consent")}</span>
+                <span>{t("lastCollect")}</span>
+                <span className="text-right">{t("matchesCol")}</span>
+                <span>{t("actions")}</span>
+              </div>
+              <ul>
+                {players.map((player) => (
+                  <PlayerRow
+                    key={player.steam_id}
+                    player={player}
+                    self={player.steam_id === me.steam_id}
+                  />
+                ))}
+              </ul>
+            </>
+          )}
+        </Panel>
+      </div>
+    </>
   );
 }
 
@@ -134,7 +168,7 @@ async function PlayerRow({ player, self }: { player: AdminPlayer; self: boolean 
   // Labels shown on phones only, where there is no column header.
   const caption = "text-xs text-muted-foreground lg:hidden";
   return (
-    <li className="grid gap-x-4 gap-y-2 border-t border-line-soft px-4 py-3 text-sm first:border-t-0 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.3fr)_7rem_minmax(0,1fr)_minmax(0,1.2fr)_5rem_minmax(0,1.4fr)] lg:items-start">
+    <li className="grid gap-x-4 gap-y-2 border-t border-line-soft px-3.5 py-3 text-sm first:border-t-0 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.3fr)_7rem_minmax(0,1fr)_minmax(0,1.2fr)_5rem_minmax(0,1.4fr)] lg:items-start">
       <div className="min-w-0">
         <p className="truncate font-semibold">{player.display_name}</p>
         <p className="font-mono text-xs text-muted-foreground" translate="no">
@@ -172,7 +206,9 @@ async function PlayerRow({ player, self }: { player: AdminPlayer; self: boolean 
         <span className={caption}>{t("lastCollect")} </span>
         {source?.last_success_at ? dateTime(source.last_success_at, locale, timeZone) : t("none")}
         {error && (
-          <span className="block text-destructive">
+          <span className="mt-0.5 flex items-start gap-1 text-destructive">
+            <TriangleAlert aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
+            <span className="sr-only">{t("collectError")} </span>
             {error === "403"
               ? t("error403")
               : error === "412"
@@ -270,15 +306,20 @@ async function Requests({
   const timeZone = await getTimeZone();
   const input = "h-8 w-40 rounded-md border border-input bg-card px-2 text-sm";
   return (
-    <section className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4">
-      <div>
-        <h2 className="font-semibold">
-          {t("requestsTitle")} <span className="text-muted-foreground">({requests.length})</span>
-        </h2>
-        <p className="text-sm text-muted-foreground">{t("requestsLead")}</p>
-      </div>
+    <Panel
+      title={<span id="requests">{t("requestsTitle")}</span>}
+      aside={<span className="tabular-nums">{t("requestsCount", { count: requests.length })}</span>}
+      flush
+    >
+      <p className="border-b border-line-soft px-3.5 py-2 text-xs text-muted-foreground">
+        {t("requestsLead")}
+      </p>
       {note && (
-        <p role="alert" className="text-sm text-destructive">
+        <p
+          role="alert"
+          className="flex items-start gap-2 border-b border-line-soft px-3.5 py-2 text-sm text-destructive"
+        >
+          <OctagonX aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
           {t(note)}
         </p>
       )}
@@ -286,9 +327,9 @@ async function Requests({
         {requests.map((r) => (
           <li
             key={r.steam_id}
-            className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-line-soft py-2.5 first:border-t-0"
+            className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-line-soft px-3.5 py-2.5 first:border-t-0"
           >
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1 max-sm:basis-full">
               <p className="truncate font-semibold">{r.persona_name ?? r.steam_id}</p>
               <p className="text-xs text-muted-foreground">
                 <span className="font-mono" translate="no">
@@ -330,6 +371,6 @@ async function Requests({
           </li>
         ))}
       </ul>
-    </section>
+    </Panel>
   );
 }

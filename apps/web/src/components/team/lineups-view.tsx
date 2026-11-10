@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 "use client";
 
-import { Plus } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { type FormEvent, useRef, useState } from "react";
@@ -35,6 +34,7 @@ import {
   inputClass,
   mapLabel,
   memberName,
+  Toolbar,
   useRights,
 } from "./parts";
 
@@ -59,9 +59,10 @@ export function LineupsView() {
     () => lineups.find((l) => l.id === query.get("open") && rights.sees(l.access)) ?? null,
   );
   const [adding, setAdding] = useState(false);
-  const shown = lineups.filter(
+  // Only what the role may see counts, so that the total does not give hidden items away.
+  const visible = lineups.filter((l) => rights.sees(l.access));
+  const shown = visible.filter(
     (l) =>
-      rights.sees(l.access) &&
       (map === "all" || l.map === map) &&
       (side === "all" || l.side === side) &&
       (grenade === "all" || l.grenade === grenade) &&
@@ -71,54 +72,60 @@ export function LineupsView() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <p className="max-w-prose text-sm text-muted-foreground">{t("lineups.lead")}</p>
-        <Button onClick={() => setAdding(true)} disabled={!rights.canAdd} className="gap-1.5">
-          <Plus aria-hidden="true" />
-          {t("add")}
-        </Button>
-      </div>
-      <div className="flex flex-wrap gap-x-4 gap-y-2">
-        <Filter label={t("map")} value={map} options={MAPS} onChange={setMap} name={mapLabel} />
-        <Filter
-          masculine
-          label={t("side")}
-          value={side}
-          options={SIDES}
-          onChange={setSide}
-          name={(s) => s}
-        />
-        <Filter
-          label={t("grenade")}
-          value={grenade}
-          options={GRENADES}
-          onChange={setGrenade}
-          name={(g) => t(`grenades.${g}`)}
-        />
-        <Filter
-          masculine
-          label={t("site")}
-          value={site}
-          options={SITES}
-          onChange={setSite}
-          name={(s) => t(`sites.${s}`)}
-        />
-      </div>
+      <Toolbar
+        lead={t("lineups.lead")}
+        shown={shown.length}
+        total={visible.length}
+        onAdd={() => setAdding(true)}
+        canAdd={rights.canAdd}
+        filters={
+          <>
+            <Filter label={t("map")} value={map} options={MAPS} onChange={setMap} name={mapLabel} />
+            <Filter
+              masculine
+              label={t("side")}
+              value={side}
+              options={SIDES}
+              onChange={setSide}
+              name={(s) => s}
+            />
+            <Filter
+              label={t("grenade")}
+              value={grenade}
+              options={GRENADES}
+              onChange={setGrenade}
+              name={(g) => t(`grenades.${g}`)}
+            />
+            <Filter
+              masculine
+              label={t("site")}
+              value={site}
+              options={SITES}
+              onChange={setSite}
+              name={(s) => t(`sites.${s}`)}
+            />
+          </>
+        }
+      />
       {shown.length === 0 ? (
-        <p className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
+        <p className="rounded-lg border border-dashed border-border px-3.5 py-3 text-sm text-muted-foreground">
           {t("empty")}
         </p>
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {shown.map((lineup) => (
             <li key={lineup.id}>
               <button
                 type="button"
                 onClick={() => setOpen(lineup)}
-                className="flex w-full cursor-pointer flex-col overflow-hidden rounded-lg border border-border bg-card text-left hover:border-foreground focus-visible:outline-2 focus-visible:outline-ring"
+                className="flex h-full w-full cursor-pointer flex-col overflow-hidden rounded-lg border border-border bg-card text-left hover:border-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
               >
+                {/* The panel's band, as in the other blocks: a button holds no heading. */}
+                <span className="flex min-h-10 items-center border-b border-border bg-panel-head px-3.5 py-1.5 text-[0.8125rem] font-semibold">
+                  {text(lineup.title, locale)}
+                </span>
                 <ClipFrame clip={lineup.clip} label={t("lineups.clipPlaceholder")} />
-                <span className="flex flex-col gap-1.5 px-3 py-2.5">
+                <span className="flex flex-col gap-1.5 px-3.5 py-2.5">
                   <span className="flex flex-wrap items-center gap-1">
                     <Chip tone={lineup.side === "CT" ? "ct" : "t"}>{lineup.side}</Chip>
                     <Chip>{t(`grenades.${lineup.grenade}`)}</Chip>
@@ -128,7 +135,6 @@ export function LineupsView() {
                       <span className="text-xs text-muted-foreground">{t("yours")}</span>
                     )}
                   </span>
-                  <span className="font-semibold">{text(lineup.title, locale)}</span>
                   <span className="text-xs text-muted-foreground">
                     {t(`throws.${lineup.throw}`)} · {t("by", { name: memberName(lineup.author) })}
                   </span>

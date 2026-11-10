@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 "use client";
 
-import { Plus, Timer } from "lucide-react";
+import { Timer } from "lucide-react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Panel } from "@/components/ui/panel";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { MEMBERS } from "@/lib/team-preview/data";
 import { newId, useTeamPreview } from "@/lib/team-preview/store";
@@ -29,6 +30,7 @@ import {
   inputClass,
   mapLabel,
   memberName,
+  Toolbar,
   useRights,
 } from "./parts";
 
@@ -44,11 +46,10 @@ export function ExecsView() {
   const [site, setSite] = useState<Site | "all">("all");
   const [editing, setEditing] = useState<Exec | null>(null);
   const [adding, setAdding] = useState(false);
-  const shown = execs.filter(
-    (e) =>
-      rights.sees(e.access) &&
-      (map === "all" || e.map === map) &&
-      (site === "all" || e.site === site),
+  // Only what the role may see counts, so that the total does not give hidden items away.
+  const visible = execs.filter((e) => rights.sees(e.access));
+  const shown = visible.filter(
+    (e) => (map === "all" || e.map === map) && (site === "all" || e.site === site),
   );
   const current = editing ? (execs.find((e) => e.id === editing.id) ?? null) : null;
   // A lineup the role may not see stays unnamed here too.
@@ -58,97 +59,101 @@ export function ExecsView() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <p className="max-w-prose text-sm text-muted-foreground">{t("execs.lead")}</p>
-        <Button onClick={() => setAdding(true)} disabled={!rights.canAdd} className="gap-1.5">
-          <Plus aria-hidden="true" />
-          {t("add")}
-        </Button>
-      </div>
-      <div className="flex flex-wrap gap-x-4 gap-y-2">
-        <Filter label={t("map")} value={map} options={MAPS} onChange={setMap} name={mapLabel} />
-        <Filter
-          masculine
-          label={t("site")}
-          value={site}
-          options={SITES}
-          onChange={setSite}
-          name={(s) => t(`sites.${s}`)}
-        />
-      </div>
+      <Toolbar
+        lead={t("execs.lead")}
+        shown={shown.length}
+        total={visible.length}
+        onAdd={() => setAdding(true)}
+        canAdd={rights.canAdd}
+        filters={
+          <>
+            <Filter label={t("map")} value={map} options={MAPS} onChange={setMap} name={mapLabel} />
+            <Filter
+              masculine
+              label={t("site")}
+              value={site}
+              options={SITES}
+              onChange={setSite}
+              name={(s) => t(`sites.${s}`)}
+            />
+          </>
+        }
+      />
       {shown.length === 0 ? (
-        <p className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
+        <p className="rounded-lg border border-dashed border-border px-3.5 py-3 text-sm text-muted-foreground">
           {t("empty")}
         </p>
       ) : (
-        <ul className="grid gap-3 lg:grid-cols-2">
+        <ul className="grid gap-4 lg:grid-cols-2">
           {shown.map((exec) => (
-            <li
-              key={exec.id}
-              className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4"
-            >
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div className="flex flex-col gap-1">
-                  <span className="flex flex-wrap items-center gap-1">
+            <li key={exec.id} className="flex">
+              <Panel
+                title={text(exec.title, locale)}
+                aside={
+                  <>
                     <Chip>{mapLabel(exec.map)}</Chip>
                     <Chip>{t(`sites.${exec.site}`)}</Chip>
-                    {exec.local && (
-                      <span className="text-xs text-muted-foreground">{t("yours")}</span>
-                    )}
-                  </span>
-                  <h2 className="font-semibold">{text(exec.title, locale)}</h2>
-                </div>
-                <span className="inline-flex items-center gap-1 font-mono text-sm">
-                  <Timer aria-hidden="true" className="size-4 text-muted-foreground" />
-                  <span className="sr-only">{t("execs.timing")} </span>
-                  {exec.timing}
-                </span>
-              </div>
-              <div className="flex flex-col gap-1">
-                <h3 className="text-xs font-medium text-muted-foreground">{t("execs.tasks")}</h3>
-                <ul className="flex flex-col">
-                  {exec.tasks.map((task, i) => (
-                    <li
-                      // biome-ignore lint/suspicious/noArrayIndexKey: one player can have two tasks
-                      key={i}
-                      className="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-x-2 border-t border-line-soft py-1.5 text-sm first:border-t-0"
-                    >
-                      <span className="font-semibold">{memberName(task.member)}</span>
-                      <span>
-                        {text(task.task, locale)}
-                        {(() => {
-                          const lineup = task.lineup ? lineupOf(task.lineup) : null;
-                          return lineup ? (
-                            <Link
-                              href={`/team/lineups?map=${lineup.map}&open=${lineup.id}`}
-                              className="ml-1.5 text-xs text-link underline underline-offset-3"
-                            >
-                              {text(lineup.title, locale)}
-                            </Link>
-                          ) : null;
-                        })()}
+                    {exec.timing && (
+                      <span className="inline-flex items-center gap-1 font-mono text-foreground">
+                        <Timer aria-hidden="true" className="size-3.5 text-muted-foreground" />
+                        <span className="sr-only">{t("execs.timing")} </span>
+                        {exec.timing}
                       </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              {exec.steps.length > 0 && (
+                    )}
+                  </>
+                }
+                className="flex w-full flex-col"
+                bodyClassName="flex flex-1 flex-col gap-3"
+              >
+                {exec.local && <p className="-mb-1 text-xs text-muted-foreground">{t("yours")}</p>}
                 <div className="flex flex-col gap-1">
-                  <h3 className="text-xs font-medium text-muted-foreground">{t("execs.steps")}</h3>
-                  <ol className="flex list-decimal flex-col gap-1 pl-5 text-sm">
-                    {exec.steps.map((step, i) => (
-                      // biome-ignore lint/suspicious/noArrayIndexKey: steps can repeat
-                      <li key={i}>{text(step, locale)}</li>
+                  <h3 className="text-xs font-medium text-muted-foreground">{t("execs.tasks")}</h3>
+                  <ul className="flex flex-col">
+                    {exec.tasks.map((task, i) => (
+                      <li
+                        // biome-ignore lint/suspicious/noArrayIndexKey: one player can have two tasks
+                        key={i}
+                        className="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-x-2 border-t border-line-soft py-1.5 text-sm first:border-t-0"
+                      >
+                        <span className="font-semibold">{memberName(task.member)}</span>
+                        <span>
+                          {text(task.task, locale)}
+                          {(() => {
+                            const lineup = task.lineup ? lineupOf(task.lineup) : null;
+                            return lineup ? (
+                              <Link
+                                href={`/team/lineups?map=${lineup.map}&open=${lineup.id}`}
+                                className="ml-1.5 text-xs text-link underline underline-offset-3"
+                              >
+                                {text(lineup.title, locale)}
+                              </Link>
+                            ) : null;
+                          })()}
+                        </span>
+                      </li>
                     ))}
-                  </ol>
+                  </ul>
                 </div>
-              )}
-              <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-line-soft pt-2.5">
-                <AccessBadge access={exec.access} />
-                <Button variant="outline" size="sm" onClick={() => setEditing(exec)}>
-                  {t("access.title")}
-                </Button>
-              </div>
+                {exec.steps.length > 0 && (
+                  <div className="flex flex-col gap-1">
+                    <h3 className="text-xs font-medium text-muted-foreground">
+                      {t("execs.steps")}
+                    </h3>
+                    <ol className="flex list-decimal flex-col gap-1 pl-5 text-sm">
+                      {exec.steps.map((step, i) => (
+                        // biome-ignore lint/suspicious/noArrayIndexKey: steps can repeat
+                        <li key={i}>{text(step, locale)}</li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
+                <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-line-soft pt-2.5">
+                  <AccessBadge access={exec.access} />
+                  <Button variant="outline" size="sm" onClick={() => setEditing(exec)}>
+                    {t("access.title")}
+                  </Button>
+                </div>
+              </Panel>
             </li>
           ))}
         </ul>

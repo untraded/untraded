@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 "use client";
 
-import { Clapperboard, Lock } from "lucide-react";
+import { Clapperboard, Lock, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useEffect, useId, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import { loadClip } from "@/lib/team-preview/clips";
 import { MEMBERS } from "@/lib/team-preview/data";
@@ -64,6 +65,46 @@ export function Filter<T extends string>({
         ))}
       </select>
     </label>
+  );
+}
+
+/**
+ * The head of a list page: its lead, then a strip in the panels' band colour with the filters at
+ * the left and, at the right, how many items show and the button that adds one (dimmed when the
+ * role may not add).
+ */
+export function Toolbar({
+  lead,
+  filters,
+  shown,
+  total,
+  onAdd,
+  canAdd,
+}: {
+  lead: string;
+  filters: ReactNode;
+  shown: number;
+  total: number;
+  onAdd: () => void;
+  canAdd: boolean;
+}) {
+  const t = useTranslations("team");
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="max-w-prose text-sm text-muted-foreground">{lead}</p>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-border bg-panel-head px-3.5 py-2">
+        <div className="flex flex-wrap gap-x-4 gap-y-2">{filters}</div>
+        <div className="ml-auto flex items-center gap-3">
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {t("shown", { shown, total })}
+          </span>
+          <Button onClick={onAdd} disabled={!canAdd} size="sm" className="gap-1.5">
+            <Plus aria-hidden="true" />
+            {t("add")}
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }
 

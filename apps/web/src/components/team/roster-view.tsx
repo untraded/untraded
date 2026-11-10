@@ -3,6 +3,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { Panel } from "@/components/ui/panel";
 import { cn } from "@/lib/cn";
 import { MEMBERS } from "@/lib/team-preview/data";
 import { useTeamPreview } from "@/lib/team-preview/store";
@@ -19,7 +20,7 @@ export function RosterView() {
   const card = (member: Member) => (
     <li
       key={member.id}
-      className="flex items-center gap-3 rounded-md border border-border bg-card px-3 py-2.5"
+      className="flex items-center gap-3 rounded-md border border-line-soft px-3 py-2.5"
     >
       <span
         aria-hidden="true"
@@ -39,11 +40,8 @@ export function RosterView() {
   );
 
   return (
-    <div className="flex flex-col gap-7">
-      <section aria-labelledby="roster" className="flex flex-col gap-3">
-        <h2 id="roster" className="text-sm font-semibold text-muted-foreground">
-          {t("roster.title")}
-        </h2>
+    <div className="flex flex-col gap-4">
+      <Panel title={t("roster.title")} bodyClassName="flex flex-col gap-3">
         <div className="flex flex-col gap-1.5">
           <h3 className="text-[0.8125rem] font-medium">{t("roster.starters")}</h3>
           <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">{group("starter").map(card)}</ul>
@@ -53,15 +51,12 @@ export function RosterView() {
           <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">{group("standin").map(card)}</ul>
           <p className="text-xs text-muted-foreground">{t("roster.standinsHint")}</p>
         </div>
-      </section>
+      </Panel>
 
-      <section aria-labelledby="members" className="flex flex-col gap-2">
-        <h2 id="members" className="text-sm font-semibold text-muted-foreground">
-          {t("roster.members")}
-        </h2>
-        <div className="overflow-x-auto rounded-lg border border-border bg-card">
+      <Panel title={t("roster.members")} flush>
+        <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="text-left text-xs text-muted-foreground">
+            <thead className="border-b border-line-soft text-left text-xs text-muted-foreground">
               <tr>
                 <th scope="col" className="px-4 py-2 font-medium">
                   {t("roster.member")}
@@ -95,18 +90,15 @@ export function RosterView() {
             </tbody>
           </table>
         </div>
-      </section>
+      </Panel>
 
-      <section aria-labelledby="matrix" className="flex flex-col gap-2">
-        <h2 id="matrix" className="text-sm font-semibold text-muted-foreground">
-          {t("roster.matrix")}
-        </h2>
-        <p className="text-[0.8125rem] text-muted-foreground">
+      <Panel title={t("roster.matrix")} flush>
+        <p className="border-b border-line-soft px-3.5 py-2 text-[0.8125rem] text-muted-foreground">
           {canManage ? t("roster.matrixHint") : t("roster.matrixReadOnly")}
         </p>
-        <div className="overflow-x-auto rounded-lg border border-border bg-card">
+        <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="text-left text-xs text-muted-foreground">
+            <thead className="border-b border-line-soft text-left text-xs text-muted-foreground">
               <tr>
                 <th scope="col" className="px-4 py-2 font-medium">
                   {t("roster.page")}
@@ -155,8 +147,10 @@ export function RosterView() {
             </tbody>
           </table>
         </div>
-        <p className="text-xs text-muted-foreground">{t("roster.levelsHint")}</p>
-      </section>
+        <p className="border-t border-line-soft px-3.5 py-2 text-xs text-muted-foreground">
+          {t("roster.levelsHint")}
+        </p>
+      </Panel>
     </div>
   );
 }
