@@ -30,8 +30,9 @@ export const SESSION_MATCHES_ID = "session-matches";
  * down the report.
  *
  * The chips link to their match for the mouse. The keyboard and assistive technologies get a list
- * of the same links, out of sight until focused: the focused one then shows over the start of
- * the chips, so that no chip left on the hidden line takes the focus.
+ * of the same links, out of sight until focused: the focused one then shows over the record and
+ * the first chips, so that no chip left on the hidden line takes the focus. From 1280 px the bar
+ * holds on one line: with a very large font, the chips are clipped rather than scroll sideways.
  */
 export async function SessionContext({ report }: { report: SessionReport }) {
   const [t, results, locale] = await Promise.all([
@@ -50,7 +51,7 @@ export async function SessionContext({ report }: { report: SessionReport }) {
   return (
     <ContextBar label={t("context.label")}>
       {report.maps.length > 0 && (
-        <div className="relative flex min-w-min flex-1 items-baseline gap-x-2.5 text-[0.8125rem] max-sm:hidden">
+        <div className="relative flex min-w-min flex-1 items-baseline gap-x-2.5 text-[0.8125rem] max-sm:hidden xl:min-w-0 xl:overflow-x-clip xl:[overflow-clip-margin:0.5rem]">
           <span className={cn("shrink-0 text-sm font-semibold tabular-nums", trendClass(trend))}>
             {t("record", record)}
           </span>
@@ -62,7 +63,7 @@ export async function SessionContext({ report }: { report: SessionReport }) {
               <li key={played.match_id}>
                 <Link
                   href={matchHref(played.match_id)}
-                  className="sr-only inline-flex h-7 items-center rounded-sm bg-card px-2 text-xs whitespace-nowrap ring-1 ring-border focus:not-sr-only"
+                  className="sr-only focus:not-sr-only focus:inline-block focus:leading-7 focus:rounded-sm focus:bg-card focus:px-2 focus:text-xs focus:ring-1 focus:ring-border"
                 >
                   {played.result && `${results(played.result)}, `}
                   <span translate="no">{mapName(played.map)}</span>
@@ -82,7 +83,7 @@ export async function SessionContext({ report }: { report: SessionReport }) {
         </div>
       )}
       {figures.length > 0 && (
-        <dl className="flex flex-wrap gap-x-4 gap-y-1 max-sm:w-full max-sm:justify-between sm:gap-x-6 lg:ml-auto xl:shrink-0 xl:flex-nowrap">
+        <dl className="flex flex-wrap gap-x-4 gap-y-1 max-sm:w-full max-sm:justify-between sm:ml-auto sm:gap-x-6 xl:shrink-0 xl:flex-nowrap">
           {figures.map(({ c, label }) => {
             const moved = gapTrend(gap(c));
             return (
