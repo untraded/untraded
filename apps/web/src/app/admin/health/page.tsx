@@ -17,12 +17,13 @@ import {
   overall,
   sourcesState,
 } from "@/lib/admin-health";
+import { adminOnlyMetadata } from "@/lib/admin-metadata";
 import { getAdminHealth, getMe } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { bytes, dateTime, number, percent } from "@/lib/format";
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: (await getTranslations("admin"))("health") };
+  return adminOnlyMetadata(async () => (await getTranslations("admin"))("health"));
 }
 
 /**
