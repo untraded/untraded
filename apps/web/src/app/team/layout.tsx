@@ -6,11 +6,12 @@ import { NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { TeamShell } from "@/components/team/team-shell";
+import { adminOnlyMetadata } from "@/lib/admin-metadata";
 import { getMe } from "@/lib/api";
 import { TeamPreviewProvider } from "@/lib/team-preview/store";
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: (await getTranslations("team"))("title") };
+  return adminOnlyMetadata(async () => (await getTranslations("team"))("title"));
 }
 
 /**

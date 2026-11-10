@@ -19,6 +19,7 @@ import { ConfirmSubmit } from "@/components/confirm-submit";
 import { Button } from "@/components/ui/button";
 import { Panel } from "@/components/ui/panel";
 import type { Locale } from "@/i18n/locale";
+import { adminOnlyMetadata } from "@/lib/admin-metadata";
 import {
   type AdminPlayer,
   getAdminPlayers,
@@ -30,7 +31,7 @@ import { cn } from "@/lib/cn";
 import { dateTime, day } from "@/lib/format";
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: (await getTranslations("admin"))("players") };
+  return adminOnlyMetadata(async () => (await getTranslations("admin"))("players"));
 }
 
 const ERASE_NOTES = {
