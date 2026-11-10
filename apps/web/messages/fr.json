@@ -710,8 +710,8 @@
       "loss": "D",
       "tie": "N"
     },
-    "topPriority": "Priorité n° 1 :",
-    "nothingStandsOut": "Rien ne ressort",
+    "more": "+{count}",
+    "moreMatches": "{count, plural, one {# match de plus} other {# matchs de plus}}",
     "pageOf": "Sessions {from} à {to}",
     "context": {
       "label": "Contexte de la session",

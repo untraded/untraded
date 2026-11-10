@@ -9,9 +9,8 @@ const WEEKS = [2, 3];
 
 /**
  * The session list while it loads: the title and its lead, then weeks as panels (a band with the
- * week and its summary, then rows). A row is the day and hours, the record and maps with the
- * first priority, then the four key figures: stacked on a phone, in columns from `xl`, as on the
- * page.
+ * week and its summary, then rows). A row is the day and hours, the record and maps on one
+ * line, then the four key figures: stacked on a phone, in columns from `xl`, as on the page.
  */
 export default async function SessionsLoading() {
   const t = await getTranslations("sessions");

@@ -49,8 +49,8 @@ const TREND_WORD: Record<Trend, "better" | "worse" | "stable"> = {
 };
 
 /**
- * The columns of a session row from `xl`: the day, the record with its maps and first priority,
- * the four figures, the chevron. Below `xl` a row stacks, its figures in a row of four.
+ * The columns of a session row from `xl`: the day, the record with its maps, the four figures, the
+ * chevron. Below `xl` a row stacks, its figures in a row of four.
  */
 const COLUMNS = "xl:grid-cols-[7.5rem_minmax(0,1fr)_repeat(4,5.75rem)_1rem]";
 
@@ -83,19 +83,16 @@ export async function SessionRowsHeader() {
 
 /**
  * One session in a list, as a link to its report: the day and hours, the record and the maps
- * with their result, the first priority, then the four key figures with their signed gap to the
+ * with their result on one line, then the four key figures with their signed gap to the
  * reference (an arrow and the word for assistive technologies, never the colour alone).
  */
 export async function SessionRow({ session }: { session: SessionSummary }) {
-  const [t, results, dashboard, advice, locale, timeZone] = await Promise.all([
+  const [t, results, locale, timeZone] = await Promise.all([
     getTranslations("sessions"),
     getTranslations("result"),
-    getTranslations("dashboard"),
-    getTranslations("advice"),
     getLocale() as Promise<Locale>,
     getTimeZone(),
   ]);
-  const top = session.top_priority;
   const record =
     session.wins > session.losses ? "better" : session.losses > session.wins ? "worse" : "same";
   return (
@@ -115,58 +112,22 @@ export async function SessionRow({ session }: { session: SessionSummary }) {
             {hours(session.started_at, session.ended_at, locale, timeZone)}
           </span>
         </span>
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1 text-[0.8125rem]">
-            <span className={cn("text-sm font-semibold tabular-nums", trendClass(record))}>
-              {t("record", { wins: session.wins, losses: session.losses, ties: session.ties })}
-            </span>
-            <ul aria-label={t("mapsPlayed")} className="contents">
-              {session.maps.map((played) => (
-                <li key={played.match_id} className="inline-flex items-baseline gap-1.5">
-                  {played.result && (
-                    <>
-                      <span
-                        aria-hidden="true"
-                        className={cn(
-                          "rounded-sm px-1 text-[0.6875rem] font-semibold",
-                          played.result === "win" && "bg-win/15",
-                          played.result === "loss" && "bg-loss/15",
-                          played.result === "tie" && "bg-muted",
-                        )}
-                      >
-                        {t(`resultShort.${played.result}`)}
-                      </span>
-                      <span className="sr-only">{results(played.result)}</span>
-                    </>
-                  )}
-                  <span>{mapName(played.map)}</span>
-                  {played.my_score !== null && played.their_score !== null && (
-                    <span className="text-muted-foreground tabular-nums">
-                      {played.my_score}–{played.their_score}
-                    </span>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
-          <p className="mt-1 text-[0.8125rem] xl:truncate">
-            {top ? (
-              <>
-                <span className="sr-only">{t("topPriority")} </span>
-                <span className="font-semibold">
-                  <span aria-hidden="true">1. </span>
-                  {advice(`rules.${top.rule_id}.label`)}
-                </span>{" "}
-                <span className="whitespace-nowrap text-muted-foreground">
-                  {dashboard("lostOf", { lost: top.rounds_lost, touched: top.rounds_touched })}
-                </span>
-              </>
-            ) : (
-              <span className="text-muted-foreground">
-                {session.enough ? t("nothingStandsOut") : t("noReferenceTitle")}
-              </span>
-            )}
-          </p>
+        <div className="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-1 overflow-x-clip text-[0.8125rem]">
+          <span className={cn("shrink-0 text-sm font-semibold tabular-nums", trendClass(record))}>
+            {t("record", { wins: session.wins, losses: session.losses, ties: session.ties })}
+          </span>
+          <ul aria-label={t("mapsPlayed")} className="sr-only">
+            {session.maps.map((played) => (
+              <li key={played.match_id}>
+                {played.result && `${results(played.result)}, `}
+                <span translate="no">{mapName(played.map)}</span>
+                {played.my_score !== null &&
+                  played.their_score !== null &&
+                  `, ${played.my_score}–${played.their_score}`}
+              </li>
+            ))}
+          </ul>
+          <MapChips maps={session.maps} t={t} />
         </div>
         <Figures
           headlines={session.headlines}
@@ -181,6 +142,81 @@ export async function SessionRow({ session }: { session: SessionSummary }) {
         />
       </Link>
     </li>
+  );
+}
+
+/**
+ * The maps of a session as chips on a single line, cut at the last chip that fits and ended by a
+ * "+n" chip for the maps left out, in CSS only (assistive technologies read the full list beside).
+ *
+ * The chips wrap in a box one line high that hides the lines below. Every chip but the last
+ * reserves at its end the room of a "+n" chip (`pr-11`) and holds that chip, counting the maps
+ * after it; every chip but the first starts back over that room (`-ml-11`), opaque, so it covers
+ * the "+n" of the chip before. A chip goes to the hidden line unless it fits with the room of its
+ * own "+n": the last chip on the visible line always has room for its "+n", which shows only
+ * there, with the exact count of the chips that wrapped. Never a chip cut in the middle, no
+ * measure, no breakpoint. The box takes the rest of the line, down to the first chip with its
+ * "+n" (`flex-1 min-w-min`): narrower still (a small phone, a large font), the chips go under the
+ * record, whole.
+ */
+function MapChips({
+  maps,
+  t,
+}: {
+  maps: SessionSummary["maps"];
+  t: Awaited<ReturnType<typeof getTranslations<"sessions">>>;
+}) {
+  return (
+    <span
+      aria-hidden="true"
+      className="flex h-5 min-w-min flex-1 flex-wrap gap-x-2.5 overflow-hidden leading-5"
+    >
+      {maps.map((played, i) => {
+        const after = maps.length - 1 - i;
+        return (
+          <span
+            key={played.match_id}
+            className={cn(
+              "relative inline-flex items-baseline gap-1.5 bg-card group-hover:bg-muted",
+              after > 0 && "pr-11",
+              i > 0 && "-ml-11",
+            )}
+          >
+            {played.result && (
+              <span
+                className={cn(
+                  "rounded-sm px-1 text-[0.6875rem] leading-4 font-semibold",
+                  played.result === "win" && "bg-win/15",
+                  played.result === "loss" && "bg-loss/15",
+                  played.result === "tie" && "bg-muted",
+                )}
+              >
+                {t(`resultShort.${played.result}`)}
+              </span>
+            )}
+            <span translate="no" className="whitespace-nowrap">
+              {mapName(played.map)}
+            </span>
+            {played.my_score !== null && played.their_score !== null && (
+              <span className="whitespace-nowrap text-muted-foreground tabular-nums">
+                {played.my_score}–{played.their_score}
+              </span>
+            )}
+            {after > 0 && (
+              // The room `pr-11` keeps, less the gap: the next chip, when on this line, covers it.
+              <span
+                title={t("moreMatches", { count: after })}
+                className="absolute top-0 right-0 w-[2.125rem] pl-0.5"
+              >
+                <span className="inline-block rounded-sm px-1 text-[0.6875rem] leading-4 font-semibold text-muted-foreground ring-1 ring-border ring-inset">
+                  {t("more", { count: after })}
+                </span>
+              </span>
+            )}
+          </span>
+        );
+      })}
+    </span>
   );
 }
 
@@ -261,10 +297,7 @@ export function SessionRowSkeleton() {
         <SkeletonLine className="text-sm" width="w-24" />
         <SkeletonLine className="text-xs" width="w-20" />
       </div>
-      <div className="min-w-0">
-        <SkeletonLine className="text-sm" width="w-56" />
-        <SkeletonLine className="mt-1 text-[0.8125rem]" width="w-64" />
-      </div>
+      <SkeletonLine className="text-sm" width="w-56" />
       <div className="grid grid-cols-4 gap-x-3 xl:contents">
         {slots(4).map((j) => (
           <div key={j} className="leading-tight xl:grid xl:justify-items-end">
