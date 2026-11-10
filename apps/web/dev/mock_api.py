@@ -140,6 +140,12 @@ def build_matches() -> list[dict[str, Any]]:
 
 
 MATCHES = build_matches()
+# Edge cases of the top of the match page ("against your last 30"): a match without its rating, and
+# one without its KAST. The oldest matches have fewer than 10 ready matches before them, and the
+# very oldest has none.
+MATCHES[3]["my_line"]["untraded"] = None
+MATCHES[3]["my_line"]["level"] = None
+MATCHES[4]["my_line"]["kast"] = None
 
 
 def match_detail(match: dict[str, Any]) -> dict[str, Any]:
@@ -710,6 +716,8 @@ def player_rating(match_id: str, steam_id: str) -> dict[str, Any] | None:
     if match is None or match["status"] != "ready":
         return None
     value = match["my_line"]["untraded"] if steam_id == ME else round(rand.uniform(0.7, 1.4), 2)
+    if value is None:
+        return {"value": None, "margin": None, "rounds": None, "parts": [], "level": None}
     parts = {
         "shooting": round(rand.uniform(0.6, 1.3), 2),
         "utility": round(rand.uniform(0.0, 0.12), 2),

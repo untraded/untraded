@@ -10,7 +10,7 @@ import { errorSummary } from "@/lib/match";
 /** The steps of the analysis, in their order, by the status that is at that step. */
 const STEPS = ["pending", "downloading", "parsing"] as const;
 /** What the page shows once the analysis is done, in the page's order. */
-const COMING = ["rounds", "priorities", "rating", "sides", "teams"] as const;
+const COMING = ["self", "priorities", "rounds", "rating", "sides", "teams"] as const;
 
 /**
  * A match that is not analysed: where its analysis stands and what the page will show once it is

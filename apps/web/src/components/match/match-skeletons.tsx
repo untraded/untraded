@@ -85,16 +85,47 @@ export function RoundsSkeleton({ title }: { title?: string }) {
 }
 
 /**
- * The priorities of the match's session. The real part is always there for a player of the
- * match, but is often only its band and one line ("no priority touches this match", or no
- * session yet): the placeholder takes that smallest size. A match with flagged rounds then grows
- * by its rows, below the rounds already in place, rather than leaving a tall empty block over the
- * rating when it has none.
+ * What to review: the priorities of the match's session that touch the match. The real panel is
+ * often only its band and one line ("no priority touches this match", or no session yet): the
+ * placeholder takes that smallest size, and a match with flagged rounds grows by its rows.
  */
-export function PrioritiesSkeleton({ title }: { title?: string }) {
+export function ReviewSkeleton({ title }: { title?: string }) {
   return (
     <PanelFrame title={title}>
       <SkeletonLine className="text-sm" width="w-64 max-w-full" />
+    </PanelFrame>
+  );
+}
+
+/**
+ * The match against the player's previous matches: five rows (name, value and mean, ruler, word
+ * and gap; the ruler and the word under them on a phone), then the legend. Same grid as
+ * `SelfNorm`. The title waits for the count of previous matches.
+ */
+export function SelfNormSkeleton() {
+  return (
+    <PanelFrame aside="w-12" flush>
+      {slots(5).map((i) => (
+        <div
+          key={i}
+          className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 border-t border-line-soft px-3.5 py-2 first:border-t-0 sm:grid-cols-[minmax(6.5rem,1fr)_4.5rem_minmax(8rem,2fr)_7.25rem]"
+        >
+          <SkeletonLine className="text-sm leading-tight" width="w-24" />
+          <div className="flex flex-col items-end leading-tight">
+            <SkeletonLine className="leading-tight" width="w-10" />
+            <SkeletonLine className="text-xs" width="w-14" />
+          </div>
+          <Skeleton className="col-span-2 mx-2 my-[9px] h-2.5 sm:col-span-1" />
+          <div className="col-span-2 flex gap-1.5 text-xs leading-tight sm:col-span-1 sm:block">
+            <SkeletonLine width="w-20" />
+            <SkeletonLine width="w-10" />
+          </div>
+        </div>
+      ))}
+      <div className="flex flex-col gap-1.5 border-t border-line-soft px-3.5 py-2 text-xs">
+        <SkeletonLine width="w-72 max-w-full" />
+        <SkeletonLine width="w-full" />
+      </div>
     </PanelFrame>
   );
 }

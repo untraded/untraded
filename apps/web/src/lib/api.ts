@@ -8,6 +8,7 @@ import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { refusedAddress } from "@/lib/address";
+import { previousMatches } from "@/lib/self-norm";
 
 export const SESSION_COOKIE = "untraded_session";
 
@@ -515,6 +516,32 @@ export const findSessions = (offset = 0) =>
 export const findMatches = (offset = 0) =>
   apiGetOptional<MatchList>(`/matches?limit=30&offset=${offset}`);
 export const getUploads = () => apiGet<UploadList>("/uploads");
+
+/** How many pages of matches the match page reads at most for the player's previous matches (30
+ * per page). */
+const PREVIOUS_PAGES = 10;
+
+/**
+ * The player's matches played before a match, newest first, at most `count` (see
+ * `previousMatches`), read page by page from the newest and no further than needed. `null` when
+ * the API fails, or when the pages read (at most `PREVIOUS_PAGES`) find nothing played before it:
+ * a match too old to tell, which the page says with the failure.
+ */
+export async function matchesBefore(
+  target: { id: string; played_at: string | null },
+  count: number,
+): Promise<MatchSummary[] | null> {
+  const seen: MatchSummary[] = [];
+  for (let page = 0; page < PREVIOUS_PAGES; page++) {
+    const list = await findMatches(page * 30);
+    if (!list) return null;
+    seen.push(...list.items);
+    const found = previousMatches(seen, target, count);
+    if (found.length >= count || list.items.length < list.limit) return found;
+  }
+  const found = previousMatches(seen, target, count);
+  return found.length > 0 ? found : null;
+}
 
 /** How many pages of sessions the progress page reads at most (20 per page). */
 const PROGRESS_PAGES = 10;

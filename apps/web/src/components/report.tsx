@@ -36,18 +36,11 @@ import {
 } from "@/lib/format";
 import { shown } from "@/lib/hidden-metrics";
 import { catalogFor } from "@/lib/metric-docs-files";
-import { position, zoneTrend } from "@/lib/position";
+import { MIN_SPREAD_MATCHES, position, zoneTrend } from "@/lib/position";
 
 const FAMILIES = ["base", "rating", "duel", "trade", "clutch", "util", "eco", "pos"];
 const STANDOUT = 5;
 const ARROW: Record<Trend, string> = { better: "▲", worse: "▼", same: "=" };
-/**
- * The fewest matches a reference of the player's own days needs before the API gives a metric its
- * 10th and 90th percentiles, and the ruler its band: `reference.min_spread_matches` in
- * `untraded.reference` (`MIN_SPREAD_MATCHES`), which the API does not expose. Only said to the
- * player, to explain why the rulers are missing: keep it in step with the API.
- */
-const MIN_SPREAD_MATCHES = 10;
 
 /**
  * A session report: the priorities first with the context beside them (key figures against the
