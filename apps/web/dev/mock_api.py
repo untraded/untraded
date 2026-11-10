@@ -9,8 +9,8 @@ Everything is invented (players, scores, metrics) and seeded, so screens look th
 run to the next. It answers like `apps/api` (same JSON shapes, see `apps/web/src/lib/api.ts`):
 - signing in: `/api/auth/steam` sets the session cookie and goes back to the web (no Steam);
 - sessions cover the three references (own days, level, none), priorities with evidence,
-  👍/👎 (kept in memory), and the follow-up of the previous priorities; `SCENARIOS` adds a session
-  of four matches and references without the 10th and 90th percentiles (too few matches of the
+  👍/👎 (kept in memory), and the follow-up of the previous priorities; `SCENARIOS` adds sessions
+  of 1, 3, 4, 6 and 8 matches and references without the 10th and 90th percentiles (too few matches of the
   player's own, too few players at their level);
 - matches cover every status (ready, analysing, unavailable...);
 - onboarding (consent, then the two codes) and the admin, with players in every state;
@@ -111,7 +111,7 @@ def line() -> dict[str, float]:
 
 
 def build_matches() -> list[dict[str, Any]]:
-    statuses = ["parsing"] + ["ready"] * 11 + ["unavailable", "failed"] + ["ready"] * 36
+    statuses = ["parsing"] + ["ready"] * 11 + ["unavailable", "failed"] + ["ready"] * 46
     found = []
     for n, status in enumerate(statuses):
         # Every 9 hours, then about one every 2.5 days: older matches reach back over 3 months.
@@ -506,17 +506,21 @@ def findings(
 VOTES: dict[str, int] = {}
 KINDS = ["level", "self", "self", "none", "self", "level"] + ["self"] * 17
 
+REFERENCE_MATCHES = {"self": 14, "level": 812, "none": 2}
+
 # Sessions that show the states of the report beyond the default (two matches, a reference with its
 # 10th and 90th percentiles): n -> (matches in the session, matches in the reference, landmarks).
 # 1: four matches (the context bar sums them up), a reference of 26 of the player's matches;
 # 4: a reference of 6 of their matches, under `reference.min_spread_matches` (10): no landmarks;
 # 5: a reference by level without landmarks (too few players at that level).
+# Sizes 1, 3, 4, 6 and 8 (with the default 2) show how a session row cuts its maps to one line.
 SCENARIOS: dict[int, tuple[int, int, bool]] = {
     1: (4, 26, True),
-    4: (2, 6, False),
-    5: (2, 140, False),
+    2: (8, REFERENCE_MATCHES["self"], True),
+    3: (1, REFERENCE_MATCHES["none"], True),
+    4: (3, 6, False),
+    5: (6, 140, False),
 }
-REFERENCE_MATCHES = {"self": 14, "level": 812, "none": 2}
 
 # The key figures follow a slow improvement (the newest session first), so the progress page
 # draws something readable: (newest value, oldest value, noise, newest reference, oldest one).

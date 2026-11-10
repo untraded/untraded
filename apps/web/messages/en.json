@@ -710,8 +710,8 @@
       "loss": "L",
       "tie": "T"
     },
-    "topPriority": "Priority 1:",
-    "nothingStandsOut": "Nothing stands out",
+    "more": "+{count}",
+    "moreMatches": "{count, plural, one {# more match} other {# more matches}}",
     "pageOf": "Sessions {from} to {to}",
     "context": {
       "label": "Session context",
