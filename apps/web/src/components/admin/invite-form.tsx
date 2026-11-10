@@ -7,7 +7,6 @@ import { type InviteState, invite } from "@/app/admin/actions";
 import { Button } from "@/components/ui/button";
 
 export interface InviteLabels {
-  title: string;
   steamId: string;
   steamIdHelp: string;
   displayName: string;
@@ -19,7 +18,8 @@ export interface InviteLabels {
 
 const START: InviteState = { error: null, invited: null, steam_id: "", display_name: "" };
 
-/** Invites a Steam account: a refused field comes back under its input. */
+/** Invites a Steam account: a refused field comes back under its input. The page puts it in a
+ * panel, whose band carries the title. */
 export function InviteForm({ labels }: { labels: InviteLabels }) {
   const [state, action, pending] = useActionState(invite, START);
   const error = (field: "steam_id" | "display_name") =>
@@ -29,11 +29,7 @@ export function InviteForm({ labels }: { labels: InviteLabels }) {
   const input =
     "h-9 w-full rounded-md border border-input bg-card px-3 text-sm aria-invalid:border-destructive";
   return (
-    <form
-      action={action}
-      className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4"
-    >
-      <h2 className="font-semibold">{labels.title}</h2>
+    <form action={action} className="flex flex-col gap-3">
       <div className="grid gap-3 sm:grid-cols-[minmax(0,14rem)_minmax(0,14rem)_auto] sm:items-start">
         <div className="flex flex-col gap-1">
           <label htmlFor="steam_id" className="text-sm font-medium">
@@ -80,7 +76,7 @@ export function InviteForm({ labels }: { labels: InviteLabels }) {
             </p>
           )}
         </div>
-        <Button type="submit" disabled={pending} className="sm:mt-6">
+        <Button type="submit" disabled={pending} className="sm:mt-6 sm:justify-self-start">
           {labels.submit}
         </Button>
       </div>

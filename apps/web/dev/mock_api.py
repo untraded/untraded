@@ -23,6 +23,8 @@ Codes that answer like Steam would: the auth code `XXXX-XXXXX-XXXX` is refused (
 a 422 on `auth_code`), the share code `CSGO-00000-00000-00000-00000-00000` too (Steam's 412),
 and `STEA-MDOWN-0503` stands for Steam not answering (503). As in the API, codes are found in
 what is pasted, and two codes pasted the other way round are put back in place.
+`/api/mock/health/<state>` switches the admin's health page: `good` (the default), `late` (old
+dump and copy, disk filling up) or `failing` (no dump, the copy failed, disk nearly full).
 Erasure: `POST /me/erase` signs the player out (signing in again starts afresh), and erasing a
 player from the admin removes them from the list (409 for the admin themself).
 
@@ -999,6 +1001,36 @@ HEALTH: dict[str, Any] = {
     },
     "disk": {"total": 48_000_000_000, "free": 21_500_000_000},
 }
+HEALTH_GOOD = json.loads(json.dumps(HEALTH))
+HEALTH_STATES: dict[str, dict[str, Any]] = {
+    "good": {},
+    "late": {
+        "backups": HEALTH_GOOD["backups"]
+        | {
+            "last": HEALTH_GOOD["backups"]["last"] | {"at": iso(NOW - dt.timedelta(hours=52))},
+            "offsite": {
+                "ok": True,
+                "at": iso(NOW - dt.timedelta(hours=51)),
+                "message": "dumps and Parquet copied to the Storage Box",
+            },
+        },
+        "disk": {"total": 48_000_000_000, "free": 8_000_000_000},
+    },
+    "failing": {
+        "failed_jobs": [],
+        "sources": {"total": 5, "paused": 1, "erroring": 0},
+        "backups": HEALTH_GOOD["backups"]
+        | {
+            "last": None,
+            "offsite": {
+                "ok": False,
+                "at": iso(NOW - dt.timedelta(hours=20)),
+                "message": "copy failed, see journalctl -u untraded-offsite",
+            },
+        },
+        "disk": {"total": 48_000_000_000, "free": 2_000_000_000},
+    },
+}
 
 
 def find_source(source_id: str) -> dict[str, Any] | None:
@@ -1056,6 +1088,12 @@ class Handler(BaseHTTPRequestHandler):
             if not set_state(found[1]):
                 return self.reply(404, {"detail": f"states: {', '.join(STATES)}"})
             return self.reply(303, headers={"location": f"{WEB}/"})
+        if found := re.fullmatch(r"/mock/health/(\w+)", path):
+            if found[1] not in HEALTH_STATES:
+                return self.reply(404, {"detail": f"states: {', '.join(HEALTH_STATES)}"})
+            HEALTH.clear()
+            HEALTH.update(json.loads(json.dumps(HEALTH_GOOD)) | HEALTH_STATES[found[1]])
+            return self.reply(303, headers={"location": f"{WEB}/admin/health"})
         if path == "/me":
             if self.demo():
                 demo = me() | STATES["followed"] | {"admin": False, "can_add_source": False}

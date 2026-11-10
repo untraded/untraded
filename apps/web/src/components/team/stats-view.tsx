@@ -4,6 +4,7 @@
 
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import type { ReactNode } from "react";
+import { Panel } from "@/components/ui/panel";
 import { MEMBERS, STATS } from "@/lib/team-preview/data";
 import { useTeamPreview } from "@/lib/team-preview/store";
 import { text } from "@/lib/team-preview/types";
@@ -35,13 +36,13 @@ function Rate({ name, won, tried }: { name: ReactNode; won: number; tried: numbe
   );
 }
 
+/** A block of numbers: a panel, its hint (if any) first in the body. */
 function Box({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
   return (
-    <section className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4">
-      <h2 className="text-sm font-semibold">{title}</h2>
+    <Panel title={title} bodyClassName="flex flex-col gap-2">
       {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
       {children}
-    </section>
+    </Panel>
   );
 }
 
