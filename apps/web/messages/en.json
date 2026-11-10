@@ -331,6 +331,7 @@
   "settings": {
     "title": "Settings",
     "lead": "Saved in this browser.",
+    "preferences": "Preferences",
     "tone": "Advice tone",
     "toneHint": "Coach: direct and prescriptive. Analyst: neutral, with the figures.",
     "language": "Language",

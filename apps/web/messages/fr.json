@@ -331,6 +331,7 @@
   "settings": {
     "title": "Réglages",
     "lead": "Enregistrés dans ce navigateur.",
+    "preferences": "Préférences",
     "tone": "Ton des conseils",
     "toneHint": "Coach : direct et prescriptif. Analyste : neutre et chiffré.",
     "language": "Langue",

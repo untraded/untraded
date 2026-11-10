@@ -59,7 +59,9 @@ type Phase =
 /**
  * Choosing a demo (button or drop), its mode and start time, then sending it as the raw body of
  * `POST /api/uploads` with a progress bar: `XMLHttpRequest`, since `fetch` reports no upload
- * progress. A refusal known before sending (`disabled`) is said by the page, above.
+ * progress. A refusal known before sending (`disabled`) is said by the page, above. It sits in
+ * the page's panel: the drop zone, or the file with its mode and date, then what became of it,
+ * tied to the control it is about (`aria-describedby`).
  */
 export function UploadForm({
   maxBytes,
@@ -176,6 +178,11 @@ export function UploadForm({
     setDragging(false);
     if (!sending) pick(event.dataTransfer.files[0]);
   };
+  const messageId = `${ids}-message`;
+  // What the message is about: the file (chosen again from the drop zone, or sent again), or the
+  // date.
+  const fileError = phase.kind === "error" && phase.error !== "date" ? messageId : undefined;
+  const dateError = phase.kind === "error" && phase.error === "date";
   const message =
     phase.kind === "error"
       ? labels.errors[phase.error]
@@ -198,7 +205,7 @@ export function UploadForm({
           onDragLeave={() => setDragging(false)}
           onDrop={onDrop}
           className={cn(
-            "flex flex-col items-center gap-2.5 rounded-lg border-[1.5px] border-dashed border-border bg-card px-4 py-9 text-center",
+            "flex flex-col items-center gap-2.5 rounded-md border-[1.5px] border-dashed border-border bg-background px-4 py-8 text-center",
             dragging && "border-foreground bg-muted",
             disabled && "opacity-60",
           )}
@@ -218,18 +225,20 @@ export function UploadForm({
               event.target.value = "";
             }}
           />
-          <Button type="button" disabled={disabled} onClick={() => input.current?.click()}>
+          <Button
+            type="button"
+            disabled={disabled}
+            aria-describedby={fileError}
+            onClick={() => input.current?.click()}
+          >
             {labels.choose}
           </Button>
         </div>
       )}
 
       {file && (
-        <section
-          aria-label={labels.file}
-          className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4"
-        >
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-3 rounded-md border border-border bg-background px-3 py-2.5">
             <FileArchive aria-hidden="true" className="size-5 shrink-0 text-muted-foreground" />
             <div className="min-w-0 flex-1">
               <p className="truncate font-mono text-[0.8125rem]" translate="no">
@@ -296,15 +305,21 @@ export function UploadForm({
               <input
                 id={`${ids}-date`}
                 type="datetime-local"
+                autoComplete="off"
                 value={date}
                 disabled={sending}
-                aria-describedby={`${ids}-date-hint`}
+                aria-invalid={dateError || undefined}
+                aria-describedby={`${ids}-date-hint${dateError ? ` ${messageId}` : ""}`}
                 onChange={(event) => {
                   setDate(event.target.value);
                   asked.current = null;
                   setDateFrom("file");
+                  // A date error is about this field: correcting it clears the error.
+                  if (phase.kind === "error" && phase.error === "date" && phase.file) {
+                    setPhase({ kind: "chosen", file: phase.file });
+                  }
                 }}
-                className="h-8 rounded-md border border-input bg-card px-2 text-sm tabular-nums"
+                className="h-8 rounded-md border border-input bg-card px-2 text-sm tabular-nums aria-invalid:border-destructive"
               />
             </div>
             <p id={`${ids}-date-hint`} className="max-w-sm text-xs text-muted-foreground">
@@ -323,7 +338,7 @@ export function UploadForm({
                 className="h-1.5 overflow-hidden rounded-full bg-muted"
               >
                 <div
-                  className="h-full bg-foreground transition-[width]"
+                  className="h-full bg-foreground transition-[width] motion-reduce:transition-none"
                   style={{ width: `${Math.round((phase.sent / Math.max(file.size, 1)) * 100)}%` }}
                 />
               </div>
@@ -341,22 +356,28 @@ export function UploadForm({
                 {labels.cancel}
               </Button>
             ) : (
-              <Button type="button" disabled={disabled} onClick={() => send(file)}>
+              <Button
+                type="button"
+                disabled={disabled}
+                aria-describedby={fileError}
+                onClick={() => send(file)}
+              >
                 {labels.send}
               </Button>
             )}
           </div>
-        </section>
+        </div>
       )}
 
       <p
+        id={messageId}
         aria-live="polite"
         className={cn(
           "text-sm",
           phase.kind === "error" &&
-            "rounded-md border border-border border-l-[3px] border-l-loss bg-card px-3 py-2",
+            "rounded-md border border-border border-l-[3px] border-l-loss bg-background px-3 py-2",
           phase.kind === "done" &&
-            "rounded-md border border-border border-l-[3px] border-l-win bg-card px-3 py-2",
+            "rounded-md border border-border border-l-[3px] border-l-win bg-background px-3 py-2",
           !message && "sr-only",
         )}
       >

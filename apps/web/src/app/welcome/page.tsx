@@ -8,6 +8,7 @@ import { CodesForm } from "@/components/codes-form";
 import { codesLabels } from "@/components/codes-labels";
 import { ConsentText, knowsConsentText } from "@/components/consent-text";
 import { Button } from "@/components/ui/button";
+import { Panel } from "@/components/ui/panel";
 import { getMe } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { onboardingStep } from "@/lib/onboarding";
@@ -19,7 +20,9 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /**
  * Where an invited player lands until the collector can follow them: their consent to the current
- * text, then their two codes. The home page sends them here while something is missing.
+ * text, then their two codes. The home page sends them here while something is missing. Each step
+ * is a panel. No context bar: the three steps sit under the title, and the page is about no
+ * session or match.
  */
 export default async function Welcome({
   searchParams,
@@ -39,7 +42,7 @@ export default async function Welcome({
   ];
   const current = step === "consent" ? 0 : 1;
   return (
-    <section className="flex flex-col gap-6">
+    <section className="flex max-w-3xl flex-col gap-5">
       <div className="flex flex-col gap-3">
         <h1 className="text-2xl font-semibold sm:text-[1.75rem]">{t("title")}</h1>
         <ol aria-label={t("steps")} className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
@@ -69,13 +72,15 @@ export default async function Welcome({
       </div>
       {step === "consent" ? <ConsentStep me={me} error={error} /> : null}
       {step === "codes" ? (
-        <div className="flex max-w-2xl flex-col gap-4 rounded-lg border border-border bg-card p-4 sm:p-6">
-          <p className="text-[0.9375rem]">{t("codesLead")}</p>
+        <Panel title={t("stepCodes")} bodyClassName="flex flex-col gap-4 sm:px-5 sm:py-4">
+          <p className="max-w-prose text-[0.9375rem]">{t("codesLead")}</p>
           <CodesForm labels={await codesLabels()} next="/" />
-        </div>
+        </Panel>
       ) : null}
       {step === "operator" ? (
-        <p className="max-w-prose rounded-lg border border-border bg-card p-4">{t("operator")}</p>
+        <Panel title={t("stepCodes")}>
+          <p className="max-w-prose">{t("operator")}</p>
+        </Panel>
       ) : null}
     </section>
   );
@@ -120,27 +125,30 @@ async function ConsentStep({
     </label>
   );
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-3.5">
       <p className="max-w-prose text-muted-foreground">{notice}</p>
-      <div className="rounded-lg border border-border bg-card p-4 sm:p-6">
-        <ConsentText version={version} />
+      {/* The text in two panels, in its own order: its title in the first band, its last section
+          ("8. Your consent", the two boxes) in the second. */}
+      <Panel title={text(`v${version}.title`)} bodyClassName="sm:px-5 sm:py-4">
+        <ConsentText version={version} titled={false} />
         <p className="mt-4 text-[0.8125rem] text-muted-foreground">{text(`v${version}.version`)}</p>
-      </div>
-      <form action={giveConsent} className="flex flex-col gap-3">
-        <input type="hidden" name="text_version" value={version} />
-        <input type="hidden" name="next" value="/welcome" />
-        <h2 className="font-semibold">{text(`v${version}.agree`)}</h2>
-        {box("analysis", true, "box1", false)}
-        {box("research_corpus", false, "box2", me.consent?.research_corpus ?? false)}
-        {error && (
-          <p role="alert" className="max-w-prose text-sm text-destructive">
-            {t(error === "version" ? "errorVersion" : "errorFailed")}
-          </p>
-        )}
-        <Button type="submit" className="w-fit">
-          {t("agreeButton")}
-        </Button>
-      </form>
+      </Panel>
+      <Panel title={text(`v${version}.agree`)} bodyClassName="sm:px-5 sm:py-4">
+        <form action={giveConsent} className="flex flex-col gap-3">
+          <input type="hidden" name="text_version" value={version} />
+          <input type="hidden" name="next" value="/welcome" />
+          {box("analysis", true, "box1", false)}
+          {box("research_corpus", false, "box2", me.consent?.research_corpus ?? false)}
+          {error && (
+            <p role="alert" className="max-w-prose text-sm text-destructive">
+              {t(error === "version" ? "errorVersion" : "errorFailed")}
+            </p>
+          )}
+          <Button type="submit" className="w-fit">
+            {t("agreeButton")}
+          </Button>
+        </form>
+      </Panel>
     </div>
   );
 }

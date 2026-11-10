@@ -13,9 +13,19 @@ export async function knowsConsentText(version: string): Promise<boolean> {
 
 /**
  * The consent text of one version, as the player agrees to it (`messages/*.json`, `consent`).
- * The operator, the hosting and how long raw demos stay come from the site's settings.
+ * The operator, the hosting and how long raw demos stay come from the site's settings. `level` is
+ * the level of its title (its sections one below), for where it sits; `titled={false}` leaves the
+ * title out, for a panel that carries it in its band (same words, same place: first).
  */
-export async function ConsentText({ version }: { version: string }) {
+export async function ConsentText({
+  version,
+  level = 2,
+  titled = true,
+}: {
+  version: string;
+  level?: 2 | 3;
+  titled?: boolean;
+}) {
   const t = await getTranslations("consent");
   const welcome = await getTranslations("welcome");
   const key = `v${version}`;
@@ -28,6 +38,8 @@ export async function ConsentText({ version }: { version: string }) {
     days: site.retentionDays ?? 0,
     b: (chunks: ReactNode) => <strong className="font-semibold">{chunks}</strong>,
   };
+  const Title = level === 2 ? "h2" : "h3";
+  const Section = level === 2 ? "h3" : "h4";
   const line = (path: string) => t.rich(`${key}.${path}`, values);
   // The items of a section, in order: `i1`, `i2`… with the variants the settings choose.
   const items = (section: string): string[] => {
@@ -45,14 +57,14 @@ export async function ConsentText({ version }: { version: string }) {
   };
   return (
     <article className="flex max-w-[70ch] flex-col gap-4 text-[0.9375rem] leading-relaxed">
-      <h2 className="text-xl font-semibold text-balance">{t(`${key}.title`)}</h2>
+      {titled && <Title className="text-xl font-semibold text-balance">{t(`${key}.title`)}</Title>}
       <p>{line("lead")}</p>
       <p>{line("controller")}</p>
       {SECTIONS.map((section) => {
         const raw = t.raw(`${key}.${section}`) as Record<string, string>;
         return (
           <section key={section} className="flex flex-col gap-2">
-            <h3 className="font-semibold">{t(`${key}.${section}.title`)}</h3>
+            <Section className="font-semibold">{t(`${key}.${section}.title`)}</Section>
             {"lead" in raw && <p>{line(`${section}.lead`)}</p>}
             {"body" in raw && <p>{line(`${section}.body`)}</p>}
             {items(section).length > 0 && (

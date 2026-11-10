@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getLocale, getTimeZone, getTranslations } from "next-intl/server";
+import { Panel } from "@/components/ui/panel";
 import { RefreshWhile } from "@/components/upload/refresh-while";
 import { UploadForm } from "@/components/upload/upload-form";
 import type { Locale } from "@/i18n/locale";
@@ -32,7 +33,8 @@ const SEND_ERRORS = [
 /**
  * Sending a demo (FACEIT, ESEA, a scrim, or a Premier match the bot missed): why it would be
  * refused, said before sending; the form; then what became of each demo sent in the last 30 days,
- * refreshed while one is being analysed.
+ * refreshed while one is being analysed. Each block is a panel. No context bar: the page is about
+ * no session or match, and what it watches (the analyses under way) is its own last panel.
  */
 export default async function UploadPage() {
   const [list, me] = await Promise.all([getUploads(), getMe()]);
@@ -43,47 +45,49 @@ export default async function UploadPage() {
   const refusal = list.refusal;
   const processing = list.items.some((item) => item.state === "processing");
   const header = (
-    <header className="flex flex-col gap-1.5">
+    <header className="mb-2 flex flex-col gap-1.5">
       <h1 className="text-2xl font-semibold md:text-[1.75rem]">{t("title")}</h1>
       <p className="max-w-prose text-sm text-muted-foreground">{t("lead")}</p>
     </header>
   );
   const form = (disabled: boolean) => (
-    <UploadForm
-      maxBytes={list.max_bytes}
-      disabled={disabled}
-      locale={locale}
-      labels={{
-        dropTitle: t("dropTitle"),
-        dropHint: t("dropHint", { max }),
-        choose: t("choose"),
-        remove: t("remove"),
-        file: t("file"),
-        mode: t("mode"),
-        modes: { faceit: t("modes.faceit"), esea: t("modes.esea"), scrim: t("modes.scrim") },
-        date: t("date"),
-        dateHint: t("dateHint"),
-        dateFaceit: t("dateFaceit"),
-        send: t("send"),
-        cancel: t("cancel"),
-        progress: t.raw("progress") as string,
-        done: t("done"),
-        aborted: t("aborted"),
-        errors: Object.fromEntries(
-          SEND_ERRORS.map((key) => [
-            key,
-            key === "too_large" ? t("errors.too_large", { max }) : t(`errors.${key}`),
-          ]),
-        ) as Record<(typeof SEND_ERRORS)[number], string>,
-      }}
-    />
+    <Panel title={t("file")}>
+      <UploadForm
+        maxBytes={list.max_bytes}
+        disabled={disabled}
+        locale={locale}
+        labels={{
+          dropTitle: t("dropTitle"),
+          dropHint: t("dropHint", { max }),
+          choose: t("choose"),
+          remove: t("remove"),
+          file: t("file"),
+          mode: t("mode"),
+          modes: { faceit: t("modes.faceit"), esea: t("modes.esea"), scrim: t("modes.scrim") },
+          date: t("date"),
+          dateHint: t("dateHint"),
+          dateFaceit: t("dateFaceit"),
+          send: t("send"),
+          cancel: t("cancel"),
+          progress: t.raw("progress") as string,
+          done: t("done"),
+          aborted: t("aborted"),
+          errors: Object.fromEntries(
+            SEND_ERRORS.map((key) => [
+              key,
+              key === "too_large" ? t("errors.too_large", { max }) : t(`errors.${key}`),
+            ]),
+          ) as Record<(typeof SEND_ERRORS)[number], string>,
+        }}
+      />
+    </Panel>
   );
 
   // The read-only demo: the page as an account has it, disabled, so the feature can be found.
   if (me?.demo) {
     const demo = await getTranslations("demo");
     return (
-      <section className="flex max-w-3xl flex-col gap-5">
+      <section className="flex max-w-3xl flex-col gap-3.5">
         {header}
         <div
           role="note"
@@ -106,47 +110,38 @@ export default async function UploadPage() {
   }
 
   return (
-    <section className="flex max-w-3xl flex-col gap-5">
+    <section className="flex max-w-3xl flex-col gap-3.5">
       {header}
 
       {refusal && (
-        <div
-          role="status"
-          className="rounded-md border border-border border-l-[3px] border-l-loss bg-card px-3.5 py-2.5 text-sm"
-        >
-          <p className="font-semibold">{t(`refusals.${refusal}.title`)}</p>
-          <p className="text-muted-foreground">
-            {t(`refusals.${refusal}.text`)}{" "}
-            {refusal === "consent" && (
-              <Link href="/settings" className="text-link underline underline-offset-3">
-                {t("openSettings")}
-              </Link>
-            )}
-          </p>
+        // Said before the form, which it disables: a status, so it is read when the page opens.
+        <div role="status">
+          <Panel title={t(`refusals.${refusal}.title`)} className="border-l-[3px] border-l-loss">
+            <p className="text-sm text-muted-foreground">
+              {t(`refusals.${refusal}.text`)}{" "}
+              {refusal === "consent" && (
+                <Link href="/settings" className="text-link underline underline-offset-3">
+                  {t("openSettings")}
+                </Link>
+              )}
+            </p>
+          </Panel>
         </div>
       )}
 
       {form(refusal !== null)}
 
-      <section aria-labelledby="uploads" className="flex flex-col gap-2">
-        <h2
-          id="uploads"
-          className="flex flex-wrap items-baseline justify-between gap-x-3 text-sm font-semibold text-muted-foreground"
-        >
-          {t("history")} <span className="font-normal">{t("historyHint")}</span>
-        </h2>
+      <Panel title={t("history")} aside={t("historyHint")} flush>
         {list.items.length === 0 ? (
-          <p className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
-            {t("empty")}
-          </p>
+          <p className="px-3.5 py-3 text-sm text-muted-foreground">{t("empty")}</p>
         ) : (
-          <ul className="rounded-lg border border-border bg-card">
+          <ul>
             {list.items.map((item) => (
               <UploadRow key={item.upload_id} item={item} />
             ))}
           </ul>
         )}
-      </section>
+      </Panel>
       <RefreshWhile active={processing} />
     </section>
   );
@@ -160,7 +155,7 @@ async function UploadRow({ item }: { item: UploadLine }) {
   const reason =
     item.reason && t.has(`reasons.${item.reason}`) ? t(`reasons.${item.reason}`) : null;
   return (
-    <li className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 border-t border-line-soft px-4 py-3 first:border-t-0">
+    <li className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 border-t border-line-soft px-3.5 py-2.5 first:border-t-0">
       <div className="min-w-0">
         <p className="font-semibold">
           {item.map ? (

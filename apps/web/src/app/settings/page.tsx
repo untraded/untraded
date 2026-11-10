@@ -22,6 +22,7 @@ import { codesLabels } from "@/components/codes-labels";
 import { ConfirmSubmit } from "@/components/confirm-submit";
 import { ConsentText } from "@/components/consent-text";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Panel } from "@/components/ui/panel";
 import {
   LOCALES,
   pickTheme,
@@ -39,22 +40,32 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getTranslations("settings"))("title") };
 }
 
+/**
+ * The player's settings, one panel per subject: the preferences this browser keeps, then (not in
+ * the read-only demo) their consent and how their matches are followed, their Steam account, and
+ * last the erasure, which the consent panel points down to. No context bar: the page is about no
+ * session or match, and has no figures to keep in view.
+ */
 export default async function Settings({
   searchParams,
 }: {
   searchParams: Promise<{ erase?: string }>;
 }) {
-  const me = await getMe();
+  const [me, t, advice, store, locale, params] = await Promise.all([
+    getMe(),
+    getTranslations("settings"),
+    getTranslations("advice"),
+    cookies(),
+    getLocale(),
+    searchParams,
+  ]);
   if (!me) redirect("/");
-  const t = await getTranslations("settings");
-  const advice = await getTranslations("advice");
   const demo = await getTranslations("demo");
-  const store = await cookies();
   return (
-    <section className="max-w-2xl">
-      <h1 className="text-2xl font-semibold">{t("title")}</h1>
-      <p className="mt-1 text-sm text-muted-foreground">{t("lead")}</p>
-      <div className="mt-6 border-t border-line-soft">
+    <section className="flex max-w-3xl flex-col gap-3.5">
+      <h1 className="mb-2 text-2xl font-semibold md:text-[1.75rem]">{t("title")}</h1>
+      {/* "Saved in this browser" is said of the preferences alone: it sits in their band. */}
+      <Panel title={t("preferences")} aside={t("lead")} flush>
         <Row title={t("tone")} hint={t("toneHint")}>
           <Choice
             action={setTone}
@@ -69,7 +80,7 @@ export default async function Settings({
             action={setLocale}
             name="locale"
             label={t("language")}
-            value={await getLocale()}
+            value={locale}
             options={LOCALES.map((code) => ({ value: code, label: t(`languages.${code}`) }))}
           />
         </Row>
@@ -82,77 +93,42 @@ export default async function Settings({
             options={THEMES.map((theme) => ({ value: theme, label: t(`themes.${theme}`) }))}
           />
         </Row>
-      </div>
+      </Panel>
       {me.demo ? (
-        <p className="mt-6 rounded-md border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+        <p className="rounded-md border border-dashed border-border bg-card px-3.5 py-2.5 text-sm text-muted-foreground">
           {demo("settings")}
         </p>
       ) : (
         <>
-          <ConsentSection me={me} />
-          <FollowSection me={me} />
+          <ConsentPanel me={me} />
+          <FollowPanel me={me} />
         </>
       )}
-      <div className="border-t border-line-soft">
-        <Row title={t("account")} hint={t("signedInAs", { name: me.display_name })}>
+      <Panel title={t("account")}>
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+          <p className="min-w-0 text-sm break-words text-muted-foreground">
+            {t("signedInAs", { name: me.display_name })}
+          </p>
           <form action={signOut}>
             <Button type="submit" variant="outline">
               <LogOut data-icon="inline-start" aria-hidden="true" />
               {t("signOut")}
             </Button>
           </form>
-        </Row>
-      </div>
-      {!me.demo && <EraseSection failed={(await searchParams).erase === "failed"} />}
+        </div>
+      </Panel>
+      {!me.demo && <ErasePanel failed={params.erase === "failed"} />}
     </section>
   );
 }
 
-/** The player's right to erasure: what goes, what stays, and that it is final. */
-async function EraseSection({ failed }: { failed: boolean }) {
-  const t = await getTranslations("settings");
-  const items = Object.keys(t.raw("eraseItems") as Record<string, string>);
-  return (
-    <section
-      aria-labelledby="erase"
-      className="mt-8 flex flex-col gap-3 rounded-lg border border-destructive/40 p-4"
-    >
-      <h2 id="erase" className="text-lg font-semibold">
-        {t("eraseTitle")}
-      </h2>
-      <div className="flex max-w-prose flex-col gap-2 text-sm">
-        <p>{t("eraseLead")}</p>
-        <ul className="flex list-disc flex-col gap-1 pl-5 marker:text-muted-foreground">
-          {items.map((item) => (
-            <li key={item}>{t(`eraseItems.${item}`)}</li>
-          ))}
-        </ul>
-        <p className="text-muted-foreground">{t("eraseShared")}</p>
-        <p className="font-semibold">{t("eraseFinal")}</p>
-      </div>
-      {failed && (
-        <p role="alert" className="text-sm text-destructive">
-          {t("eraseFailed")}
-        </p>
-      )}
-      <form action={eraseMe} className="flex flex-col items-start gap-2">
-        <ConfirmSubmit
-          label={t("erase")}
-          question={t("eraseConfirm")}
-          confirm={t("eraseYes")}
-          cancel={t("cancel")}
-        />
-      </form>
-    </section>
-  );
-}
-
+/** One setting in a panel's list: its name and what it does, its control at the right. */
 function Row({ title, hint, children }: { title: string; hint: string; children: ReactNode }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-b border-line-soft py-4">
+    <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2.5 border-t border-line-soft px-3.5 py-3 first:border-t-0">
       <div className="min-w-0">
-        <h2 className="font-semibold">{title}</h2>
-        <p className="text-sm text-muted-foreground">{hint}</p>
+        <h3 className="text-sm font-semibold">{title}</h3>
+        <p className="text-[0.8125rem] text-muted-foreground">{hint}</p>
       </div>
       {children}
     </div>
@@ -160,7 +136,7 @@ function Row({ title, hint, children }: { title: string; hint: string; children:
 }
 
 /** The player's consent: read the text they agreed to, change box 2, or withdraw it. */
-async function ConsentSection({ me }: { me: Me }) {
+async function ConsentPanel({ me }: { me: Me }) {
   const t = await getTranslations("settings");
   const locale = (await getLocale()) as "en" | "fr";
   const timeZone = await getTimeZone();
@@ -179,33 +155,36 @@ async function ConsentSection({ me }: { me: Me }) {
   const segment =
     "h-7 rounded-sm px-2.5 text-[0.8125rem] text-muted-foreground hover:text-foreground aria-pressed:bg-muted aria-pressed:font-medium aria-pressed:text-foreground";
   return (
-    <section className="mt-8 flex flex-col gap-3 border-t border-line-soft pt-5">
-      <h2 className="text-lg font-semibold">{t("consentTitle")}</h2>
-      <p className="text-sm text-muted-foreground">{status}</p>
-      {!current ? (
-        <Link href="/welcome" className={cn(buttonVariants(), "w-fit")}>
-          {consent && !consent.analysis ? t("giveAgain") : t("readText")}
-        </Link>
-      ) : (
-        <>
-          <details className="rounded-lg border border-border bg-card">
-            <summary className="cursor-pointer px-4 py-2.5 text-sm font-medium">
+    <Panel title={t("consentTitle")} flush>
+      <div className="flex flex-col gap-3 px-3.5 py-3">
+        <p className="text-sm text-muted-foreground">{status}</p>
+        {!current ? (
+          <Link href="/welcome" className={cn(buttonVariants(), "w-fit")}>
+            {consent && !consent.analysis ? t("giveAgain") : t("readText")}
+          </Link>
+        ) : (
+          <details className="group rounded-md border border-border">
+            <summary className="cursor-pointer rounded-md px-3 py-2 text-sm font-medium group-open:rounded-b-none hover:bg-muted">
               {t("readText")}
             </summary>
             <div className="border-t border-line-soft p-4">
-              <ConsentText version={consent.text_version} />
+              <ConsentText version={consent.text_version} level={3} />
             </div>
           </details>
+        )}
+      </div>
+      {current && (
+        <>
           <form
             action={giveConsent}
-            className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-b border-line-soft py-3"
+            className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2.5 border-t border-line-soft px-3.5 py-3"
           >
             <input type="hidden" name="text_version" value={consent.text_version} />
             <input type="hidden" name="analysis" value="on" />
             <input type="hidden" name="next" value="/settings" />
             <div className="min-w-0">
-              <p className="font-semibold">{t("corpus")}</p>
-              <p className="text-sm text-muted-foreground">{t("corpusHint")}</p>
+              <h3 className="text-sm font-semibold">{t("corpus")}</h3>
+              <p className="text-[0.8125rem] text-muted-foreground">{t("corpusHint")}</p>
             </div>
             <fieldset className="m-0 inline-flex shrink-0 rounded-md border border-border bg-card p-0.5">
               <legend className="sr-only">{t("corpus")}</legend>
@@ -223,9 +202,14 @@ async function ConsentSection({ me }: { me: Me }) {
               ))}
             </fieldset>
           </form>
-          <form action={withdrawConsent} className="flex flex-col items-start gap-2">
+          <form
+            action={withdrawConsent}
+            className="flex flex-col items-start gap-2.5 border-t border-line-soft px-3.5 py-3"
+          >
             <input type="hidden" name="text_version" value={me.consent_version} />
-            <p className="max-w-prose text-sm text-muted-foreground">{t("withdrawHint")}</p>
+            <p className="max-w-prose text-[0.8125rem] text-muted-foreground">
+              {t("withdrawHint")}
+            </p>
             <ConfirmSubmit
               label={t("withdraw")}
               question={t("withdrawConfirm")}
@@ -235,12 +219,12 @@ async function ConsentSection({ me }: { me: Me }) {
           </form>
         </>
       )}
-    </section>
+    </Panel>
   );
 }
 
 /** How the collector follows the player's matches, and their codes again when it fails. */
-async function FollowSection({ me }: { me: Me }) {
+async function FollowPanel({ me }: { me: Me }) {
   const t = await getTranslations("settings");
   const locale = (await getLocale()) as "en" | "fr";
   const timeZone = await getTimeZone();
@@ -254,22 +238,64 @@ async function FollowSection({ me }: { me: Me }) {
         : t("followOnNever");
   const error = source?.last_error;
   return (
-    <section className="mt-8 flex flex-col gap-3 border-t border-line-soft pt-5">
-      <h2 className="text-lg font-semibold">{t("followTitle")}</h2>
-      <p className="text-sm text-muted-foreground">{status}</p>
+    <Panel title={t("followTitle")} flush>
+      <p className="px-3.5 py-3 text-sm text-muted-foreground">{status}</p>
       {error && (
-        <div className="flex flex-col gap-4 rounded-lg border border-destructive/40 bg-card p-4">
-          <p role="status" className="max-w-prose text-sm">
+        <div className="flex flex-col gap-4 border-t border-line-soft px-3.5 py-3">
+          <p
+            role="status"
+            className="max-w-prose rounded-md border border-border border-l-[3px] border-l-destructive px-3 py-2 text-sm"
+          >
             {error === "403"
               ? t("error403")
               : error === "412"
                 ? t("error412")
                 : t("errorOther", { error })}
           </p>
-          <h3 className="font-semibold">{t("codesAgain")}</h3>
+          <h3 className="text-sm font-semibold">{t("codesAgain")}</h3>
           <CodesForm labels={await codesLabels()} next="/settings" />
         </div>
       )}
+    </Panel>
+  );
+}
+
+/** The player's right to erasure: what goes, what stays, and that it is final. */
+async function ErasePanel({ failed }: { failed: boolean }) {
+  const t = await getTranslations("settings");
+  const items = Object.keys(t.raw("eraseItems") as Record<string, string>);
+  return (
+    // A named region, as before: a screen reader can jump to it (`Panel` names none).
+    <section aria-label={t("eraseTitle")} className="mt-4">
+      <Panel
+        title={t("eraseTitle")}
+        className="border-destructive/40"
+        bodyClassName="flex flex-col gap-3"
+      >
+        <div className="flex max-w-prose flex-col gap-2 text-sm">
+          <p>{t("eraseLead")}</p>
+          <ul className="flex list-disc flex-col gap-1 pl-5 marker:text-muted-foreground">
+            {items.map((item) => (
+              <li key={item}>{t(`eraseItems.${item}`)}</li>
+            ))}
+          </ul>
+          <p className="text-muted-foreground">{t("eraseShared")}</p>
+          <p className="font-semibold">{t("eraseFinal")}</p>
+        </div>
+        {failed && (
+          <p role="alert" className="text-sm text-destructive">
+            {t("eraseFailed")}
+          </p>
+        )}
+        <form action={eraseMe} className="flex flex-col items-start gap-2">
+          <ConfirmSubmit
+            label={t("erase")}
+            question={t("eraseConfirm")}
+            confirm={t("eraseYes")}
+            cancel={t("cancel")}
+          />
+        </form>
+      </Panel>
     </section>
   );
 }
