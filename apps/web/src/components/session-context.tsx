@@ -50,14 +50,11 @@ export async function SessionContext({ report }: { report: SessionReport }) {
       {matches.length > MAX_LISTED_MATCHES ? (
         <a
           href={`#${SESSION_MATCHES_ID}`}
-          aria-label={t("context.toMatches", {
-            count: matches.length,
-            record: t("recordLong", record),
-          })}
           className="inline-flex h-7 items-center gap-2 rounded-sm bg-muted px-2 text-xs whitespace-nowrap hover:bg-band max-sm:hidden xl:shrink-0"
         >
-          <span className="font-semibold">{t("context.matches", { count: matches.length })}</span>
+          <span className="font-semibold">{t("context.matches", { count: matches.length })}</span>{" "}
           <span className="text-muted-foreground">{t("record", record)}</span>
+          <span className="sr-only">{t("context.toMatches")}</span>
         </a>
       ) : (
         matches.length > 0 && (
@@ -98,15 +95,15 @@ export async function SessionContext({ report }: { report: SessionReport }) {
         )
       )}
       {figures.length > 0 && (
-        <dl className="flex gap-x-4 max-sm:w-full max-sm:justify-between sm:flex-wrap sm:gap-x-6 sm:gap-y-1 lg:ml-auto xl:shrink-0 xl:flex-nowrap">
+        <dl className="flex flex-wrap gap-x-4 gap-y-1 max-sm:w-full max-sm:justify-between sm:gap-x-6 lg:ml-auto xl:shrink-0 xl:flex-nowrap">
           {figures.map(({ c, label }) => {
             const moved = gapTrend(gap(c));
             return (
-              <div key={c.metric_id} className="grid min-w-0 leading-tight">
+              <div key={c.metric_id} className="grid leading-tight">
                 <dt translate="no" className="text-[0.6875rem] text-muted-foreground">
                   {t(`context.${label}`)}
                 </dt>
-                <dd className="flex items-baseline gap-1.5 whitespace-nowrap">
+                <dd className="flex items-baseline gap-1.5 whitespace-nowrap tabular-nums">
                   <span className="text-[0.9375rem] font-semibold">
                     {metric(c.session, c.unit, c.basis, locale)}
                   </span>

@@ -700,7 +700,7 @@
       "kast": "KAST",
       "gap": "écart à la référence :",
       "matches": "{count, plural, one {# match} other {# matchs}}",
-      "toMatches": "{count, plural, one {# match} other {# matchs}}, {record} : voir la liste des matchs de la session"
+      "toMatches": " : voir la liste des matchs de la session"
     },
     "figures": {
       "untraded": "Morts non tradées par round"

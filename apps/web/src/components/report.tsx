@@ -277,7 +277,7 @@ export async function Report({
                 {report.match_list.map((match) => (
                   <li key={match.id} className="border-t border-line-soft first:border-t-0">
                     <Link
-                      href={`/matches/${match.id}`}
+                      href={`/matches/${encodeURIComponent(match.id)}`}
                       className="-mx-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 rounded-md px-2 py-2 text-sm hover:bg-muted"
                     >
                       <span className="flex items-center gap-2">
