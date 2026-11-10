@@ -438,8 +438,6 @@
       "dollars": "dollars",
       "table": "table"
     },
-    "version": "version {version}",
-    "reads": "reads {tables}",
     "code": "Code on GitHub",
     "definition": "Definition",
     "parameters": "Parameters",
@@ -452,7 +450,25 @@
     "yourSession": "Your last session",
     "openReport": "Open the report",
     "back": "All formulas",
-    "open": "Formula: {name}"
+    "open": "Formula: {name}",
+    "columns": {
+      "metric": "Metric",
+      "id": "Id",
+      "unit": "Unit",
+      "better": "Direction"
+    },
+    "context": {
+      "label": "The formula",
+      "trail": "Breadcrumb",
+      "family": "Family",
+      "version": "Version",
+      "unit": "Unit",
+      "better": "Direction"
+    },
+    "implementation": {
+      "title": "Code",
+      "reads": "Tables read"
+    }
   },
   "matches": {
     "title": "Matches",

@@ -438,8 +438,6 @@
       "dollars": "dollars",
       "table": "tableau"
     },
-    "version": "version {version}",
-    "reads": "lit {tables}",
     "code": "Code sur GitHub",
     "definition": "Définition",
     "parameters": "Paramètres",
@@ -452,7 +450,25 @@
     "yourSession": "Ta dernière session",
     "openReport": "Ouvrir le rapport",
     "back": "Toutes les formules",
-    "open": "Formule : {name}"
+    "open": "Formule : {name}",
+    "columns": {
+      "metric": "Métrique",
+      "id": "Identifiant",
+      "unit": "Unité",
+      "better": "Sens"
+    },
+    "context": {
+      "label": "La formule",
+      "trail": "Fil d'Ariane",
+      "family": "Famille",
+      "version": "Version",
+      "unit": "Unité",
+      "better": "Sens"
+    },
+    "implementation": {
+      "title": "Code",
+      "reads": "Tables lues"
+    }
   },
   "matches": {
     "title": "Matchs",
