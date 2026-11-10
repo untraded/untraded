@@ -3,6 +3,7 @@
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { getLocale, getTimeZone, getTranslations } from "next-intl/server";
+import { MapChips } from "@/components/map-chips";
 import { SkeletonLine, slots } from "@/components/skeleton";
 import type { Locale } from "@/i18n/locale";
 import type { Comparison, SessionSummary } from "@/lib/api";
@@ -142,81 +143,6 @@ export async function SessionRow({ session }: { session: SessionSummary }) {
         />
       </Link>
     </li>
-  );
-}
-
-/**
- * The maps of a session as chips on a single line, cut at the last chip that fits and ended by a
- * "+n" chip for the maps left out, in CSS only (assistive technologies read the full list beside).
- *
- * The chips wrap in a box one line high that hides the lines below. Every chip but the last
- * reserves at its end the room of a "+n" chip (`pr-11`) and holds that chip, counting the maps
- * after it; every chip but the first starts back over that room (`-ml-11`), opaque, so it covers
- * the "+n" of the chip before. A chip goes to the hidden line unless it fits with the room of its
- * own "+n": the last chip on the visible line always has room for its "+n", which shows only
- * there, with the exact count of the chips that wrapped. Never a chip cut in the middle, no
- * measure, no breakpoint. The box takes the rest of the line, down to the first chip with its
- * "+n" (`flex-1 min-w-min`): narrower still (a small phone, a large font), the chips go under the
- * record, whole.
- */
-function MapChips({
-  maps,
-  t,
-}: {
-  maps: SessionSummary["maps"];
-  t: Awaited<ReturnType<typeof getTranslations<"sessions">>>;
-}) {
-  return (
-    <span
-      aria-hidden="true"
-      className="flex h-5 min-w-min flex-1 flex-wrap gap-x-2.5 overflow-hidden leading-5"
-    >
-      {maps.map((played, i) => {
-        const after = maps.length - 1 - i;
-        return (
-          <span
-            key={played.match_id}
-            className={cn(
-              "relative inline-flex items-baseline gap-1.5 bg-card group-hover:bg-muted",
-              after > 0 && "pr-11",
-              i > 0 && "-ml-11",
-            )}
-          >
-            {played.result && (
-              <span
-                className={cn(
-                  "rounded-sm px-1 text-[0.6875rem] leading-4 font-semibold",
-                  played.result === "win" && "bg-win/15",
-                  played.result === "loss" && "bg-loss/15",
-                  played.result === "tie" && "bg-muted",
-                )}
-              >
-                {t(`resultShort.${played.result}`)}
-              </span>
-            )}
-            <span translate="no" className="whitespace-nowrap">
-              {mapName(played.map)}
-            </span>
-            {played.my_score !== null && played.their_score !== null && (
-              <span className="whitespace-nowrap text-muted-foreground tabular-nums">
-                {played.my_score}–{played.their_score}
-              </span>
-            )}
-            {after > 0 && (
-              // The room `pr-11` keeps, less the gap: the next chip, when on this line, covers it.
-              <span
-                title={t("moreMatches", { count: after })}
-                className="absolute top-0 right-0 w-[2.125rem] pl-0.5"
-              >
-                <span className="inline-block rounded-sm px-1 text-[0.6875rem] leading-4 font-semibold text-muted-foreground ring-1 ring-border ring-inset">
-                  {t("more", { count: after })}
-                </span>
-              </span>
-            )}
-          </span>
-        );
-      })}
-    </span>
   );
 }
 

@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import Link from "next/link";
 import { getLocale, getTranslations } from "next-intl/server";
+import { MapChips } from "@/components/map-chips";
 import { ContextBar } from "@/components/ui/context-bar";
 import type { Locale } from "@/i18n/locale";
 import type { SessionReport } from "@/lib/api";
 import { cn } from "@/lib/cn";
-import { delta, gap, gapTrend, mapName, metric, score, trendClass } from "@/lib/format";
+import { delta, gap, gapTrend, mapName, metric, type Trend, trendClass } from "@/lib/format";
 
 /** The three numbers the bar keeps in view, in this order. */
 const KEY = [
@@ -15,27 +16,27 @@ const KEY = [
   { id: "base.kast", label: "kast" },
 ] as const;
 const ARROW = { better: "▲", worse: "▼", same: "=" } as const;
-/**
- * The most matches the bar lists one by one: three still hold on one line beside the key numbers
- * at 1280 px. A longer session is summed up ("4 matches · 0 W – 4 L"), with a link to the report's
- * list of its matches, so that the bar never scrolls sideways.
- */
-export const MAX_LISTED_MATCHES = 3;
-/** The `id` of the report's list of the session's matches, which the summary links to. */
+/** A match's page, which a chip of the bar links to. */
+const matchHref = (id: string) => `/matches/${encodeURIComponent(id)}`;
+/** The `id` of the report's list of the session's matches, which the "+n" of the matches links to. */
 export const SESSION_MATCHES_ID = "session-matches";
 
 /**
- * A session report's context bar: the session's matches with their score and result (a dot and the
- * word, never the colour alone), or their summary past three, and three key numbers with their
- * signed gap to the reference. The session's name is the report's own heading, just below: the bar
- * does not repeat it. On a phone it keeps the three numbers alone, on one line, so that the
- * priorities still start on the first screen; the matches are listed further down the report.
+ * A session report's context bar: the session's record and its maps with their result and score,
+ * on one line cut at the last map that fits with a "+n" for the rest (`MapChips`), and three key
+ * numbers with their signed gap to the reference. The session's name is the report's own heading,
+ * just below: the bar does not repeat it. On a phone it keeps the three numbers alone, on one
+ * line, so that the priorities still start on the first screen; the matches are listed further
+ * down the report.
+ *
+ * The chips link to their match for the mouse. The keyboard and assistive technologies get a list
+ * of the same links, out of sight until focused: the focused one then shows over the start of
+ * the chips, so that no chip left on the hidden line takes the focus.
  */
 export async function SessionContext({ report }: { report: SessionReport }) {
-  const [t, results, status, locale] = await Promise.all([
+  const [t, results, locale] = await Promise.all([
     getTranslations("sessions"),
     getTranslations("result"),
-    getTranslations("status"),
     getLocale() as Promise<Locale>,
   ]);
   const enough = report.reference.enough;
@@ -43,56 +44,42 @@ export async function SessionContext({ report }: { report: SessionReport }) {
     const c = report.headlines.find((h) => h.metric_id === id);
     return c ? [{ c, label }] : [];
   });
-  const matches = report.match_list;
   const record = { wins: report.wins, losses: report.losses, ties: report.ties };
+  const trend: Trend =
+    report.wins > report.losses ? "better" : report.losses > report.wins ? "worse" : "same";
   return (
     <ContextBar label={t("context.label")}>
-      {matches.length > MAX_LISTED_MATCHES ? (
-        <a
-          href={`#${SESSION_MATCHES_ID}`}
-          className="inline-flex h-7 items-center gap-2 rounded-sm bg-muted px-2 text-xs whitespace-nowrap hover:bg-band max-sm:hidden xl:shrink-0"
-        >
-          <span className="font-semibold">{t("context.matches", { count: matches.length })}</span>{" "}
-          <span className="text-muted-foreground">{t("record", record)}</span>
-          <span className="sr-only">{t("context.toMatches")}</span>
-        </a>
-      ) : (
-        matches.length > 0 && (
+      {report.maps.length > 0 && (
+        <div className="relative flex min-w-min flex-1 items-baseline gap-x-2.5 text-[0.8125rem] max-sm:hidden">
+          <span className={cn("shrink-0 text-sm font-semibold tabular-nums", trendClass(trend))}>
+            {t("record", record)}
+          </span>
           <ul
             aria-label={t("sessionMatches")}
-            className="flex flex-wrap gap-1.5 max-sm:hidden xl:min-w-0"
+            className="absolute top-1/2 left-0 z-10 w-max -translate-y-1/2"
           >
-            {matches.map((match) => {
-              const result = match.status === "ready" ? match.my_result : null;
-              return (
-                <li key={match.id} className="shrink-0">
-                  <Link
-                    href={`/matches/${encodeURIComponent(match.id)}`}
-                    className="inline-flex h-7 items-center gap-2 rounded-sm bg-muted px-2 text-xs whitespace-nowrap hover:bg-band"
-                  >
-                    <span className="font-semibold">
-                      {mapName(match.map)} {score(match.score_a, match.score_b, match.my_team)}
-                    </span>
-                    <span className="inline-flex items-center gap-1 text-muted-foreground">
-                      {result && (
-                        <span
-                          aria-hidden="true"
-                          className={cn(
-                            "size-2 rounded-full",
-                            result === "win" && "bg-win",
-                            result === "loss" && "bg-loss",
-                            result === "tie" && "bg-muted-foreground",
-                          )}
-                        />
-                      )}
-                      {result ? results(result) : status(match.status)}
-                    </span>
-                  </Link>
-                </li>
-              );
-            })}
+            {report.maps.map((played) => (
+              <li key={played.match_id}>
+                <Link
+                  href={matchHref(played.match_id)}
+                  className="sr-only inline-flex h-7 items-center rounded-sm bg-card px-2 text-xs whitespace-nowrap ring-1 ring-border focus:not-sr-only"
+                >
+                  {played.result && `${results(played.result)}, `}
+                  <span translate="no">{mapName(played.map)}</span>
+                  {played.my_score !== null &&
+                    played.their_score !== null &&
+                    `, ${played.my_score}–${played.their_score}`}
+                </Link>
+              </li>
+            ))}
           </ul>
-        )
+          <MapChips
+            maps={report.maps}
+            t={t}
+            matchHref={matchHref}
+            moreHref={`#${SESSION_MATCHES_ID}`}
+          />
+        </div>
       )}
       {figures.length > 0 && (
         <dl className="flex flex-wrap gap-x-4 gap-y-1 max-sm:w-full max-sm:justify-between sm:gap-x-6 lg:ml-auto xl:shrink-0 xl:flex-nowrap">
