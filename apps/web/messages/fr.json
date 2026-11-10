@@ -718,9 +718,7 @@
       "urating": "Untraded Rating",
       "adr": "ADR",
       "kast": "KAST",
-      "gap": "écart à la référence :",
-      "matches": "{count, plural, one {# match} other {# matchs}}",
-      "toMatches": " : voir la liste des matchs de la session"
+      "gap": "écart à la référence :"
     },
     "figures": {
       "untraded": "Morts non tradées par round"
