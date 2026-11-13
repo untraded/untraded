@@ -8,7 +8,7 @@
 
 import type { NextRequest } from "next/server";
 import { internalApiUrl } from "@/lib/api";
-import { hasNoBody, requestHeaders, responseHeaders } from "@/lib/relay";
+import { decoded, hasNoBody, requestHeaders, responseHeaders } from "@/lib/relay";
 
 export const dynamic = "force-dynamic";
 
@@ -36,17 +36,19 @@ async function relay(
     // refused at once): the site checks `GET /api/uploads` first for that.
     return Response.json({ detail: "the API did not answer" }, { status: 502 });
   }
-  const { headers: out, gzip } = responseHeaders(
-    response.headers,
-    response.status,
-    request.headers.get("accept-encoding"),
-  );
-  // A 304 (a replay revalidated) or a 204 has no body: nothing to stream, nor to gzip.
+  // `fetch` decodes gzip, deflate and br; any other encoding would reach the browser undeclared
+  // (Next drops `Content-Encoding`), so unreadable. The API sends none today.
+  if (!decoded(response.headers.get("content-encoding"))) {
+    await response.body?.cancel();
+    return Response.json({ detail: "the API answered in an unknown encoding" }, { status: 502 });
+  }
+  const out = responseHeaders(response.headers);
+  // A 304 (a replay revalidated) or a 204 has no body: nothing to stream.
   if (hasNoBody(response.status) || !response.body) {
     return new Response(null, { status: response.status, headers: out });
   }
-  const body = gzip ? response.body.pipeThrough(new CompressionStream("gzip")) : response.body;
-  return new Response(body, { status: response.status, headers: out });
+  // Decoded, as `fetch` gives it: never gzipped again here (`responseHeaders` says why).
+  return new Response(response.body, { status: response.status, headers: out });
 }
 
 export { relay as DELETE, relay as GET, relay as PATCH, relay as POST, relay as PUT };

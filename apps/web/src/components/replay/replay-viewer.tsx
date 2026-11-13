@@ -29,9 +29,10 @@ import {
   nearest,
   playbackStep,
   RADAR_MAPS,
-  REPLAY_VERSION,
   type Replay,
   radarSrc,
+  readReplay,
+  replayPath,
   sampleAt,
   startTick,
   TWO_LEVELS,
@@ -303,22 +304,17 @@ export function ReplayViewer({
     loadScene().catch(() => {});
   }, []);
 
-  // The replay, from the API (gzipped, and cached by the browser: it never changes). The format
-  // version is in the address, so a new viewer never reads a replay cached for the old one.
+  // The replay, from the API (cached by the browser, revalidated after a day). The format version
+  // is in the address, so a new viewer never reads a replay cached for the old one.
   useEffect(() => {
     let live = true;
     setReplay(null);
     setProblem(null);
-    fetch(
-      `${PUBLIC_API_PATH}/matches/${encodeURIComponent(matchId)}/rounds/${round}/replay?v=${REPLAY_VERSION}`,
-    )
-      .then(async (response) => {
+    fetch(`${PUBLIC_API_PATH}${replayPath(matchId, round)}`)
+      .then(readReplay)
+      .then((data) => {
         if (!live) return;
-        if (response.status === 404) return setProblem("missing");
-        if (!response.ok) return setProblem("failed");
-        const data = (await response.json()) as Replay;
-        if (!live) return;
-        if (data.version !== REPLAY_VERSION) return setProblem("failed");
+        if (typeof data === "string") return setProblem(data);
         const first = startTick(data, start);
         tickRef.current = first;
         setTick(first);

@@ -123,6 +123,29 @@ export interface Replay {
 
 /** The format version this viewer reads. */
 export const REPLAY_VERSION = 2;
+
+/** Where the viewer fetches a round's replay, past the site's relay (`PUBLIC_API_PATH`). `v` is
+ * the format version (the API answers 404 for another). `c` only changes the address the browser
+ * caches it under: the relay of Next 16.4.5 sent replays gzipped without their `Content-Encoding`,
+ * browsers kept those unreadable copies, and a 304 (same file, same ETag) would keep them for good.
+ * The API ignores it; raise it if a broken copy ever has to be dropped again. */
+export function replayPath(matchId: string, round: number): string {
+  return `/matches/${encodeURIComponent(matchId)}/rounds/${round}/replay?v=${REPLAY_VERSION}&c=2`;
+}
+
+/** A replay as the API answered it, or what the viewer says instead: `missing` (none for this
+ * round), `failed` (any other answer, a body that is not JSON, such as a gzipped body sent
+ * without its `Content-Encoding`, or another format version). Never throws. */
+export async function readReplay(response: Response): Promise<Replay | "missing" | "failed"> {
+  if (response.status === 404) return "missing";
+  if (!response.ok) return "failed";
+  try {
+    const data = (await response.json()) as Replay | null;
+    return data?.version === REPLAY_VERSION ? data : "failed";
+  } catch {
+    return "failed";
+  }
+}
 /** Premier: a round lasts 1:55 after the freeze time, the bomb 40 s once planted. */
 export const ROUND_SECONDS = 115;
 export const BOMB_SECONDS = 40;
