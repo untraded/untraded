@@ -130,6 +130,8 @@ Put a reverse proxy with HTTPS in front of the web, for example Caddy:
 
 ```caddyfile
 untraded.example.com {
+	# Pages and JSON compressed: a round replay is about 500 kB of JSON, 40 kB gzipped.
+	encode zstd gzip
 	# Demos players send go to the API directly (up to 400 MB; see below).
 	handle /api/uploads {
 		request_body {
@@ -150,6 +152,10 @@ only; the worker and the database stay inside Compose.
 The `/api/uploads` block matters for players on slow lines: the web relays it too, but Node
 drops a request that takes more than 5 minutes to arrive (a 300 MB demo below about 8 Mbit/s).
 Keep `max_size` in line with `UNTRADED_UPLOAD_MAX_MB`.
+
+`encode` matters too: the web sends `/api/*` uncompressed (Next.js drops the `Content-Encoding`
+of a route's response, so the relay cannot gzip it itself), and a round replay of the 2D viewer
+is about ten times smaller compressed.
 
 ## Checking it works
 
