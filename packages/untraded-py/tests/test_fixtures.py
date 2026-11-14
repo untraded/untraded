@@ -141,7 +141,10 @@ def test_parser_still_produces_the_fixture(name: str) -> None:
     tables = parse_demo(found[0], source="upload", mode=meta["mode"]).tables()
     fresh = fixtures.anonymize(fixtures.extract(tables, first, last), name)
     for table, frame in fixtures.read(directory).items():
-        assert_frame_equal(fresh[table], frame, check_exact=False, rel_tol=1e-6)
+        # The parser's version moves with every upgrade: the data it extracts must not.
+        actual = fresh[table].drop("parser_version", strict=False)
+        expected = frame.drop("parser_version", strict=False)
+        assert_frame_equal(actual, expected, check_exact=False, rel_tol=1e-6)
 
 
 def _assert_close(actual: Any, expected: Any, path: str) -> None:
