@@ -393,7 +393,7 @@ wheels = [
 
 [[package]]
 name = "demoparser2"
-version = "0.42.1"
+version = "0.42.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy" },
@@ -403,10 +403,12 @@ dependencies = [
     { name = "tqdm" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ba/57/d8f38eeda46127459c7b6538c18a5430d21cbdbe28fe53ac980f3cfc7344/demoparser2-0.42.1-cp314-cp314-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:c7758bed9e94d7c96a456693f65c15134b9822d5cc4767f14b9dc5fe66afd057", size = 4031881, upload-time = "2026-10-29T17:41:25.583Z" },
-    { url = "https://files.pythonhosted.org/packages/a8/4f/89ba709b5255e0da04ee0790c47688b4433e159871a60e1c9593696f5489/demoparser2-0.42.1-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:bc83d3b1163daaea5a1d7589d1348ad45cf752a44c54ebee0a8fa318e611d28d", size = 4391532, upload-time = "2026-10-29T17:40:54.341Z" },
-    { url = "https://files.pythonhosted.org/packages/2b/7b/d267b1b3d3769f39c9c963620687b765f6fdd8ace31e73bb0c953fa081d7/demoparser2-0.42.1-cp314-cp314-win32.whl", hash = "sha256:521f4973e0f2bae1790c99044a6c3e2df96bf6d0891639d5545ef49f8de986f7", size = 4043102, upload-time = "2026-10-25T16:44:17.282Z" },
-    { url = "https://files.pythonhosted.org/packages/af/63/8c005b863293788b83e35a41722f60107fa0b338dd486a0910fc14571c71/demoparser2-0.42.1-cp314-cp314-win_amd64.whl", hash = "sha256:95d92b5ca19e1568941b64714d9893891c70e366c7566286b88fc75febc1e133", size = 4612984, upload-time = "2026-10-25T16:44:47.675Z" },
+    { url = "https://files.pythonhosted.org/packages/71/d0/c2c2ab86e7383bbc4ac73f10d102cfa47c0ece1d4f5ebf84ab94c4dd8883/demoparser2-0.42.2-cp314-cp314-macosx_10_12_x86_64.whl", hash = "sha256:28c1ed70117f083c000655408eabb246465bc194a3b1ade4d994f6338a9f5ddb", size = 4157899, upload-time = "2026-11-12T14:55:02.502Z" },
+    { url = "https://files.pythonhosted.org/packages/5c/58/9cc76b777eed5bef10faf1be93d4b48abca556d0c0b27e6b3b6832648fa5/demoparser2-0.42.2-cp314-cp314-macosx_11_0_arm64.whl", hash = "sha256:cc66af677feaf5be1920d0f4556cd92aa86224f2b6cfb91dcaf3171aca6c07d5", size = 3874204, upload-time = "2026-11-12T15:03:30.71Z" },
+    { url = "https://files.pythonhosted.org/packages/85/7c/3519f5f0e5892154527347dc375bae83df0efd77cfa7e7bfe67106a8ee85/demoparser2-0.42.2-cp314-cp314-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:0b8cd6ec29862f3609cb9921d5bae2072a3fd3a7ec1a773708e6713dec45a3a6", size = 4045409, upload-time = "2026-11-12T14:29:53.664Z" },
+    { url = "https://files.pythonhosted.org/packages/1c/66/65714f5ea1e317f66526bd1b38bbae555f637dca81ed77ff3eafadf368f7/demoparser2-0.42.2-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:1d87ab96cdcdc58b4ca899a1d64abe4fdb846a79ed4f9c62a4c5f630cd15f510", size = 4405360, upload-time = "2026-11-12T14:34:08.714Z" },
+    { url = "https://files.pythonhosted.org/packages/2c/48/a53aeb38c3bc1839361a16f3bbdea75a83c60b96e0dfeb3ee3fbcc9fb3c8/demoparser2-0.42.2-cp314-cp314-win32.whl", hash = "sha256:6db4aaf2445ce6bf0b89f00e8a5fcd7403c37cd05248a2601de5e70bf05237ec", size = 4054507, upload-time = "2026-11-12T14:32:53.644Z" },
+    { url = "https://files.pythonhosted.org/packages/fd/f3/a4379d80be591b924e686f135838cd660a2b87a971691ac965e0f020fd71/demoparser2-0.42.2-cp314-cp314-win_amd64.whl", hash = "sha256:3e9183c6c9aefebd538145d37ef6e76b6e39c735823e4101123bbd60f56e287f", size = 4626314, upload-time = "2026-11-12T14:32:40.885Z" },
 ]
 
 [[package]]
@@ -1246,7 +1248,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "demoparser2", specifier = "==0.42.1" },
+    { name = "demoparser2", specifier = "==0.42.2" },
     { name = "polars", specifier = "==2.1.0" },
     { name = "pyarrow", specifier = "==26.0.0" },
 ]
@@ -1403,7 +1405,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "backports-zstd", marker = "python_full_version < '3.14'", specifier = ">=1.0" },
-    { name = "demoparser2", specifier = "==0.42.1" },
+    { name = "demoparser2", specifier = "==0.42.2" },
     { name = "numpy", specifier = ">=2" },
     { name = "polars", specifier = ">=2.1.0,<3" },
     { name = "pyarrow", specifier = ">=26" },
