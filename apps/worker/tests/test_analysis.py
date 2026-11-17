@@ -35,3 +35,14 @@ def test_round_player_carries_the_team_buy_type(analysis: Analysis) -> None:
     frame = sql_frames(analysis)["round_player"]
     assert frame.height == analysis.tables["round_player"].height
     assert frame["buy_type"].null_count() == 0
+
+
+def test_team_metrics_per_side_of_the_match(analysis: Analysis) -> None:
+    frame = analysis.team_values
+    assert set(frame["metric"]) == {m.id for m in REGISTRY.values() if m.kind == "team"}
+    assert set(frame["team"]) == {"A", "B"}
+    assert (frame["hits"] <= frame["cases"]).all()
+    # Every round with a known winner has a buy type for each side.
+    rounds = analysis.tables["round"].filter(pl.col("winner_team").is_not_null()).height
+    buys = frame.filter(pl.col("metric") == "team.buy").group_by("team").agg(pl.col("cases").sum())
+    assert buys["cases"].to_list() == [rounds, rounds]

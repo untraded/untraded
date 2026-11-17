@@ -7,7 +7,8 @@
     "pos": "Positionnement",
     "util": "Utilitaires",
     "eco": "Économie",
-    "rating": "Ratings"
+    "rating": "Ratings",
+    "team": "Équipe"
   },
   "names": {
     "base.adr": "ADR",
@@ -72,6 +73,11 @@
     "rating.untraded_level": "Niveau de l'Untraded Rating",
     "rating.untraded_margin": "Marge de l'Untraded Rating",
     "rating.untraded_parts": "Untraded Rating par action",
+    "team.buy": "Rounds par type d'achat",
+    "team.post_plant": "Post-plants",
+    "team.retake": "Retakes",
+    "team.site_t": "Rounds T par site",
+    "team.trades": "Réseau de trades",
     "trade.death_opportunities": "Morts tradables",
     "trade.kill_conversion_pct": "Conversion des occasions",
     "trade.kill_opportunities": "Occasions de trade",
@@ -305,6 +311,21 @@
     "Rounds started with a grenade where the player threw none ÷ rounds started with a grenade * 100.": "Rounds commencés avec une grenade où le joueur n'en a lancé aucune ÷ rounds commencés avec une grenade * 100.",
     "Trade kills that took longer than `trade.window_w3_s` ÷ trade kills (within `trade.window_s`) * 100.": "Kills de trade qui ont pris plus de `trade.window_w3_s` ÷ kills de trade (dans `trade.window_s`) * 100.",
     "Flashes that blinded no living enemy for at least `flash.min_blind_s` ÷ flashes thrown * 100.": "Flashs qui n'ont aveuglé aucun ennemi vivant pendant au moins `flash.min_blind_s` ÷ flashs lancées * 100.",
-    "First version, for the advice rules of batch 2.": "Première version, pour le deuxième lot de règles de conseils."
+    "First version, for the advice rules of batch 2.": "Première version, pour le deuxième lot de règles de conseils.",
+    "Rounds the team played on T with the bomb planted, by site (`key`: `A`, `B` or `unknown`) and by the players alive at the plant (`sub_key`: `{us}v{them}`, e.g. `3v2`): `cases` rounds, `hits` won.": "Rounds joués par l'équipe côté T avec la bombe posée, par site (`key` : `A`, `B` ou `unknown`) et selon les joueurs en vie à la pose (`sub_key` : `{nous}v{eux}`, par exemple `3v2`) : `cases` rounds, `hits` gagnés.",
+    "Rounds the team played on CT where the enemy planted the bomb, by site (`key`: `A`, `B` or `unknown`) and by the players alive at the plant (`sub_key`: `{us}v{them}`): `cases` rounds, `hits` won.": "Rounds joués par l'équipe côté CT où l'adversaire a posé la bombe, par site (`key` : `A`, `B` ou `unknown`) et selon les joueurs en vie à la pose (`sub_key` : `{nous}v{eux}`) : `cases` rounds, `hits` gagnés.",
+    "Rounds by the team's buy type (`key`: `pistol`, `eco`, `semi`, `force`, `full`, from the round model) and the enemy's (`sub_key`): `cases` rounds, `hits` won.": "Rounds selon le type d'achat de l'équipe (`key` : `pistol`, `eco`, `semi`, `force`, `full`, tirés du modèle de round) et celui de l'adversaire (`sub_key`) : `cases` rounds, `hits` gagnés.",
+    "One side of a match (`A` started on CT, `B` on T), not a team: which side is a team's is decided when the numbers are read (3 players of its roster on the match's date, on the same side), so a team's numbers only cover the matches where that rule finds it.": "Un côté d'un match (`A` a commencé CT, `B` T), pas une équipe : le côté d'une équipe se décide à la lecture (3 joueurs de son roster à la date du match, du même côté), si bien que les chiffres d'une équipe ne couvrent que les matchs où cette règle la trouve.",
+    "Counts, not rates: a rate over several matches adds their counts up (hits ÷ cases over all their rounds), never averages the matches' rates.": "Des comptes, pas des taux : un taux sur plusieurs matchs additionne leurs comptes (hits ÷ cases sur tous leurs rounds), sans jamais faire la moyenne des taux des matchs.",
+    "Only rounds whose winner is known count (a last round cut by the end of the demo is left out); overtime rounds count like the others.": "Seuls comptent les rounds dont le vainqueur est connu (un dernier round coupé par la fin de la démo est écarté) ; les rounds de prolongation comptent comme les autres.",
+    "Team samples are small: read every rate with its number of cases.": "Les échantillons d'équipe sont petits : lire chaque taux avec son nombre de cas.",
+    "The site is where the planter stood (`BombsiteA` or `BombsiteB` place): a round where the team went to a site without planting counts as `none`.": "Le site est l'emplacement du poseur (place `BombsiteA` ou `BombsiteB`) : un round où l'équipe est allée sur un site sans poser compte comme `none`.",
+    "Players alive at the plant: those present in the round, minus those dead at the plant's tick or before. A player who left mid-round still counts as alive.": "Joueurs en vie à la pose : ceux présents au round, moins ceux morts au tick de la pose ou avant. Un joueur parti en cours de round compte encore comme en vie.",
+    "Players alive at the plant, as for `team.post_plant`; a retake is any CT round with an enemy plant, saves included.": "Joueurs en vie à la pose, comme pour `team.post_plant` ; un retake est tout round CT avec une pose adverse, saves compris.",
+    "Buy types come from the round model (`BuyThresholds`, parameters on [parameters.md](parameters.md)); overtime rounds are never pistol rounds.": "Les types d'achat viennent du modèle de round (`BuyThresholds`, paramètres dans [parameters.md](parameters.md)) ; les rounds de prolongation ne sont jamais des pistol rounds.",
+    "A player can trade their own death: their grenade or fire kills the killer within the window. That link is kept.": "Un joueur peut trader sa propre mort : sa grenade ou son feu tue le tueur dans la fenêtre. Ce lien est gardé.",
+    "A bot of the team that trades a death adds to the total but links no player.": "Un bot de l'équipe qui trade une mort compte dans le total mais ne relie aucun joueur.",
+    "Rounds the team played on T, by the site of the plant (`key`: `A`, `B`, `none` without a plant, `unknown` when the planter's place names no site): `cases` rounds, `hits` won. A bomb planted after the round was decided is no plant.": "Rounds joués par l'équipe côté T, selon le site de la pose (`key` : `A`, `B`, `none` sans pose, `unknown` quand l'emplacement du poseur ne nomme aucun site) : `cases` rounds, `hits` gagnés. Une bombe posée après la décision du round n'est pas une pose.",
+    "Who trades whose death. For each player of the team (`key`, a SteamID): their deaths (`cases`, every death as in `trade.traded_death_pct`, in the rounds with a known winner) and the deaths traded within `trade.window_s` (`hits`), in total (`sub_key` empty) and by the teammate who traded them (`sub_key`, a SteamID). A death is traded when a teammate kills the killer within the window (the `death` table, built from `kill`).": "Qui trade la mort de qui. Pour chaque joueur de l'équipe (`key`, un SteamID) : ses morts (`cases`, toutes, comme dans `trade.traded_death_pct`, dans les rounds dont le vainqueur est connu) et les morts tradées dans `trade.window_s` (`hits`), au total (`sub_key` vide) et par le coéquipier qui les a tradées (`sub_key`, un SteamID). Une mort est tradée quand un coéquipier tue le tueur dans la fenêtre (la table `death`, tirée de `kill`)."
   }
 }

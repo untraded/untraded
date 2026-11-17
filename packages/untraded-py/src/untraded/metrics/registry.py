@@ -25,7 +25,7 @@ Unit = Literal[
     "table",
 ]
 Scope = Literal["player"]
-Kind = Literal["value", "table"]
+Kind = Literal["value", "table", "team"]
 Better = Literal["higher", "lower", "neutral"]
 """Which way is an improvement, for the player: more kills is better (`higher`), more deaths is
 worse (`lower`), and some numbers are a style, not a level (`neutral`: opening attempts, utility
@@ -33,7 +33,8 @@ thrown of one type). Advice rules and the colours of the session report read it.
 ROUNDS = "rounds"
 """In `Metric.cases`: the value is computed over the rounds played."""
 """`value`: one number per player (`compute`). `table`: rows per player with dimensions such as
-map, side and zone (`compute_table`), e.g. distributions and raw exports."""
+map, side and zone (`compute_table`), e.g. distributions and raw exports. `team`: counts per side
+of a match (`compute_team`, `untraded.metrics.team`)."""
 ParamValue = float | int | bool
 Compute = Callable[[Dataset, Mapping[str, ParamValue]], pl.DataFrame]
 """`value` metrics return one row per player: `steamid`, `value` (Float64, null when undefined).
@@ -49,7 +50,8 @@ class Metric:
     name: str
     unit: Unit
     better: Better
-    """Which way is an improvement; `neutral` for table metrics."""
+    """Which way is an improvement; `neutral` for table metrics, and for team metrics the way
+    of their rate (hits ÷ cases)."""
     doc: str
     """Definition, as in docs/metrics-v1.md."""
     compute: Compute = field(repr=False)

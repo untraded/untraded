@@ -5,6 +5,7 @@
     ds = Dataset.from_matches([{**canonical.tables(), **derive(canonical.tables()).tables()}])
     compute(ds)                    # every metric, default parameters
     compute(ds.split(side="CT"))   # CT rounds only
+    compute_team(ds)               # team metrics: counts per side of each match
 
 Results record each metric's version and the parameter values used.
 """
@@ -21,11 +22,12 @@ from untraded.metrics import duels as _duels  # noqa: F401
 from untraded.metrics import economy as _economy  # noqa: F401
 from untraded.metrics import positioning as _positioning  # noqa: F401
 from untraded.metrics import ratings as _ratings  # noqa: F401
+from untraded.metrics import team as _team  # noqa: F401
 from untraded.metrics import utility as _utility  # noqa: F401
 from untraded.metrics.dataset import Dataset
 from untraded.metrics.registry import REGISTRY, Metric, ParamValue, metric
 
-__all__ = ["REGISTRY", "Dataset", "Metric", "compute", "compute_table", "metric"]
+__all__ = ["REGISTRY", "Dataset", "Metric", "compute", "compute_table", "compute_team", "metric"]
 
 RESULT = pl.Schema(
     {
@@ -34,6 +36,21 @@ RESULT = pl.Schema(
         "version": pl.String,
         "value": pl.Float64,
         "params": pl.String,
+    }
+)
+
+
+TEAM_RESULT = pl.Schema(
+    {
+        "match_id": pl.String,
+        "team": pl.String,
+        "metric": pl.String,
+        "version": pl.String,
+        "params": pl.String,
+        "key": pl.String,
+        "sub_key": pl.String,
+        "cases": pl.Int64,
+        "hits": pl.Int64,
     }
 )
 
@@ -71,7 +88,8 @@ def compute(
     for metric_id in wanted:
         definition = REGISTRY[metric_id]
         if definition.kind != "value":
-            raise ValueError(f"{metric_id} is a table metric: use compute_table()")
+            kind = definition.kind
+            raise ValueError(f"{metric_id} is a {kind} metric: use compute_{kind}()")
         used = _params(definition, overrides)
         values = definition.compute(ds, used)
         frames.append(
@@ -96,10 +114,47 @@ def compute_table(
     _check_params(overrides)
     definition = REGISTRY[metric_id]
     if definition.kind != "table":
-        raise ValueError(f"{metric_id} is a value metric: use compute()")
+        use = "compute" if definition.kind == "value" else f"compute_{definition.kind}"
+        raise ValueError(f"{metric_id} is a {definition.kind} metric: use {use}()")
     used = _params(definition, overrides)
     return definition.compute(ds, used).with_columns(
         pl.lit(metric_id).alias("metric"),
         pl.lit(definition.version).alias("version"),
         pl.lit(json.dumps(used, sort_keys=True)).alias("params"),
     )
+
+
+def compute_team(
+    ds: Dataset,
+    ids: Iterable[str] | None = None,
+    *,
+    params: Mapping[str, ParamValue] | None = None,
+) -> pl.DataFrame:
+    """Long table of the `team` metrics: `match_id`, `team`, `metric`, `version`, `params`,
+    `key`, `sub_key`, `cases` and `hits` (`untraded.metrics.team`)."""
+    overrides = dict(params or {})
+    _check_params(overrides)
+    team = sorted(m.id for m in REGISTRY.values() if m.kind == "team")
+    wanted = list(ids) if ids is not None else team
+    frames = []
+    for metric_id in wanted:
+        definition = REGISTRY[metric_id]
+        if definition.kind != "team":
+            raise ValueError(f"{metric_id} is not a team metric")
+        used = _params(definition, overrides)
+        frames.append(
+            definition.compute(ds, used).select(
+                "match_id",
+                "team",
+                pl.lit(metric_id).alias("metric"),
+                pl.lit(definition.version).alias("version"),
+                pl.lit(json.dumps(used, sort_keys=True)).alias("params"),
+                "key",
+                "sub_key",
+                "cases",
+                "hits",
+            )
+        )
+    if not frames:
+        return pl.DataFrame(schema=TEAM_RESULT)
+    return pl.concat(frames).sort("metric", "match_id", "team", "key", "sub_key")

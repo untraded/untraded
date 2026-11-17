@@ -15,6 +15,7 @@ uv run untraded-worker replays     # the 2D viewer's round replays of matches pa
 uv run untraded-worker swings      # the swing table of matches parsed before
 uv run untraded-worker reanalyze   # metrics added since: analyse the matches parsed before again
 uv run untraded-worker backfill-spread  # the spread of the references of older sessions (changes nothing else; can be run again)
+uv run untraded-worker backfill-team-stats  # the team metrics of older matches (changes nothing else; can be run again)
 uv run untraded-worker retry-failed  # after a fix: the failed matches back in the queue
 uv run untraded-worker import-demo demo/   # the demo account (`untraded demo build`)
 ```
@@ -68,6 +69,7 @@ after a new replay format or a new win-probability model. Both log and skip a ma
   `untraded-worker replays`.
 - `retry.py`: `untraded-worker retry-failed`, the failed matches put back in the queue from their last dead download or parse, attempts reset. A parse needs its raw demo: once the retention deleted it, the match stays failed (logged).
 - `spread.py`: `untraded-worker backfill-spread`, fills `play_session_metric.reference_p10` and `reference_p90` of the sessions written before migration 0015, from their stored reference window (the player's own matches, read from the Parquet tables) or their level band. It recomputes no session, so none changes its id; it never overwrites a spread, marks each session it has visited (`params.min_spread_matches`) so that it ends by visiting nothing, and can be run again. It recomputes `level_reference` first; that recomputation holds an advisory lock, so it waits for the worker's own hourly one instead of failing on the primary key.
+- `team_stats.py`: `untraded-worker backfill-team-stats`, writes `team_metric_value` (migration 0020) for the ready matches without the current version of `team.buy`, from their canonical Parquet tables derived again. Nothing else is recomputed (no session changes its id); a visited match's team rows are replaced whole, and it can be run again.
 - `reanalyze.py`: `untraded-worker reanalyze [--force]`, the matches parsed before analysed again from their Parquet tables (derived tables, metrics, replays, SQL rows), and their players' sessions queued again: after an update that adds metrics or versions. Without `--force`, only the matches missing the current `rating.untraded`. Also how `credit.py` reaches the matches of an older version: run `--force` once after updating, and it withdraws the access and sessions they should no longer give.
 - `demo.py`: `untraded-worker import-demo <dir> [--name] [--consent-version]`, the demo account (`76561190000100001`, out of the references by level): its user (created as an invited account signing in once, with a consent to analysis only and no source) and the anonymized matches of `untraded demo build`, loaded as the parse job would; again, it skips the loaded ones.
 - `swings.py`: `untraded-worker swings`, the `swing` table of matches parsed before it existed,

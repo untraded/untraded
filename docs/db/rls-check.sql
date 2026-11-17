@@ -51,6 +51,14 @@ INSERT INTO metric_value (match_id, steam_id, scope, metric_id, version, params_
     ('00000000-0000-0000-0000-000000000002', 101, 'match', 'base.kills', '1.0.0', 'default', 25),
     ('00000000-0000-0000-0000-000000000002', 999, 'match', 'base.kills', '1.0.0', 'default', 10);
 
+-- Team metrics: one side of each match (migration 0020).
+INSERT INTO metric_definition (metric_id, version, name, unit, kind, params, doc) VALUES
+    ('team.buy', '1.0.0', 'Rounds by buy type', 'table', 'team', '{}', '');
+INSERT INTO team_metric_value (match_id, team, metric_id, version, params_hash, key, sub_key,
+                               cases, hits) VALUES
+    ('00000000-0000-0000-0000-000000000001', 'A', 'team.buy', '1.0.0', 'default', 'full', 'full', 3, 2),
+    ('00000000-0000-0000-0000-000000000002', 'A', 'team.buy', '1.0.0', 'default', 'full', 'full', 4, 1);
+
 -- A play session of Alice's (both matches).
 INSERT INTO play_session (id, steam_id, started_at, ended_at, matches, rounds, reference_from,
                           reference_to, reference_matches, reference_rounds, enough, params) VALUES
@@ -115,6 +123,7 @@ SELECT expect('no writes', denied('UPDATE match SET status = ''failed'''), 1);
 
 -- Nobody signed in: nothing.
 SELECT expect('matches without a user', (SELECT count(*) FROM match), 0);
+SELECT expect('team metric rows without a user', (SELECT count(*) FROM team_metric_value), 0);
 SELECT expect('players without a user', (SELECT count(*) FROM player), 0);
 
 SET LOCAL app.user_id = '00000000-0000-0000-0000-00000000000b';  -- Bob
@@ -125,6 +134,9 @@ SELECT expect('opponent seen by Bob', (SELECT count(*) FROM player WHERE steam_i
 SELECT expect('workspaces seen by Bob', (SELECT count(*) FROM workspace), 1);
 SELECT expect('users seen by Bob', (SELECT count(*) FROM app_user), 1);
 SELECT expect('metric rows seen by Bob', (SELECT count(*) FROM metric_wide_current), 2);
+SELECT expect('team metric rows seen by Bob', (SELECT count(*) FROM team_metric_value), 1);
+SELECT expect('team metrics are read-only',
+    denied('DELETE FROM team_metric_value'), 1);
 SELECT expect('metric rows of 999 seen by Bob',
     (SELECT count(*) FROM metric_wide_current WHERE steam_id = 999), 0);
 SELECT expect('sessions seen by Bob', (SELECT count(*) FROM play_session), 0);
