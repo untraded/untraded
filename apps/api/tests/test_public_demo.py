@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import dataclasses
 import os
+import uuid
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -82,6 +83,35 @@ def test_anyone_opens_the_demo_read_only(db: psycopg.Connection[Any], tmp_path: 
     assert db.execute(
         "SELECT deleted_at FROM app_user WHERE steam_id = %s", (DEMO,)
     ).fetchone() == (None,)
+
+
+def test_the_demo_owns_its_team_read_only(db: psycopg.Connection[Any], tmp_path: Path) -> None:
+    add_user(db, DEMO)
+    db.execute("SELECT create_team('Demo Esports', 'demo-esports', %s)", (DEMO,))
+    demo_user = db.execute("SELECT id FROM app_user WHERE steam_id = %s", (DEMO,)).fetchone()
+    assert demo_user is not None
+    team = "/teams/demo-esports"
+    with app(tmp_path) as client:
+        client.get("/auth/demo")
+        assert client.get(team).status_code == 200  # the owner reads it all
+        refused = [
+            client.patch(team, json={"name": "Renamed"}),
+            client.delete(team),
+            client.post(f"{team}/invitations", json={"role_id": str(uuid.uuid4()), "max_uses": 5}),
+            client.put(f"{team}/roster/{DEMO}", json={"role": "starter"}),
+            client.delete(f"{team}/roster/{DEMO}"),
+            client.put(f"{team}/share-solo", json={"share": True}),
+            client.delete(f"{team}/members/{demo_user[0]}"),
+            client.post(f"{team}/owner", json={"user_id": str(demo_user[0])}),
+            client.post(f"{team}/playlists", json={"name": "x", "description": ""}),
+            client.post("/uploads?name=a.dem&mode=scrim&team=demo-esports"),
+        ]
+        assert [r.status_code for r in refused] == [403] * len(refused)
+        assert {r.json()["detail"] for r in refused} == {"demo"}
+    name = db.execute("SELECT name FROM workspace WHERE slug = 'demo-esports'").fetchone()
+    assert name == ("Demo Esports",)
+    assert db.execute("SELECT count(*) FROM team_invitation").fetchone() == (0,)
+    assert db.execute("SELECT count(*) FROM review_playlist").fetchone() == (0,)
 
 
 def test_the_demo_does_not_ask_faceit(db: psycopg.Connection[Any], tmp_path: Path) -> None:

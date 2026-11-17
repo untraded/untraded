@@ -11,7 +11,9 @@ before it existed, without recomputing any session (none changes its id).
 without recomputing anything else.
 `untraded-worker retry-failed`: put the failed matches back in the queue, after a fix.
 `untraded-worker refresh-access`: recompute which workspaces see every match (teams).
-`untraded-worker import-demo <dir>`: load the demo account (`untraded demo build`)."""
+`untraded-worker import-demo <dir> [--team <dir>]`: load the demo account (`untraded demo build`)
+and its team (`untraded demo team`).
+`untraded-worker remove-demo-team`: delete the demo's team and erase its invented members."""
 
 from __future__ import annotations
 
@@ -24,9 +26,11 @@ from pathlib import Path
 import psycopg
 
 from untraded.demo import PROTAGONIST
+from untraded.demo_team import TEAM_SLUG
 from untraded_worker import (
     conninfo,
     demo,
+    demo_team,
     isolated,
     levels,
     reanalyze,
@@ -80,6 +84,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     demo_parser.add_argument("directory", type=Path, help="written by `untraded demo build`")
     demo_parser.add_argument("--name", default="Demo")
     demo_parser.add_argument("--consent-version", default="2", help="the site's consent text")
+    demo_parser.add_argument(
+        "--team", type=Path, help="and the demo's team (written by `untraded demo team`)"
+    )
+    actions.add_parser(
+        "remove-demo-team", help="delete the demo's team and erase its invented members"
+    )
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -124,7 +134,21 @@ def main(argv: Sequence[str] | None = None) -> int:
                 name=args.name,
                 consent_version=args.consent_version,
             )
-        logging.info("%s demo match(es) loaded", done)
+            logging.info("%s demo match(es) loaded", done)
+            if args.team is not None:
+                done = demo_team.import_demo_team(
+                    conn,
+                    store,
+                    args.team,
+                    owner_steam_id=PROTAGONIST,
+                    consent_version=args.consent_version,
+                )
+                logging.info("%s demo team match(es) loaded", done)
+        return 0
+    if args.action == "remove-demo-team":
+        with psycopg.connect(conninfo(), autocommit=True) as conn:
+            done = demo_team.remove_demo_team(conn, owner_steam_id=PROTAGONIST, slug=TEAM_SLUG)
+        logging.info("demo team deleted, %s member(s) to erase", done)
         return 0
     if args.action == "swings":
         with psycopg.connect(conninfo(), autocommit=True) as conn:

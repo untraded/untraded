@@ -16,6 +16,7 @@ import json
 import logging
 import secrets
 import uuid
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -62,8 +63,24 @@ def ensure_user(
     return user
 
 
+@dataclass(frozen=True)
+class Source:
+    """Where a match of the demo came from, when not the demo's own import (`demo:` + its id,
+    which counts for every player in it, `credit`): an upload of a team or of a player, by its
+    id (a UUID, as the API draws) and, for a team's, who sent it."""
+
+    source_id: uuid.UUID
+    external_id: str
+    received_at: dt.datetime
+    sender: uuid.UUID | None = None
+
+
 def import_match(
-    conn: psycopg.Connection[Any], store: LocalStore, directory: Path, entry: dict[str, Any]
+    conn: psycopg.Connection[Any],
+    store: LocalStore,
+    directory: Path,
+    entry: dict[str, Any],
+    source: Source | None = None,
 ) -> uuid.UUID | None:
     """One match of the demo, in one transaction; None when it is already loaded."""
     canonical = CanonicalMatch.read(directory)
@@ -82,10 +99,22 @@ def import_match(
         ).fetchone()
         assert row is not None
         match_id = uuid.UUID(str(row[0]))
-        conn.execute(
-            "INSERT INTO match_source (match_id, kind, external_id) VALUES (%s, 'upload', %s)",
-            (match_id, f"demo:{canonical.match_id}"),
-        )
+        if source is None:
+            conn.execute(
+                "INSERT INTO match_source (match_id, kind, external_id) VALUES (%s, 'upload', %s)",
+                (match_id, f"demo:{canonical.match_id}"),
+            )
+        else:
+            conn.execute(
+                "INSERT INTO match_source (match_id, kind, external_id, source_id, received_at) "
+                "VALUES (%s, 'upload', %s, %s, %s)",
+                (match_id, source.external_id, source.source_id, source.received_at),
+            )
+            if source.sender is not None:
+                conn.execute(
+                    "INSERT INTO upload_sender (external_id, user_id) VALUES (%s, %s)",
+                    (source.external_id, source.sender),
+                )
         analysis = analyze(canonical.tables())
         prefix = f"matches/{match_id}"
         store.write_tables(prefix, analysis.tables)
@@ -97,7 +126,8 @@ def import_match(
                 (prefix, match_id),
             )
             load.refresh_access(conn, match_id)
-            sessions.queue_sessions(conn, match_id)
+            if source is None:  # an upload's sessions would be its sender's: none in the demo
+                sessions.queue_sessions(conn, match_id)
         except Exception:
             store.delete_prefix(prefix)  # rolled back: no row will point at these files
             raise

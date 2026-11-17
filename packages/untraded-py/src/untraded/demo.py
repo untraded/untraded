@@ -30,12 +30,15 @@ from pathlib import Path
 import polars as pl
 
 from untraded.fixtures import generic_knives, replace_players
+from untraded.parsing import CanonicalMatch
 from untraded.parsing.validate import validate
 
 Tables = dict[str, pl.DataFrame]
 
 FAKE_STEAM_BASE = 76561190000100000
 """Fake SteamID64s start after this one: no Steam account sits in this range."""
+REAL_LOWEST = 76561197960265728
+"""The first SteamID64 of an individual Steam account: every fake one is below it."""
 PROTAGONIST = FAKE_STEAM_BASE + 1
 PROTAGONIST_NAME = "Demo"
 PSEUDOS = (
@@ -177,3 +180,19 @@ def write(matches: Sequence[DemoMatch], root: Path) -> Path:
         newline="\n",
     )
     return manifest
+
+
+def read(root: Path) -> list[DemoMatch]:
+    """The matches `write` wrote in `root`, in the manifest's order."""
+    entries = json.loads((root / "demo.json").read_text(encoding="utf-8"))
+    out: list[DemoMatch] = []
+    for entry in entries:
+        match_id = str(entry["match_id"])
+        if not match_id.isalnum():
+            raise ValueError(f"unexpected match id in demo.json: {match_id!r}")
+        canonical = CanonicalMatch.read(root / "matches" / match_id)
+        if canonical.match_id != match_id:
+            raise ValueError(f"{match_id}: its tables are not the match demo.json names")
+        played_at = dt.datetime.fromisoformat(str(entry["played_at"]))
+        out.append(DemoMatch(match_id, str(entry["mode"]), played_at, canonical.tables()))
+    return out

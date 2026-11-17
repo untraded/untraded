@@ -294,3 +294,23 @@ The names, ids, server, game build and dates are changed, but the maps, scores a
 real: someone who knows whose matches they are could find them in public match histories. Use
 the matches of a player who agrees, and parse them with their dates (`--dates-from`) so the
 order is kept.
+
+The demo can also show the team mode. A player rarely plays enough with the same teammates, so
+the team is made of the demo's own matches:
+
+```bash
+untraded demo team demo/ --out demo-team/
+docker compose exec worker untraded-worker import-demo /data/store/demo --team /data/store/demo-team
+```
+
+In every match the protagonist's teammates become the same invented roster and the opponents new
+invented players (the team view follows nobody further than the solo demo does); the rounds are
+the real ones and the team's statistics are computed, not made up. Each match gets a new id and
+the day before its solo match. The import creates the invented members (a coach, an analyst,
+starters and stand-ins, who cannot sign in), the team "Demo Esports" owned by the demo user
+(read-only, like the whole demo), its matches (scrims, FACEIT and ESEA matches sent for the
+team, Premier matches one of its players sent) and a review (comments, tags, two playlists).
+Running it again skips what exists. `untraded-worker remove-demo-team` deletes the team and erases
+its invented members; run it before erasing the demo user, which owns the team. Their erased
+accounts keep their SteamIDs (as any erasure does): to import the team again, delete those rows
+first.
