@@ -1442,11 +1442,14 @@ def team_overview(team: dict[str, Any]) -> dict[str, Any]:
 def team_matches_get(
     handler: Handler, team: dict[str, Any], page: str, rest: str | None, query: str
 ) -> None:
-    """`GET /teams/{slug}/matches[/{id}]` and `/overview`, as in `apps/api` (`team_matches.py`)."""
+    """`GET /teams/{slug}/matches[/{id}]`, `/overview` and `/stats`, as in `apps/api`
+    (`team_matches.py`, `team_stats.py`)."""
     if not can(team, "matches.read"):
         return refused(handler, 403, "forbidden")
     if page == "overview" and rest is None:
         return handler.reply(200, team_overview(team))
+    if page == "stats" and rest is None:
+        return handler.reply(*team_stats(team, query))
     if page != "matches":
         return refused(handler, 404, "team_not_found")
     items = team_matches(team)
@@ -1466,6 +1469,151 @@ def team_matches_get(
     if found is None:
         return refused(handler, 404, "match_not_found")
     return handler.reply(200, team_match_detail(team, found))
+
+
+# A team's tactical numbers (`GET /teams/{slug}/stats`, E6 contract in the HQ): counts drawn per
+# match from its id, so that they stay the same from one request to the next, over the matches
+# whose side is known. Every fourth of them waits for the backfill (`pending`) on Northwind.
+TEAM_STATS_METRICS = [
+    {"id": m, "version": "1.0.0"}
+    for m in ("team.buy", "team.post_plant", "team.retake", "team.site_t", "team.trades")
+]
+BUYS = ("pistol", "eco", "semi", "force", "full")
+
+
+def _won(rng: random.Random, rounds: int, rate: float) -> int:
+    return sum(rng.random() < rate for _ in range(rounds))
+
+
+def team_stats(team: dict[str, Any], query: str) -> tuple[int, dict[str, Any]]:
+    """Validates the filters as the API does, then adds up the drawn counts."""
+    args = urllib.parse.parse_qs(query)
+    map_ = args.get("map", [None])[0]
+    type_ = args.get("type", ["all"])[0]
+    try:
+        days = int(args.get("days", ["30"])[0])
+    except ValueError:
+        return 422, {"detail": "days is an integer"}
+    if not 1 <= days <= 365 or type_ not in ("all", "scrim", "official"):
+        return 422, {"detail": "days is 1 to 365, type all, scrim or official"}
+    if map_ is not None and not re.fullmatch(r"[a-z0-9_]{1,40}", map_):
+        return 422, {"detail": "invalid map"}
+    since = NOW - dt.timedelta(days=days)
+    chosen = [
+        m
+        for m in team_matches(team)
+        if m["status"] == "ready"
+        and m["our_team"]
+        and dt.datetime.fromisoformat(m["played_at"]) >= since
+        and (type_ == "all" or (m["mode"] == "scrim") == (type_ == "scrim"))
+    ]
+    maps = sorted({m["map"] for m in chosen if m["map"]})
+    chosen = [m for m in chosen if map_ is None or m["map"] == map_]
+    pending = [m for k, m in enumerate(chosen) if team["_n"] == 1 and k % 4 == 3]
+    counted = [m for m in chosen if m not in pending]
+    roster = [p for p in team["_members"] if p["roster"]][:5]
+    sites: dict[tuple[str, str], list[int]] = {}
+    plants: dict[str, dict[str, Any]] = {}
+    for block in ("post_plant", "retakes"):
+        plants[block] = {"rounds": 0, "won": 0, "sites": {"A": [0, 0], "B": [0, 0]}, "sit": {}}
+    economy = {b: [0, 0] for b in BUYS}
+    deaths: dict[str, list[int]] = {p["steam_id"]: [0, 0] for p in roster}
+    links: dict[tuple[str, str], int] = {}
+    rounds = 0
+    for m in counted:
+        rng = random.Random(m["id"])
+        total = m["rounds_played"] or 24
+        rounds += total
+        t_rounds = total // 2
+        on = {"A": rng.randint(3, 6), "B": rng.randint(2, 5)}
+        on_none = max(0, t_rounds - on["A"] - on["B"])
+        for site, n in (*on.items(), ("none", on_none)):
+            cell = sites.setdefault((m["map"], site), [0, 0])
+            cell[0] += n
+            cell[1] += _won(rng, n, 0.3 if site == "none" else 0.6)
+        for block, rate in (("post_plant", 0.65), ("retakes", 0.35)):
+            for site in ("A", "B"):
+                n = rng.randint(1, 4)
+                won = _won(rng, n, rate)
+                us, them = rng.choice([(4, 3), (3, 3), (3, 2), (2, 3), (2, 2), (4, 2), (1, 2)])
+                b = plants[block]
+                b["rounds"] += n
+                b["won"] += won
+                b["sites"][site][0] += n
+                b["sites"][site][1] += won
+                cell = b["sit"].setdefault((us, them), [0, 0])
+                cell[0] += n
+                cell[1] += won
+        left = total
+        for buy, n in (("pistol", 2), ("eco", rng.randint(2, 4)), ("semi", rng.randint(0, 2)),
+                       ("force", rng.randint(1, 3))):  # fmt: skip
+            n = min(n, left)
+            left -= n
+            economy[buy][0] += n
+            economy[buy][1] += _won(
+                rng, n, {"pistol": 0.5, "eco": 0.15, "semi": 0.4, "force": 0.3}[buy]
+            )
+        economy["full"][0] += left
+        economy["full"][1] += _won(rng, left, 0.55)
+        for victim in roster:
+            n = rng.randint(10, 19)
+            traded = 0
+            for trader in roster:
+                if trader is victim or rng.random() < 0.3:
+                    continue
+                k = rng.randint(0, 3)
+                traded += k
+                key = (trader["steam_id"], victim["steam_id"])
+                links[key] = links.get(key, 0) + k
+            deaths[victim["steam_id"]][0] += n
+            deaths[victim["steam_id"]][1] += min(n, traded)
+
+    def block(name: str) -> dict[str, Any]:
+        b = plants[name]
+        order = sorted(b["sit"], key=lambda s: (s[1] - s[0], -s[0]))
+        return {
+            "rounds": b["rounds"],
+            "won": b["won"],
+            "by_site": [{"site": s, "rounds": c[0], "won": c[1]} for s, c in b["sites"].items()],
+            "by_situation": [
+                {"us": s[0], "them": s[1], "rounds": b["sit"][s][0], "won": b["sit"][s][1]}
+                for s in order
+            ],
+        }
+
+    order = {"A": 0, "B": 1, "none": 2, "unknown": 3}
+    names = {p["steam_id"]: p["display_name"] for p in roster}
+    players = [s for s, d in deaths.items() if d[0] > 0]
+    return 200, {
+        "map": map_,
+        "days": days,
+        "type": type_,
+        "maps": maps,
+        "matches": len(counted),
+        "rounds": rounds,
+        "pending": len(pending),
+        "trade_window_s": 5.0,
+        "metrics": TEAM_STATS_METRICS,
+        "sites": [
+            {"map": m, "site": s, "rounds": c[0], "won": c[1]}
+            for (m, s), c in sorted(sites.items(), key=lambda i: (i[0][0], order[i[0][1]]))
+            if c[0] > 0
+        ],
+        "post_plant": block("post_plant"),
+        "retakes": block("retakes"),
+        "economy": [{"buy": b, "rounds": c[0], "won": c[1]} for b, c in economy.items()],
+        "trades": {
+            "players": [
+                {"steam_id": s, "name": names[s], "deaths": deaths[s][0], "traded": deaths[s][1]}
+                for s in sorted(players, key=lambda s: (-deaths[s][0], names[s].lower()))
+            ],
+            "links": [
+                {"trader": t, "victim": v, "count": n}
+                for (t, v), n in sorted(links.items())
+                if n > 0
+            ],
+        },
+    }
 
 
 def refused(handler: Handler, status: int, code: str) -> None:
@@ -1499,7 +1647,7 @@ def team_get(handler: Handler, path: str, query: str = "") -> bool:
         reviewed = TEAMS.get(urllib.parse.unquote(found[1]).lower())
         if reviewed and mine(reviewed) is not None and review_get(handler, reviewed, found[2]):
             return True
-    if found := re.fullmatch(r"/teams/([^/]+)/(matches|overview)(?:/([^/]+))?", path):
+    if found := re.fullmatch(r"/teams/([^/]+)/(matches|overview|stats)(?:/([^/]+))?", path):
         team = TEAMS.get(urllib.parse.unquote(found[1]).lower())
         if team is None or mine(team) is None:
             refused(handler, 404, "team_not_found")

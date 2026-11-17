@@ -7,6 +7,7 @@
 
 import {
   CalendarDays,
+  ChartColumn,
   Crosshair,
   House,
   type LucideIcon,
@@ -29,6 +30,7 @@ export type Section =
   | "formulas"
   | "team"
   | "teams"
+  | "stats"
   | "review"
   | "admin"
   | "settings";
@@ -43,6 +45,8 @@ export const SECTIONS: Record<Section, { href: string; icon: LucideIcon }> = {
   team: { href: "/team", icon: Users },
   /** The player's own team; its link names the team (`NavLink`'s `href`). */
   teams: { href: "/teams", icon: UsersRound },
+  /** A team's stats only: its link gives the team's address (`NavLink`'s `href`). */
+  stats: { href: "/teams", icon: ChartColumn },
   /** A team's review: only on a team's pages, whose links give their own address. */
   review: { href: "/teams", icon: MessagesSquare },
   admin: { href: "/admin", icon: ShieldCheck },

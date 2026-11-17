@@ -187,9 +187,9 @@ export async function AppShell({
                 </div>
               </>
             }
-            // A team's space links only the pages that exist: its home, its matches and its review
-            // (for a role that reads its matches) and its members. Its stats and the rest join
-            // this list as they are built.
+            // A team's space links only the pages that exist: its home, its matches, stats and
+            // review (for a role that reads its matches) and its members. The rest joins this
+            // list as it is built.
             teams={Object.fromEntries(
               teams.map((w) => [
                 w.slug,
@@ -208,6 +208,15 @@ export async function AppShell({
                       href={teamHref(w.slug, "matches")}
                       label={t("teamMatches")}
                       short={t("short.teamMatches")}
+                      place="rail"
+                    />
+                  )}
+                  {readsMatches(w.permissions) && (
+                    <NavLink
+                      section="stats"
+                      href={teamHref(w.slug, "stats")}
+                      label={t("teamStats")}
+                      short={t("short.teamStats")}
                       place="rail"
                     />
                   )}
@@ -327,11 +336,13 @@ export async function AppShell({
                   labels={{
                     ...moreLabels,
                     progress: null,
+                    stats: readsMatches(w.permissions) ? t("teamStats") : null,
                     upload: sendsMatches(w) ? t("teamUpload") : null,
                     review: readsMatches(w.permissions) ? t("teamReview") : null,
                     team: null,
                   }}
                   uploadHref={teamHref(w.slug, "upload")}
+                  statsHref={teamHref(w.slug, "stats")}
                   reviewHref={teamHref(w.slug, "review")}
                 />
               </div>,

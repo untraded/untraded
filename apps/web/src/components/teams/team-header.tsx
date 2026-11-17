@@ -18,7 +18,7 @@ export async function TeamHeader({
 }: {
   team: Team;
   /** The page shown: a tab is marked only for the pages the bar lists. */
-  current: "home" | "matches" | "review" | "members" | "upload";
+  current: "home" | "matches" | "stats" | "review" | "members" | "upload";
 }) {
   const t = await getTranslations("teams");
   const tabs = [
@@ -26,6 +26,7 @@ export async function TeamHeader({
     ...(readsMatches(team.my_role.permissions)
       ? [
           { key: "matches", href: teamHref(team.slug, "matches"), label: t("matches") },
+          { key: "stats", href: teamHref(team.slug, "stats"), label: t("stats") },
           { key: "review", href: teamHref(team.slug, "review"), label: t("review") },
         ]
       : []),
