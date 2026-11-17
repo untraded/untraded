@@ -89,20 +89,23 @@ export async function changeSource(formData: FormData): Promise<void> {
 
 const STEAM_ID = /^\d{17}$/;
 
+function eraseRefusal(result: Awaited<ReturnType<typeof apiSend>>): string {
+  if (result.status === 404) return "missing";
+  if (result.status !== 409) return "failed";
+  return refusalCode(result) === "owner_must_hand_over" ? "owner" : "self";
+}
+
 /**
  * Erases a player and their data (not undone). Says how it went in the page's address: `erased`,
- * or `erase=missing` (404), `self` (409: one's own account goes through the settings), `failed`.
+ * or `erase=missing` (404), `owner` (409 `owner_must_hand_over`: they own a team), `self` (another
+ * 409: one's own account goes through the settings), `failed`.
  */
 export async function erasePlayer(formData: FormData): Promise<void> {
   const steamId = String(formData.get("steam_id"));
   if (!STEAM_ID.test(steamId)) return;
   const result = await apiSend(`/admin/players/${steamId}`, "DELETE");
   revalidatePath("/admin");
-  redirect(
-    result.ok
-      ? "/admin?erased=1"
-      : `/admin?erase=${result.status === 404 ? "missing" : result.status === 409 ? "self" : "failed"}`,
-  );
+  redirect(result.ok ? "/admin?erased=1" : `/admin?erase=${eraseRefusal(result)}`);
 }
 
 export type CreateTeamState = {

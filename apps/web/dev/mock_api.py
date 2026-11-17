@@ -1052,7 +1052,7 @@ HEALTH_STATES: dict[str, dict[str, Any]] = {
 # `none` (no team). Invitation links: `mock-valid` joins Harbor Five as a player, `mock-member`
 # points to a team they are already in (409), any other token is invalid (404). Signing in with
 # `/auth/steam?team_invite=<token>` comes back to `/join/<token>`. A refusal carries its code as
-# `{"detail": {"reason": code}}`, like `uploads.py`. Joining needs the consent, not the codes:
+# the `detail`, as the API's team routes send it (`refusals` in `deps.py`). Joining needs the consent, not the codes:
 # `/mock/state/joined` (no consent) or `consented` (no codes) shows a newcomer. Withdrawing the
 # consent leaves every team, and the last owner of one is refused (409), as erasing is.
 PERMISSIONS = [
@@ -1116,7 +1116,8 @@ def build_teams(state: str) -> dict[str, dict[str, Any]]:
     if state != "none":
         ashgrove.append(member(2, 0, "you", "viewer", None, 9))
     harbor = [
-        member(3, 1, "Corvid", "owner", "starter", 20),
+        # The admin's player Kestrel owns Harbor Five: erasing them from the admin is refused.
+        member(3, 1, "Kestrel", "owner", "starter", 20) | {"steam_id": "76561190000000101"},
         member(3, 2, "Lark", "player", "starter", 18),
     ]
     teams = {
@@ -1269,7 +1270,8 @@ def admin_team(team: dict[str, Any]) -> dict[str, Any]:
 
 
 def refused(handler: Handler, status: int, code: str) -> None:
-    return handler.reply(status, {"detail": {"reason": code}})
+    """A refusal as the team routes send it: the stable code as the `detail`."""
+    return handler.reply(status, {"detail": code})
 
 
 def team_get(handler: Handler, path: str) -> bool:
@@ -1423,10 +1425,10 @@ def team_write(handler: Handler, method: str, path: str, body: dict[str, Any]) -
         if my_role != "owner":
             refused(handler, 403, "forbidden")
         elif who is None:
-            refused(handler, 404, "not_a_member")
+            refused(handler, 409, "not_a_member")
         else:
-            who["_role"] = "owner"
-            me_member["_role"] = "coach"
+            # As the API: the member becomes the owner, the owner takes their former role.
+            who["_role"], me_member["_role"] = "owner", who["_role"]
             handler.reply(200, team_out(team))
     elif rest == "/invitations" and method == "POST":
         role = role_by_id(team, str(body.get("role_id", "")))
@@ -1458,7 +1460,7 @@ def team_write(handler: Handler, method: str, path: str, body: dict[str, Any]) -
         if not can(team, "roster.edit"):
             refused(handler, 403, "forbidden")
         elif who is None:
-            refused(handler, 404, "not_a_member")
+            refused(handler, 409, "not_a_member")
         elif method == "PUT":
             if body.get("role") not in ("starter", "standin"):
                 handler.reply(422, {"detail": {"field": "role"}})
@@ -1645,7 +1647,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         if self.demo() and not self.path.startswith("/auth/logout"):
-            return refused(self, 403, "read_only")
+            return refused(self, 403, "demo")
         path, _, query = self.path.partition("?")
         if path == "/uploads":
             if not self.signed_in():
@@ -1722,7 +1724,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_PUT(self) -> None:
         if self.demo() and not self.path.startswith("/auth/logout"):
-            return refused(self, 403, "read_only")
+            return refused(self, 403, "demo")
         body = read_body(self)
         if not self.signed_in():
             return self.reply(401, {"detail": "not signed in"})
@@ -1752,7 +1754,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_DELETE(self) -> None:
         if self.demo() and not self.path.startswith("/auth/logout"):
-            return refused(self, 403, "read_only")
+            return refused(self, 403, "demo")
         if not self.signed_in():
             return self.reply(401, {"detail": "not signed in"})
         if team_write(self, "DELETE", self.path, {}):
@@ -1762,6 +1764,12 @@ class Handler(BaseHTTPRequestHandler):
         if found := re.fullmatch(r"/admin/players/(\d+)", self.path):
             if found[1] == ME:
                 return self.reply(409, {"detail": "erase your own account from your settings"})
+            if any(
+                m["steam_id"] == found[1] and m["_role"] == "owner"
+                for t in TEAMS.values()
+                for m in t["_members"]
+            ):
+                return refused(self, 409, "owner_must_hand_over")
             for p in PLAYERS:
                 if p["steam_id"] == found[1]:
                     PLAYERS.remove(p)
@@ -1791,7 +1799,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_PATCH(self) -> None:
         if self.demo():
-            return refused(self, 403, "read_only")
+            return refused(self, 403, "demo")
         body = read_body(self)
         if not self.signed_in():
             return self.reply(401, {"detail": "not signed in"})

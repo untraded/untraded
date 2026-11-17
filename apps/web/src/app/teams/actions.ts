@@ -26,6 +26,10 @@ const KNOWN = new Set([
   "max_uses",
 ]);
 
+/** Codes the API sends under another name than the site's message: the demo's refusal (403
+ * `demo`) and the database's check of an invitation's uses. */
+const ALIASES: Record<string, string> = { demo: "read_only", max_uses_invalid: "max_uses" };
+
 function field(formData: FormData, name: string): string {
   return String(formData.get(name) ?? "").trim();
 }
@@ -45,7 +49,8 @@ function back(slug: string, outcome: { done: string } | { error: string }): neve
 }
 
 function errorOf(result: Awaited<ReturnType<typeof apiSend>>): string {
-  const code = refusalCode(result);
+  const raw = refusalCode(result);
+  const code = raw ? (ALIASES[raw] ?? raw) : null;
   if (code && KNOWN.has(code)) return code;
   return result.status === 403 ? "forbidden" : "failed";
 }
@@ -174,7 +179,7 @@ export async function acceptInvitation(formData: FormData): Promise<void> {
     const error =
       code === "invitation_invalid" || code === "already_member" || code === "consent_required"
         ? code
-        : code === "read_only"
+        : code === "demo"
           ? "read_only"
           : "failed";
     redirect(`${here}?error=${error}`);

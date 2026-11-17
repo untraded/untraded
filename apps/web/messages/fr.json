@@ -1327,7 +1327,8 @@
     "noTeams": "Aucune équipe pour l'instant.",
     "teamMembers": "Membres",
     "teamCreatedOn": "Créée",
-    "errorTeamName": "Donne un nom de 1 à 64 caractères."
+    "errorTeamName": "Donne un nom de 1 à 64 caractères.",
+    "eraseOwner": "Ce joueur est propriétaire d'une équipe : il doit d'abord passer la main à un autre membre. Rien n'a été effacé."
   },
   "viewer": {
     "title": "Round {round}",
@@ -1541,7 +1542,7 @@
     "leaveYes": "Oui, quitter",
     "lastOwner": "Tu es le seul propriétaire de l'équipe : passe la main à un autre membre avant de partir.",
     "handOver": "Passer la main",
-    "handOverLead": "Le membre choisi devient propriétaire. Ton propre rôle peut changer avec.",
+    "handOverLead": "Le membre choisi devient propriétaire, et tu prends son ancien rôle.",
     "handOverTo": "Nouveau propriétaire",
     "handOverButton": "Passer la main",
     "handOverConfirm": "Faire de ce membre le propriétaire ? Seul ce membre pourra te la rendre.",

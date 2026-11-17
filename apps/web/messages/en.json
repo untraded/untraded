@@ -1327,7 +1327,8 @@
     "noTeams": "No teams yet.",
     "teamMembers": "Members",
     "teamCreatedOn": "Created",
-    "errorTeamName": "Give a name of 1 to 64 characters."
+    "errorTeamName": "Give a name of 1 to 64 characters.",
+    "eraseOwner": "This player owns a team: they must hand it over to another member first. Nothing was erased."
   },
   "viewer": {
     "title": "Round {round}",
@@ -1541,7 +1542,7 @@
     "leaveYes": "Yes, leave",
     "lastOwner": "You are the team's only owner: hand the team over to another member before leaving.",
     "handOver": "Hand the team over",
-    "handOverLead": "The member you choose becomes the owner. Your own role may change with it.",
+    "handOverLead": "The member you choose becomes the owner, and you take their former role.",
     "handOverTo": "New owner",
     "handOverButton": "Hand over",
     "handOverConfirm": "Make this member the owner? Only they can give it back.",
