@@ -15,7 +15,7 @@ export interface SpaceLink {
   /** In the badge: the team's initials, or the player's initial. */
   badge: string;
   team: boolean;
-  /** Under the name: "Team · owner", or "My space". */
+  /** Under the name: the player's role in the team ("Owner"), or "My space". */
   line: string;
   /** In the menu, at the right of a team: the player's role in it. */
   role: string | null;
