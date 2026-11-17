@@ -30,11 +30,13 @@
       "admin": "Admin",
       "teamHome": "Accueil",
       "teamMatches": "Matchs",
+      "teamStats": "Stats",
       "teamReview": "Review",
       "teamMembers": "Membres"
     },
     "teamHome": "Accueil",
     "teamMatches": "Matchs",
+    "teamStats": "Stats",
     "teamReview": "Review",
     "teamUpload": "Envoyer un match",
     "teamMembers": "Membres"
@@ -1535,6 +1537,7 @@
     "context": "L'équipe, ses pages et ton rôle",
     "overview": "Accueil",
     "matches": "Matchs",
+    "stats": "Stats",
     "review": "Review",
     "members": "Membres",
     "yourRole": "Ton rôle : {role}",
@@ -1750,5 +1753,59 @@
     "saveTagsOf": "Enregistrer les tags du round {round}",
     "addToPlaylistOf": "Ajouter le round {round} à la playlist",
     "saveComment": "Enregistrer ton commentaire"
+  },
+  "teamStats": {
+    "pageLead": "Où l'équipe gagne ses rounds, avec quel achat, et qui trade qui, de notre côté de chaque match. Chaque taux montre son nombre de rounds ; sous {min} rounds, il n'a ni barre ni teinte.",
+    "filters": "Filtres des stats",
+    "period": "Période",
+    "days": "{days} jours",
+    "type": "Matchs",
+    "types": {
+      "all": "Tous",
+      "scrim": "Scrims",
+      "official": "Officiels"
+    },
+    "map": "Carte",
+    "allMaps": "Toutes",
+    "summary": "{matches, plural, one {# match} other {# matchs}}, {rounds, plural, one {# round} other {# rounds}}",
+    "pending": "{count, plural, one {# match attend le calcul de ses stats et ne compte pas encore.} other {# matchs attendent le calcul de leurs stats et ne comptent pas encore.}}",
+    "empty": "Aucun match de l'équipe dans cette sélection. Les stats comptent les matchs analysés où trois joueurs du roster jouent du même côté.",
+    "won": "{won} sur {rounds}",
+    "few": "peu de rounds",
+    "how": "Comment c'est calculé",
+    "sites": "Réussite par site, côté T",
+    "sitesHint": "Rounds T selon le site de la pose, et la part gagnée.",
+    "site": {
+      "A": "Site A",
+      "B": "Site B",
+      "none": "Sans pose",
+      "unknown": "Site inconnu"
+    },
+    "noRounds": "Aucun round dans cette sélection.",
+    "economy": "Économie",
+    "economyHint": "Rounds gagnés selon le type d'achat de l'équipe.",
+    "buys": {
+      "pistol": "Pistol",
+      "eco": "Éco",
+      "semi": "Semi-achat",
+      "force": "Force",
+      "full": "Achat complet"
+    },
+    "postPlant": "Post-plant, côté T",
+    "retakes": "Retakes, côté CT",
+    "plantHint": "Rounds gagnés après la pose, selon les joueurs en vie de chaque côté à la pose.",
+    "noPlant": "Aucune pose dans cette sélection.",
+    "allPlants": "Toutes les poses",
+    "bySituation": "Selon les joueurs en vie",
+    "bySite": "Selon le site",
+    "situation": "{us} contre {them}",
+    "trades": "Réseau de trades",
+    "tradesHint": "Chaque ligne est un joueur qui trade ; chaque colonne, celui dont il trade la mort (dans les {window} s). La diagonale : un joueur dont la grenade ou le feu tue son tueur. Seuls les joueurs de l'équipe sont nommés.",
+    "tradesCaption": "Nombre de morts tradées, par joueur qui trade (lignes) et par joueur tradé (colonnes)",
+    "trader": "Qui trade ↓ / qui meurt →",
+    "traderSr": "Qui trade, puis la mort tradée",
+    "tradedDeaths": "Morts tradées",
+    "cell": "{trader} trade la mort de {victim} : {count}",
+    "noTrades": "Aucune mort dans cette sélection."
   }
 }

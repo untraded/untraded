@@ -44,7 +44,10 @@ export function defaultInviteRole(roles: readonly Role[]): Role | undefined {
 }
 
 /** A team's address on the site, or one of its pages. */
-export function teamHref(slug: string, page?: "members" | "matches" | "upload" | "review"): string {
+export function teamHref(
+  slug: string,
+  page?: "members" | "matches" | "upload" | "stats" | "review",
+): string {
   return `/teams/${encodeURIComponent(slug)}${page ? `/${page}` : ""}`;
 }
 

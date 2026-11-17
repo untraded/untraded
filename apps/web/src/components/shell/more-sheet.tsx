@@ -14,6 +14,8 @@ export interface MoreSheetProps {
     settings: string;
     /** The player's own pages: null in a team's space, whose sheet leaves them out. */
     progress: string | null;
+    /** In a team's space: its stats (`statsHref`), for members who read its matches. */
+    stats?: string | null;
     /** In a team's space: its own upload page (`uploadHref`), for members who may send. */
     upload: string | null;
     /** In a team's space: its review page (`reviewHref`), for members who read its matches. */
@@ -27,6 +29,8 @@ export interface MoreSheetProps {
   };
   /** Where the upload entry goes, when not the player's own upload page (a team's). */
   uploadHref?: string;
+  /** Where the stats entry goes (a team's). */
+  statsHref?: string;
   /** Where the review entry goes (a team's review page). */
   reviewHref?: string;
 }

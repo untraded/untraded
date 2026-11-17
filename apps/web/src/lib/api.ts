@@ -380,6 +380,73 @@ export interface TeamOverview {
   record: { days: number; wins: number; losses: number; ties: number };
 }
 
+/** Which of a team's matches its stats read: `official` is every mode but scrims. */
+export type TeamMatchType = "all" | "scrim" | "official";
+export type BuyType = "pistol" | "eco" | "semi" | "force" | "full";
+
+/** Rounds and the rounds won, added up over matches: the rate is `won / rounds`. */
+export interface RoundCount {
+  rounds: number;
+  won: number;
+}
+
+/** A team's T rounds on one map, by the site of the plant (`none`: no plant; `unknown`: a plant
+ * on no named site). */
+export interface TeamSiteRow extends RoundCount {
+  map: string;
+  site: "A" | "B" | "none" | "unknown";
+}
+
+/** Rounds with a plant by the players alive on each side at the plant (`us` v `them`). */
+export interface TeamSituationRow extends RoundCount {
+  us: number;
+  them: number;
+}
+
+export interface TeamPlantBlock extends RoundCount {
+  /** A then B; a plant on no named site counts in the total only. */
+  by_site: (RoundCount & { site: "A" | "B" })[];
+  /** Largest advantage first. */
+  by_situation: TeamSituationRow[];
+}
+
+/** One of the team's players in its trade network: their deaths, and those traded. */
+export interface TeamTradePlayer {
+  steam_id: string;
+  name: string;
+  deaths: number;
+  traded: number;
+}
+
+/** `trader` traded `victim`'s death `count` times (a player may trade their own death). */
+export interface TeamTradeLink {
+  trader: string;
+  victim: string;
+  count: number;
+}
+
+/** A team's tactical numbers (`GET /teams/{slug}/stats`, E6 contract in the HQ). */
+export interface TeamStats {
+  map: string | null;
+  days: number;
+  type: TeamMatchType;
+  /** The maps of the period and type, for the map filter. */
+  maps: string[];
+  matches: number;
+  rounds: number;
+  /** Matches that would count but whose team metrics are not written yet: left out. */
+  pending: number;
+  trade_window_s: number | null;
+  metrics: { id: string; version: string }[];
+  sites: TeamSiteRow[];
+  post_plant: TeamPlantBlock;
+  retakes: TeamPlantBlock;
+  /** The five buy types, in this order. */
+  economy: (RoundCount & { buy: BuyType })[];
+  /** The team's players only: anyone else on our side is neither named nor counted. */
+  trades: { players: TeamTradePlayer[]; links: TeamTradeLink[] };
+}
+
 /** One metric of one player in one match, on the whole match (`match`) or on one side. */
 export interface MetricValue {
   metric_id: string;
@@ -773,6 +840,15 @@ export const getTeamMatches = (slug: string, offset = 0) =>
   );
 export const getTeamMatch = (slug: string, id: string) =>
   apiGet<TeamMatchDetail>(`/teams/${encodeURIComponent(slug)}/matches/${encodeURIComponent(id)}`);
+/** A team's tactical numbers over its matches, filters as the API takes them. */
+export const getTeamStats = (
+  slug: string,
+  filters: { map: string | null; days: number; type: TeamMatchType },
+) => {
+  const query = new URLSearchParams({ days: String(filters.days), type: filters.type });
+  if (filters.map) query.set("map", filters.map);
+  return apiGet<TeamStats>(`/teams/${encodeURIComponent(slug)}/stats?${query}`);
+};
 /** A team's home figures, which the page can do without: `null` on any failure (a role without
  * `matches.read` included). */
 export const findTeamOverview = (slug: string) =>

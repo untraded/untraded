@@ -30,11 +30,13 @@
       "admin": "Admin",
       "teamHome": "Home",
       "teamMatches": "Matches",
+      "teamStats": "Stats",
       "teamReview": "Review",
       "teamMembers": "Members"
     },
     "teamHome": "Home",
     "teamMatches": "Matches",
+    "teamStats": "Stats",
     "teamReview": "Review",
     "teamUpload": "Send a match",
     "teamMembers": "Members"
@@ -1535,6 +1537,7 @@
     "context": "The team, its pages and your role",
     "overview": "Overview",
     "matches": "Matches",
+    "stats": "Stats",
     "review": "Review",
     "members": "Members",
     "yourRole": "Your role: {role}",
@@ -1750,5 +1753,59 @@
     "saveTagsOf": "Save the tags of round {round}",
     "addToPlaylistOf": "Add round {round} to the playlist",
     "saveComment": "Save your comment"
+  },
+  "teamStats": {
+    "pageLead": "Where the team wins its rounds, with which buy, and who trades whom, from our side of each match. Every rate shows its number of rounds; under {min} rounds, it has no bar and no tint.",
+    "filters": "Stats filters",
+    "period": "Period",
+    "days": "{days} days",
+    "type": "Matches",
+    "types": {
+      "all": "All",
+      "scrim": "Scrims",
+      "official": "Official"
+    },
+    "map": "Map",
+    "allMaps": "All",
+    "summary": "{matches, plural, one {# match} other {# matches}}, {rounds, plural, one {# round} other {# rounds}}",
+    "pending": "{count, plural, one {# match is waiting for its stats and is not counted yet.} other {# matches are waiting for their stats and are not counted yet.}}",
+    "empty": "No team match in this selection. The stats count the analysed matches where three roster players play on the same side.",
+    "won": "{won} of {rounds}",
+    "few": "few rounds",
+    "how": "How it's calculated",
+    "sites": "Success by site, T side",
+    "sitesHint": "T rounds by the site of the plant, and the share won.",
+    "site": {
+      "A": "Site A",
+      "B": "Site B",
+      "none": "No plant",
+      "unknown": "Unknown site"
+    },
+    "noRounds": "No round in this selection.",
+    "economy": "Economy",
+    "economyHint": "Rounds won by the team's buy type.",
+    "buys": {
+      "pistol": "Pistol",
+      "eco": "Eco",
+      "semi": "Semi-buy",
+      "force": "Force",
+      "full": "Full buy"
+    },
+    "postPlant": "Post-plant, T side",
+    "retakes": "Retakes, CT side",
+    "plantHint": "Rounds won after the plant, by the players alive on each side at the plant.",
+    "noPlant": "No plant in this selection.",
+    "allPlants": "All plants",
+    "bySituation": "By players alive",
+    "bySite": "By site",
+    "situation": "{us} versus {them}",
+    "trades": "Trade network",
+    "tradesHint": "Each row is a player who trades; each column, the player whose death they trade (within {window} s). The diagonal: a player whose grenade or fire kills their killer. Only the team's players are named.",
+    "tradesCaption": "Deaths traded, by the player who trades (rows) and the player traded (columns)",
+    "trader": "Who trades ↓ / who dies →",
+    "traderSr": "Who trades, then whose death",
+    "tradedDeaths": "Traded deaths",
+    "cell": "{trader} trades {victim}'s death: {count}",
+    "noTrades": "No death in this selection."
   }
 }
