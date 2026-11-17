@@ -52,31 +52,34 @@ export async function MatchContext({
             {theirs}
           </p>
         )}
-        <p className="inline-flex h-6 items-center gap-1.5 self-center rounded-sm bg-muted px-2 text-xs font-medium">
-          {result ? (
-            <span
-              aria-hidden="true"
-              className={cn(
-                "size-2 rounded-full",
-                result === "win" && "bg-win",
-                result === "loss" && "bg-loss",
-                result === "tie" && "bg-muted-foreground",
-              )}
-            />
-          ) : (
-            !ready && (
+        {/* A parsed match without a result (a team with no side in it) says nothing here. */}
+        {(result || !ready) && (
+          <p className="inline-flex h-6 items-center gap-1.5 self-center rounded-sm bg-muted px-2 text-xs font-medium">
+            {result ? (
               <span
                 aria-hidden="true"
                 className={cn(
-                  "size-2 rounded-full border border-muted-foreground",
-                  (match.status === "parsing" || match.status === "downloading") &&
-                    "bg-muted-foreground motion-safe:animate-pulse",
+                  "size-2 rounded-full",
+                  result === "win" && "bg-win",
+                  result === "loss" && "bg-loss",
+                  result === "tie" && "bg-muted-foreground",
                 )}
               />
-            )
-          )}
-          {result ? results(result) : status(match.status)}
-        </p>
+            ) : (
+              !ready && (
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    "size-2 rounded-full border border-muted-foreground",
+                    (match.status === "parsing" || match.status === "downloading") &&
+                      "bg-muted-foreground motion-safe:animate-pulse",
+                  )}
+                />
+              )
+            )}
+            {result ? results(result) : status(match.status)}
+          </p>
+        )}
       </div>
       <p className="flex flex-wrap gap-x-3 gap-y-0.5 text-[0.8125rem] text-muted-foreground xl:shrink-0">
         {t.has(mode) && <span>{t(mode)}</span>}

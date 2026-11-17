@@ -9,7 +9,7 @@ import { roleLabel } from "@/components/teams/role-label";
 import type { Me, WorkspaceRef } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { initials, PERSONAL_SPACE } from "@/lib/space";
-import { allows, isDefaultRole, teamHref, teamsOf } from "@/lib/teams";
+import { allows, isDefaultRole, readsMatches, teamHref, teamsOf } from "@/lib/teams";
 import { AccountMenu } from "./account-menu";
 import { MoreSheet } from "./more-sheet";
 import { RAIL_MOTION } from "./nav";
@@ -186,8 +186,9 @@ export async function AppShell({
                 </div>
               </>
             }
-            // A team's space links only the pages that exist: its home and its members. Its
-            // matches, stats, review and the rest join this list as they are built.
+            // A team's space links only the pages that exist: its home, its matches (for a role
+            // that reads them) and its members. Its stats, review and the rest join this list as
+            // they are built.
             teams={Object.fromEntries(
               teams.map((w) => [
                 w.slug,
@@ -200,6 +201,15 @@ export async function AppShell({
                     short={t("short.teamHome")}
                     place="rail"
                   />
+                  {readsMatches(w.permissions) && (
+                    <NavLink
+                      section="matches"
+                      href={teamHref(w.slug, "matches")}
+                      label={t("teamMatches")}
+                      short={t("short.teamMatches")}
+                      place="rail"
+                    />
+                  )}
                   {sendsMatches(w) && (
                     <NavLink
                       section="upload"
@@ -278,7 +288,10 @@ export async function AppShell({
           teams={Object.fromEntries(
             teams.map((w) => [
               w.slug,
-              <div key={w.slug} className="grid grid-cols-3">
+              <div
+                key={w.slug}
+                className={cn("grid", readsMatches(w.permissions) ? "grid-cols-4" : "grid-cols-3")}
+              >
                 <NavLink
                   section="home"
                   href={teamHref(w.slug)}
@@ -286,6 +299,14 @@ export async function AppShell({
                   label={t("teamHome")}
                   place="tab"
                 />
+                {readsMatches(w.permissions) && (
+                  <NavLink
+                    section="matches"
+                    href={teamHref(w.slug, "matches")}
+                    label={t("teamMatches")}
+                    place="tab"
+                  />
+                )}
                 <NavLink
                   section="teams"
                   href={teamHref(w.slug, "members")}

@@ -15,10 +15,13 @@ import { type FlaggedMoment, momentHref } from "@/lib/match";
 export async function MatchRounds({
   match,
   flagged,
+  ours = "player",
 }: {
   match: MatchDetail;
   /** Rounds to review (any priority), with the moment the viewer opens on. */
   flagged: Map<number, FlaggedMoment>;
+  /** Whose side `my_team` is: the player's, or the team's on its pages (no round to review). */
+  ours?: "player" | "team";
 }) {
   const t = await getTranslations("match");
   const reasons = (await getTranslations("viewer")).raw("reasons") as Record<string, string>;
@@ -76,7 +79,14 @@ export async function MatchRounds({
   return (
     <Panel
       title={t("rounds")}
-      aside={<span>{t("roundsLegend")}</span>}
+      // A team with no side in the match (a shared solo match): nothing filled nor underlined.
+      aside={
+        ours === "player" ? (
+          <span>{t("roundsLegend")}</span>
+        ) : (
+          me && <span>{t("roundsLegendTeam")}</span>
+        )
+      }
       bodyClassName="flex flex-col gap-2.5"
     >
       <div className="flex flex-col gap-1.5 sm:hidden">

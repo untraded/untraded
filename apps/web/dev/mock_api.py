@@ -1337,12 +1337,142 @@ def admin_team(team: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+# A team's matches (`docs/contrat-api-equipes-e3.md` in the HQ), drawn from the player's own
+# matches so that the 2D viewer opens them too: Northwind has 30 (every other match, every 7th a
+# teammate's shared solo match, with no side), Ashgrove 3, Harbor Five none (the empty state).
+OPPONENTS = ["Halyard", "Corvid", "Ember", "Lumen", "Sorrel"]
+TEAM_MATCH_PAGES = {1: (range(0, 60, 2), 7), 2: (range(1, 12, 4), 0)}
+
+
+def our_result(match: dict[str, Any], ours: str | None) -> str | None:
+    if ours is None or match["status"] != "ready":
+        return None
+    mine, theirs = (
+        (match["score_a"], match["score_b"])
+        if ours == "A"
+        else (match["score_b"], match["score_a"])
+    )
+    return "win" if mine > theirs else "loss" if mine < theirs else "tie"
+
+
+def team_matches(team: dict[str, Any]) -> list[dict[str, Any]]:
+    indexes, shared_every = TEAM_MATCH_PAGES.get(team["_n"], (range(0), 0))
+    roster = [m for m in team["_members"] if m["roster"]][:5]
+    found = []
+    for k, i in enumerate(indexes):
+        base = MATCHES[i]
+        shared = shared_every > 0 and k % shared_every == shared_every - 1
+        ours = None if shared else base["my_team"]
+        players = roster[1:2] if shared else roster
+        found.append(
+            {
+                key: base[key]
+                for key in (
+                    "id",
+                    "played_at",
+                    "ended_at",
+                    "mode",
+                    "status",
+                    "map",
+                    "score_a",
+                    "score_b",
+                    "rounds_played",
+                )
+            }
+            | {
+                "reason": "shared" if shared else "roster",
+                "our_team": ours,
+                "our_result": our_result(base, ours),
+                "team_players": sorted(
+                    (
+                        {
+                            "steam_id": m["steam_id"],
+                            "name": m["display_name"],
+                            "team": base["my_team"],
+                        }
+                        for m in players
+                    ),
+                    key=lambda p: p["name"].lower(),
+                ),
+            }
+        )
+    return found
+
+
+def team_match_detail(team: dict[str, Any], summary_: dict[str, Any]) -> dict[str, Any]:
+    """A team's match page: the player's match, its five on the team's side played by the
+    roster, each roster player marked as a member."""
+    base = next(m for m in MATCHES if m["id"] == summary_["id"])
+    detail = match_detail(base)
+    ours = iter(summary_["team_players"])
+    opponents = iter(OPPONENTS)
+    players = []
+    for p in detail["players"]:
+        mate = next(ours, None) if p["team"] == base["my_team"] else None
+        if mate:
+            p = p | {"steam_id": mate["steam_id"], "name": mate["name"]}
+        elif p["team"] != base["my_team"]:
+            p = p | {"name": next(opponents)}
+        players.append(p | {"member": mate is not None})
+    public = {k: v for k, v in detail.items() if not k.startswith("my_")}
+    return public | summary_ | {"players": players}
+
+
+def team_overview(team: dict[str, Any]) -> dict[str, Any]:
+    items = team_matches(team)
+    since = NOW - dt.timedelta(days=30)
+    recent = [
+        m["our_result"]
+        for m in items
+        if m["our_result"] and dt.datetime.fromisoformat(m["played_at"]) >= since
+    ]
+    return {
+        "matches": len(items),
+        "recent": items[:5],
+        "record": {
+            "days": 30,
+            "wins": recent.count("win"),
+            "losses": recent.count("loss"),
+            "ties": recent.count("tie"),
+        },
+    }
+
+
+def team_matches_get(
+    handler: Handler, team: dict[str, Any], page: str, rest: str | None, query: str
+) -> None:
+    """`GET /teams/{slug}/matches[/{id}]` and `/overview`, as in `apps/api` (`team_matches.py`)."""
+    if not can(team, "matches.read"):
+        return refused(handler, 403, "forbidden")
+    if page == "overview" and rest is None:
+        return handler.reply(200, team_overview(team))
+    if page != "matches":
+        return refused(handler, 404, "team_not_found")
+    items = team_matches(team)
+    if rest is None:
+        args = urllib.parse.parse_qs(query)
+        try:
+            limit = int(args.get("limit", ["20"])[0])
+            offset = int(args.get("offset", ["0"])[0])
+        except ValueError:
+            return handler.reply(422, {"detail": "limit and offset are integers"})
+        if not 1 <= limit <= 100 or offset < 0:
+            return handler.reply(422, {"detail": "limit is 1 to 100, offset 0 or more"})
+        return handler.reply(
+            200, {"items": items[offset : offset + limit], "limit": limit, "offset": offset}
+        )
+    found = next((m for m in items if m["id"] == rest), None)
+    if found is None:
+        return refused(handler, 404, "match_not_found")
+    return handler.reply(200, team_match_detail(team, found))
+
+
 def refused(handler: Handler, status: int, code: str) -> None:
     """A refusal as the team routes send it: the stable code as the `detail`."""
     return handler.reply(status, {"detail": code})
 
 
-def team_get(handler: Handler, path: str) -> bool:
+def team_get(handler: Handler, path: str, query: str = "") -> bool:
     """The team routes read with GET; `False` when the path is none of them."""
     if found := re.fullmatch(r"/team-invitations/([^/]+)", path):
         slug = INVITE_TOKENS.get(urllib.parse.unquote(found[1]))
@@ -1363,6 +1493,13 @@ def team_get(handler: Handler, path: str) -> bool:
         return False
     if not handler.signed_in():
         handler.reply(401, {"detail": "not signed in"})
+        return True
+    if found := re.fullmatch(r"/teams/([^/]+)/(matches|overview)(?:/([^/]+))?", path):
+        team = TEAMS.get(urllib.parse.unquote(found[1]).lower())
+        if team is None or mine(team) is None:
+            refused(handler, 404, "team_not_found")
+        else:
+            team_matches_get(handler, team, found[2], found[3], query)
         return True
     found = re.fullmatch(r"/teams/([^/]+)(/invitations)?", path)
     team = TEAMS.get(urllib.parse.unquote(found[1]).lower()) if found else None
@@ -1603,7 +1740,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(303, headers={"location": back, "set-cookie": cookie})
         if team_uploads_get(self, path):
             return None
-        if team_get(self, path):
+        if team_get(self, path, query):
             return None
         if not self.signed_in():
             return self.reply(401, {"detail": "not signed in"})

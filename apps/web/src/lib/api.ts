@@ -253,6 +253,66 @@ export interface MatchDetail extends MatchSummary {
   players: Player[];
 }
 
+/** A player of a team's match who is a member of the team now, or was on its roster on the
+ * match's date (`docs/contrat-api-equipes-e3.md` in the HQ). */
+export interface TeamPlayerRef {
+  steam_id: string;
+  /** The name in that match. */
+  name: string;
+  team: "A" | "B";
+}
+
+/** A match the team sees, read from the team's side (`GET /teams/{slug}/matches`). */
+export interface TeamMatchSummary {
+  id: string;
+  played_at: string | null;
+  ended_at: string | null;
+  mode: string;
+  status: MatchStatus;
+  map: string | null;
+  score_a: number | null;
+  score_b: number | null;
+  rounds_played: number | null;
+  /** Why the team sees it: `roster`, `shared`, and `team` for its own uploads (any other is
+   * shown as a team match). */
+  reason: string;
+  /** The side 3 or more of the team's roster played on; `null` when none did (a shared solo
+   * match) or both did. */
+  our_team: "A" | "B" | null;
+  our_result: Result | null;
+  team_players: TeamPlayerRef[];
+}
+
+export interface TeamMatchList {
+  items: TeamMatchSummary[];
+  limit: number;
+  offset: number;
+}
+
+export interface TeamMatchPlayer extends Player {
+  /** A member of the team now, or on its roster on the match's date. */
+  member: boolean;
+}
+
+export interface TeamMatchDetail extends TeamMatchSummary {
+  team_a_name: string | null;
+  team_b_name: string | null;
+  tickrate: number | null;
+  unavailable: string[];
+  error: string | null;
+  rounds: Round[];
+  players: TeamMatchPlayer[];
+}
+
+/** A team's home (`GET /teams/{slug}/overview`). */
+export interface TeamOverview {
+  /** Every match the team sees. */
+  matches: number;
+  recent: TeamMatchSummary[];
+  /** The parsed matches of the last `days` days whose side is known. */
+  record: { days: number; wins: number; losses: number; ties: number };
+}
+
 /** One metric of one player in one match, on the whole match (`match`) or on one side. */
 export interface MetricValue {
   metric_id: string;
@@ -638,6 +698,18 @@ export const findTeam = (slug: string) =>
 export const findTeamInvitations = (slug: string) =>
   apiGetOptional<TeamInvitation[]>(`/teams/${encodeURIComponent(slug)}/invitations`);
 export const getAdminTeams = () => apiGet<AdminTeam[]>("/admin/teams");
+/** Matches on a team's pages, read in pages of `TEAM_MATCH_PAGE`. */
+export const TEAM_MATCH_PAGE = 20;
+export const getTeamMatches = (slug: string, offset = 0) =>
+  apiGet<TeamMatchList>(
+    `/teams/${encodeURIComponent(slug)}/matches?limit=${TEAM_MATCH_PAGE}&offset=${offset}`,
+  );
+export const getTeamMatch = (slug: string, id: string) =>
+  apiGet<TeamMatchDetail>(`/teams/${encodeURIComponent(slug)}/matches/${encodeURIComponent(id)}`);
+/** A team's home figures, which the page can do without: `null` on any failure (a role without
+ * `matches.read` included). */
+export const findTeamOverview = (slug: string) =>
+  apiGetOptional<TeamOverview>(`/teams/${encodeURIComponent(slug)}/overview`);
 
 /**
  * What an invitation link leads to, read without signing in: its preview, or `null` when the

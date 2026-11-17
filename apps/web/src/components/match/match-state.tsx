@@ -11,13 +11,25 @@ import { errorSummary } from "@/lib/match";
 const STEPS = ["pending", "downloading", "parsing"] as const;
 /** What the page shows once the analysis is done, in the page's order. */
 const COMING = ["self", "priorities", "rounds", "rating", "sides", "teams"] as const;
+/** What a team's match page shows: no player's coaching. */
+const COMING_TEAM = ["rounds", "teams"] as const;
 
 /**
  * A match that is not analysed: where its analysis stands and what the page will show once it is
  * done, or why it will not be (failed, unavailable), with the first line of the worker's error as
  * a technical detail. The context bar above already says the map, the mode and the date.
  */
-export async function MatchState({ match }: { match: MatchDetail }) {
+export async function MatchState({
+  match,
+  href = `/matches/${encodeURIComponent(match.id)}`,
+  ours = "player",
+}: {
+  match: MatchDetail;
+  /** The page the reload link opens again: the match's own page (a team's, on its pages). */
+  href?: string;
+  /** Whose page it is: the player's, or the team's (no coaching parts, no sessions). */
+  ours?: "player" | "team";
+}) {
   const t = await getTranslations("match.state");
   if (match.status === "failed" || match.status === "unavailable") {
     const key = match.status;
@@ -30,7 +42,7 @@ export async function MatchState({ match }: { match: MatchDetail }) {
       >
         <p className="text-sm">{t(`${key}.text`)}</p>
         <p className="text-sm text-muted-foreground">
-          {t("notCounted")} {detail && t(`${key}.report`)}
+          {t(ours === "team" ? "notCountedTeam" : "notCounted")} {detail && t(`${key}.report`)}
         </p>
         {detail && (
           <div className="flex flex-col gap-1 border-t border-line-soft pt-3">
@@ -92,7 +104,7 @@ export async function MatchState({ match }: { match: MatchDetail }) {
       <div className="flex flex-col gap-2">
         <h3 className="text-xs text-muted-foreground">{t("analysing.coming")}</h3>
         <ul className="flex list-disc flex-col gap-1 pl-4 text-sm marker:text-muted-foreground">
-          {COMING.map((part) => (
+          {(ours === "team" ? COMING_TEAM : COMING).map((part) => (
             <li key={part}>{t(`analysing.parts.${part}`)}</li>
           ))}
         </ul>
@@ -100,10 +112,7 @@ export async function MatchState({ match }: { match: MatchDetail }) {
       <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-t border-line-soft pt-3 text-xs text-muted-foreground sm:col-span-2">
         {t("analysing.later")}
         {/* A plain link: a full load asks the API again, where the router could keep its copy. */}
-        <a
-          href={`/matches/${encodeURIComponent(match.id)}`}
-          className="text-link underline underline-offset-3"
-        >
+        <a href={href} className="text-link underline underline-offset-3">
           {t("analysing.reload")}
         </a>
       </p>
