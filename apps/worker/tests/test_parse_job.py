@@ -120,6 +120,13 @@ def test_access(db: psycopg.Connection[Any], analysis: Analysis) -> None:
     own = _workspace(db, "personal", 1)  # player 1 played
     _workspace(db, "personal", 99)  # did not
     team = _workspace(db, "team", 1)
+    # Roster players count only as users who consent to the analysis.
+    for steam_id in (2, 3):
+        db.execute("INSERT INTO app_user (steam_id, display_name) VALUES (%s, 'u')", (steam_id,))
+    db.execute(
+        "INSERT INTO consent (user_id, text_version, analysis, research_corpus, recorded_by) "
+        "SELECT id, '2', true, false, 'test' FROM app_user WHERE steam_id IN (1, 2, 3)"
+    )
     roster = db.execute(
         "INSERT INTO roster (workspace_id, name) VALUES (%s, 'main') RETURNING id", (team,)
     ).fetchone()

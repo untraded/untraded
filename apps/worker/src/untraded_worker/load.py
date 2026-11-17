@@ -329,13 +329,27 @@ def _table_rows(match_id: uuid.UUID, analysis: Analysis) -> Iterable[tuple[Any, 
             )  # fmt: skip
 
 
-def refresh_access(conn: psycopg.Connection[Any], match_id: uuid.UUID) -> int:
-    """Recomputes which workspaces see the match (see `workspace_match` in ADR 0011); returns
-    how many do. When several reasons apply, the first of own, roster, shared is kept.
+CONSENTS = """EXISTS (
+    SELECT 1 FROM app_user consent_u
+    JOIN consent_current consent_c ON consent_c.user_id = consent_u.id
+    WHERE consent_u.steam_id = {steam_id} AND consent_u.deleted_at IS NULL
+      AND consent_c.analysis)"""
+"""A SQL condition: the player is a live user who consents to the analysis (`steam_id` is a SQL
+expression of the enclosing query)."""
 
-    Own and shared follow whom the match counts for (`credit`). A roster sees it when 3 members
-    played in it and it counts for at least one of them: a team's scrim sent by one of its players
-    reaches the team, a demo forged by an outsider naming three of them does not."""
+
+def refresh_access(conn: psycopg.Connection[Any], match_id: uuid.UUID) -> int:
+    """Recomputes which workspaces see the match (see `workspace_match` in ADR 0011 and 0012);
+    returns how many do. When several reasons apply, the first of own, roster, shared is kept.
+
+    Own and shared follow whom the match counts for (`credit`). A roster sees it when 3 of its
+    members played it on the same side, and it counts for at least one of them: a team's scrim
+    sent by one of its players reaches the team, a demo forged by an outsider naming three of them
+    does not, and neither does a match where they only met (2 on one side, 1 on the other). Only
+    players who consent to the analysis count for a roster or share their matches: withdrawing
+    the consent takes their matches out of their teams (`refresh_team_access` follows it).
+
+    The caller holds the match's row (`FOR UPDATE`), as the analysis does."""
     conn.execute("DELETE FROM workspace_match WHERE match_id = %s", (match_id,))
     params = {"match": match_id}
     conn.execute(
@@ -355,13 +369,15 @@ def refresh_access(conn: psycopg.Connection[Any], match_id: uuid.UUID) -> int:
         INSERT INTO workspace_match (workspace_id, match_id, reason)
         SELECT DISTINCT r.workspace_id, %(match)s, 'roster'::access_reason
         FROM roster r
+        JOIN workspace w ON w.id = r.workspace_id AND w.kind = 'team'
         JOIN roster_member rm ON rm.roster_id = r.id
         JOIN match_player mp ON mp.steam_id = rm.steam_id AND mp.match_id = %(match)s
         JOIN match m ON m.id = %(match)s
         WHERE r.active
           AND rm.valid_from <= coalesce(m.played_at::date, current_date)
           AND (rm.valid_to IS NULL OR rm.valid_to >= coalesce(m.played_at::date, current_date))
-        GROUP BY r.id, r.workspace_id
+          AND {CONSENTS.format(steam_id="rm.steam_id")}
+        GROUP BY r.id, r.workspace_id, mp.team
         HAVING count(DISTINCT rm.steam_id) >= 3
            AND bool_or({credited("mp.match_id", "mp.steam_id")})
         ON CONFLICT DO NOTHING
@@ -375,7 +391,8 @@ def refresh_access(conn: psycopg.Connection[Any], match_id: uuid.UUID) -> int:
         FROM workspace_player wp
         JOIN workspace w ON w.id = wp.workspace_id AND w.kind = 'team'
         JOIN match_player mp ON mp.steam_id = wp.steam_id AND mp.match_id = %(match)s
-        WHERE wp.share_solo AND {credited("mp.match_id", "mp.steam_id")}
+        WHERE wp.share_solo AND {CONSENTS.format(steam_id="wp.steam_id")}
+          AND {credited("mp.match_id", "mp.steam_id")}
         ON CONFLICT DO NOTHING
         """,
         params,

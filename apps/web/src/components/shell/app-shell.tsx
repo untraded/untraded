@@ -6,9 +6,11 @@ import type { ReactNode } from "react";
 import { LogoHorizontal, LogoSymbol16 } from "@/components/brand/logo";
 import { DemoBanner } from "@/components/demo-banner";
 import type { Me } from "@/lib/api";
+import { cn } from "@/lib/cn";
 import { teamHref, teamsOf } from "@/lib/teams";
 import { AccountMenu } from "./account-menu";
 import { MoreSheet } from "./more-sheet";
+import { RAIL_MOTION } from "./nav";
 import { NavLink } from "./nav-link";
 import { SidebarToggle } from "./sidebar-toggle";
 
@@ -42,7 +44,10 @@ export async function AppShell({
   return (
     <div
       data-collapsed={collapsed}
-      className="group/shell min-h-dvh md:grid md:grid-cols-[58px_minmax(0,1fr)] md:data-[collapsed=false]:grid-cols-[220px_minmax(0,1fr)] touch-folded:grid-cols-[72px_minmax(0,1fr)]"
+      className={cn(
+        "group/shell min-h-dvh transition-[grid-template-columns] md:grid md:grid-cols-[58px_minmax(0,1fr)] md:data-[collapsed=false]:grid-cols-[220px_minmax(0,1fr)] touch-folded:grid-cols-[72px_minmax(0,1fr)]",
+        RAIL_MOTION,
+      )}
     >
       {/* The first stop of the keyboard: past the rail, straight to the page. */}
       <a
@@ -55,12 +60,33 @@ export async function AppShell({
         data-chrome
         className="sticky top-0 z-20 hidden h-dvh flex-col gap-0.5 px-2 py-3 md:flex touch-rail:overflow-y-auto touch-rail:overscroll-contain"
       >
-        <div className="flex flex-col items-center gap-2 pb-3 md:group-data-[collapsed=false]/shell:flex-row md:group-data-[collapsed=false]/shell:justify-between md:group-data-[collapsed=false]/shell:pl-1.5">
-          <Link href="/" aria-label="Untraded" className="flex h-8 items-center rounded-md px-1">
+        {/* The head: folded, the sign over the toggle; unfolded, the logo and the toggle on one
+            line. Its height moves with the rail's width, so the links below slide, not jump. */}
+        <div
+          className={cn(
+            "relative mb-3 h-[68px] shrink-0 transition-[height] touch-rail:h-20 md:group-data-[collapsed=false]/shell:h-8",
+            RAIL_MOTION,
+          )}
+        >
+          <Link
+            href="/"
+            aria-label="Untraded"
+            className="relative block h-8 overflow-hidden rounded-md"
+          >
             {/* Folded, the compact sign alone, in its version drawn for small sizes; unfolded, the
-                logo. */}
-            <LogoSymbol16 className="size-4 md:group-data-[collapsed=false]/shell:hidden" />
-            <LogoHorizontal className="hidden h-5 w-auto md:group-data-[collapsed=false]/shell:block" />
+                logo. One fades into the other, the logo cut by the rail's edge as it moves. */}
+            <LogoSymbol16
+              className={cn(
+                "absolute top-2 left-[13px] size-4 transition-opacity touch-rail:left-5 md:group-data-[collapsed=false]/shell:opacity-0",
+                RAIL_MOTION,
+              )}
+            />
+            <LogoHorizontal
+              className={cn(
+                "absolute top-1.5 left-[11px] h-5 w-auto max-w-none opacity-0 transition-opacity md:group-data-[collapsed=false]/shell:opacity-100",
+                RAIL_MOTION,
+              )}
+            />
           </Link>
           <SidebarToggle
             collapsed={collapsed}

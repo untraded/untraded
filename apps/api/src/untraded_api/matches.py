@@ -216,11 +216,19 @@ def list_matches(
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> MatchList:
-    """The matches the user may see, most recent first."""
+    """The user's own matches (their personal workspace's, reason `own`), most recent first.
+    A team's matches, which row-level security also lets its members read, are not listed here:
+    they belong to the team's space."""
     # The page is cut first, so that the lines are only read for the matches it shows.
     # The order is total (the id breaks ties), so the page is the same as when it was cut
     # after the joins.
-    page = """(SELECT * FROM match ORDER BY played_at DESC NULLS LAST, created_at DESC, id
+    page = """(SELECT m.* FROM match m
+               WHERE EXISTS (
+                   SELECT 1 FROM workspace_match wm
+                   JOIN workspace w ON w.id = wm.workspace_id
+                   WHERE wm.match_id = m.id AND wm.reason = 'own'
+                     AND w.kind = 'personal' AND w.created_by = %(user)s)
+               ORDER BY m.played_at DESC NULLS LAST, m.created_at DESC, m.id
                LIMIT %(limit)s OFFSET %(offset)s)"""
     rows = conn.execute(
         f"{summary_query(page)} ORDER BY m.played_at DESC NULLS LAST, m.created_at DESC, m.id",

@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { RAIL_TOOLTIP } from "./nav";
+import { RAIL_CLIP, RAIL_TOOLTIP } from "./nav";
 
 /** The account trigger's look, shared by the stand-in and the real menu trigger so that swapping
  * one for the other changes nothing on screen. At the foot of the rail: the initial alone, the
- * name in a tooltip; unfolded, the name beside it. */
+ * name in a tooltip; unfolded, the name beside it. The initial keeps its place in both states. */
 export const ACCOUNT_TRIGGER_CLASS =
-  "group/nav relative flex h-10 w-full touch-rail:h-12 shrink-0 items-center justify-center gap-2.5 rounded-md text-left text-chrome-foreground hover:bg-muted aria-expanded:bg-muted md:group-data-[collapsed=false]/shell:justify-start md:group-data-[collapsed=false]/shell:px-1.5";
+  "group/nav relative flex h-10 w-full touch-rail:h-12 shrink-0 items-center rounded-md px-[7px] text-left text-chrome-foreground hover:bg-muted aria-expanded:bg-muted touch-rail:justify-center touch-rail:px-0";
 
 export function AccountTriggerFace({ name }: { name: string }) {
   return (
@@ -19,21 +19,15 @@ export function AccountTriggerFace({ name }: { name: string }) {
       >
         {name.slice(0, 1)}
       </span>
-      {/* No tooltip on a touch screen: the trigger's own label names it. */}
-      <span
-        className={cn(
-          RAIL_TOOLTIP,
-          "touch-rail:sr-only md:group-data-[collapsed=false]/shell:min-w-0 md:group-data-[collapsed=false]/shell:truncate md:group-data-[collapsed=false]/shell:text-sm md:group-data-[collapsed=false]/shell:font-semibold",
-        )}
-      >
+      {/* The trigger's own label names it: the name is for the eye. Nothing of it on a touch
+          screen's folded rail. */}
+      <span aria-hidden="true" className={cn(RAIL_CLIP, "flex items-center touch-rail:hidden")}>
+        <span className="min-w-0 truncate pl-2.5 text-sm font-semibold">{name}</span>
+        <ChevronsUpDown className="ml-auto size-4 shrink-0 text-chrome-muted" />
+      </span>
+      <span aria-hidden="true" className={RAIL_TOOLTIP}>
         {name}
       </span>
-      <ChevronsUpDown
-        aria-hidden="true"
-        className={cn(
-          "ml-auto hidden size-4 text-chrome-muted md:group-data-[collapsed=false]/shell:block",
-        )}
-      />
     </>
   );
 }

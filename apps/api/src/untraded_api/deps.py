@@ -8,6 +8,7 @@
 import hashlib
 import uuid
 from collections.abc import Iterator
+from contextlib import contextmanager
 from typing import Annotated, Any
 
 import psycopg
@@ -112,3 +113,35 @@ def is_demo(db: Database, settings: Settings, user: uuid.UUID) -> bool:
     with db.transaction(user) as conn:
         row = conn.execute("SELECT steam_id FROM app_user WHERE id = %s", (user,)).fetchone()
     return row is not None and row[0] == settings.demo_steam_id
+
+
+REFUSAL = "UT001"
+"""The SQLSTATE of the database's refusals (migration 0016): the message is a stable code."""
+REFUSAL_STATUS = {
+    "team_not_found": status.HTTP_404_NOT_FOUND,
+    "invitation_invalid": status.HTTP_404_NOT_FOUND,
+    "forbidden": status.HTTP_403_FORBIDDEN,
+    "role_too_high": status.HTTP_403_FORBIDDEN,
+    "consent_required": status.HTTP_403_FORBIDDEN,
+    "last_owner": status.HTTP_409_CONFLICT,
+    "not_a_member": status.HTTP_409_CONFLICT,
+    "already_member": status.HTTP_409_CONFLICT,
+    "slug_taken": status.HTTP_409_CONFLICT,
+    "owner_must_hand_over": status.HTTP_409_CONFLICT,
+    "slug_invalid": status.HTTP_422_UNPROCESSABLE_CONTENT,
+    "owner_unknown": status.HTTP_422_UNPROCESSABLE_CONTENT,
+    "max_uses_invalid": status.HTTP_422_UNPROCESSABLE_CONTENT,
+}
+
+
+@contextmanager
+def refusals() -> Iterator[None]:
+    """Turns a refusal raised by a database function into its HTTP error, with the code as the
+    `detail`. The transaction is then aborted: the dependency rolls it back."""
+    try:
+        yield
+    except psycopg.Error as error:
+        code = error.diag.message_primary if error.sqlstate == REFUSAL else None
+        if code is None or code not in REFUSAL_STATUS:
+            raise
+        raise HTTPException(REFUSAL_STATUS[code], code) from error

@@ -19,7 +19,7 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 from pydantic import BaseModel
 
 from untraded_api import steam
-from untraded_api.deps import CLEAR_CACHE, COOKIE, ConnDep, SettingsDep, UserDep
+from untraded_api.deps import CLEAR_CACHE, COOKIE, ConnDep, SettingsDep, UserDep, refusals
 from untraded_api.secrets_box import encrypt
 
 router = APIRouter(prefix="/me", tags=["onboarding"])
@@ -55,7 +55,8 @@ class ConsentIn(BaseModel):
     text_version: str
     """The version of the text the player read: it must be the current one to agree."""
     analysis: bool
-    """Box 1. False withdraws the consent, and stops following the player's matches."""
+    """Box 1. False withdraws the consent, stops following the player's matches, and leaves
+    their teams."""
     research_corpus: bool
     """Box 2 (optional): keep their raw demos in the research corpus."""
 
@@ -71,6 +72,11 @@ class SourceIn(BaseModel):
 def give_consent(body: ConsentIn, conn: ConnDep, user: UserDep, settings: SettingsDep) -> None:
     if body.analysis and body.text_version != settings.consent_version:
         raise HTTPException(status.HTTP_409_CONFLICT, "this is not the current consent text")
+    if not body.analysis:
+        # Withdrawing leaves every team, before anything is recorded: a team's last owner hands
+        # it over first (409 `owner_must_hand_over`).
+        with refusals():
+            conn.execute("SELECT leave_my_teams()")
     conn.execute(
         "INSERT INTO consent (user_id, text_version, analysis, research_corpus, recorded_by) "
         "VALUES (%s, %s, %s, %s, 'site')",
@@ -78,6 +84,8 @@ def give_consent(body: ConsentIn, conn: ConnDep, user: UserDep, settings: Settin
     )
     if not body.analysis:
         conn.execute("SELECT pause_my_sources()")
+    # Only consenting players count for a roster or share their matches: their teams follow.
+    conn.execute("SELECT queue_my_team_access()")
 
 
 @router.put("/source", status_code=status.HTTP_204_NO_CONTENT)
@@ -133,9 +141,11 @@ class EraseIn(BaseModel):
 @router.post("/erase", status_code=status.HTTP_202_ACCEPTED)
 def erase_me(body: EraseIn, response: Response, conn: ConnDep, settings: SettingsDep) -> None:
     """The player's right to erasure: their account closes at once (signed out, no longer
-    followed), and the worker deletes their data (`erase_player`)."""
+    followed), and the worker deletes their data (`erase_player`). A team's owner hands it over
+    first: 409 `owner_must_hand_over`, and nothing closes."""
     if not body.confirm:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, {"field": "confirm"})
-    conn.execute("SELECT request_my_erasure()")
+    with refusals():
+        conn.execute("SELECT request_my_erasure()")
     response.delete_cookie(COOKIE, path="/", secure=settings.cookie_secure, httponly=True)
     response.headers.update(CLEAR_CACHE)
