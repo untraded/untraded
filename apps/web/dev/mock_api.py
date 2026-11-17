@@ -1052,7 +1052,9 @@ HEALTH_STATES: dict[str, dict[str, Any]] = {
 # `none` (no team). Invitation links: `mock-valid` joins Harbor Five as a player, `mock-member`
 # points to a team they are already in (409), any other token is invalid (404). Signing in with
 # `/auth/steam?team_invite=<token>` comes back to `/join/<token>`. A refusal carries its code as
-# `{"detail": {"reason": code}}`, like `uploads.py`.
+# `{"detail": {"reason": code}}`, like `uploads.py`. Joining needs the consent, not the codes:
+# `/mock/state/joined` (no consent) or `consented` (no codes) shows a newcomer. Withdrawing the
+# consent leaves every team, and the last owner of one is refused (409), as erasing is.
 PERMISSIONS = [
     "matches.read", "matches.upload", "review.comment", "review.manage", "roster.edit",
     "members.manage", "settings.edit", "team.delete",
@@ -1244,6 +1246,16 @@ def workspaces() -> list[dict[str, Any]]:
         if (found := mine(t))
     ]
     return [personal, *teams]
+
+
+def last_owner_anywhere() -> bool:
+    """Whether the player is the only owner of a team: they hand it over before withdrawing their
+    consent or erasing their account."""
+    for team in TEAMS.values():
+        owners = [m for m in team["_members"] if m["_role"] == "owner"]
+        if len(owners) == 1 and owners[0]["user_id"] == ME_USER:
+            return True
+    return False
 
 
 def admin_team(team: dict[str, Any]) -> dict[str, Any]:
@@ -1653,12 +1665,19 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/me/erase":
             if body.get("confirm") is not True:
                 return self.reply(422, {"detail": {"field": "confirm"}})
+            if last_owner_anywhere():
+                return refused(self, 409, "owner_must_hand_over")
             # Signed out at once; signing in again starts from a followed player.
             set_state("followed")
             return self.reply(202, headers={"set-cookie": f"{COOKIE}=; Path=/; Max-Age=0"})
         if self.path == "/me/consent":
             if body.get("analysis") and body.get("text_version") != CONSENT_VERSION:
                 return self.reply(409, {"detail": "this is not the current consent text"})
+            if not body.get("analysis"):
+                if last_owner_anywhere():
+                    return refused(self, 409, "owner_must_hand_over")
+                for team in TEAMS.values():
+                    team["_members"] = [m for m in team["_members"] if m["user_id"] != ME_USER]
             ME_STATE["consent"] = consent(
                 analysis=bool(body.get("analysis")),
                 corpus=bool(body.get("research_corpus")),

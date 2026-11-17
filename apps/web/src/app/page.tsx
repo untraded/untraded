@@ -11,6 +11,7 @@ import { pickTone, TONE_COOKIE } from "@/i18n/locale";
 import { getMe, PUBLIC_API_PATH } from "@/lib/api";
 import { onboardingStep } from "@/lib/onboarding";
 import { demoEnabled, discordUrl } from "@/lib/site";
+import { teamsOf } from "@/lib/teams";
 
 export default async function Home({
   searchParams,
@@ -19,8 +20,10 @@ export default async function Home({
 }) {
   const me = await getMe();
   if (me) {
-    // An invited player gives their consent and their codes first.
-    if (onboardingStep(me) !== null) redirect("/welcome");
+    // An invited player gives their consent and their codes first; a team member, who came in by
+    // a team's link, needs the consent only (the codes stay offered, optional).
+    const step = onboardingStep(me);
+    if (step === "consent" || (step !== null && teamsOf(me).length === 0)) redirect("/welcome");
     return <Dashboard me={me} tone={pickTone((await cookies()).get(TONE_COOKIE)?.value)} />;
   }
   const t = await getTranslations("home");

@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 The Untraded Authors
 // SPDX-License-Identifier: AGPL-3.0-only
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { giveConsent } from "@/app/actions";
@@ -13,6 +14,7 @@ import { getMe } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { onboardingStep } from "@/lib/onboarding";
 import { operator } from "@/lib/site";
+import { teamHref, teamsOf } from "@/lib/teams";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getTranslations("welcome"))("title") };
@@ -37,6 +39,8 @@ export default async function Welcome({
   const step = onboardingStep(me);
   if (step === null) redirect(next ?? "/");
   const t = await getTranslations("welcome");
+  // Someone who came in by a team's link may skip the codes: the team needs only the consent.
+  const team = teamsOf(me)[0];
   const steps = [
     { key: "consent", label: t("stepConsent") },
     { key: "codes", label: t("stepCodes") },
@@ -76,6 +80,17 @@ export default async function Welcome({
       {step === "codes" ? (
         <Panel title={t("stepCodes")} bodyClassName="flex flex-col gap-4 sm:px-5 sm:py-4">
           <p className="max-w-prose text-[0.9375rem]">{t("codesLead")}</p>
+          {team && (
+            <p className="max-w-prose text-sm text-muted-foreground">
+              {t("codesOptional")}{" "}
+              <Link
+                href={teamHref(team.slug)}
+                className="text-link underline underline-offset-3 hover:decoration-2"
+              >
+                {t("codesLater")}
+              </Link>
+            </p>
+          )}
           <CodesForm labels={await codesLabels()} next="/" />
         </Panel>
       ) : null}

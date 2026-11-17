@@ -36,6 +36,7 @@ import {
 import { findTeam, getMe, type Me } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { dateTime } from "@/lib/format";
+import { onboardingStep } from "@/lib/onboarding";
 import { teamsOf } from "@/lib/teams";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -51,7 +52,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function Settings({
   searchParams,
 }: {
-  searchParams: Promise<{ erase?: string; share?: string }>;
+  searchParams: Promise<{ erase?: string; share?: string; withdraw?: string }>;
 }) {
   const [me, t, advice, store, locale, params] = await Promise.all([
     getMe(),
@@ -102,7 +103,7 @@ export default async function Settings({
         </p>
       ) : (
         <>
-          <ConsentPanel me={me} />
+          <ConsentPanel me={me} ownerRefused={params.withdraw === "owner"} />
           <FollowPanel me={me} />
           {teamsOf(me).length > 0 && <TeamsPanel me={me} failed={params.share === "failed"} />}
         </>
@@ -139,7 +140,7 @@ function Row({ title, hint, children }: { title: string; hint: string; children:
 }
 
 /** The player's consent: read the text they agreed to, change box 2, or withdraw it. */
-async function ConsentPanel({ me }: { me: Me }) {
+async function ConsentPanel({ me, ownerRefused }: { me: Me; ownerRefused: boolean }) {
   const t = await getTranslations("settings");
   const locale = (await getLocale()) as "en" | "fr";
   const timeZone = await getTimeZone();
@@ -212,7 +213,13 @@ async function ConsentPanel({ me }: { me: Me }) {
             <input type="hidden" name="text_version" value={me.consent_version} />
             <p className="max-w-prose text-[0.8125rem] text-muted-foreground">
               {t("withdrawHint")}
+              {teamsOf(me).length > 0 && <> {t("withdrawTeams")}</>}
             </p>
+            {ownerRefused && (
+              <p role="alert" className="max-w-prose text-sm text-destructive">
+                {t("withdrawOwner")}
+              </p>
+            )}
             <ConfirmSubmit
               label={t("withdraw")}
               question={t("withdrawConfirm")}
@@ -243,6 +250,13 @@ async function FollowPanel({ me }: { me: Me }) {
   return (
     <Panel title={t("followTitle")} flush>
       <p className="px-3.5 py-3 text-sm text-muted-foreground">{status}</p>
+      {!source && me.can_add_source && onboardingStep(me) === "codes" && (
+        <div className="border-t border-line-soft px-3.5 py-3">
+          <Link href="/welcome" className={cn(buttonVariants({ variant: "outline" }), "w-fit")}>
+            {t("giveCodes")}
+          </Link>
+        </div>
+      )}
       {error && (
         <div className="flex flex-col gap-4 border-t border-line-soft px-3.5 py-3">
           <p

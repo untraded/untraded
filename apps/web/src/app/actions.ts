@@ -109,13 +109,18 @@ export async function eraseMe(): Promise<void> {
   redirect("/?erased=1");
 }
 
-/** Withdraws the player's consent: the collector stops following their matches. */
+/** Withdraws the player's consent: the collector stops following their matches, and they leave
+ * their teams. */
 export async function withdrawConsent(formData: FormData): Promise<void> {
-  await apiSend("/me/consent", "POST", {
+  const result = await apiSend("/me/consent", "POST", {
     text_version: String(formData.get("text_version")),
     analysis: false,
     research_corpus: false,
   });
+  // Withdrawing leaves every team: a team's last owner hands it over first, nothing changed.
+  if (result.status === 409 && refusalCode(result) === "owner_must_hand_over") {
+    redirect("/settings?withdraw=owner");
+  }
   revalidatePath("/", "layout");
   redirect("/settings");
 }

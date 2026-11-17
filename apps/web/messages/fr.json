@@ -28,7 +28,8 @@
       "formulas": "Calcul",
       "settings": "Réglages",
       "admin": "Admin"
-    }
+    },
+    "myTeam": "Mon équipe"
   },
   "dashboard": {
     "title": "Accueil",
@@ -393,7 +394,10 @@
     "eraseConfirm": "Supprimer définitivement ton compte et tes données ?",
     "eraseYes": "Oui, tout supprimer",
     "eraseFailed": "La suppression n'a pas pu être lancée. Réessaie dans un moment, ou écris à l'opérateur du site.",
-    "eraseOwner": "Tu es propriétaire d'une équipe : passe la main à un autre membre (page de l'équipe, Membres) avant d'effacer ton compte. Rien n'a été effacé."
+    "eraseOwner": "Tu es propriétaire d'une équipe : passe la main à un autre membre (page de l'équipe, Membres) avant d'effacer ton compte. Rien n'a été effacé.",
+    "withdrawTeams": "Tu quittes aussi tes équipes.",
+    "withdrawOwner": "Tu es propriétaire d'une équipe : passe la main à un autre membre (page de l'équipe, Membres) avant de retirer ton accord. Rien n'a changé.",
+    "giveCodes": "Donner mes codes"
   },
   "home": {
     "title": "Tes matchs CS2, analysés à découvert",
@@ -1167,7 +1171,9 @@
     "operator": "Ce serveur ne peut pas garder les codes : l'opérateur du site ajoutera lui-même le suivi de tes matchs. Tu n'as rien d'autre à faire.",
     "done": "C'est parti : on suit tes matchs",
     "doneLead": "Ton premier rapport arrive après ta prochaine session Premier, quelques minutes après la fin du dernier match.",
-    "emailUnset": "adresse de contact non renseignée"
+    "emailUnset": "adresse de contact non renseignée",
+    "codesOptional": "Ton équipe n'en a pas besoin : tu peux les donner plus tard, depuis les réglages.",
+    "codesLater": "Aller à mon équipe"
   },
   "codes": {
     "helpLink": "Ouvrir la page d'aide Steam",

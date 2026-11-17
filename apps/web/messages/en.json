@@ -28,7 +28,8 @@
       "formulas": "Formulas",
       "settings": "Settings",
       "admin": "Admin"
-    }
+    },
+    "myTeam": "My team"
   },
   "dashboard": {
     "title": "Home",
@@ -393,7 +394,10 @@
     "eraseConfirm": "Delete your account and your data for good?",
     "eraseYes": "Yes, delete everything",
     "eraseFailed": "The deletion could not start. Try again in a moment, or write to the site's operator.",
-    "eraseOwner": "You own a team: hand it over to another member (team page, Members) before erasing your account. Nothing was erased."
+    "eraseOwner": "You own a team: hand it over to another member (team page, Members) before erasing your account. Nothing was erased.",
+    "withdrawTeams": "You also leave your teams.",
+    "withdrawOwner": "You own a team: hand it over to another member (team page, Members) before withdrawing your consent. Nothing changed.",
+    "giveCodes": "Give my codes"
   },
   "home": {
     "title": "Your CS2 matches, analysed in the open",
@@ -1167,7 +1171,9 @@
     "operator": "This server cannot keep the codes: the site's operator will set up following your matches. There is nothing else to do.",
     "done": "You're set: we follow your matches",
     "doneLead": "Your first report arrives after your next Premier session, a few minutes after its last match ends.",
-    "emailUnset": "contact address not set"
+    "emailUnset": "contact address not set",
+    "codesOptional": "Your team does not need them: you can give them later, from the settings.",
+    "codesLater": "Go to my team"
   },
   "codes": {
     "helpLink": "Open Steam's help page",

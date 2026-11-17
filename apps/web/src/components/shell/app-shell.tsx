@@ -87,7 +87,7 @@ export async function AppShell({
             <NavLink
               section="teams"
               href={myTeam}
-              label={teams[0]?.name ?? t("team")}
+              label={t("myTeam")}
               short={t("short.team")}
               place="rail"
             />
