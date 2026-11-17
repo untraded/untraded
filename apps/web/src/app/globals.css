@@ -35,6 +35,13 @@
   }
 }
 
+/* The same screen, whatever the rail's state: for what must hold while it folds and unfolds. */
+@custom-variant touch-tablet {
+  @media (width >= 48rem) and (hover: none) and (pointer: coarse) {
+    @slot;
+  }
+}
+
 @custom-variant touch-folded {
   @media (width >= 48rem) and (hover: none) and (pointer: coarse) {
     &[data-collapsed="true"] {
