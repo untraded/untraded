@@ -669,8 +669,8 @@ def test_a_team_members_own_list_is_unchanged(people: People) -> None:
     )
     db.execute(
         "INSERT INTO workspace_match (workspace_id, match_id, reason) "
-        "SELECT id, %s, 'own' FROM workspace WHERE slug = %s "
-        "UNION ALL SELECT %s, %s, 'roster'",
+        "SELECT id, %s, 'own'::access_reason FROM workspace WHERE slug = %s "
+        "UNION ALL SELECT %s, %s, 'roster'::access_reason",
         (match_id, f"u-{OWNER}", team["id"], match_id),
     )
     # The viewer may open the team's match, but it is not in their own list.
