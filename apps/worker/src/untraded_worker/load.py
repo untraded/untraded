@@ -340,9 +340,13 @@ expression of the enclosing query)."""
 
 def refresh_access(conn: psycopg.Connection[Any], match_id: uuid.UUID) -> int:
     """Recomputes which workspaces see the match (see `workspace_match` in ADR 0011 and 0012);
-    returns how many do. When several reasons apply, the first of own, roster, shared is kept.
+    returns how many do. When several reasons apply, the first of own, team, roster, shared is
+    kept.
 
-    Own and shared follow whom the match counts for (`credit`). A roster sees it when 3 of its
+    Own and shared follow whom the match counts for (`credit`). A team sees the matches it sent
+    itself (`team`: its own upload source, not refused), which count for nobody's account; the
+    roster rule admitted them when they were parsed (`jobs.ParseJob`), and a later change of the
+    roster does not take them back. A roster sees it when 3 of its
     members played it on the same side, and it counts for at least one of them: a team's scrim
     sent by one of its players reaches the team, a demo forged by an outsider naming three of them
     does not, and neither does a match where they only met (2 on one side, 1 on the other). Only
@@ -360,6 +364,19 @@ def refresh_access(conn: psycopg.Connection[Any], match_id: uuid.UUID) -> int:
         JOIN app_user u ON u.id = w.created_by AND u.deleted_at IS NULL
         JOIN match_player mp ON mp.steam_id = u.steam_id AND mp.match_id = %(match)s
         WHERE w.kind = 'personal' AND {credited("mp.match_id", "mp.steam_id")}
+        ON CONFLICT DO NOTHING
+        """,
+        params,
+    )
+    conn.execute(
+        """
+        INSERT INTO workspace_match (workspace_id, match_id, reason)
+        SELECT DISTINCT s.workspace_id, %(match)s, 'team'::access_reason
+        FROM match_source ms
+        JOIN ingest_source s ON s.id = ms.source_id
+        JOIN workspace w ON w.id = s.workspace_id AND w.kind = 'team'
+        JOIN match m ON m.id = ms.match_id AND m.status = 'ready'
+        WHERE ms.match_id = %(match)s AND ms.rejected IS NULL
         ON CONFLICT DO NOTHING
         """,
         params,

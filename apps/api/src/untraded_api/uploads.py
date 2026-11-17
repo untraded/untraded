@@ -12,6 +12,13 @@ weighs up to 300 MB. Everything that can refuse it cheaply is checked before the
 Refusals are `{"reason": code}`, codes the site translates: `not_a_demo`, `too_large`,
 `disk_full`, `consent`, `quota`, `busy`, and, once received, `corrupt`, `unsupported_mode`,
 `not_a_player`, `parse_failed`.
+
+A member with `matches.upload` sends a demo for their team with `?team=<slug>` (migration 0018):
+the match counts for the team alone, never for a player's own account, and needs 3 players of
+the team's roster on the date of the match, on the same side (`not_enough_roster` otherwise).
+The limits are counted per team. More refusals then: `team_not_found` (not a member),
+`forbidden` (no `matches.upload`), `not_enough_roster` (the roster could never pass the rule).
+`GET /teams/{slug}/uploads` lists the team's uploads, with who sent each.
 """
 
 # No `from __future__ import annotations`: FastAPI reads the dependencies from the annotations.
@@ -23,6 +30,7 @@ from pathlib import Path
 from typing import Annotated, Any, Literal
 
 import httpx
+import psycopg
 from fastapi import APIRouter, HTTPException, Query, Request, status
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
@@ -30,10 +38,20 @@ from starlette.requests import ClientDisconnect
 
 from untraded_api import faceit
 from untraded_api.db import Database
-from untraded_api.deps import ConnDep, DatabaseDep, SettingsDep, UserDep, is_demo
+from untraded_api.deps import (
+    REFUSAL,
+    ConnDep,
+    DatabaseDep,
+    SettingsDep,
+    UserDep,
+    is_demo,
+    refusals,
+)
 from untraded_api.settings import Settings
+from untraded_api.teams import Slug, team_id
 
 router = APIRouter(prefix="/uploads", tags=["uploads"])
+team_router = APIRouter(tags=["uploads"])
 
 # The demo files the worker reads (`untraded.demofile.SUFFIXES`), longest suffix first, and what
 # each starts with: a file that does not is refused before it is stored.
@@ -47,6 +65,9 @@ LIMIT_STATUS = {
     "consent": status.HTTP_409_CONFLICT,
     "quota": status.HTTP_429_TOO_MANY_REQUESTS,
     "busy": status.HTTP_429_TOO_MANY_REQUESTS,
+    "forbidden": status.HTTP_403_FORBIDDEN,
+    "not_enough_roster": status.HTTP_409_CONFLICT,
+    "team_not_found": status.HTTP_404_NOT_FOUND,
 }
 KEPT_DAYS = 30
 """How far back `GET /uploads` looks."""
@@ -73,24 +94,58 @@ class UploadLine(BaseModel):
     state: Literal["processing", "ready", "refused", "failed"]
     reason: str | None
     """Why it was refused or failed, as a code (see the module)."""
+    sent_by: str | None = None
+    """Who sent a team's upload (their name); null for a player's own, and once the sender's
+    account is erased."""
 
 
 class UploadList(BaseModel):
     items: list[UploadLine]
     refusal: str | None
-    """Why a demo sent now would be refused (`off`, `disk_full`, `consent`, `quota`, `busy`), or
-    null: the site says so before sending hundreds of megabytes the API would not read."""
+    """Why a demo sent now would be refused (`off`, `disk_full`, `consent`, `quota`, `busy`; for
+    a team also `forbidden` and `not_enough_roster`), or null: the site says so before sending
+    hundreds of megabytes the API would not read."""
     max_bytes: int
     """The largest file the player may send: the site checks it first too."""
 
 
-def _refusal(db: Database, user: uuid.UUID, settings: Settings) -> str | None:
-    with db.transaction(user) as conn:
+def _limits(
+    conn: psycopg.Connection[Any], settings: Settings, team: uuid.UUID | None
+) -> str | None:
+    """Why the user may not send a demo now (for the team, if given), or None."""
+    if team is None:
         row = conn.execute(
             "SELECT my_upload_refusal(%s, %s)",
             (settings.uploads_per_day, settings.uploads_in_flight),
         ).fetchone()
+    else:
+        row = conn.execute(
+            "SELECT team_upload_refusal(%s, %s, %s)",
+            (team, settings.uploads_per_day, settings.uploads_in_flight),
+        ).fetchone()
     return str(row[0]) if row and row[0] is not None else None
+
+
+def _team(conn: psycopg.Connection[Any], slug: str) -> uuid.UUID:
+    """The team of `?team=`, as the upload's refusal (`team_not_found`) when it is not one."""
+    try:
+        return team_id(conn, slug)
+    except HTTPException:
+        raise Refused(status.HTTP_404_NOT_FOUND, "team_not_found") from None
+
+
+def _refusal(
+    db: Database, user: uuid.UUID, settings: Settings, slug: str | None
+) -> tuple[str | None, uuid.UUID | None]:
+    """Why the upload is refused, and the team it is for."""
+    with db.transaction(user) as conn:
+        team = None if slug is None else _team(conn, slug)
+        try:
+            return _limits(conn, settings, team), team
+        except psycopg.Error as error:  # left the team meanwhile
+            if error.sqlstate != REFUSAL or error.diag.message_primary != "team_not_found":
+                raise
+            raise Refused(status.HTTP_404_NOT_FOUND, "team_not_found") from None
 
 
 def _record(
@@ -101,19 +156,26 @@ def _record(
     file: str,
     mode: str,
     played_at: dt.datetime,
+    team: uuid.UUID | None,
 ) -> str | None:
-    with db.transaction(user) as conn:
-        row = conn.execute(
-            "SELECT add_my_upload(%s, %s, %s::match_mode, %s, %s, %s)",
-            (
-                upload,
-                file,
-                mode,
-                played_at,
-                settings.uploads_per_day,
-                settings.uploads_in_flight,
-            ),
-        ).fetchone()
+    limits = (settings.uploads_per_day, settings.uploads_in_flight)
+    try:
+        with db.transaction(user) as conn:
+            if team is None:
+                row = conn.execute(
+                    "SELECT add_my_upload(%s, %s, %s::match_mode, %s, %s, %s)",
+                    (upload, file, mode, played_at, *limits),
+                ).fetchone()
+            else:
+                row = conn.execute(
+                    "SELECT add_team_upload(%s, %s, %s, %s::match_mode, %s, %s, %s)",
+                    (team, upload, file, mode, played_at, *limits),
+                ).fetchone()
+    except psycopg.Error as error:
+        # A team function's refusal: the sender left the team meanwhile (`team_not_found`).
+        if error.sqlstate != REFUSAL or error.diag.message_primary not in LIMIT_STATUS:
+            raise
+        return str(error.diag.message_primary)
     return str(row[0]) if row and row[0] is not None else None
 
 
@@ -147,9 +209,11 @@ async def send_demo(
     name: Annotated[str, Query(min_length=5, max_length=255)],
     mode: Literal["faceit", "esea", "scrim"],
     played_at: dt.datetime,
+    team: Annotated[str | None, Query(min_length=1, max_length=64)] = None,
 ) -> UploadOut:
-    """Receives a demo. `mode` is what the player says it is; a demo from Valve's servers is
-    recognised by the worker whatever the player chose (Premier, or refused)."""
+    """Receives a demo, for the player or for their team (`team`, a slug). `mode` is what the
+    sender says it is; a demo from Valve's servers is recognised by the worker whatever they
+    chose (Premier, or refused)."""
     if settings.uploads_dir is None:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "uploads are off here")
     suffix = next((s for s in MAGIC if name.lower().endswith(s)), None)
@@ -163,7 +227,7 @@ async def send_demo(
     if _disk_full(settings.uploads_dir, settings):
         raise Refused(status.HTTP_507_INSUFFICIENT_STORAGE, "disk_full")
     folder = Path(settings.uploads_dir)
-    refusal = await run_in_threadpool(_refusal, db, user, settings)
+    refusal, team_ws = await run_in_threadpool(_refusal, db, user, settings, team)
     if refusal is not None:
         raise Refused(LIMIT_STATUS[refusal], refusal)
 
@@ -182,7 +246,7 @@ async def send_demo(
             )
             played_at = started or played_at
         refusal = await run_in_threadpool(
-            _record, db, user, settings, upload, target.name, mode, played_at
+            _record, db, user, settings, upload, target.name, mode, played_at, team_ws
         )
     except BaseException:
         partial.unlink(missing_ok=True)
@@ -217,7 +281,8 @@ async def _receive(request: Request, partial: Path, magic: bytes, limit: int) ->
 
 
 def _line(row: tuple[Any, ...]) -> UploadLine:
-    upload_id, match_id, received_at, mode, match_status, rejected, map_name, played_at = row
+    upload_id, match_id, received_at, mode, match_status, rejected, map_name, played_at = row[:8]
+    sent_by = row[8] if len(row) > 8 else None
     state: Literal["processing", "ready", "refused", "failed"]
     reason = rejected
     if rejected is not None:
@@ -239,6 +304,7 @@ def _line(row: tuple[Any, ...]) -> UploadLine:
         played_at=played_at,
         state=state,
         reason=reason,
+        sent_by=sent_by,
     )
 
 
@@ -246,17 +312,36 @@ def _line(row: tuple[Any, ...]) -> UploadLine:
 def list_uploads(conn: ConnDep, settings: SettingsDep) -> UploadList:
     """The player's uploads of the last 30 days, newest first, and whether they may send one."""
     rows = conn.execute("SELECT * FROM my_uploads(%s)", (KEPT_DAYS,)).fetchall()
+    return _list(conn, settings, rows, None)
+
+
+@team_router.get("/teams/{slug}/uploads")
+def list_team_uploads(slug: Slug, conn: ConnDep, settings: SettingsDep) -> UploadList:
+    """The team's uploads of the last 30 days, newest first, with who sent each, for a member
+    with `matches.read`; and whether the user may send one for it. 404 `team_not_found`, 403
+    `forbidden`."""
+    team = team_id(conn, slug)
+    with refusals():
+        allowed = conn.execute("SELECT has_permission(%s, 'matches.read')", (team,)).fetchone()
+        if not allowed or not allowed[0]:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "forbidden")
+        rows = conn.execute("SELECT * FROM team_uploads(%s, %s)", (team, KEPT_DAYS)).fetchall()
+        return _list(conn, settings, rows, team)
+
+
+def _list(
+    conn: psycopg.Connection[Any],
+    settings: Settings,
+    rows: list[Any],
+    team: uuid.UUID | None,
+) -> UploadList:
     refusal: str | None
     if settings.uploads_dir is None:
         refusal = "off"
     elif _disk_full(settings.uploads_dir, settings):
         refusal = "disk_full"
     else:
-        row = conn.execute(
-            "SELECT my_upload_refusal(%s, %s)",
-            (settings.uploads_per_day, settings.uploads_in_flight),
-        ).fetchone()
-        refusal = str(row[0]) if row and row[0] is not None else None
+        refusal = _limits(conn, settings, team)
     return UploadList(
         items=[_line(tuple(row)) for row in rows],
         refusal=refusal,

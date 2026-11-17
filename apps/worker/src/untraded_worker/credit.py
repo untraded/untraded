@@ -11,7 +11,9 @@ account. So a match counts for a player when:
 
 Any other kind of source (a future URL or browser extension) counts for its sender only, until it
 is added here on purpose. A refused upload counts for nobody, and neither does the upload of an
-account since erased: its `source_id` is null.
+account since erased: its `source_id` is null. Nor does a demo a team sent for itself: its source
+is the workspace's, with no user. The team sees it (`workspace_match.reason = 'team'`), no
+player's account does.
 
 What follows from it: their sessions, their reference, the match in their list. The other players
 remain in the match, as non-registered players are, and see it if they send the same file: the

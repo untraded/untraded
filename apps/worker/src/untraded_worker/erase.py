@@ -12,6 +12,9 @@ Afterwards the player is what any non-registered player of a match is:
 - the matches that count for no other user (`credit`) are deleted whole: rows, Parquet and raw
   demo, and so are the matches their sources brought that were never parsed (waiting, or failed).
   A demo they sent goes even if it names other users: it was never on those users' accounts;
+- a match a team sent for itself stays too (`TEAM_SENT`): it is the team's, whoever played it,
+  and counts for nobody's account. If the player sent it, the team's history no longer names them
+  (`upload_sender` goes with the account);
 - the matches that count for other users stay, since they are those users' matches too. The player
   remains one of the ten players there, never shown outside the match, and is left out of the
   level references from now on (`benchmark_opt_out`);
@@ -33,6 +36,7 @@ nothing for them.
 from __future__ import annotations
 
 import logging
+import uuid
 from dataclasses import dataclass
 from typing import Any
 
@@ -45,11 +49,17 @@ from untraded_worker.store import LocalStore
 
 log = logging.getLogger("untraded.worker")
 
+TEAM_SENT = """EXISTS (
+    SELECT 1 FROM match_source team_ms
+    JOIN ingest_source team_s ON team_s.id = team_ms.source_id AND team_s.workspace_id IS NOT NULL
+    WHERE team_ms.match_id = m.id AND team_ms.rejected IS NULL)"""
+"""A SQL condition: a team sent the match `m` for itself, and its upload was not refused."""
+
 OWN_MATCHES = f"""
 SELECT m.id, m.demo_key, m.parquet_prefix
 FROM match m
 JOIN match_player mp ON mp.match_id = m.id AND mp.steam_id = %(steam)s
-WHERE NOT EXISTS (
+WHERE NOT {TEAM_SENT} AND NOT EXISTS (
     SELECT 1 FROM match_player o
     JOIN app_user u ON u.steam_id = o.steam_id AND u.deleted_at IS NULL
     WHERE o.match_id = m.id AND o.steam_id <> %(steam)s
@@ -59,6 +69,7 @@ UNION
 SELECT m.id, m.demo_key, m.parquet_prefix
 FROM match m
 WHERE NOT EXISTS (SELECT 1 FROM match_player mp WHERE mp.match_id = m.id)
+  AND NOT {TEAM_SENT}
   AND EXISTS (
     SELECT 1 FROM match_source ms
     JOIN ingest_source s ON s.id = ms.source_id
@@ -74,7 +85,27 @@ WHERE NOT EXISTS (SELECT 1 FROM match_player mp WHERE mp.match_id = m.id)
 """
 """The player's matches that count for no other (live) user, and the matches their sources
 brought that were never parsed (pending, failed: no players known yet) and no other live
-user's source brought too."""
+user's source brought too; never a match a team sent for itself."""
+
+ORPHANS = f"""
+SELECT m.id, m.demo_key, m.parquet_prefix
+FROM match m
+WHERE m.id = ANY(%(matches)s)
+  AND NOT EXISTS (
+    SELECT 1 FROM match_player o
+    JOIN app_user u ON u.steam_id = o.steam_id AND u.deleted_at IS NULL
+    WHERE o.match_id = m.id AND {credited("o.match_id", "o.steam_id")}
+  )
+  AND NOT EXISTS (
+    SELECT 1 FROM match_source ms
+    JOIN ingest_source s ON s.id = ms.source_id
+    LEFT JOIN app_user u ON u.id = s.user_id
+    WHERE ms.match_id = m.id AND ms.rejected IS NULL
+      AND (s.workspace_id IS NOT NULL OR u.deleted_at IS NULL)
+  )
+"""
+"""Of `matches`, those nothing keeps any more: they count for no live user (`credit`), and no
+live source brought them (a team's, or a live user's: a match not parsed yet has no players)."""
 
 
 class EraseError(ValueError):
@@ -112,6 +143,15 @@ def erase_player(conn: psycopg.Connection[Any], store: LocalStore, steam_id: int
             if owner is not None:
                 raise EraseError("the player owns a team: hand it over first")
         own = conn.execute(OWN_MATCHES, {"steam": steam_id}).fetchall()
+        if own:
+            # Locked in id order, then read again: a team's copy of the same demo may have merged
+            # into one of them meanwhile (`jobs.ParseJob`), and that match is the team's now.
+            conn.execute(
+                "SELECT 1 FROM match WHERE id = ANY(%s) ORDER BY id FOR UPDATE",
+                ([row[0] for row in own],),
+            )
+            still = {row[0] for row in conn.execute(OWN_MATCHES, {"steam": steam_id}).fetchall()}
+            own = [row for row in own if row[0] in still]
         conn.execute("DELETE FROM play_session WHERE steam_id = %s", (steam_id,))
         conn.execute("DELETE FROM advice WHERE steam_id = %s", (steam_id,))
         conn.execute("DELETE FROM metric_aggregate WHERE steam_id = %s", (steam_id,))
@@ -157,23 +197,71 @@ def erase_player(conn: psycopg.Connection[Any], store: LocalStore, steam_id: int
             "DELETE FROM job WHERE payload->>'match_id' = ANY(%s) AND status <> 'running'",
             ([str(row[0]) for row in own],),
         )
-        # A raw demo goes only when no remaining match uses it (two matches can share one).
-        demos = sorted({row[1] for row in own if row[1]})
-        used = {
-            row[0]
-            for row in conn.execute(
-                "SELECT demo_key FROM match WHERE demo_key = ANY(%s)", (demos,)
-            ).fetchall()
-        }
+        unused = _unused_demos(conn, own)
+    files = _delete_files(store, own, unused)
+    log.info("erased player %s: %d match(es), %d file(s)", steam_id, len(own), files)
+    return Erased(matches=len(own), files=files)
+
+
+Row = tuple[Any, str | None, str | None]
+"""A deleted match: its id, raw demo key and Parquet prefix."""
+
+
+def _unused_demos(conn: psycopg.Connection[Any], deleted: list[Row]) -> list[str]:
+    """The raw demos of the deleted matches that no remaining match uses (two can share one)."""
+    demos = sorted({row[1] for row in deleted if row[1]})
+    used = {
+        row[0]
+        for row in conn.execute(
+            "SELECT demo_key FROM match WHERE demo_key = ANY(%s)", (demos,)
+        ).fetchall()
+    }
+    return [key for key in demos if key not in used]
+
+
+def _delete_files(store: LocalStore, deleted: list[Row], demos: list[str]) -> int:
+    """After the commit: a file deletion is not transactional."""
     files = 0
-    for _, _, prefix in own:
+    for _, _, prefix in deleted:
         if prefix and store.delete_prefix(prefix):
             files += 1
     for key in demos:
-        if key not in used and store.delete(key):
+        if store.delete(key):
             files += 1
-    log.info("erased player %s: %d match(es), %d file(s)", steam_id, len(own), files)
-    return Erased(matches=len(own), files=files)
+    return files
+
+
+def drop_team_matches(
+    conn: psycopg.Connection[Any], store: LocalStore, match_ids: list[uuid.UUID]
+) -> Erased:
+    """A deleted team's matches (`delete_team`, migration 0018): those it sent for itself go,
+    rows, Parquet and raw demo, unless they count for a registered user or another live source
+    brought them too (another team, a player's own upload, the collector). Checked here, under
+    the matches' locks, not when the team was deleted: a player may have sent the same demo
+    since. Running it again is harmless."""
+    with conn.transaction():
+        # Locked first, then read in another statement: a statement that waits on a lock reads
+        # the rows it was waiting for with its own snapshot, and would miss a player's copy of
+        # the demo merged meanwhile (`jobs.ParseJob`).
+        conn.execute("SELECT 1 FROM match WHERE id = ANY(%s) ORDER BY id FOR UPDATE", (match_ids,))
+        dropped: list[Row] = conn.execute(ORPHANS, {"matches": match_ids}).fetchall()
+        if dropped:
+            conn.execute("DELETE FROM match WHERE id = ANY(%s)", ([row[0] for row in dropped],))
+        unused = _unused_demos(conn, dropped)
+    files = _delete_files(store, dropped, unused)
+    log.info("deleted team's matches: %d of %d, %d file(s)", len(dropped), len(match_ids), files)
+    return Erased(matches=len(dropped), files=files)
+
+
+@dataclass(frozen=True)
+class DropTeamMatchesJob:
+    """`drop_team_matches` (payload `{"match_ids": ["<uuid>", ...]}`)."""
+
+    store: LocalStore
+
+    def __call__(self, conn: psycopg.Connection[Any], job: Job) -> None:
+        ids = [uuid.UUID(str(i)) for i in job.payload["match_ids"]]
+        drop_team_matches(conn, self.store, ids)
 
 
 @dataclass(frozen=True)

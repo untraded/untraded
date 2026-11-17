@@ -22,6 +22,8 @@ Every table and column is shown. Solid lines are foreign keys; dotted lines are 
 | 0014 other findings | `advice.priority` from 1, no upper bound |
 | 0015 reference spread | `play_session_metric.reference_p10`, `reference_p90`; `level_reference.p10`, `p90` |
 | 0016 teams | `team_invitation`; `workspace.created_by` optional for a team; team slug and one roster per team; sessions, advice and aggregates private to their player; `has_permission` and the team functions (ADR 0012) |
+| 0017 team access reason | `access_reason` gains `team` |
+| 0018 team uploads | `ingest_source.workspace_id` (a team's own upload source; `user_id` optional), `upload_sender`; row-level security on `match_source`; the team upload functions; a deleted team's matches queued for deletion (ADR 0012) |
 
 ## Tenancy and players
 
@@ -159,7 +161,8 @@ erDiagram
 
     ingest_source {
         uuid id PK
-        uuid user_id FK
+        uuid user_id FK "or workspace_id"
+        uuid workspace_id FK "a team's upload source"
         enum kind "valve_bot | renown | upload | url | scrim_webhook | faceit_extension | faceit_api"
         jsonb config "non-secret settings"
         bytea secret "encrypted by the application"
@@ -213,11 +216,16 @@ erDiagram
     workspace_match {
         uuid workspace_id PK, FK
         uuid match_id PK, FK
-        enum reason "own | shared | roster"
+        enum reason "own | shared | team | roster"
+    }
+    upload_sender {
+        enum kind PK, FK "upload"
+        text external_id PK, FK "the team's upload"
+        uuid user_id FK "who sent it; cascade"
     }
 ```
 
-`match_source.rejected` is a stable code: `not_a_demo`, `corrupt`, `too_large`, `unsupported_mode`, `not_a_player`.
+`match_source.rejected` is a stable code: `not_a_demo`, `corrupt`, `too_large`, `unsupported_mode`, `not_a_player`, `not_enough_roster` (a team's upload: fewer than 3 players of its roster on the date of the match on the same side).
 
 ## Canonical events and the round model
 
@@ -545,13 +553,13 @@ The API runs each transaction as `untraded_api` (no `BYPASSRLS`) with `app.user_
 
 | Rows visible to `untraded_api` | Tables |
 |---|---|
-| a match one of the user's workspaces sees (`visible_match`) | `match`, `match_player`, `round`, `kill`, `damage`, `blind`, `grenade`, `economy`, `round_player`, `metric_value`, `metric_table_value`, `workspace_match` |
+| a match one of the user's workspaces sees (`visible_match`) | `match`, `match_player`, `round`, `kill`, `damage`, `blind`, `grenade`, `economy`, `round_player`, `metric_value`, `metric_table_value`, `workspace_match`, `match_source` |
 | through such a match, or a player followed by one of the user's workspaces (`visible_player`) | `player` |
 | the user's workspaces (`is_member`) | `workspace`, `membership`, `workspace_role`, `workspace_player`, `roster`, `roster_member` |
 | the user's own player only (`own_player`), whichever workspace follows them | `play_session`, `play_session_match`, `play_session_metric`, `metric_aggregate`, `advice` (and one of the user's workspaces) |
 | the teams where the user may manage members (`has_permission`) | `team_invitation` (never `token_hash`) |
 | the user's own rows | `ingest_source`, `advice_feedback`, `consent`; `app_user` (and the users they share a workspace with) |
-| none (functions only) | `auth_session` |
+| none (functions only) | `auth_session`, `upload_sender` |
 | no row-level security | `metric_definition`, `metric_current`, `level_reference`, `invitation`, `invitation_request`, `job` |
 
 - `untraded_api` reads every table and view of migrations 0001 and 0002 except `auth_session`, `ingest_source` and `job`, plus `level_reference`, `consent` and `consent_current`; it has no grant on `invitation`. It writes only `advice_feedback` (the user's own votes) and `consent` (insert), and otherwise goes through `SECURITY DEFINER` functions:

@@ -14,10 +14,12 @@ A demo already known by its sha256 (the same match brought by two players, ADR 0
 stored twice: the new match row is merged into the existing one. A demo of a mode we do not
 analyse (a Competitive or Wingman match in Valve's share-code chain) makes the match
 `unavailable` and its demo is deleted. So does a demo a player sent without playing in it, when
-nothing else brought it (`not_a_player`).
+nothing else brought it (`not_a_player`), and a demo sent for a team where fewer than 3 players
+of its roster on the date of the match played on the same side (`not_enough_roster`).
 
-`ingest_upload` (a demo a player sent) is in `uploads`; `refresh_team_access` (who sees a
-player's matches, after a team change) in `team_access`.
+`ingest_upload` (a demo a player or a team sent) is in `uploads`; `refresh_team_access` (who
+sees a player's matches, after a team change) in `team_access`; `drop_team_matches` (the matches
+a deleted team sent) in `erase`.
 """
 
 from __future__ import annotations
@@ -46,6 +48,39 @@ from untraded_worker.store import LocalStore
 Parse = Callable[..., CanonicalMatch]
 
 log = logging.getLogger("untraded.worker")
+
+
+VOUCHED = """
+SELECT 1 FROM match_source vouched_ms
+LEFT JOIN ingest_source vouched_s ON vouched_s.id = vouched_ms.source_id
+WHERE vouched_ms.match_id = {match} AND vouched_ms.rejected IS NULL
+  AND (vouched_ms.kind <> 'upload' OR vouched_s.user_id IS NOT NULL)"""
+"""A live source of the match `match` other than a team's: the collector (or another kind), or a
+player's own upload. An upload whose source is gone (a deleted team's, an erased player's) is
+none."""
+
+ROSTER_SHORT = f"""
+SELECT ms.external_id
+FROM match_source ms
+JOIN ingest_source s ON s.id = ms.source_id AND s.workspace_id IS NOT NULL
+JOIN match m ON m.id = ms.match_id
+WHERE ms.match_id = %(match)s AND ms.kind = 'upload' AND ms.rejected IS NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM roster r
+    JOIN roster_member rm ON rm.roster_id = r.id
+    JOIN unnest(%(steam_ids)s::bigint[], %(sides)s::text[]) AS p(steam_id, side)
+      ON p.steam_id = rm.steam_id
+    WHERE r.workspace_id = s.workspace_id AND r.active
+      AND rm.valid_from <= coalesce(m.played_at::date, current_date)
+      AND (rm.valid_to IS NULL OR rm.valid_to >= coalesce(m.played_at::date, current_date))
+      AND {load.CONSENTS.format(steam_id="rm.steam_id")}
+    GROUP BY p.side
+    HAVING count(DISTINCT rm.steam_id) >= 3
+  )
+"""
+"""The uploads of the match sent for a team (its workspace's source) that fail the roster rule:
+fewer than 3 players of the team's roster on the date of the match (registered, consenting) on
+the same side. `steam_ids` and `sides` are the demo's players, in the same order."""
 
 
 class JobError(ValueError):
@@ -97,8 +132,9 @@ class ParseJob:
             )
             self._out_of_scope(conn, match_id, demo_key, str(error))
             return
-        if not self._uploaders_played(conn, match_id, canonical):
-            self._out_of_scope(conn, match_id, demo_key, "not_a_player")
+        refused = self._refuse_senders(conn, match_id, canonical)
+        if refused is not None:
+            self._out_of_scope(conn, match_id, demo_key, refused)
             return
 
         known = conn.execute(
@@ -128,30 +164,45 @@ class ParseJob:
         load.refresh_access(conn, match_id)
         sessions.queue_sessions(conn, match_id)
 
-    def _uploaders_played(
+    def _refuse_senders(
         self, conn: psycopg.Connection[Any], match_id: uuid.UUID, canonical: CanonicalMatch
-    ) -> bool:
-        """Rejects the uploads of players who are not in the match (`not_a_player`). False when
-        nothing else brought the match: it is not analysed."""
-        players = set(canonical.player["steamid"].to_list())
+    ) -> str | None:
+        """Rejects the uploads the match does not admit: a player's when they are not in it
+        (`not_a_player`), a team's when fewer than 3 players of its roster on the date of the
+        match played on the same side (`not_enough_roster`). Returns the reason when nothing else
+        brought the match (it is not analysed), None otherwise."""
+        players = canonical.player.select("steamid", "team")
+        steam_ids = [int(s) for s in players["steamid"].to_list()]
+        sides = [str(t) for t in players["team"].to_list()]
         sent = conn.execute(
             "SELECT ms.external_id, u.steam_id FROM match_source ms "
             "JOIN ingest_source s ON s.id = ms.source_id JOIN app_user u ON u.id = s.user_id "
             "WHERE ms.match_id = %s AND ms.kind = 'upload' AND ms.rejected IS NULL",
             (match_id,),
         ).fetchall()
-        outsiders = [external for external, steam_id in sent if steam_id not in players]
-        if not outsiders:
-            return True
-        conn.execute(
-            "UPDATE match_source SET rejected = 'not_a_player' "
-            "WHERE kind = 'upload' AND external_id = ANY(%s)",
-            (outsiders,),
-        )
+        present = set(steam_ids)
+        outsiders = [external for external, steam_id in sent if steam_id not in present]
+        short = [
+            row[0]
+            for row in conn.execute(
+                ROSTER_SHORT, {"match": match_id, "steam_ids": steam_ids, "sides": sides}
+            ).fetchall()
+        ]
+        reason = None
+        for rejected, ids in (("not_a_player", outsiders), ("not_enough_roster", short)):
+            if ids:
+                conn.execute(
+                    "UPDATE match_source SET rejected = %s "
+                    "WHERE kind = 'upload' AND external_id = ANY(%s)",
+                    (rejected, ids),
+                )
+                reason = reason or rejected
+        if reason is None:
+            return None
         others = conn.execute(
             "SELECT 1 FROM match_source WHERE match_id = %s AND rejected IS NULL", (match_id,)
         ).fetchone()
-        return others is not None
+        return None if others is not None else reason
 
     def _out_of_scope(
         self, conn: psycopg.Connection[Any], match_id: uuid.UUID, demo_key: str, reason: str
@@ -163,6 +214,7 @@ class ParseJob:
             "WHERE id = %s",
             (reason, match_id),
         )
+        conn.execute("DELETE FROM workspace_match WHERE match_id = %s", (match_id,))
         shared = conn.execute(
             "SELECT 1 FROM match WHERE demo_key = %s AND id <> %s AND demo_deleted_at IS NULL",
             (demo_key, match_id),
@@ -178,7 +230,27 @@ class ParseJob:
         duplicate_demo: str,
         known_demo: str | None,
     ) -> None:
-        """The demo is a match we already have: its sources move to it, the duplicate goes."""
+        """The demo is a match we already have: its sources move to it, the duplicate goes.
+
+        A team chooses the date and mode of what it sends, and they bind only the team: when the
+        match came from teams alone and a player's own source (or the collector) brings it too,
+        the match takes that source's date and mode. Its players' sessions and the other teams'
+        roster rule then rest on them, not on a team's choice."""
+        conn.execute(
+            f"""
+            UPDATE match k
+            SET played_at = coalesce(d.played_at, k.played_at), mode = d.mode,
+                ended_at = coalesce(d.played_at, k.played_at) + (k.ended_at - k.played_at)
+            FROM match d
+            WHERE k.id = %(known)s AND d.id = %(duplicate)s
+              AND EXISTS (
+                SELECT 1 FROM match_source ms JOIN ingest_source s ON s.id = ms.source_id
+                WHERE ms.match_id = k.id AND ms.rejected IS NULL AND s.workspace_id IS NOT NULL)
+              AND NOT EXISTS ({VOUCHED.format(match="k.id")})
+              AND EXISTS ({VOUCHED.format(match="d.id")})
+            """,
+            {"known": known, "duplicate": duplicate},
+        )
         conn.execute(
             "UPDATE match_source SET match_id = %s WHERE match_id = %s", (known, duplicate)
         )
@@ -251,6 +323,7 @@ def handlers(store: LocalStore, uploads_dir: Path) -> dict[str, Handler]:
         "parse": ParseJob(store),
         "session": sessions.SessionJob(store),
         "erase_player": erase.ErasePlayerJob(store),
+        "drop_team_matches": erase.DropTeamMatchesJob(store),
         "refresh_team_access": team_access.refresh_team_access,
     }
 
