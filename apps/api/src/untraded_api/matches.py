@@ -18,6 +18,7 @@ import uuid
 from pathlib import Path as FilePath
 from typing import Annotated, Any
 
+import psycopg
 from fastapi import APIRouter, Header, HTTPException, Path, Query, Response, status
 from pydantic import BaseModel
 
@@ -122,7 +123,7 @@ class PlayerMetrics(BaseModel):
 LINE = "w.kills, w.deaths, w.adr, w.kast, w.hltv1, w.untraded_deaths, w.untraded, w.level"
 
 
-def _wide_line(match: str, steam_id: str) -> str:
+def wide_line(match: str, steam_id: str) -> str:
     """The headline numbers of one player in one match, as `metric_wide_current` has them
     (scope `match`, current versions, default parameters), to `LEFT JOIN LATERAL ... ON true`.
 
@@ -159,7 +160,7 @@ FROM {matches} m
 LEFT JOIN match_player mp
        ON mp.match_id = m.id
       AND mp.steam_id = (SELECT steam_id FROM app_user WHERE id = %(user)s)
-LEFT JOIN LATERAL ({_wide_line("m.id", "mp.steam_id")}) w ON true
+LEFT JOIN LATERAL ({wide_line("m.id", "mp.steam_id")}) w ON true
 """
 
 
@@ -168,7 +169,7 @@ LEFT JOIN LATERAL ({_wide_line("m.id", "mp.steam_id")}) w ON true
 SUMMARY = summary_query("match")
 
 
-def _line(values: tuple[Any, ...]) -> PlayerLine:
+def line(values: tuple[Any, ...]) -> PlayerLine:
     kills, deaths, adr, kast, hltv1, untraded_deaths, untraded, level = values
     return PlayerLine(
         kills=kills,
@@ -182,7 +183,7 @@ def _line(values: tuple[Any, ...]) -> PlayerLine:
     )
 
 
-def _result(team: str | None, score_a: int | None, score_b: int | None) -> str | None:
+def result(team: str | None, score_a: int | None, score_b: int | None) -> str | None:
     if team is None or score_a is None or score_b is None:
         return None
     mine, theirs = (score_a, score_b) if team == "A" else (score_b, score_a)
@@ -204,9 +205,36 @@ def summary_fields(row: tuple[Any, ...]) -> dict[str, Any]:
         "score_b": score_b,
         "rounds_played": rounds,
         "my_team": team,
-        "my_result": _result(team, score_a, score_b) if status_ == "ready" else None,
-        "my_line": _line(row[11:19]) if has_line else None,
+        "my_result": result(team, score_a, score_b) if status_ == "ready" else None,
+        "my_line": line(row[11:19]) if has_line else None,
     }
+
+
+def match_rounds(conn: psycopg.Connection[Any], match_id: uuid.UUID) -> list[Round]:
+    """The rounds of a match the user may see, in order (none for a match they may not)."""
+    rows = conn.execute(
+        """
+        SELECT round, winner_side, winner_team::text, reason, ct_team::text, score_a, score_b,
+               is_overtime, bomb_site::text, bomb_planted_tick IS NOT NULL
+        FROM round WHERE match_id = %s ORDER BY round
+        """,
+        (match_id,),
+    ).fetchall()
+    return [
+        Round(
+            round=r[0],
+            winner_side=r[1],
+            winner_team=r[2],
+            reason=r[3],
+            ct_team=r[4],
+            score_a=r[5],
+            score_b=r[6],
+            is_overtime=r[7],
+            bomb_site=r[8],
+            bomb_planted=r[9],
+        )
+        for r in rows
+    ]
 
 
 @router.get("")
@@ -250,19 +278,11 @@ def get_match(match_id: uuid.UUID, conn: ConnDep, user: UserDep) -> MatchDetail:
         (match_id,),
     ).fetchone()
     assert extra is not None
-    rounds = conn.execute(
-        """
-        SELECT round, winner_side, winner_team::text, reason, ct_team::text, score_a, score_b,
-               is_overtime, bomb_site::text, bomb_planted_tick IS NOT NULL
-        FROM round WHERE match_id = %s ORDER BY round
-        """,
-        (match_id,),
-    ).fetchall()
     players = conn.execute(
         f"""
         SELECT mp.steam_id::text, mp.name, mp.team::text, mp.rank, mp.rounds_on_team, {LINE}
         FROM match_player mp
-        LEFT JOIN LATERAL ({_wide_line("mp.match_id", "mp.steam_id")}) w ON true
+        LEFT JOIN LATERAL ({wide_line("mp.match_id", "mp.steam_id")}) w ON true
         WHERE mp.match_id = %s
         ORDER BY mp.team, coalesce(w.untraded, w.level) DESC NULLS LAST, mp.name
         """,
@@ -275,21 +295,7 @@ def get_match(match_id: uuid.UUID, conn: ConnDep, user: UserDep) -> MatchDetail:
         tickrate=extra[2],
         unavailable=list(extra[3]),
         error=extra[4],
-        rounds=[
-            Round(
-                round=r[0],
-                winner_side=r[1],
-                winner_team=r[2],
-                reason=r[3],
-                ct_team=r[4],
-                score_a=r[5],
-                score_b=r[6],
-                is_overtime=r[7],
-                bomb_site=r[8],
-                bomb_planted=r[9],
-            )
-            for r in rounds
-        ],
+        rounds=match_rounds(conn, match_id),
         players=[
             Player(
                 steam_id=p[0],
@@ -297,7 +303,7 @@ def get_match(match_id: uuid.UUID, conn: ConnDep, user: UserDep) -> MatchDetail:
                 team=p[2],
                 rank=p[3],
                 rounds_on_team=p[4],
-                line=_line(p[5:13]),
+                line=line(p[5:13]),
             )
             for p in players
         ],
