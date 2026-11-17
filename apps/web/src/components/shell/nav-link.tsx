@@ -26,6 +26,7 @@ export function NavLink({
   badge,
   place,
   href: to,
+  exact = false,
 }: {
   section: Section;
   label: string;
@@ -34,10 +35,16 @@ export function NavLink({
   /** A word after the label, e.g. "Preview" for a mock-up. */
   badge?: string;
   place: "rail" | "tab";
-  /** Where the link goes, when not the section's own address (the player's team). */
+  /** Where the link goes, when not the section's own address (a team's pages): the link is
+   * then marked by it, its section only giving the icon. */
   href?: string;
+  /** With `href`: marked on that very address only, not on the pages under it. */
+  exact?: boolean;
 }) {
-  const current = sectionOf(usePathname()) === section;
+  const pathname = usePathname();
+  const current = to
+    ? pathname === to || (!exact && pathname.startsWith(`${to}/`))
+    : sectionOf(pathname) === section;
   const { icon: Icon } = SECTIONS[section];
   const href = to ?? SECTIONS[section].href;
   if (place === "tab") {

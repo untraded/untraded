@@ -24,7 +24,6 @@ export function MoreSheetPopup({ labels, defaultOpen, focusTrigger }: MoreSheetP
   const Settings = SECTIONS.settings.icon;
   const Admin = SECTIONS.admin.icon;
   const Team = SECTIONS.team.icon;
-  const MyTeam = SECTIONS.teams.icon;
   const Formulas = SECTIONS.formulas.icon;
   const Send = SECTIONS.upload.icon;
   const Trend = SECTIONS.progress.icon;
@@ -42,20 +41,18 @@ export function MoreSheetPopup({ labels, defaultOpen, focusTrigger }: MoreSheetP
       >
         <div aria-hidden="true" className="mx-auto mb-2 h-1 w-9 rounded-full bg-border" />
         <SheetTitle className="sr-only">{labels.more}</SheetTitle>
-        <Link href={SECTIONS.progress.href} className={row} onClick={() => setOpen(false)}>
-          <Trend aria-hidden="true" />
-          {labels.progress}
-        </Link>
-        <Link href={SECTIONS.upload.href} className={row} onClick={() => setOpen(false)}>
-          <Send aria-hidden="true" />
-          {labels.upload}
-        </Link>
-        {labels.teams.map((team) => (
-          <Link key={team.key} href={team.href} className={row} onClick={() => setOpen(false)}>
-            <MyTeam aria-hidden="true" />
-            <span className="min-w-0 truncate">{team.name}</span>
+        {labels.progress && (
+          <Link href={SECTIONS.progress.href} className={row} onClick={() => setOpen(false)}>
+            <Trend aria-hidden="true" />
+            {labels.progress}
           </Link>
-        ))}
+        )}
+        {labels.upload && (
+          <Link href={SECTIONS.upload.href} className={row} onClick={() => setOpen(false)}>
+            <Send aria-hidden="true" />
+            {labels.upload}
+          </Link>
+        )}
         {labels.team && (
           <Link href={SECTIONS.team.href} className={row} onClick={() => setOpen(false)}>
             <Team aria-hidden="true" />

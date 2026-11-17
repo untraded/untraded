@@ -14,9 +14,13 @@ import { RAIL_MOTION, TOOLTIP } from "./nav";
 export function SidebarToggle({
   collapsed: initial,
   labels,
+  tall = false,
 }: {
   collapsed: boolean;
   labels: { collapse: string; expand: string };
+  /** Under the workspace switch, which is taller than the logo: lower on a touch screen, and
+   * centred on its 44 px when the rail is unfolded. */
+  tall?: boolean;
 }) {
   const [collapsed, setCollapsed] = useState(initial);
   const label = collapsed ? labels.expand : labels.collapse;
@@ -28,6 +32,7 @@ export function SidebarToggle({
       // travels from one place to the other with the rail's edge.
       className={cn(
         "group/nav absolute top-10 left-[calc(50%-14px)] hidden text-chrome-muted transition-[top,left,color,background-color,border-color,box-shadow] touch-rail:left-[calc(50%-20px)] touch-rail:size-10 hover:text-chrome-foreground md:inline-flex md:group-data-[collapsed=false]/shell:top-0.5 md:group-data-[collapsed=false]/shell:left-[calc(100%-28px)]",
+        tall && "touch-rail:top-[52px] md:group-data-[collapsed=false]/shell:top-2",
         RAIL_MOTION,
       )}
       // The label says what a press does; it changes with the state, so no `aria-expanded` too.

@@ -7,24 +7,33 @@ import { getTranslations } from "next-intl/server";
 import { Dashboard } from "@/components/dashboard";
 import { Landing } from "@/components/landing";
 import { buttonVariants } from "@/components/ui/button";
-import { pickTone, TONE_COOKIE } from "@/i18n/locale";
+import { pickTone, SPACE_COOKIE, TONE_COOKIE } from "@/i18n/locale";
 import { getMe, PUBLIC_API_PATH } from "@/lib/api";
 import { onboardingStep } from "@/lib/onboarding";
 import { demoEnabled, discordUrl } from "@/lib/site";
-import { teamsOf } from "@/lib/teams";
+import { PERSONAL_SPACE, rememberedTeam } from "@/lib/space";
+import { teamHref, teamsOf } from "@/lib/teams";
 
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ signin?: string; erased?: string }>;
+  searchParams: Promise<{ signin?: string; erased?: string; space?: string }>;
 }) {
   const me = await getMe();
   if (me) {
+    const [{ space }, store] = await Promise.all([searchParams, cookies()]);
     // An invited player gives their consent and their codes first; a team member, who came in by
     // a team's link, needs the consent only (the codes stay offered, optional).
     const step = onboardingStep(me);
-    if (step === "consent" || (step !== null && teamsOf(me).length === 0)) redirect("/welcome");
-    return <Dashboard me={me} tone={pickTone((await cookies()).get(TONE_COOKIE)?.value)} />;
+    if (step === "consent") redirect("/welcome");
+    // Back to the team last opened (after signing in, or from the logo), unless the player chose
+    // their own space in the switch (`?space=personal`).
+    const teams = teamsOf(me).map((w) => w.slug);
+    const team =
+      space === PERSONAL_SPACE ? null : rememberedTeam(store.get(SPACE_COOKIE)?.value, teams);
+    if (team && !me.demo) redirect(teamHref(team));
+    if (step !== null && teams.length === 0) redirect("/welcome");
+    return <Dashboard me={me} tone={pickTone(store.get(TONE_COOKIE)?.value)} />;
   }
   const t = await getTranslations("home");
   const { signin, erased } = await searchParams;
