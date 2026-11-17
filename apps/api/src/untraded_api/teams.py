@@ -24,7 +24,7 @@ import uuid
 from typing import Annotated, Any, Literal
 
 import psycopg
-from fastapi import APIRouter, HTTPException, Path, status
+from fastapi import APIRouter, HTTPException, Path, Response, status
 from pydantic import BaseModel
 
 from untraded_api.deps import (
@@ -41,7 +41,9 @@ router = APIRouter(tags=["teams"])
 admin_router = APIRouter(prefix="/admin", tags=["admin"])
 
 Slug = Annotated[str, Path(min_length=1, max_length=64)]
-SteamId = Annotated[str, Path(pattern=r"^\d{1,20}$")]
+SteamId = Annotated[str, Path(pattern=r"^\d{1,19}$")]
+STEAM_MAX = 2**63 - 1
+"""A Steam ID is a bigint: a larger number would reach the database as `numeric`."""
 SLUG = re.compile(r"^[a-z0-9-]{3,32}$")
 TOKEN = re.compile(r"^[A-Za-z0-9_-]{32,128}$")
 """An invitation token as `create_invitation` draws it (`secrets.token_urlsafe(32)`)."""
@@ -166,14 +168,19 @@ def admin_teams(conn: AdminDep) -> list[AdminTeam]:
 
 
 @admin_router.post("/teams", status_code=status.HTTP_201_CREATED)
-def admin_create_team(body: TeamIn, conn: AdminDep) -> AdminTeam:
+def admin_create_team(body: TeamIn, conn: AdminDep, settings: SettingsDep) -> AdminTeam:
     """Creates a team with its default roles and its roster; the owner (a registered user)
     becomes its first member. 422 `slug_invalid` or `owner_unknown`, 409 `slug_taken`."""
     name = clean_name(body.name)
     slug = body.slug.strip().lower()
     if not SLUG.match(slug) or re.match(r"^u-\d+$", slug):
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "slug_invalid")
-    if not re.match(r"^\d{1,19}$", body.owner_steam_id):
+    # The public demo account owns nothing: anyone signed in as it would read the team.
+    if (
+        not re.match(r"^\d{1,19}$", body.owner_steam_id)
+        or int(body.owner_steam_id) in (settings.demo_steam_id,)
+        or int(body.owner_steam_id) > STEAM_MAX
+    ):
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "owner_unknown")
     with refusals():
         row = conn.execute(
@@ -361,21 +368,26 @@ def _may_manage(conn: psycopg.Connection[Any], team: uuid.UUID) -> None:
 
 @router.get("/teams/{slug}/invitations")
 def list_invitations(slug: Slug, conn: ConnDep) -> list[TeamInvitation]:
-    """The links still usable (not expired, used up or revoked), newest first."""
+    """The links still usable (not expired, used up or revoked, and their creator still able to
+    give their role), newest first."""
     team = team_id(conn, slug)
     _may_manage(conn, team)
     rows = conn.execute(
-        f"""{INVITATIONS} AND i.revoked_at IS NULL AND i.expires_at > now()
-            AND i.uses < i.max_uses ORDER BY i.created_at DESC, i.id""",
+        f"""{INVITATIONS} AND i.id IN (SELECT live_team_invitations(%(team)s))
+            ORDER BY i.created_at DESC, i.id""",
         {"team": team},
     ).fetchall()
     return [_invitation(row) for row in rows]
 
 
 @router.post("/teams/{slug}/invitations", status_code=status.HTTP_201_CREATED)
-def create_invitation(slug: Slug, body: InvitationIn, conn: ConnDep) -> TeamInvitation:
+def create_invitation(
+    slug: Slug, body: InvitationIn, conn: ConnDep, response: Response
+) -> TeamInvitation:
     """A link valid 7 days for `max_uses` people (1 to 20), with a role no stronger than the
-    caller's and never the owner's. Its token is in this answer only."""
+    caller's and never the owner's. Its token is in this answer only (never cached). It stops
+    working if its creator leaves or no longer manages members with a role covering it."""
+    response.headers["Cache-Control"] = "no-store"
     team = team_id(conn, slug)
     if not 1 <= body.max_uses <= 20:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, {"field": "max_uses"})
@@ -447,6 +459,8 @@ def set_roster_member(
     be on it (409 `not_a_member`)."""
     team = team_id(conn, slug)
     steam = int(steam_id)
+    if steam > STEAM_MAX:
+        raise HTTPException(status.HTTP_409_CONFLICT, "not_a_member")
     with refusals():
         conn.execute("SELECT set_roster_member(%s, %s, %s::roster_role)", (team, steam, body.role))
     return member_by(conn, team, user, "u.steam_id", steam)
@@ -456,6 +470,8 @@ def set_roster_member(
 def remove_roster_member(slug: Slug, steam_id: SteamId, conn: ConnDep) -> None:
     """Takes a player off the roster from today; who was on it before stays recorded."""
     team = team_id(conn, slug)
+    if int(steam_id) > STEAM_MAX:
+        return  # nobody is on the roster under it
     with refusals():
         conn.execute("SELECT remove_roster_member(%s, %s)", (team, int(steam_id)))
 

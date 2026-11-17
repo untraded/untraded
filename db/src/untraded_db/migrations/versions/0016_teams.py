@@ -25,18 +25,23 @@ DOWNGRADE = """
 SET LOCAL lock_timeout = '5s';
 DELETE FROM workspace WHERE kind = 'team';
 DELETE FROM job WHERE kind = 'refresh_team_access';
+-- Its policy calls has_permission: the table goes before the functions.
+DROP TABLE team_invitation;
 
 DROP FUNCTION
     has_permission(uuid, text), role_within(text[], text[]), my_permissions(uuid),
     team_caller(uuid), queue_team_access(bigint), follow_member(uuid, uuid),
+    team_invitation_live(uuid),
     create_team(text, text, bigint), rename_team(uuid, text), delete_team(uuid),
     owners_besides(uuid, uuid), set_member_role(uuid, uuid, uuid), remove_member(uuid, uuid),
     transfer_team_ownership(uuid, uuid),
     create_team_invitation(uuid, uuid, bytea, uuid, integer),
     revoke_team_invitation(uuid, uuid), team_invitation_preview(bytea),
+    live_team_invitations(uuid),
     accept_team_invitation(bytea, text), set_roster_member(uuid, bigint, roster_role),
     remove_roster_member(uuid, bigint), set_my_share_solo(uuid, boolean),
-    queue_my_team_access(), open_auth_session(bigint, bytea, interval, bytea, text);
+    queue_my_team_access(), leave_my_teams(),
+    open_auth_session(bigint, bytea, interval, bytea, text);
 
 CREATE OR REPLACE FUNCTION request_erasure(steam bigint) RETURNS void
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = pg_catalog, public AS $$
@@ -99,7 +104,6 @@ CREATE POLICY followed ON metric_aggregate USING (followed_player(steam_id));
 DROP POLICY own ON play_session;
 CREATE POLICY visible ON play_session USING (own_player(steam_id) OR followed_player(steam_id));
 
-DROP TABLE team_invitation;
 DROP INDEX workspace_player_steam, roster_member_steam, roster_member_current,
     roster_one_per_workspace;
 ALTER TABLE membership DROP CONSTRAINT membership_role_in_workspace;

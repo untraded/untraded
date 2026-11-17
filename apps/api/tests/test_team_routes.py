@@ -678,3 +678,65 @@ def test_a_team_members_own_list_is_unchanged(people: People) -> None:
     assert people.call(MEMBER, "GET", "/matches").json()["items"] == []
     mine = people.call(OWNER, "GET", "/matches").json()["items"]
     assert [m["id"] for m in mine] == [str(match_id)]
+
+
+def test_withdrawing_the_consent_leaves_every_team(people: People) -> None:
+    team = make_team(people)
+    join(people, MEMBER, team, "player")
+    people.call(OWNER, "PUT", f"/teams/team-one/roster/{MEMBER}", json={"role": "starter"})
+    people.call(MEMBER, "PUT", "/teams/team-one/share-solo", json={"share": True})
+    people.db.execute("TRUNCATE job")
+    withdraw = {"text_version": "2", "analysis": False, "research_corpus": False}
+
+    refused = people.call(OWNER, "POST", "/me/consent", json=withdraw)
+    assert (refused.status_code, refused.json()["detail"]) == (409, "owner_must_hand_over")
+    assert people.db.execute(
+        "SELECT analysis FROM consent_current c JOIN app_user u ON u.id = c.user_id "
+        "WHERE u.steam_id = %s",
+        (OWNER,),
+    ).fetchone() == (True,)  # nothing recorded
+
+    assert people.call(MEMBER, "POST", "/me/consent", json=withdraw).status_code == 204
+    assert [m["steam_id"] for m in team_of(people, OWNER)["members"]] == [str(OWNER)]
+    assert people.db.execute(
+        "SELECT count(*) FROM roster_member WHERE steam_id = %s AND valid_to IS NULL", (MEMBER,)
+    ).fetchone() == (0,)
+    assert people.db.execute(
+        "SELECT count(*) FROM workspace_player WHERE steam_id = %s", (MEMBER,)
+    ).fetchone() == (0,)
+    assert people.db.execute("SELECT kind, payload->>'steam_id' FROM job").fetchall() == [
+        ("refresh_team_access", str(MEMBER))
+    ]
+
+
+def test_a_removed_coachs_links_stop_working(people: People) -> None:
+    team = make_team(people)
+    join(people, MEMBER, team, "coach")
+    made = people.call(
+        MEMBER,
+        "POST",
+        "/teams/team-one/invitations",
+        json={"role_id": role(team, "coach"), "max_uses": 5},
+    )
+    assert made.status_code == 201
+    assert made.headers["cache-control"] == "no-store"
+    token = made.json()["token"]
+    assert people.client.get(f"/team-invitations/{token}").status_code == 200
+    removed = people.call(OWNER, "DELETE", f"/teams/team-one/members/{people.user_id(MEMBER)}")
+    assert removed.status_code == 204
+    assert people.client.get(f"/team-invitations/{token}").status_code == 404
+    again = people.call(MEMBER, "POST", f"/team-invitations/{token}/accept")
+    assert (again.status_code, again.json()["detail"]) == (404, "invitation_invalid")
+
+
+def test_a_teams_links_open_twenty_accounts_at_most(people: People) -> None:
+    team = make_team(people)
+    tokens = [invite(people, team, "player", uses=20), invite(people, team, "player", uses=20)]
+    opened = 0
+    for n in range(25):
+        row = people.db.execute(
+            "SELECT open_auth_session(%s, %s, interval '1 day', %s, NULL)",
+            (76561198000100000 + n, token_hash(f"s{n}"), token_hash(tokens[n % 2])),
+        ).fetchone()
+        opened += row is not None and row[0] is not None
+    assert opened == 20

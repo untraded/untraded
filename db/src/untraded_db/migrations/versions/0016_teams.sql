@@ -55,7 +55,8 @@ CREATE INDEX workspace_player_steam ON workspace_player (steam_id);
 -- lasts 7 days and lets `max_uses` people join (counted under the row's lock), with the role it
 -- names, never the owner's. Opening it does nothing: joining is `accept_team_invitation`.
 -- It also lets a new Steam account into the beta (`open_auth_session`): `signups` counts those,
--- so a link opens at most `max_uses` accounts, whether they join or not.
+-- so a link opens at most `max_uses` accounts, whether they join or not, and a team's links
+-- at most 20 in all (the admin still decides who else enters the beta).
 
 CREATE TABLE team_invitation (
     id           uuid PRIMARY KEY,
@@ -147,7 +148,7 @@ CREATE FUNCTION queue_team_access(steam bigint) RETURNS void
 LANGUAGE sql VOLATILE SECURITY DEFINER SET search_path = pg_catalog, public AS $$
     INSERT INTO job (kind, payload, max_attempts)
     SELECT 'refresh_team_access', jsonb_build_object('steam_id', steam::text), 5
-    WHERE NOT EXISTS (
+    WHERE steam IS NOT NULL AND NOT EXISTS (
         SELECT 1 FROM job
         WHERE kind = 'refresh_team_access' AND status = 'queued'
           AND payload->>'steam_id' = steam::text
@@ -183,7 +184,9 @@ BEGIN
     IF team_slug IS NULL OR team_slug !~ '^[a-z0-9-]{3,32}$' OR team_slug ~ '^u-[0-9]+$' THEN
         PERFORM team_refuse('slug_invalid');
     END IF;
-    SELECT id INTO owner_user FROM app_user WHERE steam_id = owner_steam AND deleted_at IS NULL;
+    -- Locked against the owner's erasure request (request_erasure locks the row too).
+    SELECT id INTO owner_user FROM app_user WHERE steam_id = owner_steam AND deleted_at IS NULL
+    FOR SHARE;
     IF owner_user IS NULL THEN
         PERFORM team_refuse('owner_unknown');
     END IF;
@@ -284,6 +287,11 @@ DECLARE
     theirs text[];
     steam bigint;
 BEGIN
+    IF member IS NULL THEN
+        PERFORM team_refuse('not_a_member');
+    END IF;
+    -- The account first, as the erasure locks it first: the two never wait on each other.
+    PERFORM 1 FROM app_user WHERE id = member FOR SHARE;
     SELECT r.permissions INTO theirs FROM membership m JOIN workspace_role r ON r.id = m.role_id
     WHERE m.workspace_id = w AND m.user_id = member;
     IF member <> me THEN
@@ -379,6 +387,31 @@ BEGIN
 END;
 $$;
 
+-- Whether a link can still be used: not revoked, expired or used up, and its creator still a
+-- member who manages members with a role that covers the link's. A coach who is removed or
+-- demoted (or an owner who hands over) takes their links with them.
+CREATE FUNCTION team_invitation_live(invitation_id uuid) RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = pg_catalog, public AS $$
+    SELECT EXISTS (
+        SELECT 1 FROM team_invitation i
+        JOIN workspace_role link_role ON link_role.id = i.role_id
+        JOIN membership m ON m.workspace_id = i.workspace_id AND m.user_id = i.created_by
+        JOIN workspace_role creator_role ON creator_role.id = m.role_id
+        WHERE i.id = invitation_id AND i.revoked_at IS NULL AND i.expires_at > now()
+          AND i.uses < i.max_uses
+          AND creator_role.permissions && ARRAY['*', 'members.manage']
+          AND role_within(link_role.permissions, creator_role.permissions)
+    )
+$$;
+
+-- The ids of the team's links that can still be used, for those who manage its members.
+CREATE FUNCTION live_team_invitations(w uuid) RETURNS SETOF uuid
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = pg_catalog, public AS $$
+    SELECT i.id FROM team_invitation i
+    WHERE i.workspace_id = w AND has_permission(w, 'members.manage')
+      AND team_invitation_live(i.id)
+$$;
+
 -- What an invitation link shows before signing in: the team's name, the role and the end.
 -- Nothing for a link that is unknown, expired, used up or revoked. Reads only.
 CREATE FUNCTION team_invitation_preview(token bytea)
@@ -388,8 +421,7 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = pg_catalog, public AS $$
     FROM team_invitation i
     JOIN workspace w ON w.id = i.workspace_id
     JOIN workspace_role r ON r.id = i.role_id
-    WHERE i.token_hash = token AND i.revoked_at IS NULL AND i.expires_at > now()
-      AND i.uses < i.max_uses
+    WHERE i.token_hash = token AND team_invitation_live(i.id)
 $$;
 
 -- The signed-in user joins the team of a valid link, with its role; returns the team's slug.
@@ -411,8 +443,7 @@ BEGIN
         PERFORM 1 FROM workspace WHERE id = w FOR NO KEY UPDATE;
     END IF;
     SELECT * INTO invitation FROM team_invitation WHERE token_hash = token FOR UPDATE;
-    IF invitation.id IS NULL OR invitation.revoked_at IS NOT NULL
-       OR invitation.expires_at <= now() OR invitation.uses >= invitation.max_uses THEN
+    IF invitation.id IS NULL OR NOT team_invitation_live(invitation.id) THEN
         PERFORM team_refuse('invitation_invalid');
     END IF;
     IF EXISTS (SELECT 1 FROM membership WHERE workspace_id = w AND user_id = me) THEN
@@ -449,7 +480,8 @@ BEGIN
     END IF;
     SELECT m.user_id INTO member FROM membership m
     JOIN app_user u ON u.id = m.user_id AND u.deleted_at IS NULL
-    WHERE m.workspace_id = w AND u.steam_id = steam;
+    WHERE m.workspace_id = w AND u.steam_id = steam
+    FOR SHARE OF u;  -- against the member's erasure, which locks the account
     IF member IS NULL THEN
         PERFORM team_refuse('not_a_member');
     END IF;
@@ -519,6 +551,52 @@ BEGIN
 END;
 $$;
 
+-- Withdrawing the consent leaves every team, as leaving one does (`remove_member`): the
+-- memberships end, the roster rows get their end date, nothing is shared any more, and the
+-- teams' access is recomputed. The last owner of a team hands it over first: refused before
+-- anything is written. Teams are locked in the order of their ids.
+CREATE FUNCTION leave_my_teams() RETURNS void
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = pg_catalog, public AS $$
+DECLARE
+    me uuid := current_app_user();
+    steam bigint;
+    team uuid;
+BEGIN
+    SELECT steam_id INTO steam FROM app_user WHERE id = me;
+    IF steam IS NULL THEN
+        RAISE EXCEPTION 'no signed-in user';
+    END IF;
+    PERFORM 1 FROM workspace w
+    WHERE w.kind = 'team'
+      AND EXISTS (SELECT 1 FROM membership m WHERE m.workspace_id = w.id AND m.user_id = me)
+    ORDER BY w.id
+    FOR NO KEY UPDATE;
+    IF EXISTS (
+        SELECT 1 FROM membership m
+        JOIN workspace w ON w.id = m.workspace_id AND w.kind = 'team'
+        JOIN workspace_role r ON r.id = m.role_id
+        WHERE m.user_id = me AND '*' = ANY (r.permissions)
+          AND owners_besides(m.workspace_id, me) = 0
+    ) THEN
+        PERFORM team_refuse('owner_must_hand_over');
+    END IF;
+    FOR team IN
+        SELECT m.workspace_id FROM membership m
+        JOIN workspace w ON w.id = m.workspace_id AND w.kind = 'team'
+        WHERE m.user_id = me
+    LOOP
+        DELETE FROM membership WHERE workspace_id = team AND user_id = me;
+        DELETE FROM workspace_player WHERE workspace_id = team AND steam_id = steam;
+        UPDATE roster_member SET valid_to = current_date
+        WHERE roster_id IN (SELECT id FROM roster WHERE workspace_id = team)
+          AND steam_id = steam AND valid_to IS NULL;
+    END LOOP;
+    IF FOUND THEN  -- the loop ran: there was a team to leave
+        PERFORM queue_team_access(steam);
+    END IF;
+END;
+$$;
+
 -- ===========================================================================================
 -- Sign-in with an invitation link, and erasure
 -- ===========================================================================================
@@ -548,9 +626,13 @@ BEGIN
         WHERE steam_id = steam AND accepted_at IS NULL
         FOR UPDATE;
         IF invited IS NULL AND team_invite IS NOT NULL THEN
+            -- The team first (the order of the team functions): its accounts are counted.
+            SELECT workspace_id INTO space FROM team_invitation WHERE token_hash = team_invite;
+            PERFORM 1 FROM workspace WHERE id = space FOR NO KEY UPDATE;
             UPDATE team_invitation SET signups = signups + 1
-            WHERE token_hash = team_invite AND revoked_at IS NULL AND expires_at > now()
-              AND uses < max_uses AND signups < max_uses
+            WHERE token_hash = team_invite AND team_invitation_live(id) AND signups < max_uses
+              AND (SELECT coalesce(sum(o.signups), 0) FROM team_invitation o
+                   WHERE o.workspace_id = space) < 20
             RETURNING coalesce(nullif(btrim(left(persona, 64)), ''), 'Player') INTO invited;
         END IF;
         IF invited IS NULL THEN
@@ -607,14 +689,17 @@ $$;
 REVOKE ALL ON FUNCTION
     has_permission(uuid, text), role_within(text[], text[]), my_permissions(uuid),
     team_refuse(text), team_caller(uuid), queue_team_access(bigint), follow_member(uuid, uuid),
+    team_invitation_live(uuid),
     create_team(text, text, bigint), rename_team(uuid, text), delete_team(uuid),
     owners_besides(uuid, uuid), set_member_role(uuid, uuid, uuid), remove_member(uuid, uuid),
     transfer_team_ownership(uuid, uuid),
     create_team_invitation(uuid, uuid, bytea, uuid, integer),
     revoke_team_invitation(uuid, uuid), team_invitation_preview(bytea),
+    live_team_invitations(uuid),
     accept_team_invitation(bytea, text), set_roster_member(uuid, bigint, roster_role),
     remove_roster_member(uuid, bigint), set_my_share_solo(uuid, boolean),
-    queue_my_team_access(), open_auth_session(bigint, bytea, interval, bytea, text)
+    queue_my_team_access(), leave_my_teams(),
+    open_auth_session(bigint, bytea, interval, bytea, text)
     FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION
     has_permission(uuid, text), my_permissions(uuid), rename_team(uuid, text),
@@ -622,9 +707,11 @@ GRANT EXECUTE ON FUNCTION
     transfer_team_ownership(uuid, uuid),
     create_team_invitation(uuid, uuid, bytea, uuid, integer),
     revoke_team_invitation(uuid, uuid), team_invitation_preview(bytea),
+    live_team_invitations(uuid),
     accept_team_invitation(bytea, text), set_roster_member(uuid, bigint, roster_role),
     remove_roster_member(uuid, bigint), set_my_share_solo(uuid, boolean),
-    queue_my_team_access(), open_auth_session(bigint, bytea, interval, bytea, text)
+    queue_my_team_access(), leave_my_teams(),
+    open_auth_session(bigint, bytea, interval, bytea, text)
     TO untraded_api;
 
 -- The invitations of a team, to those who manage its members; never the token's hash.
@@ -632,3 +719,20 @@ ALTER TABLE team_invitation ENABLE ROW LEVEL SECURITY;
 CREATE POLICY manage ON team_invitation USING (has_permission(workspace_id, 'members.manage'));
 GRANT SELECT (id, workspace_id, role_id, max_uses, uses, created_at, expires_at, revoked_at)
     ON team_invitation TO untraded_api;
+
+-- Every SECURITY DEFINER function searches `pg_temp` last: without it in the path, PostgreSQL
+-- searches the caller's temporary tables first, and a temporary `membership` could stand in for
+-- the real one. Applies to the functions of the earlier migrations too.
+DO $$
+DECLARE
+    f regprocedure;
+BEGIN
+    FOR f IN
+        SELECT p.oid::regprocedure FROM pg_proc p
+        JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND p.prosecdef
+    LOOP
+        EXECUTE format('ALTER FUNCTION %s SET search_path = pg_catalog, public, pg_temp', f);
+    END LOOP;
+END;
+$$;

@@ -55,7 +55,8 @@ class ConsentIn(BaseModel):
     text_version: str
     """The version of the text the player read: it must be the current one to agree."""
     analysis: bool
-    """Box 1. False withdraws the consent, and stops following the player's matches."""
+    """Box 1. False withdraws the consent, stops following the player's matches, and leaves
+    their teams."""
     research_corpus: bool
     """Box 2 (optional): keep their raw demos in the research corpus."""
 
@@ -71,6 +72,11 @@ class SourceIn(BaseModel):
 def give_consent(body: ConsentIn, conn: ConnDep, user: UserDep, settings: SettingsDep) -> None:
     if body.analysis and body.text_version != settings.consent_version:
         raise HTTPException(status.HTTP_409_CONFLICT, "this is not the current consent text")
+    if not body.analysis:
+        # Withdrawing leaves every team, before anything is recorded: a team's last owner hands
+        # it over first (409 `owner_must_hand_over`).
+        with refusals():
+            conn.execute("SELECT leave_my_teams()")
     conn.execute(
         "INSERT INTO consent (user_id, text_version, analysis, research_corpus, recorded_by) "
         "VALUES (%s, %s, %s, %s, 'site')",
