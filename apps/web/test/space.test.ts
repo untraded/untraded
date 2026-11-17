@@ -17,7 +17,8 @@ describe("space", () => {
 
   it("brings back only a team that is still the player's", () => {
     expect(rememberedTeam("ashgrove", SLUGS)).toBe("ashgrove");
-    expect(rememberedTeam("personal", SLUGS)).toBeNull();
+    expect(rememberedTeam("~personal", SLUGS)).toBeNull();
+    expect(rememberedTeam("personal", ["personal"])).toBe("personal");
     expect(rememberedTeam("gone", SLUGS)).toBeNull();
     expect(rememberedTeam(undefined, SLUGS)).toBeNull();
   });

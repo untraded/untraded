@@ -15,8 +15,8 @@ export interface AccountMenuProps {
 
 const popup = lazyModule(() => import("./account-menu-popup").then((m) => m.AccountMenuPopup));
 
-/** The account at the top of the sidebar: who is signed in, the settings, signing out. A team
- * workspace switch belongs here once teams exist. The menu's code loads on first use. */
+/** The account at the foot of the rail: who is signed in, the settings, signing out (the
+ * workspace switch sits at the rail's head). The menu's code loads on first use. */
 export function AccountMenu(props: AccountMenuProps) {
   const standIn = useRef<HTMLButtonElement>(null);
   const { Component, start, preload, open } = useLazyPopup(popup, standIn);

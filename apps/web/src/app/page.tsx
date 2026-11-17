@@ -11,7 +11,7 @@ import { pickTone, SPACE_COOKIE, TONE_COOKIE } from "@/i18n/locale";
 import { getMe, PUBLIC_API_PATH } from "@/lib/api";
 import { onboardingStep } from "@/lib/onboarding";
 import { demoEnabled, discordUrl } from "@/lib/site";
-import { PERSONAL_SPACE, rememberedTeam } from "@/lib/space";
+import { rememberedTeam } from "@/lib/space";
 import { teamHref, teamsOf } from "@/lib/teams";
 
 export default async function Home({
@@ -30,7 +30,7 @@ export default async function Home({
     // their own space in the switch (`?space=personal`).
     const teams = teamsOf(me).map((w) => w.slug);
     const team =
-      space === PERSONAL_SPACE ? null : rememberedTeam(store.get(SPACE_COOKIE)?.value, teams);
+      space === "personal" ? null : rememberedTeam(store.get(SPACE_COOKIE)?.value, teams);
     if (team && !me.demo) redirect(teamHref(team));
     if (step !== null && teams.length === 0) redirect("/welcome");
     return <Dashboard me={me} tone={pickTone(store.get(TONE_COOKIE)?.value)} />;

@@ -8,7 +8,7 @@ import { SPACE_COOKIE } from "@/i18n/locale";
 import { PERSONAL_SPACE, spaceOf } from "@/lib/space";
 import type { SpaceLink } from "./space-trigger";
 
-/** The open space's key (`personal`, or a team's slug), read from the address. */
+/** The open space's key (`~personal`, or a team's slug), read from the address. */
 export function useSpaceKey(slugs: readonly string[]): string {
   return spaceOf(usePathname(), slugs) ?? PERSONAL_SPACE;
 }
@@ -38,7 +38,7 @@ export function SpaceSwitch({
 
 /**
  * Remembers the space last opened in a cookie, as the rail's state is: the home page brings the
- * player back to it after signing in. Nothing personal in it: `personal` or a team's slug.
+ * player back to it after signing in. Nothing personal in it: `~personal` or a team's slug.
  */
 export function SpaceMemory({ slugs }: { slugs: string[] }) {
   const key = useSpaceKey(slugs);

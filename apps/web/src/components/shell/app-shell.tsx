@@ -8,7 +8,7 @@ import { DemoBanner } from "@/components/demo-banner";
 import { roleLabel } from "@/components/teams/role-label";
 import type { Me, WorkspaceRef } from "@/lib/api";
 import { cn } from "@/lib/cn";
-import { initials } from "@/lib/space";
+import { initials, PERSONAL_SPACE } from "@/lib/space";
 import { isDefaultRole, teamHref, teamsOf } from "@/lib/teams";
 import { AccountMenu } from "./account-menu";
 import { MoreSheet } from "./more-sheet";
@@ -303,7 +303,7 @@ function spacesOf(
   const mine = t("switcher.personal");
   return [
     {
-      key: "personal",
+      key: PERSONAL_SPACE,
       name: me.display_name,
       menuName: mine,
       badge: Array.from(me.display_name.trim())[0] ?? "?",
@@ -312,7 +312,8 @@ function spacesOf(
       role: null,
       // The choice of the player's own space: the home page then stays there.
       href: "/?space=personal",
-      label: t("switcher.switch", { name: mine }),
+      // Named by what it shows (the player's name), so that voice control finds it.
+      label: t("switcher.switch", { name: me.display_name }),
     },
     ...teams.map((w) => {
       const role = roleLabel(t, w.role);

@@ -18,8 +18,9 @@ export function spaceOf(pathname: string, slugs: readonly string[]): string | nu
   return slugs.find((slug) => slug.toLowerCase() === segment) ?? null;
 }
 
-/** What the space cookie holds for the player's own space. */
-export const PERSONAL_SPACE = "personal";
+/** The player's own space, in the switch and the cookie: `~` keeps it from ever being a team's
+ * slug (`[a-z0-9-]`), so a team named `personal` stays a team. */
+export const PERSONAL_SPACE = "~personal";
 
 /** The team the player last opened, from the cookie: `null` for their own space, or a slug that is
  * no longer one of their teams. */

@@ -6,7 +6,7 @@ import { RAIL_CLIP, RAIL_MOTION, RAIL_TOOLTIP } from "./nav";
 
 /** A workspace the switch lists: the player's own, or one of their teams. */
 export interface SpaceLink {
-  /** `personal`, or the team's slug. */
+  /** `~personal`, or the team's slug. */
   key: string;
   /** On the switch: the team's name, or the player's. */
   name: string;
