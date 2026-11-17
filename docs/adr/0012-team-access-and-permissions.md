@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-11-17
 - Builds on: [0011](0011-phase-2-database-schema.md)
-- Implemented by: migration 0016 (`db/src/untraded_db/migrations/versions/0016_teams.sql`), `apps/api/src/untraded_api/teams.py`, `apps/worker/src/untraded_worker/team_access.py`
+- Implemented by: migration 0016 (`db/src/untraded_db/migrations/versions/0016_teams.sql`) and 0019 (review), `apps/api/src/untraded_api/teams.py`, `team_review.py`, `apps/worker/src/untraded_worker/team_access.py`
 
 ## Context
 
@@ -25,6 +25,7 @@ ADR 0011 put team workspaces, roles with named permissions, rosters and per-play
 7. **Withdrawing the consent leaves every team**, as leaving one does: the memberships end, the roster rows get their end date, nothing is shared any more, and the access is recomputed (`leave_my_teams`, called by the consent route before it records anything). The last owner of a team hands it over first (`owner_must_hand_over`). Joining a team never needs the Steam codes: a signed-in user with the current consent is enough.
 8. **Erasure follows teams.** `request_erasure` refuses a team's owner (`owner_must_hand_over`) before anything closes. The worker's erasure removes the player's roster rows (history included) and followed-player rows, and recomputes the teams' access to the matches that stay. Their memberships go with the account.
 9. **Matches a team sends for itself** (migration 0018) count for the team alone. A member with `matches.upload` sends a scrim or an official FACEIT or ESEA match from the team's space; the source belongs to the workspace (`ingest_source.workspace_id`, with no user), so `credit` counts it for nobody's account: no sessions, references or personal list. Instead of "the sender played", the parse admits it when 3 players of the team's roster on the date of the match (registered, consenting) played on the same side, and refuses it otherwise (`not_enough_roster`, the demo goes). The team then sees it through a fourth reason, `team`, kept before `roster`, which no later roster change takes back. An erasure keeps such a match (the player stays as a non-registered one), and deleting the team deletes the matches it sent, unless they count for a registered user or another live source brought them. Who sent each upload is kept apart (`upload_sender`), out of the API role's reach: a scrim two teams sent is one match, and neither learns who sent it for the other.
+10. **A team's review** (migration 0019): comments on a round (with an optional instant), tags on a round and playlists of rounds. Every row is a team's and a match's, and its policy (`review_readable`) asks both that the user reads the team's matches (`matches.read`) and that the team itself sees the match (its `workspace_match` row), not merely one of the user's workspaces: a scrim between two teams is one match, and neither reads the other's review, even through a member of both. `review.comment` writes a comment and changes or deletes one's own; `review.manage` sets tags, keeps playlists and deletes another member's comment. A comment keeps the name it was signed with, so that it stays readable once its author leaves (the policy on `app_user` then hides the account); erasing the account clears the author and the name, the text stays as written. A review that loses its match's access is hidden, not deleted.
 
 ## Consequences
 

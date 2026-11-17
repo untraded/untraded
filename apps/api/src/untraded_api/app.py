@@ -26,6 +26,7 @@ from untraded_api import (
     onboarding,
     sessions,
     team_matches,
+    team_review,
     teams,
     uploads,
 )
@@ -74,4 +75,5 @@ def create_app(settings: Settings, *, steam_client: httpx.Client | None = None) 
     app.include_router(teams.router)
     app.include_router(teams.admin_router)
     app.include_router(team_matches.router)
+    app.include_router(team_review.router)
     return app
