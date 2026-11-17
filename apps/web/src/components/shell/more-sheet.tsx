@@ -12,14 +12,13 @@ export interface MoreSheetProps {
   labels: {
     more: string;
     settings: string;
-    progress: string;
-    upload: string;
+    /** The player's own pages: null in a team's space, whose sheet leaves them out. */
+    progress: string | null;
+    upload: string | null;
     formulas: string;
     admin: string | null;
     /** The team mode preview, admins only too, with its badge. */
     team: string | null;
-    /** The player's teams, by name: the phone's way to reach each of them. */
-    teams: { key: string; name: string; href: string }[];
     preview: string;
     signOut: string;
   };

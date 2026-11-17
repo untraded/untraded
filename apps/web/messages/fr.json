@@ -27,9 +27,12 @@
       "team": "Équipe",
       "formulas": "Calcul",
       "settings": "Réglages",
-      "admin": "Admin"
+      "admin": "Admin",
+      "teamHome": "Accueil",
+      "teamMembers": "Membres"
     },
-    "myTeam": "Mon équipe"
+    "teamHome": "Accueil",
+    "teamMembers": "Membres"
   },
   "dashboard": {
     "title": "Accueil",
@@ -1597,8 +1600,10 @@
       "labelFor": "Partager mes matchs solo avec {team}"
     },
     "switcher": {
-      "label": "Espace",
-      "personal": "Mon espace"
+      "title": "Espaces",
+      "personal": "Mon espace",
+      "switch": "Changer d'espace : {name}",
+      "teamLine": "Équipe · {role}"
     },
     "handOverPick": "Choisis un membre"
   }

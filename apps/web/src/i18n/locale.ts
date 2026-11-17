@@ -46,3 +46,6 @@ export function pickTheme(cookie: string | undefined): Theme {
 
 /** The sidebar, folded to its icons or not (remembered per browser). */
 export const SIDEBAR_COOKIE = "untraded_sidebar";
+
+/** The workspace last opened: `personal`, or a team's slug (remembered per browser). */
+export const SPACE_COOKIE = "untraded_space";

@@ -27,9 +27,12 @@
       "team": "Team",
       "formulas": "Formulas",
       "settings": "Settings",
-      "admin": "Admin"
+      "admin": "Admin",
+      "teamHome": "Home",
+      "teamMembers": "Members"
     },
-    "myTeam": "My team"
+    "teamHome": "Home",
+    "teamMembers": "Members"
   },
   "dashboard": {
     "title": "Home",
@@ -1597,8 +1600,10 @@
       "labelFor": "Share my solo matches with {team}"
     },
     "switcher": {
-      "label": "Workspace",
-      "personal": "My space"
+      "title": "Workspaces",
+      "personal": "My space",
+      "switch": "Switch workspace: {name}",
+      "teamLine": "Team · {role}"
     },
     "handOverPick": "Choose a member"
   }
