@@ -160,7 +160,9 @@
   },
   "team": {
     "title": "Équipe",
-    "context": { "label": "L'équipe, ses pages et le rôle d'affichage" },
+    "context": {
+      "label": "L'équipe, ses pages et le rôle d'affichage"
+    },
     "closedFor": "fermée au rôle {role}",
     "shown": "{shown} sur {total}",
     "preview": "Aperçu : maquette du mode équipe, données inventées.",
@@ -390,7 +392,8 @@
     "erase": "Supprimer mon compte et mes données",
     "eraseConfirm": "Supprimer définitivement ton compte et tes données ?",
     "eraseYes": "Oui, tout supprimer",
-    "eraseFailed": "La suppression n'a pas pu être lancée. Réessaie dans un moment, ou écris à l'opérateur du site."
+    "eraseFailed": "La suppression n'a pas pu être lancée. Réessaie dans un moment, ou écris à l'opérateur du site.",
+    "eraseOwner": "Tu es propriétaire d'une équipe : passe la main à un autre membre (page de l'équipe, Membres) avant d'effacer ton compte. Rien n'a été effacé."
   },
   "home": {
     "title": "Tes matchs CS2, analysés à découvert",
@@ -1199,10 +1202,17 @@
   },
   "admin": {
     "title": "Admin",
-    "context": { "label": "Admin, ses pages et leur état" },
+    "context": {
+      "label": "Admin, ses pages et leur état"
+    },
     "playersCount": "{count, plural, one {# joueur} other {# joueurs}}",
     "requestsCount": "{count, plural, one {# demande d'invitation} other {# demandes d'invitation}}",
-    "checks": { "ok": "OK", "warn": "À surveiller", "fail": "En échec", "unknown": "Inconnu" },
+    "checks": {
+      "ok": "OK",
+      "warn": "À surveiller",
+      "fail": "En échec",
+      "unknown": "Inconnu"
+    },
     "overall": {
       "ok": "Tout est en ordre",
       "warn": "{count, plural, one {# point à surveiller} other {# points à surveiller}}",
@@ -1293,7 +1303,21 @@
     "dismiss": "Ignorer",
     "requestName": "Donne un nom de 1 à 64 caractères.",
     "requestExists": "Ce compte est déjà invité ou inscrit.",
-    "requestFailed": "L'invitation n'a pas pu être enregistrée."
+    "requestFailed": "L'invitation n'a pas pu être enregistrée.",
+    "teams": "Équipes",
+    "teamsCount": "{count, plural, one {# équipe} other {# équipes}}",
+    "createTeam": "Créer une équipe",
+    "teamName": "Nom",
+    "teamSlug": "Adresse",
+    "teamSlugHelp": "Dans l'adresse de l'équipe : de 3 à 32 lettres minuscules, chiffres ou tirets.",
+    "teamOwner": "SteamID64 du propriétaire",
+    "teamOwnerHelp": "Un joueur qui s'est déjà connecté.",
+    "create": "Créer",
+    "teamCreated": "{name} est créée.",
+    "noTeams": "Aucune équipe pour l'instant.",
+    "teamMembers": "Membres",
+    "teamCreatedOn": "Créée",
+    "errorTeamName": "Donne un nom de 1 à 64 caractères."
   },
   "viewer": {
     "title": "Round {round}",
@@ -1448,5 +1472,123 @@
       "text": "La démo montre un compte complet, sans inscription : rapports, matchs, viewer, progression et formules."
     },
     "footer": "Untraded, analyseur et coach CS2 open source."
+  },
+  "teams": {
+    "context": "L'équipe, ses pages et ton rôle",
+    "overview": "Accueil",
+    "members": "Membres",
+    "yourRole": "Ton rôle : {role}",
+    "roles": {
+      "owner": "Propriétaire",
+      "coach": "Coach",
+      "player": "Joueur",
+      "viewer": "Observateur"
+    },
+    "roster": "Roster",
+    "starters": "Titulaires",
+    "standins": "Remplaçants",
+    "others": "Autres membres",
+    "rosterEmpty": "Personne n'est encore au roster.",
+    "rosterLead": "Un match compte pour l'équipe quand trois joueurs du roster l'ont joué du même côté.",
+    "membersCount": "{count, plural, one {# membre} other {# membres}}",
+    "soon": "La suite",
+    "soonText": "Les matchs de l'équipe, ses stats tactiques et la review arrivent ici dans les prochaines étapes de la bêta équipe.",
+    "you": "toi",
+    "joined": "Arrivée le {date}",
+    "role": "Rôle",
+    "apply": "Appliquer",
+    "roleOf": "Rôle de {name}",
+    "remove": "Retirer",
+    "removeConfirm": "Retirer {name} de l'équipe ?",
+    "removeYes": "Oui, retirer",
+    "cancel": "Annuler",
+    "makeStarter": "Titulaire",
+    "makeStandin": "Remplaçant",
+    "offRoster": "Hors roster",
+    "rosterOf": "Place de {name} au roster",
+    "place": {
+      "starter": "Titulaire",
+      "standin": "Remplaçant"
+    },
+    "invitations": "Invitations",
+    "invitationsLead": "Toute personne qui a le lien peut entrer après s'être connectée avec Steam et avoir accepté le consentement. Un lien dure 7 jours.",
+    "inviteRole": "Rôle donné",
+    "inviteUses": "Usages",
+    "inviteUsesHint": "De 1 à 20 personnes",
+    "createLink": "Créer un lien",
+    "linkReady": "Voici le lien. Copie-le maintenant : il ne sera plus montré.",
+    "link": "Lien d'invitation",
+    "copyLink": "Copier le lien",
+    "copied": "Copié",
+    "noInvitations": "Aucun lien actif.",
+    "invitationLine": "{role}, {uses} sur {max} utilisés, jusqu'au {date}",
+    "revoke": "Révoquer",
+    "revokeConfirm": "Révoquer ce lien ? Il cesse de marcher tout de suite.",
+    "revokeYes": "Oui, révoquer",
+    "leave": "Quitter l'équipe",
+    "leaveLead": "Tu perds l'accès à l'équipe tout de suite. Pour revenir, il te faudra une nouvelle invitation.",
+    "leaveConfirm": "Quitter {team} ?",
+    "leaveYes": "Oui, quitter",
+    "lastOwner": "Tu es le seul propriétaire de l'équipe : passe la main à un autre membre avant de partir.",
+    "handOver": "Passer la main",
+    "handOverLead": "Le membre choisi devient propriétaire. Ton propre rôle peut changer avec.",
+    "handOverTo": "Nouveau propriétaire",
+    "handOverButton": "Passer la main",
+    "handOverConfirm": "Faire de ce membre le propriétaire ? Seul ce membre pourra te la rendre.",
+    "handOverYes": "Oui, passer la main",
+    "handOverNobody": "Aucun autre membre à qui passer la main pour l'instant.",
+    "readOnly": "La démo publique est en lecture seule : rien ne peut être changé ici.",
+    "done": {
+      "role": "Rôle changé.",
+      "removed": "Membre retiré.",
+      "roster": "Roster mis à jour.",
+      "revoked": "Lien révoqué.",
+      "owner": "L'équipe a un nouveau propriétaire."
+    },
+    "errors": {
+      "forbidden": "Ton rôle ne le permet pas.",
+      "role_too_high": "Tu ne peux donner ni un rôle plus fort que le tien, ni celui de propriétaire.",
+      "last_owner": "L'équipe doit garder un propriétaire : passe la main d'abord.",
+      "not_a_member": "Cette personne n'est pas membre de l'équipe.",
+      "team_not_found": "Cette équipe n'existe pas, ou tu n'en es pas membre.",
+      "read_only": "La démo publique est en lecture seule.",
+      "max_uses": "Choisis entre 1 et 20 usages.",
+      "invitation_invalid": "Ce lien ne marche plus : il a expiré, servi jusqu'au bout ou été révoqué.",
+      "already_member": "Tu es déjà membre de cette équipe.",
+      "consent_required": "Accepte d'abord le consentement.",
+      "slug_taken": "Cette adresse est déjà prise.",
+      "slug_invalid": "De 3 à 32 lettres minuscules, chiffres ou tirets, pas de la forme u-chiffres.",
+      "owner_unknown": "Aucun joueur avec ce SteamID ne s'est encore connecté.",
+      "failed": "Ça n'a pas marché. Réessaie dans un instant."
+    },
+    "join": {
+      "title": "Invitation d'équipe",
+      "invited": "On t'invite à rejoindre {team}.",
+      "roleLine": "Rôle : {role}",
+      "expires": "Le lien marche jusqu'au {date}.",
+      "lead": "C'est toi qui décides : rien ne se passe avant que tu appuies sur le bouton.",
+      "signIn": "Se connecter avec Steam",
+      "signInLead": "Connecte-toi d'abord avec Steam. Tu reviens sur cette page pour confirmer.",
+      "consentLead": "Avant d'entrer, lis et accepte le consentement : il dit ce qu'Untraded fait de tes matchs.",
+      "consentButton": "Lire le consentement",
+      "joinButton": "Rejoindre {team}",
+      "demo": "La démo publique ne peut pas rejoindre d'équipe.",
+      "already": "Tu es déjà membre de cette équipe.",
+      "invalidTitle": "Ce lien ne marche plus",
+      "invalidText": "Il a expiré, servi jusqu'au bout ou été révoqué. Demande-en un nouveau à l'équipe.",
+      "home": "Retour à l'accueil"
+    },
+    "share": {
+      "title": "Équipes",
+      "lead": "Tes matchs joués avec le roster de l'équipe comptent pour elle de toute façon. Tes matchs solo ne sont partagés que si tu le choisis.",
+      "hint": "{team} verra tes matchs solo comme les voit un joueur du match. Jamais tes sessions, tes conseils, tes votes ni tes moyennes.",
+      "failed": "Le réglage n'a pas pu être enregistré.",
+      "labelFor": "Partager mes matchs solo avec {team}"
+    },
+    "switcher": {
+      "label": "Espace",
+      "personal": "Mon espace"
+    },
+    "handOverPick": "Choisis un membre"
   }
 }

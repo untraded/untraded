@@ -18,6 +18,8 @@ export interface MoreSheetProps {
     admin: string | null;
     /** The team mode preview, admins only too, with its badge. */
     team: string | null;
+    /** The player's teams, by name: the phone's way to reach each of them. */
+    teams: { key: string; name: string; href: string }[];
     preview: string;
     signOut: string;
   };

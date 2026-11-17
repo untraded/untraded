@@ -1045,6 +1045,428 @@ HEALTH_STATES: dict[str, dict[str, Any]] = {
 }
 
 
+# Teams, as in `docs/contrat-api-equipes.md` (QG) and `apps/api` once it serves them. Two teams
+# hold the signed-in player: Northwind, where they are the owner (with a coach, five starters,
+# a stand-in and a viewer), and Ashgrove, where they only view. `/mock/teams/<state>` switches
+# them: `owner` (the default), `coach` (Northwind has another owner), `viewer` (Ashgrove only) or
+# `none` (no team). Invitation links: `mock-valid` joins Harbor Five as a player, `mock-member`
+# points to a team they are already in (409), any other token is invalid (404). Signing in with
+# `/auth/steam?team_invite=<token>` comes back to `/join/<token>`. A refusal carries its code as
+# `{"detail": {"reason": code}}`, like `uploads.py`.
+PERMISSIONS = [
+    "matches.read", "matches.upload", "review.comment", "review.manage", "roster.edit",
+    "members.manage", "settings.edit", "team.delete",
+]  # fmt: skip
+DEFAULT_ROLES = {
+    "owner": ["*"],
+    "coach": ["matches.read", "matches.upload", "review.comment", "review.manage", "roster.edit", "members.manage"],
+    "player": ["matches.read", "matches.upload", "review.comment"],
+    "viewer": ["matches.read"],
+}  # fmt: skip
+ROLE_ORDER = list(DEFAULT_ROLES)
+ME_USER = mock_id(9, 1)
+
+
+def roles_of(team_n: int) -> list[dict[str, Any]]:
+    return [
+        {"id": mock_id(20 + team_n, i), "name": name, "permissions": perms}
+        for i, (name, perms) in enumerate(DEFAULT_ROLES.items())
+    ]
+
+
+def member(
+    team_n: int, n: int, name: str, role: str, roster: str | None, days: int
+) -> dict[str, Any]:
+    me_ = n == 0
+    return {
+        "user_id": ME_USER if me_ else mock_id(30 + team_n, n),
+        "steam_id": ME if me_ else str(76561190000000200 + team_n * 20 + n),
+        "display_name": "you" if me_ else name,
+        "_role": role,
+        "joined_at": iso(NOW - dt.timedelta(days=days)),
+        "roster": roster,
+    }
+
+
+def build_teams(state: str) -> dict[str, dict[str, Any]]:
+    my_role = {"owner": "owner", "coach": "coach"}.get(state)
+    northwind = [
+        member(1, 1, "Kestrel", "coach" if my_role == "owner" else "owner", None, 40),
+        member(1, 2, "Brindle", "player", "starter", 38),
+        member(1, 3, "Oxide", "player", "starter", 38),
+        member(1, 4, "Tamsin", "player", "starter", 30),
+        member(1, 5, "Vireo", "player", "starter", 21),
+        member(1, 6, "Quill", "player", "standin", 12),
+        member(1, 7, "Marlow", "viewer", None, 3),
+    ]
+    if my_role:
+        northwind.insert(
+            0, member(1, 0, "you", my_role, "starter" if my_role == "owner" else None, 41)
+        )
+    else:
+        northwind[3]["roster"] = "starter"
+    ashgrove = [
+        member(2, 1, "Juno", "owner", "starter", 60),
+        member(2, 2, "Pike", "player", "starter", 58),
+        member(2, 3, "Wren", "player", "starter", 50),
+        member(2, 4, "Sable", "coach", None, 45),
+    ]
+    if state != "none":
+        ashgrove.append(member(2, 0, "you", "viewer", None, 9))
+    harbor = [
+        member(3, 1, "Corvid", "owner", "starter", 20),
+        member(3, 2, "Lark", "player", "starter", 18),
+    ]
+    teams = {
+        "northwind": (1, "Northwind", northwind, 41),
+        "ashgrove": (2, "Ashgrove Academy", ashgrove, 61),
+        "harbor-five": (3, "Harbor Five", harbor, 21),
+    }
+    return {
+        slug: {
+            "id": mock_id(10, n),
+            "name": name,
+            "slug": slug,
+            "created_at": iso(NOW - dt.timedelta(days=days)),
+            "_n": n,
+            "_members": members,
+            "_share": False,
+        }
+        for slug, (n, name, members, days) in teams.items()
+    }
+
+
+TEAM_STATES = ("owner", "coach", "viewer", "none")
+TEAMS: dict[str, dict[str, Any]] = build_teams("owner")
+INVITATIONS: list[dict[str, Any]] = []
+INVITE_TOKENS = {"mock-valid": "harbor-five", "mock-member": "northwind"}
+
+
+def reset_teams(state: str) -> None:
+    TEAMS.clear()
+    TEAMS.update(build_teams(state))
+    INVITATIONS.clear()
+    if state in ("owner", "coach"):
+        INVITATIONS.append(invitation(TEAMS["northwind"], "player", 5, uses=2, days=2))
+
+
+def invitation(
+    team: dict[str, Any], role: str, max_uses: int, *, uses: int = 0, days: int = 0
+) -> dict[str, Any]:
+    created = NOW - dt.timedelta(days=days)
+    return {
+        "id": str(uuid.uuid4()),
+        "_team": team["slug"],
+        "role": role_named(team, role),
+        "max_uses": max_uses,
+        "uses": uses,
+        "expires_at": iso(created + dt.timedelta(days=7)),
+        "created_at": iso(created),
+    }
+
+
+def role_named(team: dict[str, Any], name: str) -> dict[str, Any]:
+    return next(r for r in roles_of(team["_n"]) if r["name"] == name)
+
+
+def role_by_id(team: dict[str, Any], role_id: str) -> dict[str, Any] | None:
+    return next((r for r in roles_of(team["_n"]) if r["id"] == role_id), None)
+
+
+def mine(team: dict[str, Any]) -> dict[str, Any] | None:
+    return next((m for m in team["_members"] if m["user_id"] == ME_USER), None)
+
+
+def can(team: dict[str, Any], permission: str) -> bool:
+    found = mine(team)
+    if found is None:
+        return False
+    perms = DEFAULT_ROLES[found["_role"]]
+    return "*" in perms or permission in perms
+
+
+def stronger(name: str, than: str) -> bool:
+    """A role the player may not give: the owner's, or one with a permission they lack."""
+    if name == "owner":
+        return True
+    mine_ = DEFAULT_ROLES[than]
+    return "*" not in mine_ and not set(DEFAULT_ROLES[name]) <= set(mine_)
+
+
+ROSTER_ORDER = {"starter": 0, "standin": 1, None: 2}
+
+
+def team_member(team: dict[str, Any], m: dict[str, Any]) -> dict[str, Any]:
+    public = {k: v for k, v in m.items() if not k.startswith("_")}
+    own = m["user_id"] == ME_USER
+    return public | {
+        "role": role_named(team, m["_role"]),
+        "share_solo": team["_share"] if own else None,
+    }
+
+
+def team_out(team: dict[str, Any]) -> dict[str, Any]:
+    found = mine(team)
+    assert found is not None
+    members = sorted(
+        team["_members"], key=lambda m: (ROSTER_ORDER[m["roster"]], m["display_name"].lower())
+    )
+    return {
+        "id": team["id"],
+        "name": team["name"],
+        "slug": team["slug"],
+        "created_at": team["created_at"],
+        "my_role": role_named(team, found["_role"]),
+        "roles": roles_of(team["_n"]),
+        "members": [team_member(team, m) for m in members],
+    }
+
+
+def workspaces() -> list[dict[str, Any]]:
+    personal = {
+        "id": mock_id(11, 0),
+        "kind": "personal",
+        "name": "you",
+        "slug": f"u-{ME}",
+        "role": "owner",
+        "permissions": ["*"],
+    }
+    teams = [
+        {
+            "id": t["id"],
+            "kind": "team",
+            "name": t["name"],
+            "slug": t["slug"],
+            "role": found["_role"],
+            "permissions": DEFAULT_ROLES[found["_role"]],
+        }
+        for t in TEAMS.values()
+        if (found := mine(t))
+    ]
+    return [personal, *teams]
+
+
+def admin_team(team: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "id": team["id"],
+        "name": team["name"],
+        "slug": team["slug"],
+        "members": len(team["_members"]),
+        "created_at": team["created_at"],
+    }
+
+
+def refused(handler: Handler, status: int, code: str) -> None:
+    return handler.reply(status, {"detail": {"reason": code}})
+
+
+def team_get(handler: Handler, path: str) -> bool:
+    """The team routes read with GET; `False` when the path is none of them."""
+    if found := re.fullmatch(r"/team-invitations/([^/]+)", path):
+        slug = INVITE_TOKENS.get(urllib.parse.unquote(found[1]))
+        if slug is None or slug not in TEAMS:
+            refused(handler, 404, "invitation_invalid")
+            return True
+        team = TEAMS[slug]
+        handler.reply(
+            200,
+            {
+                "team_name": team["name"],
+                "role": "player",
+                "expires_at": iso(NOW + dt.timedelta(days=5)),
+            },
+        )
+        return True
+    if not path.startswith("/teams/"):
+        return False
+    if not handler.signed_in():
+        handler.reply(401, {"detail": "not signed in"})
+        return True
+    found = re.fullmatch(r"/teams/([^/]+)(/invitations)?", path)
+    team = TEAMS.get(urllib.parse.unquote(found[1]).lower()) if found else None
+    if found is None or team is None or mine(team) is None:
+        refused(handler, 404, "team_not_found")
+        return True
+    if found[2]:
+        if not can(team, "members.manage"):
+            refused(handler, 403, "forbidden")
+            return True
+        active = [
+            {k: v for k, v in i.items() if not k.startswith("_")}
+            for i in INVITATIONS
+            if i["_team"] == team["slug"]
+        ]
+        handler.reply(200, active)
+        return True
+    handler.reply(200, team_out(team))
+    return True
+
+
+def team_write(handler: Handler, method: str, path: str, body: dict[str, Any]) -> bool:
+    """The team routes that write; `False` when the path is none of them."""
+    if method == "POST" and (found := re.fullmatch(r"/team-invitations/([^/]+)/accept", path)):
+        slug = INVITE_TOKENS.get(urllib.parse.unquote(found[1]))
+        if slug is None or slug not in TEAMS:
+            refused(handler, 404, "invitation_invalid")
+        elif not (
+            ME_STATE["consent"]
+            and ME_STATE["consent"]["analysis"]
+            and ME_STATE["consent"]["text_version"] == CONSENT_VERSION
+        ):
+            refused(handler, 403, "consent_required")
+        elif mine(TEAMS[slug]):
+            refused(handler, 409, "already_member")
+        else:
+            TEAMS[slug]["_members"].append(member(3, 0, "you", "player", None, 0))
+            handler.reply(200, {"slug": slug})
+        return True
+    if method == "POST" and path == "/admin/teams":
+        if not ME_STATE["admin"]:
+            handler.reply(404, {"detail": "not found"})
+            return True
+        name = str(body.get("name", "")).strip()
+        slug = str(body.get("slug", "")).strip().lower()
+        owner = str(body.get("owner_steam_id", "")).strip()
+        if not name or len(name) > 64:
+            handler.reply(422, {"detail": {"field": "name"}})
+        elif not re.fullmatch(r"[a-z0-9-]{3,32}", slug) or re.fullmatch(r"u-\d+", slug):
+            refused(handler, 422, "slug_invalid")
+        elif slug in TEAMS:
+            refused(handler, 409, "slug_taken")
+        elif owner != ME and not any(p["steam_id"] == owner for p in PLAYERS if p["joined_at"]):
+            refused(handler, 422, "owner_unknown")
+        else:
+            n = 100 + len(TEAMS)
+            owner_name = next((p["display_name"] for p in PLAYERS if p["steam_id"] == owner), "you")
+            first = member(n, 0 if owner == ME else 1, owner_name, "owner", None, 0)
+            first["steam_id"] = owner
+            TEAMS[slug] = {
+                "id": mock_id(10, n),
+                "name": name,
+                "slug": slug,
+                "created_at": iso(dt.datetime.now(dt.UTC)),
+                "_n": n,
+                "_members": [first],
+                "_share": False,
+            }
+            handler.reply(201, admin_team(TEAMS[slug]))
+        return True
+    found = re.fullmatch(r"/teams/([^/]+)(/.*)?", path)
+    if found is None:
+        return False
+    team = TEAMS.get(urllib.parse.unquote(found[1]).lower())
+    if team is None or mine(team) is None:
+        refused(handler, 404, "team_not_found")
+        return True
+    rest = found[2] or ""
+    me_member = mine(team)
+    assert me_member is not None
+    my_role = me_member["_role"]
+    owners = [m for m in team["_members"] if m["_role"] == "owner"]
+
+    def target(user_id: str) -> dict[str, Any] | None:
+        return next((m for m in team["_members"] if m["user_id"] == user_id), None)
+
+    if rest == "" and method == "PATCH":
+        if not can(team, "settings.edit"):
+            refused(handler, 403, "forbidden")
+            return True
+        team["name"] = str(body.get("name", team["name"])).strip() or team["name"]
+        handler.reply(200, team_out(team))
+    elif rest == "" and method == "DELETE":
+        if not can(team, "team.delete"):
+            refused(handler, 403, "forbidden")
+            return True
+        del TEAMS[team["slug"]]
+        handler.reply(202)
+    elif (m := re.fullmatch(r"/members/([^/]+)", rest)) and method == "PATCH":
+        who = target(m[1])
+        role = role_by_id(team, str(body.get("role_id", "")))
+        if not can(team, "members.manage"):
+            refused(handler, 403, "forbidden")
+        elif who is None or role is None:
+            handler.reply(422, {"detail": {"field": "role_id"}})
+        elif stronger(role["name"], my_role) or (who["_role"] == "owner" and my_role != "owner"):
+            refused(handler, 403, "role_too_high")
+        elif who["_role"] == "owner" and len(owners) == 1:
+            refused(handler, 409, "last_owner")
+        else:
+            who["_role"] = role["name"]
+            handler.reply(200, team_member(team, who))
+    elif (m := re.fullmatch(r"/members/([^/]+)", rest)) and method == "DELETE":
+        who = target(m[1])
+        if who is None:
+            handler.reply(404, {"detail": "no such member"})
+        elif who is not me_member and not can(team, "members.manage"):
+            refused(handler, 403, "forbidden")
+        elif who is not me_member and who["_role"] == "owner" and my_role != "owner":
+            refused(handler, 403, "role_too_high")
+        elif who["_role"] == "owner" and len(owners) == 1:
+            refused(handler, 409, "last_owner")
+        else:
+            team["_members"].remove(who)
+            handler.reply(204)
+    elif rest == "/owner" and method == "POST":
+        who = target(str(body.get("user_id", "")))
+        if my_role != "owner":
+            refused(handler, 403, "forbidden")
+        elif who is None:
+            refused(handler, 404, "not_a_member")
+        else:
+            who["_role"] = "owner"
+            me_member["_role"] = "coach"
+            handler.reply(200, team_out(team))
+    elif rest == "/invitations" and method == "POST":
+        role = role_by_id(team, str(body.get("role_id", "")))
+        uses = body.get("max_uses")
+        if not can(team, "members.manage"):
+            refused(handler, 403, "forbidden")
+        elif role is None:
+            handler.reply(422, {"detail": {"field": "role_id"}})
+        elif stronger(role["name"], my_role):
+            refused(handler, 403, "role_too_high")
+        elif not isinstance(uses, int) or not 1 <= uses <= 20:
+            handler.reply(422, {"detail": {"field": "max_uses"}})
+        else:
+            made = invitation(team, role["name"], uses)
+            INVITATIONS.insert(0, made)
+            out = {k: v for k, v in made.items() if not k.startswith("_")}
+            # The token is shown once; every token but `mock-valid` and `mock-member` is invalid.
+            handler.reply(201, out | {"token": f"mock-{uuid.uuid4().hex}"})
+    elif (m := re.fullmatch(r"/invitations/([^/]+)", rest)) and method == "DELETE":
+        if not can(team, "members.manage"):
+            refused(handler, 403, "forbidden")
+        else:
+            INVITATIONS[:] = [
+                i for i in INVITATIONS if not (i["id"] == m[1] and i["_team"] == team["slug"])
+            ]
+            handler.reply(204)
+    elif (m := re.fullmatch(r"/roster/(\d+)", rest)) and method in ("PUT", "DELETE"):
+        who = next((x for x in team["_members"] if x["steam_id"] == m[1]), None)
+        if not can(team, "roster.edit"):
+            refused(handler, 403, "forbidden")
+        elif who is None:
+            refused(handler, 404, "not_a_member")
+        elif method == "PUT":
+            if body.get("role") not in ("starter", "standin"):
+                handler.reply(422, {"detail": {"field": "role"}})
+            else:
+                who["roster"] = body["role"]
+                handler.reply(200, team_member(team, who))
+        else:
+            who["roster"] = None
+            handler.reply(204)
+    elif rest == "/share-solo" and method == "PUT":
+        team["_share"] = bool(body.get("share"))
+        handler.reply(204)
+    else:
+        handler.reply(404, {"detail": "not found"})
+    return True
+
+
+reset_teams("owner")
+
+
 def find_source(source_id: str) -> dict[str, Any] | None:
     return next((p for p in PLAYERS if p["source"] and p["source"]["id"] == source_id), None)
 
@@ -1093,12 +1515,22 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(303, headers={"location": f"{WEB}/", "set-cookie": cookie})
         if path == "/auth/steam":
             cookie = f"{COOKIE}=mock; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000"
-            return self.reply(303, headers={"location": f"{WEB}/", "set-cookie": cookie})
+            # A team invitation link comes back to its page, where nothing is joined yet.
+            invite = urllib.parse.parse_qs(query).get("team_invite", [""])[0]
+            back = f"{WEB}/join/{urllib.parse.quote(invite, safe='')}" if invite else f"{WEB}/"
+            return self.reply(303, headers={"location": back, "set-cookie": cookie})
+        if team_get(self, path):
+            return None
         if not self.signed_in():
             return self.reply(401, {"detail": "not signed in"})
         if found := re.fullmatch(r"/mock/state/(\w+)", path):
             if not set_state(found[1]):
                 return self.reply(404, {"detail": f"states: {', '.join(STATES)}"})
+            return self.reply(303, headers={"location": f"{WEB}/"})
+        if found := re.fullmatch(r"/mock/teams/(\w+)", path):
+            if found[1] not in TEAM_STATES:
+                return self.reply(404, {"detail": f"states: {', '.join(TEAM_STATES)}"})
+            reset_teams(found[1])
             return self.reply(303, headers={"location": f"{WEB}/"})
         if found := re.fullmatch(r"/mock/health/(\w+)", path):
             if found[1] not in HEALTH_STATES:
@@ -1109,8 +1541,11 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/me":
             if self.demo():
                 demo = me() | STATES["followed"] | {"admin": False, "can_add_source": False}
-                return self.reply(200, demo | {"display_name": "demo", "demo": True})
-            return self.reply(200, me() | {"demo": False})
+                # The demo sees the teams too, to check that no page offers it a write.
+                return self.reply(
+                    200, demo | {"display_name": "demo", "demo": True, "workspaces": workspaces()}
+                )
+            return self.reply(200, me() | {"demo": False, "workspaces": workspaces()})
         if found := re.fullmatch(r"/uploads/faceit/(1-[0-9a-f-]{36})", path):
             # The match's start, as FACEIT's Data API gives it (#139): two hours ago here.
             played = dt.datetime.now(dt.UTC).replace(microsecond=0) - dt.timedelta(hours=2)
@@ -1130,6 +1565,10 @@ class Handler(BaseHTTPRequestHandler):
                     "max_bytes": UPLOAD_MAX,
                 },
             )
+        if path == "/admin/teams":
+            if not ME_STATE["admin"]:
+                return self.reply(404, {"detail": "not found"})
+            return self.reply(200, [admin_team(t) for t in TEAMS.values()])
         if path.startswith("/admin/") and not ME_STATE["admin"]:
             return self.reply(403, {"detail": "admins only"})
         if path == "/admin/players":
@@ -1194,7 +1633,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         if self.demo() and not self.path.startswith("/auth/logout"):
-            return self.reply(403, {"detail": "demo"})
+            return refused(self, 403, "read_only")
         path, _, query = self.path.partition("?")
         if path == "/uploads":
             if not self.signed_in():
@@ -1209,6 +1648,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(204, headers={"set-cookie": f"{COOKIE}=; Path=/; Max-Age=0"})
         if not self.signed_in():
             return self.reply(401, {"detail": "not signed in"})
+        if team_write(self, "POST", path, body):
+            return None
         if self.path == "/me/erase":
             if body.get("confirm") is not True:
                 return self.reply(422, {"detail": {"field": "confirm"}})
@@ -1262,10 +1703,12 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_PUT(self) -> None:
         if self.demo() and not self.path.startswith("/auth/logout"):
-            return self.reply(403, {"detail": "demo"})
+            return refused(self, 403, "read_only")
         body = read_body(self)
         if not self.signed_in():
             return self.reply(401, {"detail": "not signed in"})
+        if team_write(self, "PUT", self.path, body):
+            return None
         if self.path != "/me/source":
             return self.reply(404, {"detail": "not found"})
         if not ME_STATE["can_add_source"]:
@@ -1290,9 +1733,11 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_DELETE(self) -> None:
         if self.demo() and not self.path.startswith("/auth/logout"):
-            return self.reply(403, {"detail": "demo"})
+            return refused(self, 403, "read_only")
         if not self.signed_in():
             return self.reply(401, {"detail": "not signed in"})
+        if team_write(self, "DELETE", self.path, {}):
+            return None
         if not ME_STATE["admin"]:
             return self.reply(403, {"detail": "admins only"})
         if found := re.fullmatch(r"/admin/players/(\d+)", self.path):
@@ -1324,6 +1769,16 @@ class Handler(BaseHTTPRequestHandler):
                 owner["state"] = "consented"
             return self.reply(204)
         return self.reply(404, {"detail": "not found"})
+
+    def do_PATCH(self) -> None:
+        if self.demo():
+            return refused(self, 403, "read_only")
+        body = read_body(self)
+        if not self.signed_in():
+            return self.reply(401, {"detail": "not signed in"})
+        if not team_write(self, "PATCH", self.path, body):
+            self.reply(404, {"detail": "not found"})
+        return None
 
     def log_message(self, *_: object) -> None:
         pass

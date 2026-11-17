@@ -24,6 +24,7 @@ export function MoreSheetPopup({ labels, defaultOpen, focusTrigger }: MoreSheetP
   const Settings = SECTIONS.settings.icon;
   const Admin = SECTIONS.admin.icon;
   const Team = SECTIONS.team.icon;
+  const MyTeam = SECTIONS.teams.icon;
   const Formulas = SECTIONS.formulas.icon;
   const Send = SECTIONS.upload.icon;
   const Trend = SECTIONS.progress.icon;
@@ -49,6 +50,12 @@ export function MoreSheetPopup({ labels, defaultOpen, focusTrigger }: MoreSheetP
           <Send aria-hidden="true" />
           {labels.upload}
         </Link>
+        {labels.teams.map((team) => (
+          <Link key={team.key} href={team.href} className={row} onClick={() => setOpen(false)}>
+            <MyTeam aria-hidden="true" />
+            <span className="min-w-0 truncate">{team.name}</span>
+          </Link>
+        ))}
         {labels.team && (
           <Link href={SECTIONS.team.href} className={row} onClick={() => setOpen(false)}>
             <Team aria-hidden="true" />

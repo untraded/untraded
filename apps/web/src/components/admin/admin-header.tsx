@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 import { ContextBar } from "@/components/ui/context-bar";
 
 /**
- * The admin's context bar, which also holds its title: "Admin", its two pages (the current one
+ * The admin's context bar, which also holds its title: "Admin", its pages (the current one
  * marked by a filled tab with a rule under it and `aria-current`, not the colour alone), and at
  * the right what the page sums up (counts on Players, the worst state on Health).
  */
@@ -14,13 +14,14 @@ export async function AdminHeader({
   current,
   children,
 }: {
-  current: "players" | "health";
+  current: "players" | "teams" | "health";
   /** The page's summary, at the right of the bar. */
   children?: ReactNode;
 }) {
   const t = await getTranslations("admin");
   const tabs = [
     { key: "players", href: "/admin", label: t("players") },
+    { key: "teams", href: "/admin/teams", label: t("teams") },
     { key: "health", href: "/admin/health", label: t("health") },
   ] as const;
   return (

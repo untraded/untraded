@@ -16,6 +16,7 @@ import {
   signOut,
   withdrawConsent,
 } from "@/app/actions";
+import { setShareSolo } from "@/app/teams/actions";
 import { Choice } from "@/components/choice";
 import { CodesForm } from "@/components/codes-form";
 import { codesLabels } from "@/components/codes-labels";
@@ -32,9 +33,10 @@ import {
   TONE_COOKIE,
   TONES,
 } from "@/i18n/locale";
-import { getMe, type Me } from "@/lib/api";
+import { findTeam, getMe, type Me } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { dateTime } from "@/lib/format";
+import { teamsOf } from "@/lib/teams";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getTranslations("settings"))("title") };
@@ -49,7 +51,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function Settings({
   searchParams,
 }: {
-  searchParams: Promise<{ erase?: string }>;
+  searchParams: Promise<{ erase?: string; share?: string }>;
 }) {
   const [me, t, advice, store, locale, params] = await Promise.all([
     getMe(),
@@ -102,6 +104,7 @@ export default async function Settings({
         <>
           <ConsentPanel me={me} />
           <FollowPanel me={me} />
+          {teamsOf(me).length > 0 && <TeamsPanel me={me} failed={params.share === "failed"} />}
         </>
       )}
       <Panel title={t("account")}>
@@ -117,7 +120,7 @@ export default async function Settings({
           </form>
         </div>
       </Panel>
-      {!me.demo && <ErasePanel failed={params.erase === "failed"} />}
+      {!me.demo && <ErasePanel refusal={params.erase} />}
     </section>
   );
 }
@@ -260,13 +263,72 @@ async function FollowPanel({ me }: { me: Me }) {
   );
 }
 
+/**
+ * Whether each of the player's teams sees their solo matches, team by team (off by default). The
+ * value is read from each team; a team the API cannot give is left out.
+ */
+async function TeamsPanel({ me, failed }: { me: Me; failed: boolean }) {
+  const t = await getTranslations("teams");
+  const s = await getTranslations("settings");
+  const teams = await Promise.all(teamsOf(me).map((w) => findTeam(w.slug)));
+  const segment =
+    "h-7 rounded-sm px-2.5 text-[0.8125rem] text-muted-foreground hover:text-foreground aria-pressed:bg-muted aria-pressed:font-medium aria-pressed:text-foreground";
+  return (
+    <section id="teams" aria-label={t("share.title")}>
+      <Panel title={t("share.title")} flush>
+        <p className="px-3.5 py-3 text-[0.8125rem] text-muted-foreground">{t("share.lead")}</p>
+        {failed && (
+          <p role="alert" className="px-3.5 pb-3 text-sm text-destructive">
+            {t("share.failed")}
+          </p>
+        )}
+        {teams.map((team) => {
+          const shared = team?.members.find((m) => m.steam_id === me.steam_id)?.share_solo;
+          if (!team || shared === null || shared === undefined) return null;
+          const label = t("share.labelFor", { team: team.name });
+          return (
+            <form
+              key={team.id}
+              action={setShareSolo}
+              className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2.5 border-t border-line-soft px-3.5 py-3"
+            >
+              <input type="hidden" name="slug" value={team.slug} />
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold break-words">{label}</h3>
+                <p className="max-w-prose text-[0.8125rem] text-muted-foreground">
+                  {t("share.hint", { team: team.name })}
+                </p>
+              </div>
+              <fieldset className="m-0 inline-flex shrink-0 rounded-md border border-border bg-card p-0.5">
+                <legend className="sr-only">{label}</legend>
+                {(["on", "off"] as const).map((value) => (
+                  <button
+                    key={value}
+                    type="submit"
+                    name="share"
+                    value={value}
+                    aria-pressed={shared === (value === "on")}
+                    className={segment}
+                  >
+                    {s(value === "on" ? "yes" : "no")}
+                  </button>
+                ))}
+              </fieldset>
+            </form>
+          );
+        })}
+      </Panel>
+    </section>
+  );
+}
+
 /** The player's right to erasure: what goes, what stays, and that it is final. */
-async function ErasePanel({ failed }: { failed: boolean }) {
+async function ErasePanel({ refusal }: { refusal: string | undefined }) {
   const t = await getTranslations("settings");
   const items = Object.keys(t.raw("eraseItems") as Record<string, string>);
   return (
     // A named region, as before: a screen reader can jump to it (`Panel` names none).
-    <section aria-label={t("eraseTitle")} className="mt-4">
+    <section id="erase" aria-label={t("eraseTitle")} className="mt-4">
       <Panel
         title={t("eraseTitle")}
         className="border-destructive/40"
@@ -282,9 +344,9 @@ async function ErasePanel({ failed }: { failed: boolean }) {
           <p className="text-muted-foreground">{t("eraseShared")}</p>
           <p className="font-semibold">{t("eraseFinal")}</p>
         </div>
-        {failed && (
+        {(refusal === "failed" || refusal === "owner") && (
           <p role="alert" className="text-sm text-destructive">
-            {t("eraseFailed")}
+            {t(refusal === "owner" ? "eraseOwner" : "eraseFailed")}
           </p>
         )}
         <form action={eraseMe} className="flex flex-col items-start gap-2">

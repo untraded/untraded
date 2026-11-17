@@ -51,6 +51,89 @@ export interface Me {
   can_add_source: boolean;
   /** The public demo account: anonymized matches, read-only (`/auth/demo`). */
   demo?: boolean;
+  /** The player's workspaces: their own first, then their teams. Absent from an API that
+   * predates teams. */
+  workspaces?: WorkspaceRef[];
+}
+
+/** A workspace the player belongs to, with their role in it and what that role may do. */
+export interface WorkspaceRef {
+  id: string;
+  kind: "personal" | "team";
+  name: string;
+  slug: string;
+  /** The role's name: `owner`, `coach`, `player` and `viewer` are translated, any other shows
+   * as is. */
+  role: string;
+  /** The role's permissions; `*` stands for all of them. */
+  permissions: string[];
+}
+
+/** A named permission of a team role (`*` grants them all). */
+export type TeamPermission =
+  | "*"
+  | "matches.read"
+  | "matches.upload"
+  | "review.comment"
+  | "review.manage"
+  | "roster.edit"
+  | "members.manage"
+  | "settings.edit"
+  | "team.delete";
+
+export interface Role {
+  id: string;
+  name: string;
+  permissions: string[];
+}
+
+export interface TeamMember {
+  user_id: string;
+  steam_id: string;
+  display_name: string;
+  role: Role;
+  joined_at: string;
+  roster: "starter" | "standin" | null;
+  /** Whether the player shares their solo matches with the team: set for the player themself
+   * only, `null` for everyone else. */
+  share_solo: boolean | null;
+}
+
+export interface Team {
+  id: string;
+  name: string;
+  slug: string;
+  created_at: string;
+  my_role: Role;
+  roles: Role[];
+  /** The roster first (starters, then stand-ins), then the other members, by name. */
+  members: TeamMember[];
+}
+
+export interface TeamInvitation {
+  id: string;
+  role: Role;
+  max_uses: number;
+  uses: number;
+  expires_at: string;
+  created_at: string;
+  /** In the answer that creates it only: the link is shown once, never read back. */
+  token?: string;
+}
+
+/** What an invitation link shows before joining: nothing about the members. */
+export interface InvitationPreview {
+  team_name: string;
+  role: string;
+  expires_at: string;
+}
+
+export interface AdminTeam {
+  id: string;
+  name: string;
+  slug: string;
+  members: number;
+  created_at: string;
 }
 
 export type PlayerState = "invited" | "joined" | "consented" | "followed" | "paused" | "withdrawn";
@@ -265,13 +348,15 @@ export interface ApiResult {
   ok: boolean;
   status: number;
   detail: unknown;
+  /** The body of a success, parsed (`null` when there is none or it is not JSON). */
+  data?: unknown;
 }
 
 /** Sends a write to the API with the session cookie, and says how it went. A server that does
  * not answer reads as a 503. */
 export async function apiSend(
   path: string,
-  method: "POST" | "PUT" | "DELETE",
+  method: "POST" | "PUT" | "PATCH" | "DELETE",
   body?: unknown,
 ): Promise<ApiResult> {
   const headers: Record<string, string> = await sessionHeader();
@@ -283,14 +368,16 @@ export async function apiSend(
       body: body === undefined ? null : JSON.stringify(body),
       cache: "no-store",
     });
-    const text = response.ok ? "" : await response.text();
-    let detail: unknown = null;
+    const text = await response.text();
+    let parsed: unknown = null;
     try {
-      detail = text ? (JSON.parse(text) as { detail?: unknown }).detail : null;
+      parsed = text ? JSON.parse(text) : null;
     } catch {
-      detail = null;
+      parsed = null;
     }
-    return { ok: response.ok, status: response.status, detail };
+    if (response.ok) return { ok: true, status: response.status, detail: null, data: parsed };
+    const detail = (parsed as { detail?: unknown } | null)?.detail ?? null;
+    return { ok: false, status: response.status, detail };
   } catch {
     return { ok: false, status: 503, detail: null };
   }
@@ -300,6 +387,15 @@ export async function apiSend(
 export function refusedField(result: ApiResult): string | null {
   const detail = result.detail as { field?: unknown } | null;
   return result.status === 422 && typeof detail?.field === "string" ? detail.field : null;
+}
+
+/** The stable code a refusal carries (`slug_taken`, `forbidden`…): its `detail` as a string, or
+ * its `reason` as `uploads.py` sends it. `null` when there is none. */
+export function refusalCode(result: ApiResult): string | null {
+  const { detail } = result;
+  if (typeof detail === "string") return /^[a-z_]+$/.test(detail) ? detail : null;
+  const reason = (detail as { reason?: unknown } | null)?.reason;
+  return typeof reason === "string" ? reason : null;
 }
 
 /** POST to the API with the session cookie, and a JSON body if given. */
@@ -516,6 +612,35 @@ export const findSessions = (offset = 0) =>
 export const findMatches = (offset = 0) =>
   apiGetOptional<MatchList>(`/matches?limit=30&offset=${offset}`);
 export const getUploads = () => apiGet<UploadList>("/uploads");
+
+/** A team the player belongs to: the 404 page otherwise (the API answers alike for a team that
+ * does not exist and one they are not in). */
+export const getTeam = (slug: string) => apiGet<Team>(`/teams/${encodeURIComponent(slug)}`);
+/** A team the page can do without: `null` when it is missing or the API fails. */
+export const findTeam = (slug: string) =>
+  apiGetOptional<Team>(`/teams/${encodeURIComponent(slug)}`);
+/** A team's active invitations, for those who manage its members: `null` otherwise. */
+export const findTeamInvitations = (slug: string) =>
+  apiGetOptional<TeamInvitation[]>(`/teams/${encodeURIComponent(slug)}/invitations`);
+export const getAdminTeams = () => apiGet<AdminTeam[]>("/admin/teams");
+
+/**
+ * What an invitation link leads to, read without signing in: its preview, or `null` when the
+ * link is invalid (unknown, expired, used up or revoked: the API does not say which). Throws when
+ * the API fails otherwise, so that a broken API does not read as a dead link.
+ */
+export const findInvitation = cache(async function findInvitation(
+  token: string,
+): Promise<InvitationPreview | null> {
+  const response = await fetch(
+    `${internalApiUrl()}/team-invitations/${encodeURIComponent(token)}`,
+    { cache: "no-store" },
+  );
+  // A token the API cannot even read (422) is as dead as an unknown one.
+  if (response.status === 404 || response.status === 422) return null;
+  if (!response.ok) throw new ApiError(`API team invitation: HTTP ${response.status}`);
+  return (await response.json()) as InvitationPreview;
+});
 
 /** How many pages of matches the match page reads at most for the player's previous matches (30
  * per page). */

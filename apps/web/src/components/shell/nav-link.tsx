@@ -15,6 +15,7 @@ export function NavLink({
   short,
   badge,
   place,
+  href: to,
 }: {
   section: Section;
   label: string;
@@ -23,9 +24,12 @@ export function NavLink({
   /** A word after the label, e.g. "Preview" for a mock-up. */
   badge?: string;
   place: "rail" | "tab";
+  /** Where the link goes, when not the section's own address (the player's team). */
+  href?: string;
 }) {
   const current = sectionOf(usePathname()) === section;
-  const { href, icon: Icon } = SECTIONS[section];
+  const { icon: Icon } = SECTIONS[section];
+  const href = to ?? SECTIONS[section].href;
   if (place === "tab") {
     return (
       <Link

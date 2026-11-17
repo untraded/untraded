@@ -27,14 +27,16 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function Welcome({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; next?: string }>;
 }) {
   const me = await getMe();
   if (!me) redirect("/");
+  const { error, next: asked } = await searchParams;
+  // Where the consent leads back to: a team invitation link, and nothing else.
+  const next = asked && /^\/join\/[A-Za-z0-9_%.~-]{1,300}$/.test(asked) ? asked : null;
   const step = onboardingStep(me);
-  if (step === null) redirect("/");
+  if (step === null) redirect(next ?? "/");
   const t = await getTranslations("welcome");
-  const { error } = await searchParams;
   const steps = [
     { key: "consent", label: t("stepConsent") },
     { key: "codes", label: t("stepCodes") },
@@ -70,7 +72,7 @@ export default async function Welcome({
           ))}
         </ol>
       </div>
-      {step === "consent" ? <ConsentStep me={me} error={error} /> : null}
+      {step === "consent" ? <ConsentStep me={me} error={error} next={next} /> : null}
       {step === "codes" ? (
         <Panel title={t("stepCodes")} bodyClassName="flex flex-col gap-4 sm:px-5 sm:py-4">
           <p className="max-w-prose text-[0.9375rem]">{t("codesLead")}</p>
@@ -89,9 +91,12 @@ export default async function Welcome({
 async function ConsentStep({
   me,
   error,
+  next,
 }: {
   me: NonNullable<Awaited<ReturnType<typeof getMe>>>;
   error: string | undefined;
+  /** Where to go once consented (a team invitation link), instead of the next step here. */
+  next: string | null;
 }) {
   const t = await getTranslations("welcome");
   const text = await getTranslations("consent");
@@ -136,7 +141,7 @@ async function ConsentStep({
       <Panel title={text(`v${version}.agree`)} bodyClassName="sm:px-5 sm:py-4">
         <form action={giveConsent} className="flex flex-col gap-3">
           <input type="hidden" name="text_version" value={version} />
-          <input type="hidden" name="next" value="/welcome" />
+          <input type="hidden" name="next" value={next ?? "/welcome"} />
           {box("analysis", true, "box1", false)}
           {box("research_corpus", false, "box2", me.consent?.research_corpus ?? false)}
           {error && (

@@ -4,7 +4,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { apiSend, refusedField } from "@/lib/api";
+import { apiSend, refusalCode, refusedField } from "@/lib/api";
 
 export type InviteState = {
   error: "steam_id" | "display_name" | "exists" | "failed" | null;
@@ -103,4 +103,48 @@ export async function erasePlayer(formData: FormData): Promise<void> {
       ? "/admin?erased=1"
       : `/admin?erase=${result.status === 404 ? "missing" : result.status === 409 ? "self" : "failed"}`,
   );
+}
+
+export type CreateTeamState = {
+  error:
+    | "name"
+    | "slug_invalid"
+    | "slug_taken"
+    | "owner_format"
+    | "owner_unknown"
+    | "failed"
+    | null;
+  /** The name of the team just created, to confirm it. */
+  created: string | null;
+  name: string;
+  slug: string;
+  owner_steam_id: string;
+};
+
+/** Creates a team and names its owner, a player who has signed in already. */
+export async function createTeam(_: CreateTeamState, formData: FormData): Promise<CreateTeamState> {
+  const body = {
+    name: String(formData.get("name") ?? "").trim(),
+    slug: String(formData.get("slug") ?? "")
+      .trim()
+      .toLowerCase(),
+    owner_steam_id: String(formData.get("owner_steam_id") ?? "").trim(),
+  };
+  if (!body.name || body.name.length > 64) return { error: "name", created: null, ...body };
+  if (!/^\d{17}$/.test(body.owner_steam_id)) {
+    return { error: "owner_format", created: null, ...body };
+  }
+  const result = await apiSend("/admin/teams", "POST", body);
+  if (!result.ok) {
+    const code = refusalCode(result);
+    const error =
+      code === "slug_invalid" || code === "slug_taken" || code === "owner_unknown"
+        ? code
+        : refusedField(result) === "name"
+          ? "name"
+          : "failed";
+    return { error, created: null, ...body };
+  }
+  revalidatePath("/admin/teams");
+  return { error: null, created: body.name, name: "", slug: "", owner_steam_id: "" };
 }
