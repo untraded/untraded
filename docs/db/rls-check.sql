@@ -84,6 +84,12 @@ END;
 $$;
 GRANT EXECUTE ON FUNCTION denied(text) TO untraded_api;
 
+-- Every SECURITY DEFINER function searches the caller's temporary tables last (0016).
+SELECT expect('definer functions without pg_temp last', (
+    SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public' AND p.prosecdef
+      AND NOT coalesce('search_path=pg_catalog, public, pg_temp' = ANY (p.proconfig), false)), 0);
+
 SET LOCAL ROLE untraded_api;
 
 -- Sign-in: only invited Steam accounts (with a user) get a session.

@@ -231,6 +231,11 @@ BEGIN
     IF NOT has_permission(w, 'team.delete') THEN
         PERFORM team_refuse('forbidden');
     END IF;
+    -- The members' accounts first, in a stable order, as an erasure locks its account first.
+    PERFORM 1 FROM app_user u
+    WHERE u.id IN (SELECT user_id FROM membership WHERE workspace_id = w)
+    ORDER BY u.id
+    FOR SHARE;
     DELETE FROM workspace WHERE id = w AND kind = 'team';
 END;
 $$;
