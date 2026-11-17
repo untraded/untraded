@@ -10,7 +10,9 @@ as `download` does. A file that is not a usable demo makes the match `unavailabl
 upload `rejected` with a code the site shows (`not_a_demo`, `corrupt`, `too_large`).
 
 After the parse, an upload whose player is not in the match is rejected too (`not_a_player`,
-in `jobs.ParseJob`): Untraded analyses the matches of its players only.
+in `jobs.ParseJob`): Untraded analyses the matches of its players only. A demo sent for a team
+(its workspace's source) needs 3 players of its roster on the date of the match, on the same
+side (`not_enough_roster`) instead.
 """
 
 from __future__ import annotations

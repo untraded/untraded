@@ -302,7 +302,8 @@ def rename_team(slug: Slug, body: RenameIn, conn: ConnDep, user: UserDep) -> Tea
 @router.delete("/teams/{slug}", status_code=status.HTTP_202_ACCEPTED)
 def delete_team(slug: Slug, conn: ConnDep) -> None:
     """Deletes the team (`team.delete`): its roles, members, roster and invitations. The matches
-    stay their players'."""
+    stay their players', except those the team sent for itself: the worker deletes them, unless
+    they count for a registered user or another source brought them too."""
     team = team_id(conn, slug)
     with refusals():
         conn.execute("SELECT delete_team(%s)", (team,))

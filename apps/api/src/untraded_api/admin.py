@@ -236,19 +236,28 @@ def _source(conn: AdminDep, source_id: uuid.UUID, sql: str) -> None:
 
 @router.post("/sources/{source_id}/pause", status_code=status.HTTP_204_NO_CONTENT)
 def pause(source_id: uuid.UUID, conn: AdminDep) -> None:
-    _source(conn, source_id, "UPDATE ingest_source SET enabled = false WHERE id = %s")
+    _source(
+        conn,
+        source_id,
+        "UPDATE ingest_source SET enabled = false WHERE id = %s AND workspace_id IS NULL",
+    )
 
 
 @router.post("/sources/{source_id}/resume", status_code=status.HTTP_204_NO_CONTENT)
 def resume(source_id: uuid.UUID, conn: AdminDep) -> None:
-    _source(conn, source_id, "UPDATE ingest_source SET enabled = true WHERE id = %s")
+    _source(
+        conn,
+        source_id,
+        "UPDATE ingest_source SET enabled = true WHERE id = %s AND workspace_id IS NULL",
+    )
 
 
 @router.delete("/sources/{source_id}", status_code=status.HTTP_204_NO_CONTENT)
 def remove(source_id: uuid.UUID, conn: AdminDep) -> None:
     """Stops following the player and deletes their encrypted code. Their matches, their
     account and their access to the site stay."""
-    _source(conn, source_id, "DELETE FROM ingest_source WHERE id = %s")
+    # A team's upload source goes with the team only (`delete_team` deletes its matches too).
+    _source(conn, source_id, "DELETE FROM ingest_source WHERE id = %s AND workspace_id IS NULL")
 
 
 class Dump(BaseModel):
