@@ -205,12 +205,13 @@ def import_demo_team(
             log.info("demo team match %s loaded as %s", match_id, loaded)
             done += 1
 
-    # Everyone in these matches replays a real player: none of them goes into the references.
+    # Everyone in these matches replays a real player, and the team's people are invented: none
+    # of them goes into the references.
     conn.execute(
         "UPDATE player SET benchmark_opt_out = true WHERE steam_id IN ("
         "SELECT mp.steam_id FROM match_player mp JOIN match m ON m.id = mp.match_id "
-        "WHERE m.sha256 = ANY (%s))",
-        ([str(e["match_id"]) for e in entries],),
+        "WHERE m.sha256 = ANY (%s)) OR steam_id = ANY (%s)",
+        ([str(e["match_id"]) for e in entries], sorted(known)),
     )
     _review(conn, team, manifest, users)
     return done
