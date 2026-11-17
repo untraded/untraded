@@ -56,5 +56,10 @@ describe("upload", () => {
     expect(sendError(502, '{"detail":"the API did not answer"}')).toBe("network");
     expect(sendError(0, "")).toBe("network");
     expect(sendError(500, "oops")).toBe("unknown");
+    // A team's upload (E4).
+    expect(sendError(409, '{"detail":{"reason":"not_enough_roster"}}')).toBe("not_enough_roster");
+    expect(sendError(403, '{"detail":{"reason":"forbidden"}}')).toBe("forbidden");
+    expect(sendError(404, '{"detail":{"reason":"team_not_found"}}')).toBe("team_not_found");
+    expect(sendError(403, '{"detail":"demo"}')).toBe("forbidden");
   });
 });

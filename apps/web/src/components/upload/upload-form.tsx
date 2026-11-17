@@ -45,7 +45,8 @@ export interface UploadLabels {
   progress: string;
   done: string;
   aborted: string;
-  errors: Record<SendError, string>;
+  /** A message per error the page can meet; `unknown` stands in for the others. */
+  errors: Partial<Record<SendError, string>> & { unknown: string };
 }
 
 type Phase =
@@ -61,18 +62,21 @@ type Phase =
  * `POST /api/uploads` with a progress bar: `XMLHttpRequest`, since `fetch` reports no upload
  * progress. A refusal known before sending (`disabled`) is said by the page, above. It sits in
  * the page's panel: the drop zone, or the file with its mode and date, then what became of it,
- * tied to the control it is about (`aria-describedby`).
+ * tied to the control it is about (`aria-describedby`). With `team` (a slug), the demo is sent for
+ * that team (`?team=`): it counts for the team alone.
  */
 export function UploadForm({
   maxBytes,
   disabled,
   locale,
   labels,
+  team,
 }: {
   maxBytes: number;
   disabled: boolean;
   locale: Locale;
   labels: UploadLabels;
+  team?: string;
 }) {
   const router = useRouter();
   const ids = useId();
@@ -135,6 +139,7 @@ export function UploadForm({
     const playedAt = fromLocalInput(date);
     if (!playedAt) return setPhase({ kind: "error", file, error: "date" });
     const query = new URLSearchParams({ name: file.name, mode, played_at: playedAt });
+    if (team) query.set("team", team);
     const xhr = new XMLHttpRequest();
     request.current = xhr;
     xhr.open("POST", `${PUBLIC_API_PATH}/uploads?${query}`);
@@ -185,7 +190,7 @@ export function UploadForm({
   const dateError = phase.kind === "error" && phase.error === "date";
   const message =
     phase.kind === "error"
-      ? labels.errors[phase.error]
+      ? (labels.errors[phase.error] ?? labels.errors.unknown)
       : phase.kind === "done"
         ? labels.done
         : phase.kind === "aborted"

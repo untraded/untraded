@@ -61,6 +61,7 @@ describe("teams", () => {
 
   it("builds its addresses safely", () => {
     expect(teamHref("north wind", "members")).toBe("/teams/north%20wind/members");
+    expect(teamHref("northwind", "upload")).toBe("/teams/northwind/upload");
     expect(joinPath("a/b?c")).toBe("/join/a%2Fb%3Fc");
     expect(validTeamParam("Northwind-2")).toBe(true);
     expect(validTeamParam("../admin")).toBe(false);

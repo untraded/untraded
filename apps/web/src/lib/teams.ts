@@ -43,8 +43,8 @@ export function defaultInviteRole(roles: readonly Role[]): Role | undefined {
   return roles.find((r) => r.name === "player") ?? roles[0];
 }
 
-/** A team's address on the site. */
-export function teamHref(slug: string, page?: "members"): string {
+/** A team's address on the site, or one of its pages. */
+export function teamHref(slug: string, page?: "members" | "upload"): string {
   return `/teams/${encodeURIComponent(slug)}${page ? `/${page}` : ""}`;
 }
 

@@ -32,6 +32,7 @@
       "teamMembers": "Membres"
     },
     "teamHome": "Accueil",
+    "teamUpload": "Envoyer un match",
     "teamMembers": "Membres"
   },
   "dashboard": {
@@ -128,15 +129,51 @@
     "openMatch": "Ouvrir le match",
     "mapUnknown": "Carte pas encore connue",
     "received": "envoyée {date}",
+    "receivedBy": "envoyée {date} par {name}",
+    "receivedFormer": "envoyée {date} par un ancien membre",
     "reasons": {
       "not_a_demo": "Ce fichier n'est pas une démo CS2.",
       "corrupt": "La démo est abîmée ou incomplète : télécharge-la à nouveau, puis renvoie-la.",
       "too_large": "La démo décompressée est trop grande.",
       "unsupported_mode": "Ce n'est pas un match analysé ici (Compétitif ou Wingman) : seuls Premier, FACEIT, ESEA et les scrims le sont.",
       "not_a_player": "Tu ne joues pas dans ce match : seuls tes propres matchs sont analysés.",
-      "parse_failed": "L'analyse a échoué. Tu peux la renvoyer ; si ça recommence, signale-le."
+      "parse_failed": "L'analyse a échoué. Tu peux la renvoyer ; si ça recommence, signale-le.",
+      "not_enough_roster": "Moins de 3 joueurs inscrits au roster de l'équipe à la date indiquée ont joué du même côté. Vérifie le roster et la date, puis renvoie-la."
     },
     "cta": "Envoyer une démo"
+  },
+  "teamUpload": {
+    "title": "Envoyer un match",
+    "lead": "Les scrims et les matchs officiels FACEIT et ESEA de l'équipe : le match va à l'équipe, et à elle seule. Il n'entre dans les sessions de personne, pas même dans celles de la personne qui l'envoie. Un coach qui n'a pas joué peut l'envoyer.",
+    "rule": "3 joueurs du roster, même côté",
+    "readOnly": "Ton rôle permet de lire les envois de l'équipe, pas d'en faire. Demande à un coach ou au propriétaire.",
+    "openRoster": "Ouvrir le roster",
+    "dateHint": "Remplie d'après le fichier : souvent la date du téléchargement, pas celle du match. Le roster est lu à cette date : corrige-la si besoin.",
+    "dateFaceit": "Date reprise de FACEIT. Le roster est lu à cette date.",
+    "done": "Démo reçue. L'analyse prend quelques minutes : suis-la dans les envois de l'équipe, plus bas.",
+    "history": "Les envois de l'équipe",
+    "empty": "Aucun match envoyé pour l'équipe pour l'instant.",
+    "refusals": {
+      "not_enough_roster": {
+        "title": "Il faut au moins 3 joueurs au roster",
+        "text": "Un match compte pour l'équipe quand 3 joueurs de son roster l'ont joué du même côté. Ajoute d'abord les joueurs au roster : ils doivent avoir rejoint l'équipe et accepté l'analyse."
+      },
+      "quota": {
+        "title": "L'équipe a atteint la limite d'envois du jour",
+        "text": "L'équipe pourra en envoyer d'autres demain."
+      },
+      "busy": {
+        "title": "Trop de démos de l'équipe sont en cours d'analyse",
+        "text": "Attends qu'une analyse se termine, puis envoie la suivante."
+      }
+    },
+    "errors": {
+      "quota": "L'équipe a atteint la limite d'envois du jour. Réessaie demain.",
+      "busy": "Trop de démos de l'équipe sont en cours d'analyse. Attends qu'une se termine.",
+      "forbidden": "Ton rôle ne permet pas d'envoyer des matchs pour l'équipe.",
+      "not_enough_roster": "Il faut au moins 3 joueurs au roster, qui ont rejoint l'équipe et accepté l'analyse.",
+      "team_not_found": "Tu n'es plus membre de cette équipe."
+    }
   },
   "progress": {
     "title": "Progression",

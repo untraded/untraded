@@ -56,7 +56,12 @@ export type SendError =
   | "off"
   | "date"
   | "network"
-  | "unknown";
+  | "unknown"
+  /** A team's upload only: the role may not send, the roster cannot pass the rule, or the
+   * sender is no longer a member. */
+  | "forbidden"
+  | "not_enough_roster"
+  | "team_not_found";
 
 const REASONS = new Set<string>([
   "not_a_demo",
@@ -65,6 +70,9 @@ const REASONS = new Set<string>([
   "quota",
   "busy",
   "disk_full",
+  "forbidden",
+  "not_enough_roster",
+  "team_not_found",
 ]);
 
 /** The failure of `POST /api/uploads`, from its status and body (`{detail: {reason}}`). */
@@ -79,6 +87,8 @@ export function sendError(status: number, body: string): SendError {
   if (typeof reason === "string" && REASONS.has(reason)) return reason as SendError;
   if (field === "played_at") return "date";
   if (status === 413) return "too_large";
+  if (status === 403) return "forbidden";
+  if (status === 404) return "team_not_found";
   if (status === 409) return "consent";
   if (status === 507) return "disk_full";
   if (status === 503) return "off";
