@@ -14,6 +14,7 @@ export interface MoreSheetProps {
     settings: string;
     /** The player's own pages: null in a team's space, whose sheet leaves them out. */
     progress: string | null;
+    /** In a team's space: its own upload page (`uploadHref`), for members who may send. */
     upload: string | null;
     formulas: string;
     admin: string | null;
@@ -22,6 +23,8 @@ export interface MoreSheetProps {
     preview: string;
     signOut: string;
   };
+  /** Where the upload entry goes, when not the player's own upload page (a team's). */
+  uploadHref?: string;
 }
 
 const popup = lazyModule(() => import("./more-sheet-popup").then((m) => m.MoreSheetPopup));

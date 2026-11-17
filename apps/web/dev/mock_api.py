@@ -755,6 +755,12 @@ def player_metrics(match_id: str, steam_id: str) -> dict[str, Any]:
 # processed for 20 s, then its file name decides what became of it: `notademo`, `corrupt`,
 # `compet` (Competitive), `notme` (the player is not in it) or `broken` (parsing failed); any
 # other name becomes a match.
+#
+# A team's uploads (`POST /uploads?team=<slug>`, `GET /teams/<slug>/uploads`, E4 contract in the
+# QG): Northwind has three, by its coach and its players. `/mock/team-uploads/<refusal>` sets why
+# a team's new demo would be refused (`not_enough_roster`, `quota`, `busy`, `consent`, or
+# `none`); a viewer is refused (`forbidden`) whatever it says. A team demo named `short` is
+# refused after its analysis (`not_enough_roster`: fewer than 3 of the roster on one side).
 UPLOAD_MAX = 400_000_000
 UPLOAD_SUFFIXES = (".dem.bz2", ".dem.gz", ".dem.zst", ".dem")
 UPLOAD_STATUS = {"off": 503, "disk_full": 507, "consent": 409, "quota": 429, "busy": 429}
@@ -765,7 +771,8 @@ UPLOAD_OUTCOMES = {
     "notme": "not_a_player",
     "broken": "parse_failed",
 }
-UPLOAD_STATE: dict[str, Any] = {"refusal": None}
+UPLOAD_STATE: dict[str, Any] = {"refusal": None, "team_refusal": None}
+TEAM_UPLOAD_STATUS = {"not_enough_roster": 409, "quota": 429, "busy": 429, "consent": 409}
 PROCESSING = dt.timedelta(seconds=20)
 
 
@@ -791,8 +798,53 @@ UPLOADS = [
 ]
 
 
+TEAM_UPLOADS: dict[str, list[dict[str, Any]]] = {
+    "northwind": [
+        upload(6, "ready", "scrim", 1) | {"sent_by": "Kestrel"},
+        upload(7, "not_enough_roster", "scrim", 2) | {"sent_by": "Brindle"},
+        upload(8, "ready", "esea", 5) | {"sent_by": None},  # a sender since erased
+    ],
+}
+
+
+def team_upload_refusal(team: dict[str, Any]) -> str | None:
+    """Why the signed-in member may not send a demo for the team now (`GET` and `POST`)."""
+    if UPLOAD_STATE["refusal"] in ("off", "disk_full"):
+        return str(UPLOAD_STATE["refusal"])
+    if not can(team, "matches.upload"):
+        return "forbidden"
+    refusal = UPLOAD_STATE["team_refusal"]
+    return None if refusal is None else str(refusal)
+
+
+def team_uploads_get(handler: Handler, path: str) -> bool:
+    """`GET /teams/<slug>/uploads`; `False` for any other path."""
+    found = re.fullmatch(r"/teams/([^/]+)/uploads", path)
+    if found is None:
+        return False
+    if not handler.signed_in():
+        handler.reply(401, {"detail": "not signed in"})
+        return True
+    team = TEAMS.get(urllib.parse.unquote(found[1]).lower())
+    if team is None or mine(team) is None:
+        refused(handler, 404, "team_not_found")
+        return True
+    if not can(team, "matches.read"):
+        refused(handler, 403, "forbidden")
+        return True
+    handler.reply(
+        200,
+        {
+            "items": [upload_line(u) for u in TEAM_UPLOADS.get(team["slug"], [])],
+            "refusal": team_upload_refusal(team),
+            "max_bytes": UPLOAD_MAX,
+        },
+    )
+    return True
+
+
 def upload_line(item: dict[str, Any]) -> dict[str, Any]:
-    line = {k: v for k, v in item.items() if not k.startswith("_")}
+    line = {"sent_by": None} | {k: v for k, v in item.items() if not k.startswith("_")}
     outcome = item["_outcome"]
     if dt.datetime.now(dt.UTC) < item["_ready_at"]:
         return line | {"state": "processing", "reason": None, "map": None}
@@ -818,6 +870,16 @@ def receive_upload(handler: Handler, query: str) -> None:
         played = None
     if played is None or played.tzinfo is None:
         return handler.reply(422, {"detail": {"field": "played_at"}})
+    team = None
+    if "team" in args:
+        team = TEAMS.get(urllib.parse.unquote(args["team"]).lower())
+        if team is None or mine(team) is None:
+            return handler.reply(404, {"detail": {"reason": "team_not_found"}})
+        refusal = team_upload_refusal(team)
+        if refusal == "forbidden":
+            return handler.reply(403, {"detail": {"reason": "forbidden"}})
+        if refusal in TEAM_UPLOAD_STATUS:
+            return handler.reply(TEAM_UPLOAD_STATUS[refusal], {"detail": {"reason": refusal}})
     if refusal:
         return handler.reply(UPLOAD_STATUS[refusal], {"detail": {"reason": refusal}})
     if not name.lower().endswith(UPLOAD_SUFFIXES):
@@ -830,11 +892,14 @@ def receive_upload(handler: Handler, query: str) -> None:
         if not chunk:
             break
         left -= len(chunk)
-    outcome = next((o for key, o in UPLOAD_OUTCOMES.items() if key in name.lower()), "ready")
-    n = len(UPLOADS)
+    outcomes = UPLOAD_OUTCOMES | ({"short": "not_enough_roster"} if team else {})
+    outcome = next((o for key, o in outcomes.items() if key in name.lower()), "ready")
+    if team and outcome == "not_a_player":
+        outcome = "not_enough_roster"  # a team's demo needs its roster, not its sender
+    n = len(UPLOADS) + sum(len(items) for items in TEAM_UPLOADS.values())
     match = MATCHES[1 + n % 10]
     item = {
-        "upload_id": mock_id(5, n),
+        "upload_id": mock_id(5, 100 + n),  # clear of the seeded ones
         "match_id": match["id"],
         "received_at": iso(dt.datetime.now(dt.UTC)),
         "mode": args["mode"],
@@ -843,6 +908,9 @@ def receive_upload(handler: Handler, query: str) -> None:
         "_outcome": outcome,
         "_ready_at": dt.datetime.now(dt.UTC) + PROCESSING,
     }
+    if team is not None:
+        TEAM_UPLOADS.setdefault(team["slug"], []).insert(0, item | {"sent_by": "you"})
+        return handler.reply(202, {"upload_id": item["upload_id"]})
     UPLOADS.insert(0, item)
     return handler.reply(202, {"upload_id": item["upload_id"]})
 
@@ -1533,6 +1601,8 @@ class Handler(BaseHTTPRequestHandler):
             invite = urllib.parse.parse_qs(query).get("team_invite", [""])[0]
             back = f"{WEB}/join/{urllib.parse.quote(invite, safe='')}" if invite else f"{WEB}/"
             return self.reply(303, headers={"location": back, "set-cookie": cookie})
+        if team_uploads_get(self, path):
+            return None
         if team_get(self, path):
             return None
         if not self.signed_in():
@@ -1570,6 +1640,14 @@ class Handler(BaseHTTPRequestHandler):
                 return self.reply(404, {"detail": f"refusals: none, {', '.join(UPLOAD_STATUS)}"})
             UPLOAD_STATE["refusal"] = choice
             return self.reply(303, headers={"location": f"{WEB}/upload"})
+        if found := re.fullmatch(r"/mock/team-uploads/(\w+)", path):
+            choice = None if found[1] == "none" else found[1]
+            if choice is not None and choice not in TEAM_UPLOAD_STATUS:
+                return self.reply(
+                    404, {"detail": f"refusals: none, {', '.join(TEAM_UPLOAD_STATUS)}"}
+                )
+            UPLOAD_STATE["team_refusal"] = choice
+            return self.reply(303, headers={"location": f"{WEB}/teams/northwind/upload"})
         if path == "/uploads":
             return self.reply(
                 200,

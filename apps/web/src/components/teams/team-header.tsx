@@ -12,7 +12,14 @@ import { roleLabel } from "./role-label";
  * marked by a filled tab with a rule under it and `aria-current`, not the colour alone), and at
  * the right the player's role and the team's size.
  */
-export async function TeamHeader({ team, current }: { team: Team; current: "home" | "members" }) {
+export async function TeamHeader({
+  team,
+  current,
+}: {
+  team: Team;
+  /** The page shown: a tab is marked only for the pages the bar lists. */
+  current: "home" | "members" | "upload";
+}) {
   const t = await getTranslations("teams");
   const tabs = [
     { key: "home", href: teamHref(team.slug), label: t("overview") },

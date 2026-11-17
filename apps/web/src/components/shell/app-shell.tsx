@@ -9,7 +9,7 @@ import { roleLabel } from "@/components/teams/role-label";
 import type { Me, WorkspaceRef } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { initials, PERSONAL_SPACE } from "@/lib/space";
-import { isDefaultRole, teamHref, teamsOf } from "@/lib/teams";
+import { allows, isDefaultRole, teamHref, teamsOf } from "@/lib/teams";
 import { AccountMenu } from "./account-menu";
 import { MoreSheet } from "./more-sheet";
 import { RAIL_MOTION } from "./nav";
@@ -200,6 +200,15 @@ export async function AppShell({
                     short={t("short.teamHome")}
                     place="rail"
                   />
+                  {sendsMatches(w) && (
+                    <NavLink
+                      section="upload"
+                      href={teamHref(w.slug, "upload")}
+                      label={t("teamUpload")}
+                      short={t("short.upload")}
+                      place="rail"
+                    />
+                  )}
                   <div className="mt-auto flex flex-col gap-0.5">
                     <NavLink
                       section="teams"
@@ -283,7 +292,15 @@ export async function AppShell({
                   label={t("teamMembers")}
                   place="tab"
                 />
-                <MoreSheet labels={{ ...moreLabels, progress: null, upload: null, team: null }} />
+                <MoreSheet
+                  labels={{
+                    ...moreLabels,
+                    progress: null,
+                    upload: sendsMatches(w) ? t("teamUpload") : null,
+                    team: null,
+                  }}
+                  uploadHref={teamHref(w.slug, "upload")}
+                />
               </div>,
             ]),
           )}
@@ -291,6 +308,12 @@ export async function AppShell({
       </nav>
     </div>
   );
+}
+
+/** Whether the team's upload page is for this member: they send its matches and read them (the
+ * page lists the team's uploads). A viewer reaches the history by its address only. */
+function sendsMatches(w: WorkspaceRef): boolean {
+  return allows(w.permissions, "matches.upload") && allows(w.permissions, "matches.read");
 }
 
 /** The player's own space, then each team's, as the switch lists them. */

@@ -14,7 +14,12 @@ import { SECTIONS } from "./nav";
 import { PreviewBadge } from "./preview-badge";
 
 /** The "More" panel itself, loaded by `MoreSheet` on first use. */
-export function MoreSheetPopup({ labels, defaultOpen, focusTrigger }: MoreSheetProps & LazyStart) {
+export function MoreSheetPopup({
+  labels,
+  uploadHref,
+  defaultOpen,
+  focusTrigger,
+}: MoreSheetProps & LazyStart) {
   const [open, setOpen] = useState(defaultOpen);
   const [, startTransition] = useTransition();
   const trigger = useRef<HTMLButtonElement>(null);
@@ -48,7 +53,11 @@ export function MoreSheetPopup({ labels, defaultOpen, focusTrigger }: MoreSheetP
           </Link>
         )}
         {labels.upload && (
-          <Link href={SECTIONS.upload.href} className={row} onClick={() => setOpen(false)}>
+          <Link
+            href={uploadHref ?? SECTIONS.upload.href}
+            className={row}
+            onClick={() => setOpen(false)}
+          >
             <Send aria-hidden="true" />
             {labels.upload}
           </Link>

@@ -271,7 +271,16 @@ export interface PlayerMetrics {
 }
 
 /** Why a demo sent now would be refused, before sending it (`GET /uploads`). */
-export type UploadRefusal = "off" | "disk_full" | "consent" | "quota" | "busy";
+export type UploadRefusal =
+  | "off"
+  | "disk_full"
+  | "consent"
+  | "quota"
+  | "busy"
+  /** A team's only: the member's role may not send (`matches.upload`). */
+  | "forbidden"
+  /** A team's only: fewer than 3 consenting registered players were ever on its roster. */
+  | "not_enough_roster";
 
 /** A demo the player sent, and what became of it. */
 export interface UploadLine {
@@ -284,8 +293,11 @@ export interface UploadLine {
   played_at: string | null;
   state: "processing" | "ready" | "refused" | "failed";
   /** Why it was refused or failed: `not_a_demo`, `corrupt`, `too_large`, `unsupported_mode`,
-   * `not_a_player`, `parse_failed`. */
+   * `not_a_player`, `parse_failed`; for a team's, `not_enough_roster` instead of `not_a_player`. */
   reason: string | null;
+  /** Who sent a team's upload, read in a team's history only: null there once the sender's
+   * account is erased; always null in the player's own list. */
+  sent_by?: string | null;
 }
 
 export interface UploadList {
@@ -612,6 +624,9 @@ export const findSessions = (offset = 0) =>
 export const findMatches = (offset = 0) =>
   apiGetOptional<MatchList>(`/matches?limit=30&offset=${offset}`);
 export const getUploads = () => apiGet<UploadList>("/uploads");
+/** A team's uploads, for a member who reads its matches: the 404 page for anyone else. */
+export const getTeamUploads = (slug: string) =>
+  apiGet<UploadList>(`/teams/${encodeURIComponent(slug)}/uploads`);
 
 /** A team the player belongs to: the 404 page otherwise (the API answers alike for a team that
  * does not exist and one they are not in). */

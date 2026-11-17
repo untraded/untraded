@@ -32,6 +32,7 @@
       "teamMembers": "Members"
     },
     "teamHome": "Home",
+    "teamUpload": "Send a match",
     "teamMembers": "Members"
   },
   "dashboard": {
@@ -128,15 +129,51 @@
     "openMatch": "Open the match",
     "mapUnknown": "Map not known yet",
     "received": "sent {date}",
+    "receivedBy": "sent {date} by {name}",
+    "receivedFormer": "sent {date} by a former member",
     "reasons": {
       "not_a_demo": "This file is not a CS2 demo.",
       "corrupt": "The demo is damaged or incomplete: download it again, then send it again.",
       "too_large": "The decompressed demo is too large.",
       "unsupported_mode": "This is not a match analysed here (Competitive or Wingman): only Premier, FACEIT, ESEA and scrims are.",
       "not_a_player": "You do not play in this match: only your own matches are analysed.",
-      "parse_failed": "The analysis failed. You can send it again; if it happens again, report it."
+      "parse_failed": "The analysis failed. You can send it again; if it happens again, report it.",
+      "not_enough_roster": "Fewer than 3 players on the team's roster at the date given played on the same side. Check the roster and the date, then send it again."
     },
     "cta": "Send a demo"
+  },
+  "teamUpload": {
+    "title": "Send a match",
+    "lead": "The team's scrims and official FACEIT and ESEA matches: the match goes to the team, and to the team only. It enters nobody's own sessions, not even the sender's. A coach who did not play can send it.",
+    "rule": "3 players of the roster, same side",
+    "readOnly": "Your role reads the team's uploads but does not send them. Ask a coach or the owner.",
+    "openRoster": "Open the roster",
+    "dateHint": "Filled in from the file: often the download date, not the match's. The roster is read at this date: fix it if needed.",
+    "dateFaceit": "Date taken from FACEIT. The roster is read at this date.",
+    "done": "Demo received. The analysis takes a few minutes: follow it in the team's uploads, below.",
+    "history": "The team's uploads",
+    "empty": "No match sent for the team yet.",
+    "refusals": {
+      "not_enough_roster": {
+        "title": "The roster needs at least 3 players",
+        "text": "A match counts for the team when 3 players of its roster played it on the same side. Add the players to the roster first; they must have joined the team and accepted the analysis."
+      },
+      "quota": {
+        "title": "The team reached today's upload limit",
+        "text": "The team can send more tomorrow."
+      },
+      "busy": {
+        "title": "Too many of the team's demos are being analysed",
+        "text": "Wait for one analysis to finish, then send the next."
+      }
+    },
+    "errors": {
+      "quota": "The team reached today's upload limit. Try again tomorrow.",
+      "busy": "Too many of the team's demos are being analysed. Wait for one to finish.",
+      "forbidden": "Your role does not allow sending matches for the team.",
+      "not_enough_roster": "The roster needs at least 3 players who joined the team and accepted the analysis.",
+      "team_not_found": "You are no longer a member of this team."
+    }
   },
   "progress": {
     "title": "Progress",

@@ -3,15 +3,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getLocale, getTimeZone, getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { Panel } from "@/components/ui/panel";
 import { RefreshWhile } from "@/components/upload/refresh-while";
 import { UploadForm } from "@/components/upload/upload-form";
+import { UploadRow } from "@/components/upload/upload-row";
 import type { Locale } from "@/i18n/locale";
-import { getMe, getUploads, type UploadLine } from "@/lib/api";
+import { getMe, getUploads } from "@/lib/api";
 import { PUBLIC_API_PATH } from "@/lib/api-path";
-import { cn } from "@/lib/cn";
-import { bytes, dateTime, mapName } from "@/lib/format";
+import { bytes } from "@/lib/format";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getTranslations("upload"))("title") };
@@ -137,58 +137,12 @@ export default async function UploadPage() {
         ) : (
           <ul>
             {list.items.map((item) => (
-              <UploadRow key={item.upload_id} item={item} />
+              <UploadRow key={item.upload_id} item={item} matchHref={`/matches/${item.match_id}`} />
             ))}
           </ul>
         )}
       </Panel>
       <RefreshWhile active={processing} />
     </section>
-  );
-}
-
-async function UploadRow({ item }: { item: UploadLine }) {
-  const t = await getTranslations("upload");
-  const locale = (await getLocale()) as Locale;
-  const timeZone = await getTimeZone();
-  const mode = t.has(`modes.${item.mode}`) ? t(`modes.${item.mode}`) : item.mode;
-  const reason =
-    item.reason && t.has(`reasons.${item.reason}`) ? t(`reasons.${item.reason}`) : null;
-  return (
-    <li className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 border-t border-line-soft px-3.5 py-2.5 first:border-t-0">
-      <div className="min-w-0">
-        <p className="font-semibold">
-          {item.map ? (
-            mapName(item.map)
-          ) : (
-            <span className="font-normal text-muted-foreground">{t("mapUnknown")}</span>
-          )}
-          <span className="font-normal text-muted-foreground"> · {mode}</span>
-        </p>
-        <p className="text-xs text-muted-foreground tabular-nums">
-          {item.played_at && `${dateTime(item.played_at, locale, timeZone)} · `}
-          {t("received", { date: dateTime(item.received_at, locale, timeZone) })}
-        </p>
-      </div>
-      <p
-        className={cn(
-          "self-center text-right text-[0.8125rem]",
-          item.state === "processing" && "text-muted-foreground",
-          (item.state === "refused" || item.state === "failed") && "font-semibold",
-        )}
-      >
-        {item.state === "ready" ? (
-          <Link
-            href={`/matches/${item.match_id}`}
-            className="text-link underline underline-offset-3"
-          >
-            {t("openMatch")}
-          </Link>
-        ) : (
-          t(`states.${item.state}`)
-        )}
-      </p>
-      {reason && <p className="col-span-2 text-[0.8125rem] text-muted-foreground">{reason}</p>}
-    </li>
   );
 }
