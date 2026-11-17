@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 //
 // The app's sections: where they live and which pages belong to them. Admin and the team mode
-// preview show to admins only (`me.admin`); the read-only demo (`me.demo`) shows Upload as a
-// preview of what an account gets.
+// preview show to admins only (`me.admin`), the player's team to its members; the read-only demo
+// (`me.demo`) shows Upload as a preview of what an account gets.
 
 import {
   CalendarDays,
@@ -16,6 +16,7 @@ import {
   TrendingUp,
   Upload,
   Users,
+  UsersRound,
 } from "lucide-react";
 
 export type Section =
@@ -26,6 +27,7 @@ export type Section =
   | "upload"
   | "formulas"
   | "team"
+  | "teams"
   | "admin"
   | "settings";
 
@@ -37,6 +39,8 @@ export const SECTIONS: Record<Section, { href: string; icon: LucideIcon }> = {
   upload: { href: "/upload", icon: Upload },
   formulas: { href: "/formulas", icon: Sigma },
   team: { href: "/team", icon: Users },
+  /** The player's own team; its link names the team (`NavLink`'s `href`). */
+  teams: { href: "/teams", icon: UsersRound },
   admin: { href: "/admin", icon: ShieldCheck },
   settings: { href: "/settings", icon: SlidersHorizontal },
 };
@@ -51,6 +55,7 @@ export function sectionOf(pathname: string): Section | null {
     "upload",
     "formulas",
     "team",
+    "teams",
     "admin",
     "settings",
   ] as const) {

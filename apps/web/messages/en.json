@@ -28,7 +28,8 @@
       "formulas": "Formulas",
       "settings": "Settings",
       "admin": "Admin"
-    }
+    },
+    "myTeam": "My team"
   },
   "dashboard": {
     "title": "Home",
@@ -49,7 +50,10 @@
     "waiting": "We follow your matches",
     "waitingLead": "Your first report arrives after your next Premier session, a few minutes after its last match ends.",
     "waitingUpload": "Meanwhile, you can send a FACEIT, ESEA or scrim demo.",
-    "waitingUploadLink": "Send a demo"
+    "waitingUploadLink": "Send a demo",
+    "notFollowed": "We do not follow your matches yet",
+    "notFollowedLead": "Your team does not need your codes. To get your own reports, give them: our bot then fetches your Premier matches.",
+    "giveCodes": "Give my codes"
   },
   "upload": {
     "title": "Send a demo",
@@ -160,7 +164,9 @@
   },
   "team": {
     "title": "Team",
-    "context": { "label": "The team, its pages and the role it is seen as" },
+    "context": {
+      "label": "The team, its pages and the role it is seen as"
+    },
     "closedFor": "closed to the {role} role",
     "shown": "{shown} of {total}",
     "preview": "Preview: a mock-up of the team mode, invented data.",
@@ -390,7 +396,12 @@
     "erase": "Delete my account and my data",
     "eraseConfirm": "Delete your account and your data for good?",
     "eraseYes": "Yes, delete everything",
-    "eraseFailed": "The deletion could not start. Try again in a moment, or write to the site's operator."
+    "eraseFailed": "The deletion could not start. Try again in a moment, or write to the site's operator.",
+    "eraseOwner": "You own a team: hand it over to another member (team page, Members) before erasing your account. Nothing was erased.",
+    "withdrawTeams": "You also leave your teams.",
+    "withdrawOwner": "You own a team: hand it over to another member (team page, Members) before withdrawing your consent. Nothing changed.",
+    "giveCodes": "Give my codes",
+    "withdrawFailed": "Your consent could not be withdrawn: nothing changed. Try again in a moment."
   },
   "home": {
     "title": "Your CS2 matches, analysed in the open",
@@ -1164,7 +1175,9 @@
     "operator": "This server cannot keep the codes: the site's operator will set up following your matches. There is nothing else to do.",
     "done": "You're set: we follow your matches",
     "doneLead": "Your first report arrives after your next Premier session, a few minutes after its last match ends.",
-    "emailUnset": "contact address not set"
+    "emailUnset": "contact address not set",
+    "codesOptional": "Your team does not need them: you can give them later, from the settings.",
+    "codesLater": "Go to my team"
   },
   "codes": {
     "helpLink": "Open Steam's help page",
@@ -1199,10 +1212,17 @@
   },
   "admin": {
     "title": "Admin",
-    "context": { "label": "Admin, its pages and their state" },
+    "context": {
+      "label": "Admin, its pages and their state"
+    },
     "playersCount": "{count, plural, one {# player} other {# players}}",
     "requestsCount": "{count, plural, one {# invitation request} other {# invitation requests}}",
-    "checks": { "ok": "OK", "warn": "Worth a look", "fail": "Failing", "unknown": "Unknown" },
+    "checks": {
+      "ok": "OK",
+      "warn": "Worth a look",
+      "fail": "Failing",
+      "unknown": "Unknown"
+    },
     "overall": {
       "ok": "All in order",
       "warn": "{count, plural, one {# check worth a look} other {# checks worth a look}}",
@@ -1293,7 +1313,22 @@
     "dismiss": "Dismiss",
     "requestName": "Give a name between 1 and 64 characters.",
     "requestExists": "This account is already invited or a player.",
-    "requestFailed": "The invitation could not be recorded."
+    "requestFailed": "The invitation could not be recorded.",
+    "teams": "Teams",
+    "teamsCount": "{count, plural, one {# team} other {# teams}}",
+    "createTeam": "Create a team",
+    "teamName": "Name",
+    "teamSlug": "Address",
+    "teamSlugHelp": "In the team's address: 3 to 32 lowercase letters, digits or dashes.",
+    "teamOwner": "Owner's SteamID64",
+    "teamOwnerHelp": "A player who has already signed in.",
+    "create": "Create",
+    "teamCreated": "{name} is created.",
+    "noTeams": "No teams yet.",
+    "teamMembers": "Members",
+    "teamCreatedOn": "Created",
+    "errorTeamName": "Give a name of 1 to 64 characters.",
+    "eraseOwner": "This player owns a team: they must hand it over to another member first. Nothing was erased."
   },
   "viewer": {
     "title": "Round {round}",
@@ -1448,5 +1483,123 @@
       "text": "The demo shows a full account, no sign-up: reports, matches, viewer, progress and formulas."
     },
     "footer": "Untraded, an open-source CS2 analyzer and coach."
+  },
+  "teams": {
+    "context": "The team, its pages and your role",
+    "overview": "Overview",
+    "members": "Members",
+    "yourRole": "Your role: {role}",
+    "roles": {
+      "owner": "Owner",
+      "coach": "Coach",
+      "player": "Player",
+      "viewer": "Viewer"
+    },
+    "roster": "Roster",
+    "starters": "Starters",
+    "standins": "Stand-ins",
+    "others": "Other members",
+    "rosterEmpty": "Nobody is on the roster yet.",
+    "rosterLead": "A match counts for the team when three players of the roster played it on the same side.",
+    "membersCount": "{count, plural, one {# member} other {# members}}",
+    "soon": "What comes next",
+    "soonText": "The team's matches, its tactical stats and the review arrive here in the next steps of the team beta.",
+    "you": "you",
+    "joined": "Joined {date}",
+    "role": "Role",
+    "apply": "Apply",
+    "roleOf": "Role of {name}",
+    "remove": "Remove",
+    "removeConfirm": "Remove {name} from the team?",
+    "removeYes": "Yes, remove",
+    "cancel": "Cancel",
+    "makeStarter": "Starter",
+    "makeStandin": "Stand-in",
+    "offRoster": "Off the roster",
+    "rosterOf": "Roster place of {name}",
+    "place": {
+      "starter": "Starter",
+      "standin": "Stand-in"
+    },
+    "invitations": "Invitations",
+    "invitationsLead": "Anyone with the link can join after signing in with Steam and accepting the consent. A link lasts 7 days.",
+    "inviteRole": "Role given",
+    "inviteUses": "Uses",
+    "inviteUsesHint": "1 to 20 people",
+    "createLink": "Create a link",
+    "linkReady": "Here is the link. Copy it now: it will not be shown again.",
+    "link": "Invitation link",
+    "copyLink": "Copy the link",
+    "copied": "Copied",
+    "noInvitations": "No active link.",
+    "invitationLine": "{role}, {uses} of {max} used, until {date}",
+    "revoke": "Revoke",
+    "revokeConfirm": "Revoke this link? It stops working at once.",
+    "revokeYes": "Yes, revoke",
+    "leave": "Leave the team",
+    "leaveLead": "You lose access to the team at once. To come back, you need a new invitation.",
+    "leaveConfirm": "Leave {team}?",
+    "leaveYes": "Yes, leave",
+    "lastOwner": "You are the team's only owner: hand the team over to another member before leaving.",
+    "handOver": "Hand the team over",
+    "handOverLead": "The member you choose becomes the owner, and you take their former role.",
+    "handOverTo": "New owner",
+    "handOverButton": "Hand over",
+    "handOverConfirm": "Make this member the owner? Only they can give it back.",
+    "handOverYes": "Yes, hand over",
+    "handOverNobody": "No other member to hand the team over to yet.",
+    "readOnly": "The public demo is read-only: nothing can be changed here.",
+    "done": {
+      "role": "Role changed.",
+      "removed": "Member removed.",
+      "roster": "Roster updated.",
+      "revoked": "Link revoked.",
+      "owner": "The team has a new owner."
+    },
+    "errors": {
+      "forbidden": "Your role does not allow this.",
+      "role_too_high": "You cannot give a role stronger than yours, nor the owner's.",
+      "last_owner": "The team needs an owner: hand it over first.",
+      "not_a_member": "This person is not a member of the team.",
+      "team_not_found": "This team does not exist, or you are not a member.",
+      "read_only": "The public demo is read-only.",
+      "max_uses": "Choose between 1 and 20 uses.",
+      "invitation_invalid": "This link no longer works: it expired, was used up or was revoked.",
+      "already_member": "You are already a member of this team.",
+      "consent_required": "Accept the consent first.",
+      "slug_taken": "This address is already taken.",
+      "slug_invalid": "3 to 32 lowercase letters, digits or dashes, not in the form u-digits.",
+      "owner_unknown": "No player with this SteamID has signed in yet.",
+      "failed": "That did not work. Try again in a moment."
+    },
+    "join": {
+      "title": "Team invitation",
+      "invited": "You are invited to join {team}.",
+      "roleLine": "Role: {role}",
+      "expires": "The link works until {date}.",
+      "lead": "Joining is up to you: nothing happens until you press the button.",
+      "signIn": "Sign in with Steam",
+      "signInLead": "Sign in with Steam first. You come back to this page to confirm.",
+      "consentLead": "Before joining, read and accept the consent: it says what Untraded does with your matches.",
+      "consentButton": "Read the consent",
+      "joinButton": "Join {team}",
+      "demo": "The public demo cannot join a team.",
+      "already": "You are already a member of this team.",
+      "invalidTitle": "This link no longer works",
+      "invalidText": "It expired, was used up or was revoked. Ask the team for a new one.",
+      "home": "Back to the home page"
+    },
+    "share": {
+      "title": "Teams",
+      "lead": "Your matches played with the team's roster count for it anyway. Your solo matches are shared only if you choose to.",
+      "hint": "{team} will see your solo matches as a player of the match would. Never your sessions, advice, votes or averages.",
+      "failed": "The setting could not be saved.",
+      "labelFor": "Share my solo matches with {team}"
+    },
+    "switcher": {
+      "label": "Workspace",
+      "personal": "My space"
+    },
+    "handOverPick": "Choose a member"
   }
 }

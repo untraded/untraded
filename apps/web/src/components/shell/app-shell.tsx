@@ -7,6 +7,7 @@ import { LogoHorizontal, LogoSymbol16 } from "@/components/brand/logo";
 import { DemoBanner } from "@/components/demo-banner";
 import type { Me } from "@/lib/api";
 import { cn } from "@/lib/cn";
+import { teamHref, teamsOf } from "@/lib/teams";
 import { AccountMenu } from "./account-menu";
 import { MoreSheet } from "./more-sheet";
 import { RAIL_MOTION } from "./nav";
@@ -31,7 +32,15 @@ export async function AppShell({
   collapsed: boolean;
   children: ReactNode;
 }) {
-  const t = await getTranslations("nav");
+  const [t, teamsT] = await Promise.all([getTranslations("nav"), getTranslations("teams")]);
+  const teams = teamsOf(me);
+  // The rail's team entry leads to the player's first team; the account menu switches between
+  // them all.
+  const myTeam = teams[0] ? teamHref(teams[0].slug) : null;
+  const workspaces = [
+    { key: "personal", name: teamsT("switcher.personal"), href: "/", team: false },
+    ...teams.map((w) => ({ key: w.slug, name: w.name, href: teamHref(w.slug), team: true })),
+  ];
   return (
     <div
       data-collapsed={collapsed}
@@ -100,6 +109,15 @@ export async function AppShell({
             place="rail"
           />
           <NavLink section="upload" label={t("upload")} short={t("short.upload")} place="rail" />
+          {myTeam && (
+            <NavLink
+              section="teams"
+              href={myTeam}
+              label={t("myTeam")}
+              short={t("short.team")}
+              place="rail"
+            />
+          )}
           {me.admin && (
             <NavLink
               section="team"
@@ -130,10 +148,12 @@ export async function AppShell({
         <div className="mt-2 border-t border-chrome-line pt-2">
           <AccountMenu
             name={me.display_name}
+            workspaces={teams.length > 0 ? workspaces : []}
             labels={{
               account: t("account", { name: me.display_name }),
               settings: t("settings"),
               signOut: t("signOut"),
+              workspace: teamsT("switcher.label"),
             }}
           />
         </div>
@@ -177,6 +197,7 @@ export async function AppShell({
             formulas: t("formulas"),
             admin: me.admin ? t("admin") : null,
             team: me.admin ? t("team") : null,
+            teams: workspaces.filter((w) => w.team),
             preview: t("preview"),
             signOut: t("signOut"),
           }}

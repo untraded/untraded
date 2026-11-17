@@ -36,6 +36,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 const ERASE_NOTES = {
   missing: "eraseMissing",
+  owner: "eraseOwner",
   self: "eraseSelf",
   failed: "eraseFailed",
 } as const;

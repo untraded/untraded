@@ -14,7 +14,7 @@ import {
   TONE_COOKIE,
   TONES,
 } from "@/i18n/locale";
-import { apiPost, apiSend, refusedField, SESSION_COOKIE } from "@/lib/api";
+import { apiPost, apiSend, refusalCode, refusedField, SESSION_COOKIE } from "@/lib/api";
 import { type CodeField, type CodeIssue, codeIssue, placeCodes } from "@/lib/codes";
 
 /** Ends the session in the database, then drops the cookie. */
@@ -71,7 +71,9 @@ export async function vote(formData: FormData): Promise<void> {
 /** Where a form goes once it is done: one of the site's own pages only. */
 function next(formData: FormData, fallback: string): string {
   const target = String(formData.get("next") ?? "");
-  return target.startsWith("/") && !target.startsWith("//") ? target : fallback;
+  // A path of plain characters only: no `//host`, and no backslash, which a browser would read as
+  // a slash (`/\host`), nor any control character.
+  return /^\/(?!\/)[\w\-./~%?=&#]*$/.test(target) ? target : fallback;
 }
 
 /**
@@ -97,19 +99,29 @@ export async function giveConsent(formData: FormData): Promise<void> {
  */
 export async function eraseMe(): Promise<void> {
   const result = await apiSend("/me/erase", "POST", { confirm: true });
-  if (!result.ok) redirect("/settings?erase=failed");
+  if (!result.ok) {
+    // A team's last owner hands it over first: nothing was erased.
+    const owner = result.status === 409 && refusalCode(result) === "owner_must_hand_over";
+    redirect(`/settings?erase=${owner ? "owner" : "failed"}#erase`);
+  }
   (await cookies()).delete(SESSION_COOKIE);
   revalidatePath("/", "layout");
   redirect("/?erased=1");
 }
 
-/** Withdraws the player's consent: the collector stops following their matches. */
+/** Withdraws the player's consent: the collector stops following their matches, and they leave
+ * their teams. */
 export async function withdrawConsent(formData: FormData): Promise<void> {
-  await apiSend("/me/consent", "POST", {
+  const result = await apiSend("/me/consent", "POST", {
     text_version: String(formData.get("text_version")),
     analysis: false,
     research_corpus: false,
   });
+  // Withdrawing leaves every team: a team's last owner hands it over first, nothing changed.
+  if (!result.ok) {
+    const owner = result.status === 409 && refusalCode(result) === "owner_must_hand_over";
+    redirect(`/settings?withdraw=${owner ? "owner" : "failed"}#consent`);
+  }
   revalidatePath("/", "layout");
   redirect("/settings");
 }
