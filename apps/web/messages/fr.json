@@ -50,7 +50,10 @@
     "waiting": "On suit tes matchs",
     "waitingLead": "Ton premier rapport arrive après ta prochaine session Premier, quelques minutes après la fin du dernier match.",
     "waitingUpload": "En attendant, tu peux envoyer une démo FACEIT, ESEA ou de scrim.",
-    "waitingUploadLink": "Envoyer une démo"
+    "waitingUploadLink": "Envoyer une démo",
+    "notFollowed": "Nous ne suivons pas encore tes matchs",
+    "notFollowedLead": "Ton équipe n'a pas besoin de tes codes. Pour avoir tes propres rapports, donne-les : notre bot récupère alors tes matchs Premier.",
+    "giveCodes": "Donner mes codes"
   },
   "upload": {
     "title": "Envoyer une démo",
@@ -397,7 +400,8 @@
     "eraseOwner": "Tu es propriétaire d'une équipe : passe la main à un autre membre (page de l'équipe, Membres) avant d'effacer ton compte. Rien n'a été effacé.",
     "withdrawTeams": "Tu quittes aussi tes équipes.",
     "withdrawOwner": "Tu es propriétaire d'une équipe : passe la main à un autre membre (page de l'équipe, Membres) avant de retirer ton accord. Rien n'a changé.",
-    "giveCodes": "Donner mes codes"
+    "giveCodes": "Donner mes codes",
+    "withdrawFailed": "Ton accord n'a pas pu être retiré : rien n'a changé. Réessaie dans un instant."
   },
   "home": {
     "title": "Tes matchs CS2, analysés à découvert",

@@ -28,6 +28,7 @@ import {
 } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { dateRange, mapName, metric, shortDay, time } from "@/lib/format";
+import { onboardingStep } from "@/lib/onboarding";
 
 const IN_PROGRESS: MatchStatus[] = ["pending", "downloading", "parsing"];
 /** The sessions listed under the latest one. */
@@ -79,7 +80,7 @@ export async function Dashboard({ me, tone }: { me: Me; tone: Tone }) {
           </Loading>
         }
       >
-        <Sessions tone={tone} />
+        <Sessions tone={tone} followed={onboardingStep(me) !== "codes"} />
       </Suspense>
     </div>
   );
@@ -145,8 +146,10 @@ async function PendingPanel() {
   );
 }
 
-/** The latest session's report and what follows it, or the wait for a first session. */
-async function Sessions({ tone }: { tone: Tone }) {
+/** The latest session's report and what follows it, or the wait for a first session. A team
+ * member may not have given their codes (`followed` false): then nothing is collected, and the
+ * wait says so. */
+async function Sessions({ tone, followed }: { tone: Tone; followed: boolean }) {
   const [sessions, t, actions] = await Promise.all([
     findSessions(0),
     getTranslations("dashboard"),
@@ -162,8 +165,15 @@ async function Sessions({ tone }: { tone: Tone }) {
   if (!report) {
     return (
       <>
-        <Panel title={t("waiting")} bodyClassName={HEAD_BODY}>
-          <p className="max-w-prose text-muted-foreground">{t("waitingLead")}</p>
+        <Panel title={t(followed ? "waiting" : "notFollowed")} bodyClassName={HEAD_BODY}>
+          <p className="max-w-prose text-muted-foreground">
+            {t(followed ? "waitingLead" : "notFollowedLead")}
+          </p>
+          {!followed && (
+            <Link href="/welcome" className={cn(buttonVariants({ size: "sm" }), "mt-3 w-fit")}>
+              {t("giveCodes")}
+            </Link>
+          )}
           <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
             {t("waitingUpload")}
             <Link href="/upload" className={buttonVariants({ variant: "outline", size: "sm" })}>

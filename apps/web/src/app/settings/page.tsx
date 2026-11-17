@@ -103,7 +103,7 @@ export default async function Settings({
         </p>
       ) : (
         <>
-          <ConsentPanel me={me} ownerRefused={params.withdraw === "owner"} />
+          <ConsentPanel me={me} refused={params.withdraw} />
           <FollowPanel me={me} />
           {teamsOf(me).length > 0 && <TeamsPanel me={me} failed={params.share === "failed"} />}
         </>
@@ -140,7 +140,7 @@ function Row({ title, hint, children }: { title: string; hint: string; children:
 }
 
 /** The player's consent: read the text they agreed to, change box 2, or withdraw it. */
-async function ConsentPanel({ me, ownerRefused }: { me: Me; ownerRefused: boolean }) {
+async function ConsentPanel({ me, refused }: { me: Me; refused: string | undefined }) {
   const t = await getTranslations("settings");
   const locale = (await getLocale()) as "en" | "fr";
   const timeZone = await getTimeZone();
@@ -159,7 +159,7 @@ async function ConsentPanel({ me, ownerRefused }: { me: Me; ownerRefused: boolea
   const segment =
     "h-7 rounded-sm px-2.5 text-[0.8125rem] text-muted-foreground hover:text-foreground aria-pressed:bg-muted aria-pressed:font-medium aria-pressed:text-foreground";
   return (
-    <Panel title={t("consentTitle")} flush>
+    <Panel title={<span id="consent">{t("consentTitle")}</span>} flush>
       <div className="flex flex-col gap-3 px-3.5 py-3">
         <p className="text-sm text-muted-foreground">{status}</p>
         {!current ? (
@@ -215,9 +215,9 @@ async function ConsentPanel({ me, ownerRefused }: { me: Me; ownerRefused: boolea
               {t("withdrawHint")}
               {teamsOf(me).length > 0 && <> {t("withdrawTeams")}</>}
             </p>
-            {ownerRefused && (
+            {(refused === "owner" || refused === "failed") && (
               <p role="alert" className="max-w-prose text-sm text-destructive">
-                {t("withdrawOwner")}
+                {t(refused === "owner" ? "withdrawOwner" : "withdrawFailed")}
               </p>
             )}
             <ConfirmSubmit
@@ -250,7 +250,7 @@ async function FollowPanel({ me }: { me: Me }) {
   return (
     <Panel title={t("followTitle")} flush>
       <p className="px-3.5 py-3 text-sm text-muted-foreground">{status}</p>
-      {!source && me.can_add_source && onboardingStep(me) === "codes" && (
+      {onboardingStep(me) === "codes" && (
         <div className="border-t border-line-soft px-3.5 py-3">
           <Link href="/welcome" className={cn(buttonVariants({ variant: "outline" }), "w-fit")}>
             {t("giveCodes")}

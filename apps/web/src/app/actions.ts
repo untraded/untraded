@@ -118,8 +118,9 @@ export async function withdrawConsent(formData: FormData): Promise<void> {
     research_corpus: false,
   });
   // Withdrawing leaves every team: a team's last owner hands it over first, nothing changed.
-  if (result.status === 409 && refusalCode(result) === "owner_must_hand_over") {
-    redirect("/settings?withdraw=owner");
+  if (!result.ok) {
+    const owner = result.status === 409 && refusalCode(result) === "owner_must_hand_over";
+    redirect(`/settings?withdraw=${owner ? "owner" : "failed"}#consent`);
   }
   revalidatePath("/", "layout");
   redirect("/settings");
