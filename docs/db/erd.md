@@ -1,6 +1,6 @@
 # Phase 2 database: entity-relationship diagram
 
-The decisions behind the schema are in [ADR 0011](../adr/0011-phase-2-database-schema.md). The migrations in [`db/`](../../db/src/untraded_db/migrations/versions/) are the source of truth (ADR 0006); this page shows the schema **after the last one, 0016**. [schema.sql](schema.sql) is the reference schema of ADR 0011, kept identical to migration 0001, which a test checks (`db/tests/test_migrations.py`): it does not hold the later migrations.
+The decisions behind the schema are in [ADR 0011](../adr/0011-phase-2-database-schema.md). The migrations in [`db/`](../../db/src/untraded_db/migrations/versions/) are the source of truth (ADR 0006); this page shows the schema **after the last one, 0019**. [schema.sql](schema.sql) is the reference schema of ADR 0011, kept identical to migration 0001, which a test checks (`db/tests/test_migrations.py`): it does not hold the later migrations.
 
 Every table and column is shown. Solid lines are foreign keys; dotted lines are links by Steam id that have no foreign key constraint (event and metric rows keep the Steam ids of every player of a match). Types: `char1` is `char(1)`, `char64` is `char(64)`, `text_array` is `text[]`, `double` is `double precision`.
 
@@ -24,6 +24,7 @@ Every table and column is shown. Solid lines are foreign keys; dotted lines are 
 | 0016 teams | `team_invitation`; `workspace.created_by` optional for a team; team slug and one roster per team; sessions, advice and aggregates private to their player; `has_permission` and the team functions (ADR 0012) |
 | 0017 team access reason | `access_reason` gains `team` |
 | 0018 team uploads | `ingest_source.workspace_id` (a team's own upload source; `user_id` optional), `upload_sender`; row-level security on `match_source`; the team upload functions; a deleted team's matches queued for deletion (ADR 0012) |
+| 0019 team review | `review_comment`, `review_tag`, `review_playlist`, `review_playlist_round`; `review_readable` and the review functions (ADR 0012) |
 
 ## Tenancy and players
 
@@ -524,6 +525,59 @@ erDiagram
 - `metric_wide_current` is a view of the current values (`metric_current`, default parameters), one row per match, player and scope: `kills`, `deaths`, `adr`, `kast`, `hltv1`, `untraded_deaths`, `untraded` (0012). It runs with the caller's rights (`security_invoker`).
 - A **play session** groups a player's matches while there is at most one hour between the end of one and the start of the next. Its report compares it with the player's own 30 days before (`reference_kind` `self`), else with a level (`level`, from `level_reference`: anonymous aggregates of a rating band), else nothing (`none`).
 
+## Team review
+
+```mermaid
+erDiagram
+    workspace ||--o{ review_comment : reviews
+    match ||--o{ review_comment : "is commented"
+    app_user |o--o{ review_comment : "wrote (null once erased)"
+    workspace ||--o{ review_tag : tags
+    match ||--o{ review_tag : "is tagged"
+    workspace ||--o{ review_playlist : keeps
+    review_playlist ||--o{ review_playlist_round : holds
+    match ||--o{ review_playlist_round : "is in"
+
+    review_comment {
+        uuid id PK
+        uuid workspace_id FK "a team"
+        uuid match_id FK
+        smallint round "1 to 99"
+        integer tick "optional, within the round"
+        text body "1 to 2000 characters"
+        uuid author_id FK "null once erased"
+        text author_name "as written; null with author_id"
+        timestamptz created_at
+        timestamptz edited_at
+    }
+    review_tag {
+        uuid workspace_id FK
+        uuid match_id FK
+        smallint round
+        text label "1 to 32; unique per round, any case"
+        timestamptz created_at
+    }
+    review_playlist {
+        uuid id PK
+        uuid workspace_id FK
+        text name "1 to 80"
+        text description "0 to 280"
+        timestamptz created_at
+        timestamptz updated_at
+    }
+    review_playlist_round {
+        uuid playlist_id PK, FK
+        uuid workspace_id FK "the playlist's"
+        uuid match_id PK, FK
+        smallint round PK
+        integer seq "order"
+        timestamptz added_at
+    }
+```
+
+- The review refers to a match and a round number, not to `round` rows (a reanalysis rewrites them): it goes with its match or its team, and survives a reanalysis.
+- A comment keeps its author's name as written (refreshed when they edit it), so it stays signed once they leave the team. The erasure clears the author and the name together; a check refuses one without the other.
+
 ## Job queue
 
 ```mermaid
@@ -558,6 +612,7 @@ The API runs each transaction as `untraded_api` (no `BYPASSRLS`) with `app.user_
 | the user's workspaces (`is_member`) | `workspace`, `membership`, `workspace_role`, `workspace_player`, `roster`, `roster_member` |
 | the user's own player only (`own_player`), whichever workspace follows them | `play_session`, `play_session_match`, `play_session_metric`, `metric_aggregate`, `advice` (and one of the user's workspaces) |
 | the teams where the user may manage members (`has_permission`) | `team_invitation` (never `token_hash`) |
+| a team the user reads the matches of (`matches.read`), for a match the team itself sees (`review_readable`) | `review_comment`, `review_tag`, `review_playlist_round`; `review_playlist` (the team only) |
 | the user's own rows | `ingest_source`, `advice_feedback`, `consent`; `app_user` (and the users they share a workspace with) |
 | none (functions only) | `auth_session`, `upload_sender` |
 | no row-level security | `metric_definition`, `metric_current`, `level_reference`, `invitation`, `invitation_request`, `job` |
@@ -568,3 +623,4 @@ The API runs each transaction as `untraded_api` (no `BYPASSRLS`) with `app.user_
   - erasure: `request_my_erasure` (`request_erasure`, for any Steam id, is not granted to it); both mark the account deleted, pause its sources, close its sessions, drop a pending invitation and queue an `erase_player` job;
   - uploads: `my_upload_refusal`, `add_my_upload` (a pending `match`, its `match_source` and an `ingest_upload` job), `my_uploads`;
   - teams (0016, ADR 0012), each checking the caller's permission and raising a stable code with SQLSTATE `UT001`: `has_permission`, `my_permissions`, `rename_team`, `delete_team`, `set_member_role`, `remove_member`, `transfer_team_ownership`, `create_team_invitation`, `revoke_team_invitation`, `team_invitation_preview`, `accept_team_invitation`, `set_roster_member`, `remove_roster_member`, `set_my_share_solo`, `queue_my_team_access`, `leave_my_teams` (a withdrawn consent leaves every team; the last owner is refused). `create_team` is for the admin routes only (the services' role). `request_erasure` refuses a team's owner (`owner_must_hand_over`) before closing anything.
+  - team review (0019): `add_review_comment`, `edit_review_comment` (its author only), `delete_review_comment` (its author, or `review.manage`), `set_review_tags`, `create_review_playlist`, `update_review_playlist`, `delete_review_playlist`, `add_review_playlist_round`, `remove_review_playlist_round`, `order_review_playlist`; each checks the team sees the match and the limits, with the same `UT001` refusals.

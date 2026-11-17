@@ -175,6 +175,68 @@ SET LOCAL app.user_id = '00000000-0000-0000-0000-00000000000a';  -- Alice
 SELECT expect('Alice manages members',
     has_permission('00000000-0000-0000-0000-0000000000f1', 'members.manage')::int, 1);
 SELECT expect('aggregates seen by Alice', (SELECT count(*) FROM metric_aggregate), 1);
+-- Review (migration 0019): Carol's team sees the shared match too. Each team reads its own review
+-- of it only, and a team's review of a match the team does not see stays hidden, even from a
+-- member who sees that match through their own space (Alice, match 2).
+RESET ROLE;
+INSERT INTO app_user (id, steam_id, display_name) VALUES
+    ('00000000-0000-0000-0000-00000000000c', 103, 'carol');
+INSERT INTO workspace (id, kind, name, slug) VALUES
+    ('00000000-0000-0000-0000-0000000000e1', 'team', 'team c', 'team-c');
+INSERT INTO workspace_role (id, workspace_id, name, permissions) VALUES
+    ('00000000-0000-0000-0000-0000000000e2', '00000000-0000-0000-0000-0000000000e1', 'owner', '{*}');
+INSERT INTO membership (workspace_id, user_id, role_id) VALUES
+    ('00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-00000000000c', '00000000-0000-0000-0000-0000000000e2');
+INSERT INTO workspace_match (workspace_id, match_id, reason) VALUES
+    ('00000000-0000-0000-0000-0000000000f1', '00000000-0000-0000-0000-000000000001', 'roster'),
+    ('00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-000000000001', 'roster');
+INSERT INTO review_comment (workspace_id, match_id, round, body, author_id, author_name) VALUES
+    ('00000000-0000-0000-0000-0000000000f1', '00000000-0000-0000-0000-000000000001', 1, 'ab',
+     '00000000-0000-0000-0000-00000000000a', 'alice'),
+    ('00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-000000000001', 1, 'c',
+     '00000000-0000-0000-0000-00000000000c', 'carol'),
+    ('00000000-0000-0000-0000-0000000000f1', '00000000-0000-0000-0000-000000000002', 1, 'hidden',
+     '00000000-0000-0000-0000-00000000000a', 'alice');
+INSERT INTO review_tag (workspace_id, match_id, round, label) VALUES
+    ('00000000-0000-0000-0000-0000000000f1', '00000000-0000-0000-0000-000000000001', 1, 'ab'),
+    ('00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-000000000001', 1, 'c');
+INSERT INTO review_playlist (id, workspace_id, name) VALUES
+    ('00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-0000000000f1', 'ab'),
+    ('00000000-0000-0000-0000-0000000000d2', '00000000-0000-0000-0000-0000000000e1', 'c');
+INSERT INTO review_playlist_round (playlist_id, workspace_id, match_id, round, seq) VALUES
+    ('00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-0000000000f1',
+     '00000000-0000-0000-0000-000000000001', 1, 0),
+    ('00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-0000000000f1',
+     '00000000-0000-0000-0000-000000000002', 1, 1),
+    ('00000000-0000-0000-0000-0000000000d2', '00000000-0000-0000-0000-0000000000e1',
+     '00000000-0000-0000-0000-000000000001', 1, 0);
+SET LOCAL ROLE untraded_api;
+
+SET LOCAL app.user_id = '00000000-0000-0000-0000-00000000000b';  -- Bob
+SELECT expect('review comments seen by Bob',
+    (SELECT count(*) FROM review_comment WHERE body = 'ab'), 1);
+SELECT expect('other review comments seen by Bob',
+    (SELECT count(*) FROM review_comment WHERE body <> 'ab'), 0);
+SELECT expect('review tags seen by Bob', (SELECT count(*) FROM review_tag WHERE label = 'ab'), 1);
+SELECT expect('all review tags seen by Bob', (SELECT count(*) FROM review_tag), 1);
+SELECT expect('playlists seen by Bob', (SELECT count(*) FROM review_playlist), 1);
+SELECT expect('playlist rounds seen by Bob', (SELECT count(*) FROM review_playlist_round), 1);
+SELECT expect('Bob writes a comment', denied(
+    $q$INSERT INTO review_comment (workspace_id, match_id, round, body)
+       VALUES ('00000000-0000-0000-0000-0000000000f1', '00000000-0000-0000-0000-000000000001', 1, 'x')$q$), 1);
+SELECT expect('Bob deletes a comment', denied('DELETE FROM review_comment'), 1);
+
+SET LOCAL app.user_id = '00000000-0000-0000-0000-00000000000a';  -- Alice
+SELECT expect('review comments seen by Alice', (SELECT count(*) FROM review_comment), 1);
+SELECT expect('playlist rounds seen by Alice', (SELECT count(*) FROM review_playlist_round), 1);
+
+SET LOCAL app.user_id = '00000000-0000-0000-0000-00000000000c';  -- Carol
+SELECT expect('review comments seen by Carol',
+    (SELECT count(*) FROM review_comment WHERE body = 'c'), 1);
+SELECT expect('all review comments seen by Carol', (SELECT count(*) FROM review_comment), 1);
+SELECT expect('review tags seen by Carol', (SELECT count(*) FROM review_tag), 1);
+SELECT expect('playlists seen by Carol', (SELECT count(*) FROM review_playlist), 1);
+SELECT expect('playlist rounds seen by Carol', (SELECT count(*) FROM review_playlist_round), 1);
 ROLLBACK;
 
 \echo 'RLS check passed'

@@ -120,6 +120,10 @@ REFUSAL = "UT001"
 REFUSAL_STATUS = {
     "team_not_found": status.HTTP_404_NOT_FOUND,
     "invitation_invalid": status.HTTP_404_NOT_FOUND,
+    "match_not_found": status.HTTP_404_NOT_FOUND,
+    "round_not_found": status.HTTP_404_NOT_FOUND,
+    "comment_not_found": status.HTTP_404_NOT_FOUND,
+    "playlist_not_found": status.HTTP_404_NOT_FOUND,
     "forbidden": status.HTTP_403_FORBIDDEN,
     "role_too_high": status.HTTP_403_FORBIDDEN,
     "consent_required": status.HTTP_403_FORBIDDEN,
@@ -128,9 +132,19 @@ REFUSAL_STATUS = {
     "already_member": status.HTTP_409_CONFLICT,
     "slug_taken": status.HTTP_409_CONFLICT,
     "owner_must_hand_over": status.HTTP_409_CONFLICT,
+    "comment_limit": status.HTTP_409_CONFLICT,
+    "tag_limit": status.HTTP_409_CONFLICT,
+    "playlist_limit": status.HTTP_409_CONFLICT,
+    "playlist_full": status.HTTP_409_CONFLICT,
     "slug_invalid": status.HTTP_422_UNPROCESSABLE_CONTENT,
     "owner_unknown": status.HTTP_422_UNPROCESSABLE_CONTENT,
     "max_uses_invalid": status.HTTP_422_UNPROCESSABLE_CONTENT,
+    "comment_invalid": status.HTTP_422_UNPROCESSABLE_CONTENT,
+    "tick_invalid": status.HTTP_422_UNPROCESSABLE_CONTENT,
+    "tag_invalid": status.HTTP_422_UNPROCESSABLE_CONTENT,
+    "name_invalid": status.HTTP_422_UNPROCESSABLE_CONTENT,
+    "description_invalid": status.HTTP_422_UNPROCESSABLE_CONTENT,
+    "order_invalid": status.HTTP_422_UNPROCESSABLE_CONTENT,
 }
 
 

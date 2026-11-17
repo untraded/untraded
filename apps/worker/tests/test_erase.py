@@ -252,3 +252,36 @@ def test_their_matches_never_parsed_go_too(db: psycopg.Connection[Any], tmp_path
     assert db.execute("SELECT id FROM match").fetchall() == [(shared,)]
     assert not store.exists("demos/f.dem")
     assert store.exists("demos/g.dem")
+
+
+def test_their_review_comments_stay_anonymised(db: psycopg.Connection[Any], tmp_path: Path) -> None:
+    store = LocalStore(tmp_path)
+    gone = user(db, GONE)
+    other = user(db, OTHER)
+    shared = match(db, store, [GONE, OTHER], "demos/b.dem.bz2")  # kept: it counts for OTHER
+    alone = match(db, store, [GONE, STRANGER], "demos/a.dem.bz2")  # deleted with its review
+    team = db.execute(
+        "INSERT INTO workspace (kind, name, slug) VALUES ('team', 't', 'team-t') RETURNING id"
+    ).fetchone()
+    assert team is not None
+    for match_id, author, name, said in (
+        (shared, gone, "Gone", "GONE: rotate earlier"),
+        (shared, other, "Other", "agreed"),
+        (alone, gone, "Gone", "on a match that goes"),
+    ):
+        db.execute(
+            "INSERT INTO review_comment (workspace_id, match_id, round, body, author_id, "
+            "author_name) VALUES (%s, %s, 1, %s, %s, %s)",
+            (team[0], match_id, said, author, name),
+        )
+
+    erase_player(db, store, GONE)
+
+    rows = db.execute(
+        "SELECT body, author_id, author_name FROM review_comment ORDER BY created_at, body"
+    ).fetchall()
+    # The text is not rewritten, even when it names them; the other member's stays signed.
+    assert sorted(rows, key=lambda r: r[0]) == [
+        ("GONE: rotate earlier", None, None),
+        ("agreed", other, "Other"),
+    ]

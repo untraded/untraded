@@ -15,6 +15,9 @@ Afterwards the player is what any non-registered player of a match is:
 - a match a team sent for itself stays too (`TEAM_SENT`): it is the team's, whoever played it,
   and counts for nobody's account. If the player sent it, the team's history no longer names them
   (`upload_sender` goes with the account);
+- their comments in a team's review stay the team's, anonymised: no author and no name ("former
+  member" on the site), the text as written (cadrage équipe § 5.5); on a match deleted here they
+  go with it;
 - the matches that count for other users stay, since they are those users' matches too. The player
   remains one of the ten players there, never shown outside the match, and is left out of the
   level references from now on (`benchmark_opt_out`);
@@ -162,6 +165,14 @@ def erase_player(conn: psycopg.Connection[Any], store: LocalStore, steam_id: int
         if own:
             conn.execute("DELETE FROM match WHERE id = ANY(%s)", ([row[0] for row in own],))
         if user is not None:
+            # Their review comments stay the team's, signed by nobody ("former member" on the
+            # site): the author and the name go together (a check refuses one without the
+            # other), and the text is not rewritten.
+            conn.execute(
+                "UPDATE review_comment SET author_id = NULL, author_name = NULL "
+                "WHERE author_id = %s",
+                (user[0],),
+            )
             conn.execute(
                 "DELETE FROM workspace WHERE created_by = %s AND kind = 'personal'", (user[0],)
             )
