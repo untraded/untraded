@@ -21,6 +21,7 @@ import polars as pl
 from untraded import (
     calibration,
     corpus,
+    demo_team,
     fixtures,
     radars,
     reference,
@@ -278,6 +279,12 @@ def _parser() -> argparse.ArgumentParser:
         help="the demo's last session ends the day before (default: today)",
     )
     build.set_defaults(run=_demo_build)
+    team = demo_actions.add_parser(
+        "team", help="a team for the demo account, from the demo's own matches"
+    )
+    team.add_argument("demo", type=Path, help="written by `untraded demo build`")
+    team.add_argument("--out", type=Path, required=True, help="where to write the team's demo")
+    team.set_defaults(run=_demo_team)
 
     corpus_parser = commands.add_parser("corpus", help="manage the reference demo corpus")
     corpus_parser.add_argument(
@@ -472,6 +479,24 @@ def _demo_build(args: argparse.Namespace) -> int:
     print(f"{len(built)} matches -> {manifest}")
     for match in built:
         print(f"  {match.played_at:%Y-%m-%d %H:%M} {match.mode} {match.tables['match']['map'][0]}")
+    return 0
+
+
+def _demo_team(args: argparse.Namespace) -> int:
+    if args.out.resolve() == args.demo.resolve():
+        raise SystemExit("--out must not be the demo's own directory")
+    team = demo_team.build(demo_account.read(args.demo))
+    manifest = demo_team.write(team, args.out)
+    print(f"{len(team.matches)} matches -> {manifest}")
+    for match in team.matches:
+        print(
+            f"  {match.played_at:%Y-%m-%d %H:%M} {match.mode:<8} {match.via:<6} "
+            f"{match.tables['match']['map'][0]}"
+        )
+    print(
+        f"{len(team.comments)} comments, {len(team.tags)} tagged rounds, "
+        f"{len(team.playlists)} playlists"
+    )
     return 0
 
 
