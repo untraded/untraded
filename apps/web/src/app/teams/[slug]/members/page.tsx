@@ -15,7 +15,6 @@ import {
 import { ConfirmSubmit } from "@/components/confirm-submit";
 import { InviteLinkForm } from "@/components/teams/invite-link-form";
 import { roleLabel } from "@/components/teams/role-label";
-import { TeamHeader } from "@/components/teams/team-header";
 import { Button } from "@/components/ui/button";
 import { Panel } from "@/components/ui/panel";
 import type { Locale } from "@/i18n/locale";
@@ -81,7 +80,7 @@ export default async function TeamMembers({ params, searchParams }: Params) {
   const giveable = assignableRoles(team.roles, team.my_role);
   return (
     <>
-      <TeamHeader team={team} current="members" />
+      <h1 className="mb-5 text-2xl font-semibold break-words md:text-[1.75rem]">{t("members")}</h1>
       <div className="flex flex-col gap-4">
         {(done || error) && (
           <p

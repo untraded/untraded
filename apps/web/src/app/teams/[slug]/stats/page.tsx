@@ -4,7 +4,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { TeamHeader } from "@/components/teams/team-header";
 import { MIN_ROUNDS, TeamStatsView } from "@/components/teams/team-stats-view";
 import { getMe, getTeam, getTeamStats } from "@/lib/api";
 import { mapName } from "@/lib/format";
@@ -69,7 +68,9 @@ export default async function TeamStatsPage({ params, searchParams }: Params) {
     filters.map && !stats.maps.includes(filters.map) ? [...stats.maps, filters.map] : stats.maps;
   return (
     <>
-      <TeamHeader team={team} current="stats" />
+      <h1 className="mb-5 text-2xl font-semibold break-words md:text-[1.75rem]">
+        {teamsT("stats")}
+      </h1>
       <section className="flex flex-col gap-4" aria-label={teamsT("stats")}>
         <p className="max-w-prose text-sm text-muted-foreground">
           {t("pageLead", { min: MIN_ROUNDS })}

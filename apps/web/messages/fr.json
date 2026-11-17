@@ -1534,13 +1534,10 @@
     "footer": "Untraded, analyseur et coach CS2 open source."
   },
   "teams": {
-    "context": "L'équipe, ses pages et ton rôle",
-    "overview": "Accueil",
     "matches": "Matchs",
     "stats": "Stats",
     "review": "Review",
     "members": "Membres",
-    "yourRole": "Ton rôle : {role}",
     "roles": {
       "owner": "Propriétaire",
       "coach": "Coach",
@@ -1649,8 +1646,7 @@
     "switcher": {
       "title": "Espaces",
       "personal": "Mon espace",
-      "switch": "Changer d'espace : {name}",
-      "teamLine": "Équipe · {role}"
+      "switch": "Changer d'espace : {name}"
     },
     "handOverPick": "Choisis un membre",
     "recent": "Derniers matchs",

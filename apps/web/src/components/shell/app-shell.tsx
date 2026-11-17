@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 The Untraded Authors
 // SPDX-License-Identifier: AGPL-3.0-only
 import Link from "next/link";
-import { getLocale, getTranslations } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { LogoHorizontal, LogoSymbol16 } from "@/components/brand/logo";
 import { DemoBanner } from "@/components/demo-banner";
@@ -9,7 +9,7 @@ import { roleLabel } from "@/components/teams/role-label";
 import type { Me, WorkspaceRef } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { initials, PERSONAL_SPACE } from "@/lib/space";
-import { allows, isDefaultRole, readsMatches, teamHref, teamsOf } from "@/lib/teams";
+import { allows, readsMatches, teamHref, teamsOf } from "@/lib/teams";
 import { AccountMenu } from "./account-menu";
 import { MoreSheet } from "./more-sheet";
 import { RAIL_MOTION } from "./nav";
@@ -42,14 +42,10 @@ export async function AppShell({
   collapsed: boolean;
   children: ReactNode;
 }) {
-  const [t, teamsT, locale] = await Promise.all([
-    getTranslations("nav"),
-    getTranslations("teams"),
-    getLocale(),
-  ]);
+  const [t, teamsT] = await Promise.all([getTranslations("nav"), getTranslations("teams")]);
   const teams = teamsOf(me);
   const slugs = teams.map((w) => w.slug);
-  const spaces = teams.length > 0 ? spacesOf(me, teams, teamsT, locale) : [];
+  const spaces = teams.length > 0 ? spacesOf(me, teams, teamsT) : [];
   const switchProps = { spaces, title: teamsT("switcher.title") };
   const moreLabels = {
     more: t("more"),
@@ -365,7 +361,6 @@ function spacesOf(
   me: Me,
   teams: WorkspaceRef[],
   t: (key: string, values?: Record<string, string>) => string,
-  locale: string,
 ): SpaceLink[] {
   const mine = t("switcher.personal");
   return [
@@ -390,10 +385,8 @@ function spacesOf(
         menuName: w.name,
         badge: initials(w.name),
         team: true,
-        // "Team · owner": the default roles in lower case after the dot, a team's own as named.
-        line: t("switcher.teamLine", {
-          role: isDefaultRole(w.role) ? role.toLocaleLowerCase(locale) : role,
-        }),
+        // The role alone ("Owner"): the line fits the unfolded rail.
+        line: role,
         role,
         href: teamHref(w.slug),
         label: t("switcher.switch", { name: w.name }),
