@@ -6,6 +6,9 @@ Sign-in is by invitation during the beta: Steam proves who the user is, and the 
 a session only for a Steam account that has a user (`open_auth_session`, migration 0002). The
 session cookie holds a random token; the database stores its sha256.
 
+A team's invitation link also lets a new Steam account in (migration 0016): `/auth/steam` keeps
+its token in the sign-in cookie, and the callback hands its hash to `open_auth_session`.
+
 A Steam account that is not invited may ask for an invitation (migration 0011): the callback
 gives it a short-lived signed cookie naming the account Steam just proved, and
 `POST /auth/invitation-request` records the request with it. Nothing is recorded unless the
@@ -17,6 +20,7 @@ visitor asks.
 import datetime as dt
 import hashlib
 import hmac
+import re
 import secrets
 import time
 import urllib.parse
@@ -83,6 +87,18 @@ class Source(BaseModel):
     last_error: str | None
 
 
+class WorkspaceRef(BaseModel):
+    id: uuid.UUID
+    kind: str
+    """`personal` or `team`."""
+    name: str
+    slug: str
+    role: str
+    """The name of the user's role there."""
+    permissions: list[str]
+    """That role's permissions (`*` grants them all)."""
+
+
 class Me(BaseModel):
     id: uuid.UUID
     steam_id: str
@@ -99,6 +115,8 @@ class Me(BaseModel):
     """Whether this server can keep the codes (it has UNTRADED_SECRET_KEY)."""
     demo: bool = False
     """The public demo account (`/auth/demo`): anonymized matches, read-only."""
+    workspaces: list[WorkspaceRef] = []
+    """The user's workspaces: their personal one first, then their teams by name."""
 
 
 SIGNIN_COOKIE = "untraded_signin"
@@ -109,6 +127,9 @@ def signin_cookie(settings: Settings) -> str:
     a forged plain-http answer cannot plant its own nonce (cookie tossing)."""
     return f"__Host-{SIGNIN_COOKIE}" if settings.cookie_secure else SIGNIN_COOKIE
 
+
+INVITE_TOKEN = re.compile(r"^[A-Za-z0-9_-]{32,128}$")
+"""A team invitation's token (`teams.create_invitation`): never a dot, the cookie's separator."""
 
 SIGNIN_SECONDS = 10 * 60
 """How long a sign-in started here may take at Steam."""
@@ -127,15 +148,20 @@ def back_to_web(settings: Settings, outcome: str | None = None) -> RedirectRespo
 
 
 @router.get("/auth/steam")
-def sign_in(settings: SettingsDep) -> RedirectResponse:
+def sign_in(settings: SettingsDep, team_invite: str | None = None) -> RedirectResponse:
+    """Sends the visitor to Steam. With `team_invite` (the token of a team's invitation link),
+    the token rides in the sign-in cookie, after the nonce: back from Steam, a valid link lets a
+    new account into the beta, and the visitor lands on the link's page to confirm (`/join/`).
+    Nothing is joined here."""
     parts = urllib.parse.urlsplit(settings.public_url)
     realm = f"{parts.scheme}://{parts.netloc}/"
     state = secrets.token_urlsafe(24)
     url = steam.login_url(callback_url(settings, state), realm)
     response = RedirectResponse(url, status.HTTP_303_SEE_OTHER)
+    invite = team_invite if team_invite and INVITE_TOKEN.match(team_invite) else None
     response.set_cookie(
         signin_cookie(settings),
-        state,
+        f"{state}.{invite}" if invite else state,
         max_age=SIGNIN_SECONDS,
         httponly=True,
         secure=settings.cookie_secure,
@@ -156,18 +182,30 @@ def sign_in_callback(request: Request, db: DatabaseDep, settings: SettingsDep) -
 
 def _callback(request: Request, db: Database, settings: Settings) -> RedirectResponse:
     client: httpx.Client = request.app.state.steam_client
-    state = request.cookies.get(signin_cookie(settings), "")
+    state, _, invite = request.cookies.get(signin_cookie(settings), "").partition(".")
     if not state or not hmac.compare_digest(state, request.query_params.get("state", "")):
         return back_to_web(settings, "failed")  # not started in this browser, or too long ago
     try:
         steam_id = steam.verify(dict(request.query_params), callback_url(settings, state), client)
     except steam.SteamSignInError:
         return back_to_web(settings, "failed")
+    if not INVITE_TOKEN.match(invite):
+        invite = ""
+    persona = None
+    if invite and settings.steam_api_key:
+        # A new account's first name: its Steam name, as an admin's invitation names it.
+        persona = steam.persona_name(client, settings.steam_api_key, steam_id)
     token = secrets.token_urlsafe(32)
     with db.transaction(None) as conn:
         row = conn.execute(
-            "SELECT open_auth_session(%s, %s, %s)",
-            (steam_id, token_hash(token), settings.session_ttl),
+            "SELECT open_auth_session(%s, %s, %s, %s, %s)",
+            (
+                steam_id,
+                token_hash(token),
+                settings.session_ttl,
+                token_hash(invite) if invite else None,
+                persona,
+            ),
         ).fetchone()
     if row is None or row[0] is None:
         refused = back_to_web(settings, "not_invited")
@@ -191,7 +229,11 @@ def _callback(request: Request, db: Database, settings: Settings) -> RedirectRes
             refused.delete_cookie(COOKIE, path="/", secure=settings.cookie_secure, httponly=True)
             refused.headers.update(CLEAR_CACHE)
         return refused
-    response = back_to_web(settings)
+    response = (
+        RedirectResponse(f"{settings.web_url}/join/{invite}", status.HTTP_303_SEE_OTHER)
+        if invite
+        else back_to_web(settings)
+    )
     response.set_cookie(
         COOKIE,
         token,
@@ -282,6 +324,17 @@ def me(conn: ConnDep, user: UserDep, settings: SettingsDep) -> Me:
         (user,),
     ).fetchone()
     source = conn.execute("SELECT enabled, last_success_at, last_error FROM my_source()").fetchone()
+    workspaces = conn.execute(
+        """
+        SELECT w.id, w.kind::text, w.name, w.slug::text, r.name, r.permissions
+        FROM membership m
+        JOIN workspace w ON w.id = m.workspace_id
+        JOIN workspace_role r ON r.id = m.role_id
+        WHERE m.user_id = %s
+        ORDER BY w.kind = 'team', lower(w.name), w.id
+        """,
+        (user,),
+    ).fetchall()
     return Me(
         id=row[0],
         steam_id=str(row[1]),
@@ -301,4 +354,10 @@ def me(conn: ConnDep, user: UserDep, settings: SettingsDep) -> Me:
         if source
         else None,
         can_add_source=settings.secret_key is not None,
+        workspaces=[
+            WorkspaceRef(
+                id=w[0], kind=w[1], name=w[2], slug=w[3], role=w[4], permissions=list(w[5])
+            )
+            for w in workspaces
+        ],
     )

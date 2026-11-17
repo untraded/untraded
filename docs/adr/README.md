@@ -15,6 +15,7 @@ One decision per file, numbered, never rewritten: a decision that changes gets a
 | [0009](0009-storage-and-retention.md) | Raw demos stored as received; 16 Hz Parquet is the long-term record; retention per deployment | Accepted |
 | [0010](0010-reference-data-and-corpus.md) | No published pro-derived data; calibration on consenting players' demos; private shared corpus | Accepted |
 | [0011](0011-phase-2-database-schema.md) | Phase 2 database: configurable roles, materialized match access, events and metrics in SQL, row-level security | Accepted |
+| [0012](0012-team-access-and-permissions.md) | Teams: permissions checked in the database, no escalation, same-side roster rule, coaching rows private to the player, invitation links | Accepted |
 
 ## Template
 

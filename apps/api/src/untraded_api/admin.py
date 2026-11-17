@@ -21,7 +21,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
 
-from untraded_api.deps import AdminDep, SettingsDep, UserDep
+from untraded_api.deps import AdminDep, SettingsDep, UserDep, refusals
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -210,7 +210,8 @@ def revoke(steam_id: str, conn: AdminDep) -> None:
 @router.delete("/players/{steam_id}", status_code=status.HTTP_202_ACCEPTED)
 def erase(steam_id: str, conn: AdminDep, user: UserDep) -> None:
     """Erases a player: their account closes at once, and the worker deletes their data, with
-    the matches no other user played in (`erase_player`). Not undone."""
+    the matches no other user played in (`erase_player`). Not undone. 409
+    `owner_must_hand_over` for a team's owner: the account stays open."""
     if not STEAM_ID.match(steam_id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no such player")
     me = conn.execute("SELECT steam_id FROM app_user WHERE id = %s", (user,)).fetchone()
@@ -223,7 +224,8 @@ def erase(steam_id: str, conn: AdminDep, user: UserDep) -> None:
     ).fetchone()
     if known is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no such player")
-    conn.execute("SELECT request_erasure(%s)", (int(steam_id),))
+    with refusals():
+        conn.execute("SELECT request_erasure(%s)", (int(steam_id),))
 
 
 def _source(conn: AdminDep, source_id: uuid.UUID, sql: str) -> None:

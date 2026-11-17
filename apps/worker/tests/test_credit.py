@@ -282,8 +282,15 @@ def test_a_team_does_not_see_a_forged_demo_naming_its_roster(
         return [r[0] for r in rows]
 
     assert reasons() == []
-    # One of its players sends it: the team's scrim reaches the team.
+    # One of its players sends it: the team's scrim reaches the team (its roster players are
+    # users who consent to the analysis).
     member = _user(db, 1)
+    for steam_id in (2, 3):
+        _user(db, steam_id)
+    db.execute(
+        "INSERT INTO consent (user_id, text_version, analysis, research_corpus, recorded_by) "
+        "SELECT id, '2', true, false, 'test' FROM app_user WHERE steam_id IN (1, 2, 3)"
+    )
     source = db.execute(
         "INSERT INTO ingest_source (user_id, kind) VALUES (%s, 'upload') RETURNING id", (member,)
     ).fetchone()

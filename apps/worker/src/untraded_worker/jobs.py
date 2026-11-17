@@ -16,7 +16,8 @@ analyse (a Competitive or Wingman match in Valve's share-code chain) makes the m
 `unavailable` and its demo is deleted. So does a demo a player sent without playing in it, when
 nothing else brought it (`not_a_player`).
 
-`ingest_upload` (a demo a player sent) is in `uploads`.
+`ingest_upload` (a demo a player sent) is in `uploads`; `refresh_team_access` (who sees a
+player's matches, after a team change) in `team_access`.
 """
 
 from __future__ import annotations
@@ -34,7 +35,7 @@ import psycopg
 
 from untraded.demofile import CorruptDemoError, NotADemoError, demo_suffix, digest
 from untraded.parsing import CanonicalMatch, UnsupportedModeError
-from untraded_worker import erase, load, queue, replays, sessions, uploads
+from untraded_worker import erase, load, queue, replays, sessions, team_access, uploads
 from untraded_worker.analysis import analyze
 from untraded_worker.download import BlockedAddressError, DemoGone, fetch
 from untraded_worker.isolated import IsolatedParse, ParseTimeoutError
@@ -250,6 +251,7 @@ def handlers(store: LocalStore, uploads_dir: Path) -> dict[str, Handler]:
         "parse": ParseJob(store),
         "session": sessions.SessionJob(store),
         "erase_player": erase.ErasePlayerJob(store),
+        "refresh_team_access": team_access.refresh_team_access,
     }
 
 

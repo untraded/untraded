@@ -84,6 +84,12 @@ END;
 $$;
 GRANT EXECUTE ON FUNCTION denied(text) TO untraded_api;
 
+-- Every SECURITY DEFINER function searches the caller's temporary tables last (0016).
+SELECT expect('definer functions without pg_temp last', (
+    SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public' AND p.prosecdef
+      AND NOT coalesce('search_path=pg_catalog, public, pg_temp' = ANY (p.proconfig), false)), 0);
+
 SET LOCAL ROLE untraded_api;
 
 -- Sign-in: only invited Steam accounts (with a user) get a session.
@@ -132,6 +138,43 @@ SELECT expect('metric rows seen by Alice', (SELECT count(*) FROM metric_wide_cur
 SELECT expect('sessions seen by Alice', (SELECT count(*) FROM play_session), 1);
 SELECT expect('session matches seen by Alice', (SELECT count(*) FROM play_session_match), 2);
 SELECT expect('session metrics seen by Alice', (SELECT count(*) FROM play_session_metric), 1);
+
+-- Teams (migration 0016): Bob is a viewer in a team Alice owns, which follows her. He reads
+-- none of her coaching rows (sessions, aggregates) and cannot raise his role.
+RESET ROLE;
+INSERT INTO workspace (id, kind, name, slug) VALUES
+    ('00000000-0000-0000-0000-0000000000f1', 'team', 'team', 'team-ab');
+INSERT INTO workspace_role (id, workspace_id, name, permissions) VALUES
+    ('00000000-0000-0000-0000-0000000000f2', '00000000-0000-0000-0000-0000000000f1', 'owner', '{*}'),
+    ('00000000-0000-0000-0000-0000000000f3', '00000000-0000-0000-0000-0000000000f1', 'viewer', '{matches.read}');
+INSERT INTO membership (workspace_id, user_id, role_id) VALUES
+    ('00000000-0000-0000-0000-0000000000f1', '00000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-0000000000f2'),
+    ('00000000-0000-0000-0000-0000000000f1', '00000000-0000-0000-0000-00000000000b', '00000000-0000-0000-0000-0000000000f3');
+INSERT INTO workspace_player (workspace_id, steam_id) VALUES
+    ('00000000-0000-0000-0000-0000000000f1', 101);
+INSERT INTO metric_aggregate (steam_id, selection_hash, selection, metric_id, version, params_hash,
+                              value, matches, rounds) VALUES
+    (101, 'h', '{}', 'base.kills', '1.0.0', 'default', 22, 2, 48);
+SET LOCAL ROLE untraded_api;
+
+SET LOCAL app.user_id = '00000000-0000-0000-0000-00000000000b';  -- Bob
+SELECT expect('sessions of a followed player seen by Bob', (SELECT count(*) FROM play_session), 0);
+SELECT expect('aggregates of a followed player seen by Bob',
+    (SELECT count(*) FROM metric_aggregate), 0);
+SELECT expect('Bob manages members',
+    has_permission('00000000-0000-0000-0000-0000000000f1', 'members.manage')::int, 0);
+SELECT expect('Bob reads matches',
+    has_permission('00000000-0000-0000-0000-0000000000f1', 'matches.read')::int, 1);
+SELECT expect('Bob raises his role', denied(
+    $q$UPDATE membership SET role_id = '00000000-0000-0000-0000-0000000000f2'$q$), 1);
+SELECT expect('Bob writes a sharing choice', denied(
+    'UPDATE workspace_player SET share_solo = true'), 1);
+SELECT expect('Bob creates a team', denied($q$SELECT create_team('x', 'xyz', 102)$q$), 1);
+
+SET LOCAL app.user_id = '00000000-0000-0000-0000-00000000000a';  -- Alice
+SELECT expect('Alice manages members',
+    has_permission('00000000-0000-0000-0000-0000000000f1', 'members.manage')::int, 1);
+SELECT expect('aggregates seen by Alice', (SELECT count(*) FROM metric_aggregate), 1);
 ROLLBACK;
 
 \echo 'RLS check passed'
