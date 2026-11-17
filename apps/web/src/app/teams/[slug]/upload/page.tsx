@@ -4,7 +4,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
-import { TeamHeader } from "@/components/teams/team-header";
 import { Panel } from "@/components/ui/panel";
 import { RefreshWhile } from "@/components/upload/refresh-while";
 import { UploadForm } from "@/components/upload/upload-form";
@@ -86,95 +85,92 @@ export default async function TeamUploadPage({ params }: Params) {
       : solo(`refusals.${key}.${part}`);
 
   return (
-    <>
-      <TeamHeader team={team} current="upload" />
-      <section className="flex max-w-3xl flex-col gap-3.5">
-        <header className="mb-2 flex flex-col gap-1.5">
-          <h2 className="text-2xl font-semibold md:text-[1.75rem]">{t("title")}</h2>
-          <p className="max-w-prose text-sm text-muted-foreground">{t("lead")}</p>
-        </header>
+    <section className="flex max-w-3xl flex-col gap-3.5">
+      <header className="mb-2 flex flex-col gap-1.5">
+        <h1 className="text-2xl font-semibold md:text-[1.75rem]">{t("title")}</h1>
+        <p className="max-w-prose text-sm text-muted-foreground">{t("lead")}</p>
+      </header>
 
-        {refusal && refusal !== "forbidden" && (
-          // Said before the form, which it disables: a status, so it is read when the page opens.
-          <div role="status">
-            <Panel title={refusalText(refusal, "title")} className="border-l-[3px] border-l-loss">
-              <p className="text-sm text-muted-foreground">
-                {refusalText(refusal, "text")}{" "}
-                {refusal === "consent" && (
-                  <Link href="/settings" className="text-link underline underline-offset-3">
-                    {solo("openSettings")}
-                  </Link>
-                )}
-                {refusal === "not_enough_roster" && (
-                  <Link
-                    href={teamHref(team.slug, "members")}
-                    className="text-link underline underline-offset-3"
-                  >
-                    {t("openRoster")}
-                  </Link>
-                )}
-              </p>
-            </Panel>
-          </div>
-        )}
-
-        {refusal === "forbidden" ? (
-          // A role that may not send reads the history only: no form to try.
-          <p className="max-w-prose text-sm text-muted-foreground">{t("readOnly")}</p>
-        ) : (
-          <Panel title={solo("file")} aside={t("rule")}>
-            <UploadForm
-              team={team.slug}
-              maxBytes={list.max_bytes}
-              disabled={me.demo || refusal !== null}
-              locale={locale}
-              labels={{
-                dropTitle: solo("dropTitle"),
-                dropHint: solo("dropHint", { max }),
-                choose: solo("choose"),
-                remove: solo("remove"),
-                file: solo("file"),
-                mode: solo("mode"),
-                modes: {
-                  faceit: solo("modes.faceit"),
-                  esea: solo("modes.esea"),
-                  scrim: solo("modes.scrim"),
-                },
-                date: solo("date"),
-                dateHint: t("dateHint"),
-                dateFaceit: t("dateFaceit"),
-                send: solo("send"),
-                cancel: solo("cancel"),
-                progress: solo.raw("progress") as string,
-                done: t("done"),
-                aborted: solo("aborted"),
-                errors: {
-                  ...Object.fromEntries(SEND_ERRORS.map((key) => [key, message(key)])),
-                  unknown: message("unknown"),
-                },
-              }}
-            />
+      {refusal && refusal !== "forbidden" && (
+        // Said before the form, which it disables: a status, so it is read when the page opens.
+        <div role="status">
+          <Panel title={refusalText(refusal, "title")} className="border-l-[3px] border-l-loss">
+            <p className="text-sm text-muted-foreground">
+              {refusalText(refusal, "text")}{" "}
+              {refusal === "consent" && (
+                <Link href="/settings" className="text-link underline underline-offset-3">
+                  {solo("openSettings")}
+                </Link>
+              )}
+              {refusal === "not_enough_roster" && (
+                <Link
+                  href={teamHref(team.slug, "members")}
+                  className="text-link underline underline-offset-3"
+                >
+                  {t("openRoster")}
+                </Link>
+              )}
+            </p>
           </Panel>
-        )}
+        </div>
+      )}
 
-        <Panel title={t("history")} aside={solo("historyHint")} flush>
-          {list.items.length === 0 ? (
-            <p className="px-3.5 py-3 text-sm text-muted-foreground">{t("empty")}</p>
-          ) : (
-            <ul>
-              {list.items.map((item) => (
-                <UploadRow
-                  key={item.upload_id}
-                  item={item}
-                  matchHref={matchHref(item.match_id)}
-                  team
-                />
-              ))}
-            </ul>
-          )}
+      {refusal === "forbidden" ? (
+        // A role that may not send reads the history only: no form to try.
+        <p className="max-w-prose text-sm text-muted-foreground">{t("readOnly")}</p>
+      ) : (
+        <Panel title={solo("file")} aside={t("rule")}>
+          <UploadForm
+            team={team.slug}
+            maxBytes={list.max_bytes}
+            disabled={me.demo || refusal !== null}
+            locale={locale}
+            labels={{
+              dropTitle: solo("dropTitle"),
+              dropHint: solo("dropHint", { max }),
+              choose: solo("choose"),
+              remove: solo("remove"),
+              file: solo("file"),
+              mode: solo("mode"),
+              modes: {
+                faceit: solo("modes.faceit"),
+                esea: solo("modes.esea"),
+                scrim: solo("modes.scrim"),
+              },
+              date: solo("date"),
+              dateHint: t("dateHint"),
+              dateFaceit: t("dateFaceit"),
+              send: solo("send"),
+              cancel: solo("cancel"),
+              progress: solo.raw("progress") as string,
+              done: t("done"),
+              aborted: solo("aborted"),
+              errors: {
+                ...Object.fromEntries(SEND_ERRORS.map((key) => [key, message(key)])),
+                unknown: message("unknown"),
+              },
+            }}
+          />
         </Panel>
-        <RefreshWhile active={processing} />
-      </section>
-    </>
+      )}
+
+      <Panel title={t("history")} aside={solo("historyHint")} flush>
+        {list.items.length === 0 ? (
+          <p className="px-3.5 py-3 text-sm text-muted-foreground">{t("empty")}</p>
+        ) : (
+          <ul>
+            {list.items.map((item) => (
+              <UploadRow
+                key={item.upload_id}
+                item={item}
+                matchHref={matchHref(item.match_id)}
+                team
+              />
+            ))}
+          </ul>
+        )}
+      </Panel>
+      <RefreshWhile active={processing} />
+    </section>
   );
 }

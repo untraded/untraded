@@ -5,7 +5,6 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { RosterLists } from "@/components/teams/roster-lists";
-import { TeamHeader } from "@/components/teams/team-header";
 import { TeamMatchRow } from "@/components/teams/team-match-row";
 import { Panel } from "@/components/ui/panel";
 import { findTeamOverview, getMe, getTeam, type Team, type TeamOverview } from "@/lib/api";
@@ -38,7 +37,7 @@ export default async function TeamHome({ params }: Params) {
     : null;
   return (
     <>
-      <TeamHeader team={team} current="home" />
+      <h1 className="mb-5 text-2xl font-semibold break-words md:text-[1.75rem]">{team.name}</h1>
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:items-start">
         {overview && <Recent team={team} overview={overview} />}
         <Panel

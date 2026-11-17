@@ -5,7 +5,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getTimeZone, getTranslations } from "next-intl/server";
-import { TeamHeader } from "@/components/teams/team-header";
 import { TeamMatchHeads, TeamMatchRow } from "@/components/teams/team-match-row";
 import { buttonVariants } from "@/components/ui/button";
 import { Panel } from "@/components/ui/panel";
@@ -53,7 +52,9 @@ export default async function TeamMatches({ params, searchParams }: Params) {
   const pager = "h-8 gap-1.5 text-[0.8125rem]";
   return (
     <>
-      <TeamHeader team={team} current="matches" />
+      <h1 className="mb-5 text-2xl font-semibold break-words md:text-[1.75rem]">
+        {teamsT("matches")}
+      </h1>
       <section className="flex flex-col gap-4" aria-label={teamsT("matches")}>
         <p className="max-w-prose text-sm text-muted-foreground">{tm("pageLead")}</p>
         {list.items.length === 0 && (

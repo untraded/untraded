@@ -14,7 +14,6 @@ import {
 } from "@/app/teams/review-actions";
 import { ConfirmSubmit } from "@/components/confirm-submit";
 import { HiddenFields } from "@/components/hidden-fields";
-import { TeamHeader } from "@/components/teams/team-header";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Panel } from "@/components/ui/panel";
 import type { Locale } from "@/i18n/locale";
@@ -84,7 +83,7 @@ export default async function TeamReviewPage({ params, searchParams }: Params) {
     me.demo !== true && (playlist?.permissions.manage ?? manages(team.my_role.permissions));
   return (
     <>
-      <TeamHeader team={team} current="review" />
+      <h1 className="mb-5 text-2xl font-semibold break-words md:text-[1.75rem]">{t("title")}</h1>
       <div className="flex flex-col gap-4">
         {error && (
           <p
