@@ -17,6 +17,7 @@ import { PreviewBadge } from "./preview-badge";
 export function MoreSheetPopup({
   labels,
   uploadHref,
+  reviewHref,
   defaultOpen,
   focusTrigger,
 }: MoreSheetProps & LazyStart) {
@@ -32,6 +33,7 @@ export function MoreSheetPopup({
   const Formulas = SECTIONS.formulas.icon;
   const Send = SECTIONS.upload.icon;
   const Trend = SECTIONS.progress.icon;
+  const Review = SECTIONS.review.icon;
   const row =
     "flex h-11 w-full items-center gap-3 rounded-md px-3 text-[0.9375rem] hover:bg-muted [&_svg]:size-[18px] [&_svg]:text-muted-foreground";
   return (
@@ -50,6 +52,12 @@ export function MoreSheetPopup({
           <Link href={SECTIONS.progress.href} className={row} onClick={() => setOpen(false)}>
             <Trend aria-hidden="true" />
             {labels.progress}
+          </Link>
+        )}
+        {labels.review && reviewHref && (
+          <Link href={reviewHref} className={row} onClick={() => setOpen(false)}>
+            <Review aria-hidden="true" />
+            {labels.review}
           </Link>
         )}
         {labels.upload && (

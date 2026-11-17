@@ -8,14 +8,19 @@ import { MatchContext } from "@/components/match/match-context";
 import { MatchRounds } from "@/components/match/match-rounds";
 import { MatchState } from "@/components/match/match-state";
 import { TeamTable } from "@/components/match/team-table";
+import { RoundReview } from "@/components/teams/round-review";
 import type { Locale } from "@/i18n/locale";
-import { getMe, getTeam, getTeamMatch } from "@/lib/api";
+import { findMatchReview, getMe, getTeam, getTeamMatch } from "@/lib/api";
 import { mapName } from "@/lib/format";
 import { type FlaggedMoment, minutes } from "@/lib/match";
+import { roundParam, shownError } from "@/lib/review";
 import { asMatchDetail, isShared } from "@/lib/team-matches";
 import { readsMatches, teamHref, teamMatchHref, validTeamParam } from "@/lib/teams";
 
-type Params = { params: Promise<{ slug: string; id: string }> };
+type Params = {
+  params: Promise<{ slug: string; id: string }>;
+  searchParams?: Promise<{ round?: string; error?: string }>;
+};
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug, id } = await params;
@@ -38,10 +43,12 @@ const NONE = new Map<number, FlaggedMoment>();
  * player's coaching (sessions, priorities, the player's own figures against their previous
  * matches): a team sees matches, not coaching. A member's shared solo match, where the team has no
  * side, reads as the match stands (team A, then team B). Before the analysis ends, where it stands
- * instead.
+ * instead. Once parsed, the team's review of it, round by round (`?round=` opens one, as the review
+ * forms come back to it).
  */
-export default async function TeamMatchPage({ params }: Params) {
+export default async function TeamMatchPage({ params, searchParams }: Params) {
   const { slug, id } = await params;
+  const query = (await searchParams) ?? {};
   if (!validTeamParam(slug) || !UUID.test(id)) notFound();
   const [me, team] = await Promise.all([getMe(), getTeam(slug)]);
   if (!me || !team) redirect("/");
@@ -49,13 +56,14 @@ export default async function TeamMatchPage({ params }: Params) {
   const found = await getTeamMatch(team.slug, id);
   if (!found) redirect("/");
   const match = asMatchDetail(found);
-  const [t, tm, timeZone] = await Promise.all([
+  const ready = match.status === "ready";
+  const [t, tm, timeZone, review] = await Promise.all([
     getTranslations("match"),
     getTranslations("teamMatches"),
     getTimeZone(),
+    ready && match.rounds.length > 0 ? findMatchReview(team.slug, match.id) : null,
   ]);
   const locale = (await getLocale()) as Locale;
-  const ready = match.status === "ready";
   const length = minutes(match.played_at, match.ended_at);
   const ours = match.my_team ?? "A";
   const theirs = ours === "A" ? "B" : "A";
@@ -95,6 +103,19 @@ export default async function TeamMatchPage({ params }: Params) {
             <TeamTable match={match} team={ours} me={me.steam_id} locale={locale} ours="team" />
             <TeamTable match={match} team={theirs} me={me.steam_id} locale={locale} ours="team" />
           </div>
+        )}
+
+        {ready && match.rounds.length > 0 && (
+          <RoundReview
+            slug={team.slug}
+            match={match}
+            review={review}
+            open={roundParam(query.round)}
+            error={shownError(query.error)}
+            readOnly={me.demo === true}
+            locale={locale}
+            timeZone={timeZone}
+          />
         )}
       </article>
     </>
