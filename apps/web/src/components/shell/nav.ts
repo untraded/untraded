@@ -10,6 +10,7 @@ import {
   Crosshair,
   House,
   type LucideIcon,
+  MessagesSquare,
   ShieldCheck,
   Sigma,
   SlidersHorizontal,
@@ -28,6 +29,7 @@ export type Section =
   | "formulas"
   | "team"
   | "teams"
+  | "review"
   | "admin"
   | "settings";
 
@@ -41,6 +43,8 @@ export const SECTIONS: Record<Section, { href: string; icon: LucideIcon }> = {
   team: { href: "/team", icon: Users },
   /** The player's own team; its link names the team (`NavLink`'s `href`). */
   teams: { href: "/teams", icon: UsersRound },
+  /** A team's review: only on a team's pages, whose links give their own address. */
+  review: { href: "/teams", icon: MessagesSquare },
   admin: { href: "/admin", icon: ShieldCheck },
   settings: { href: "/settings", icon: SlidersHorizontal },
 };

@@ -18,13 +18,16 @@ export async function TeamHeader({
 }: {
   team: Team;
   /** The page shown: a tab is marked only for the pages the bar lists. */
-  current: "home" | "matches" | "members" | "upload";
+  current: "home" | "matches" | "review" | "members" | "upload";
 }) {
   const t = await getTranslations("teams");
   const tabs = [
     { key: "home", href: teamHref(team.slug), label: t("overview") },
     ...(readsMatches(team.my_role.permissions)
-      ? [{ key: "matches", href: teamHref(team.slug, "matches"), label: t("matches") }]
+      ? [
+          { key: "matches", href: teamHref(team.slug, "matches"), label: t("matches") },
+          { key: "review", href: teamHref(team.slug, "review"), label: t("review") },
+        ]
       : []),
     { key: "members", href: teamHref(team.slug, "members"), label: t("members") },
   ];
@@ -34,7 +37,7 @@ export async function TeamHeader({
         {team.name}
       </h1>
       <nav aria-label={team.name} className="xl:shrink-0">
-        <ul className="flex gap-1">
+        <ul className="flex flex-wrap gap-1">
           {tabs.map((tab) => (
             <li key={tab.key}>
               <Link

@@ -1219,6 +1219,7 @@ def reset_teams(state: str) -> None:
     INVITATIONS.clear()
     if state in ("owner", "coach"):
         INVITATIONS.append(invitation(TEAMS["northwind"], "player", 5, uses=2, days=2))
+    seed_review()
 
 
 def invitation(
@@ -1494,6 +1495,10 @@ def team_get(handler: Handler, path: str, query: str = "") -> bool:
     if not handler.signed_in():
         handler.reply(401, {"detail": "not signed in"})
         return True
+    if found := re.fullmatch(r"/teams/([^/]+)(/.+)", path):
+        reviewed = TEAMS.get(urllib.parse.unquote(found[1]).lower())
+        if reviewed and mine(reviewed) is not None and review_get(handler, reviewed, found[2]):
+            return True
     if found := re.fullmatch(r"/teams/([^/]+)/(matches|overview)(?:/([^/]+))?", path):
         team = TEAMS.get(urllib.parse.unquote(found[1]).lower())
         if team is None or mine(team) is None:
@@ -1578,6 +1583,8 @@ def team_write(handler: Handler, method: str, path: str, body: dict[str, Any]) -
         refused(handler, 404, "team_not_found")
         return True
     rest = found[2] or ""
+    if review_write(handler, team, method, rest, body):
+        return True
     me_member = mine(team)
     assert me_member is not None
     my_role = me_member["_role"]
@@ -1678,6 +1685,397 @@ def team_write(handler: Handler, method: str, path: str, body: dict[str, Any]) -
     elif rest == "/share-solo" and method == "PUT":
         team["_share"] = bool(body.get("share"))
         handler.reply(204)
+    else:
+        handler.reply(404, {"detail": "not found"})
+    return True
+
+
+# A team's review (`docs/contrat-api-equipes-e7.md` in the HQ): comments on a round, tags on a
+# round and playlists of rounds, kept in memory and reset with the teams (`/mock/teams/<state>`).
+# Northwind's latest match comes with comments (one by the player, one by Kestrel, one by an
+# erased member: no name), tags, and two playlists, one named with characters a page could take
+# for markup. Refusals carry the API's codes (`refusals` in `deps.py`).
+REVIEW: dict[str, Any] = {"comments": [], "tags": {}, "playlists": []}
+COMMENT_MAX, TAG_MAX, TAGS_PER_ROUND = 2000, 32, 10
+UNSAFE = re.compile(
+    r"[\x01-\x08\x0b-\x1f\x7f\u061c\u200b\u200e\u200f\u2028\u2029\u202a-\u202e\u2066-\u2069\ufeff]"
+)
+
+
+def seed_review() -> None:
+    REVIEW["comments"].clear()
+    REVIEW["tags"].clear()
+    REVIEW["playlists"].clear()
+    team = TEAMS.get("northwind")
+    if team is None:
+        return
+    matches = [m for m in team_matches(team) if m["status"] == "ready" and m["rounds_played"]]
+    if len(matches) < 2:
+        return
+    first, second = matches[0], matches[1]
+    kestrel = next((m for m in team["_members"] if m["display_name"] == "Kestrel"), None)
+    said = [
+        (3, 3250, ME_USER, "you", "We gave up B too early. Hold the default\nuntil the flash."),
+        (3, None, kestrel["user_id"] if kestrel else None, "Kestrel" if kestrel else None,
+         "Agreed. <b>Quill</b> rotates on the first sound, not the second."),
+        (7, None, None, None, "Second contact: nobody traded the entry."),
+    ]  # fmt: skip
+    for n, (round_n, tick, author, name, body) in enumerate(said):
+        REVIEW["comments"].append(
+            {
+                "id": mock_id(70, n),
+                "_team": "northwind",
+                "match_id": first["id"],
+                "round": round_n,
+                "tick": tick,
+                "body": body,
+                "_author": author,
+                "author_name": name,
+                "created_at": iso(NOW - dt.timedelta(hours=20 - n)),
+                "edited_at": iso(NOW - dt.timedelta(hours=2)) if n == 0 else None,
+            }
+        )
+    REVIEW["tags"][("northwind", first["id"], 3)] = ["Retake", "B site"]
+    REVIEW["tags"][("northwind", first["id"], 7)] = ["Trade"]
+    REVIEW["tags"][("northwind", second["id"], 1)] = ["Pistol"]
+    REVIEW["playlists"].extend(
+        [
+            {
+                "id": mock_id(71, 1),
+                "_team": "northwind",
+                "name": "Failed retakes on B",
+                "description": "Before Thursday's practice: what we do after the plant.",
+                "created_at": iso(NOW - dt.timedelta(days=3)),
+                "updated_at": iso(NOW - dt.timedelta(hours=5)),
+                "_rounds": [(first["id"], 3), (second["id"], 1), (first["id"], 7)],
+            },
+            {
+                "id": mock_id(71, 2),
+                "_team": "northwind",
+                "name": '<script>alert(1)</script> & "quotes"',
+                "description": "",
+                "created_at": iso(NOW - dt.timedelta(days=1)),
+                "updated_at": iso(NOW - dt.timedelta(days=1)),
+                "_rounds": [],
+            },
+        ]
+    )
+
+
+def review_permissions(team: dict[str, Any]) -> dict[str, bool]:
+    return {"comment": can(team, "review.comment"), "manage": can(team, "review.manage")}
+
+
+def comment_out(team: dict[str, Any], c: dict[str, Any]) -> dict[str, Any]:
+    allowed = review_permissions(team)
+    own = c["_author"] == ME_USER
+    public = {k: v for k, v in c.items() if not k.startswith("_")}
+    return public | {
+        "mine": own,
+        "can_edit": own and allowed["comment"],
+        "can_delete": (own and allowed["comment"]) or allowed["manage"],
+    }
+
+
+def team_match_ids(team: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    return {m["id"]: m for m in team_matches(team)}
+
+
+def sorted_tags(tags: list[str]) -> list[str]:
+    return sorted(tags, key=lambda t: (t.lower(), t))
+
+
+def round_tags(team: dict[str, Any], match_id: str) -> list[dict[str, Any]]:
+    return [
+        {"round": n, "tags": sorted_tags(tags)}
+        for (slug, m, n), tags in sorted(REVIEW["tags"].items(), key=lambda kv: kv[0][2])
+        if slug == team["slug"] and m == match_id and tags
+    ]
+
+
+def playlist_summary(team: dict[str, Any], p: dict[str, Any]) -> dict[str, Any]:
+    seen = team_match_ids(team)
+    public = {k: v for k, v in p.items() if not k.startswith("_")}
+    return public | {"rounds": sum(1 for m, _ in p["_rounds"] if m in seen)}
+
+
+def playlist_out(team: dict[str, Any], p: dict[str, Any]) -> dict[str, Any]:
+    seen = team_match_ids(team)
+    items = []
+    for match_id, n in p["_rounds"]:
+        match = seen.get(match_id)
+        if match is None:
+            continue
+        items.append(
+            {
+                "match_id": match_id,
+                "round": n,
+                "map": match["map"],
+                "played_at": match["played_at"],
+                "mode": match["mode"],
+                "score_a": match["score_a"],
+                "score_b": match["score_b"],
+                "our_team": match["our_team"],
+                "winner_team": "A" if n % 3 else "B",
+                "tags": sorted_tags(REVIEW["tags"].get((team["slug"], match_id, n), [])),
+                "comments": sum(
+                    1
+                    for c in REVIEW["comments"]
+                    if c["_team"] == team["slug"] and c["match_id"] == match_id and c["round"] == n
+                ),
+            }
+        )
+    return playlist_summary(team, p) | {"items": items, "permissions": review_permissions(team)}
+
+
+def clean_line(value: Any, low: int, high: int) -> str | None:
+    if not isinstance(value, str):
+        return None
+    cleaned = " ".join(value.split())
+    return cleaned if low <= len(cleaned) <= high and not UNSAFE.search(cleaned) else None
+
+
+def clean_body(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    cleaned = value.replace("\r\n", "\n").replace("\r", "\n").strip(" \t\n")
+    return cleaned if 1 <= len(cleaned) <= COMMENT_MAX and not UNSAFE.search(cleaned) else None
+
+
+def review_get(handler: Handler, team: dict[str, Any], rest: str) -> bool:
+    """`GET` of the review routes; `False` for any other path."""
+    review = re.fullmatch(r"/matches/([^/]+)/review", rest)
+    playlist = re.fullmatch(r"/playlists(?:/([^/]+))?", rest)
+    if not (review or playlist or rest == "/review/tags"):
+        return False
+    if not can(team, "matches.read"):
+        refused(handler, 403, "forbidden")
+        return True
+    slug = team["slug"]
+    if review:
+        if review[1] not in team_match_ids(team):
+            refused(handler, 404, "match_not_found")
+            return True
+        comments = sorted(
+            (c for c in REVIEW["comments"] if c["_team"] == slug and c["match_id"] == review[1]),
+            key=lambda c: (c["round"], c["tick"] is not None, c["tick"] or 0, c["created_at"]),
+        )
+        playlists = sorted(
+            (p for p in REVIEW["playlists"] if p["_team"] == slug), key=lambda p: p["name"].lower()
+        )
+        handler.reply(
+            200,
+            {
+                "comments": [comment_out(team, c) for c in comments],
+                "tags": round_tags(team, review[1]),
+                "playlists": [
+                    {
+                        "id": p["id"],
+                        "name": p["name"],
+                        "rounds": sorted(n for m, n in p["_rounds"] if m == review[1]),
+                    }
+                    for p in playlists
+                ],
+                "permissions": review_permissions(team),
+            },
+        )
+        return True
+    if rest == "/review/tags":
+        counts: dict[str, list[str]] = {}
+        for (owner, _, _), tags in REVIEW["tags"].items():
+            if owner == slug:
+                for tag in tags:
+                    counts.setdefault(tag.lower(), []).append(tag)
+        handler.reply(
+            200,
+            [
+                {"label": max(set(v), key=v.count), "rounds": len(v)}
+                for _, v in sorted(counts.items(), key=lambda kv: (-len(kv[1]), kv[0]))
+            ],
+        )
+        return True
+    ours = [p for p in REVIEW["playlists"] if p["_team"] == slug]
+    if playlist and playlist[1] is None:
+        listed = sorted(ours, key=lambda p: p["name"].lower())
+        handler.reply(200, [playlist_summary(team, p) for p in listed])
+        return True
+    found = next((p for p in ours if playlist and p["id"] == playlist[1]), None)
+    if found is None:
+        refused(handler, 404, "playlist_not_found")
+    else:
+        handler.reply(200, playlist_out(team, found))
+    return True
+
+
+def review_write(
+    handler: Handler, team: dict[str, Any], method: str, rest: str, body: dict[str, Any]
+) -> bool:
+    """The review routes that write; `False` for any other path."""
+    on_round = re.fullmatch(r"/matches/([^/]+)/rounds/(\d+)/(comments|tags)", rest)
+    comment = re.fullmatch(r"/comments/([^/]+)", rest)
+    playlist = re.fullmatch(r"/playlists(?:/([^/]+)(/rounds(?:/([^/]+)/(\d+))?|/order)?)?", rest)
+    if not (on_round or comment or playlist):
+        return False
+    if not can(team, "matches.read"):
+        refused(handler, 403, "forbidden")
+        return True
+    slug = team["slug"]
+    seen = team_match_ids(team)
+    now = iso(dt.datetime.now(dt.UTC))
+
+    def round_ok(match_id: str, n: int) -> bool:
+        match = seen.get(match_id)
+        if match is None:
+            refused(handler, 404, "match_not_found")
+            return False
+        if match["status"] != "ready" or not 1 <= n <= (match["rounds_played"] or 0):
+            refused(handler, 404, "round_not_found")
+            return False
+        return True
+
+    if on_round and method == "POST" and on_round[3] == "comments":
+        n = int(on_round[2])
+        text = clean_body(body.get("body"))
+        tick = body.get("tick")
+        if not can(team, "review.comment"):
+            refused(handler, 403, "forbidden")
+        elif not round_ok(on_round[1], n):
+            pass
+        elif text is None:
+            refused(handler, 422, "comment_invalid")
+        elif tick is not None and (not isinstance(tick, int) or tick < 0):
+            refused(handler, 422, "tick_invalid")
+        else:
+            made = {
+                "id": str(uuid.uuid4()),
+                "_team": slug,
+                "match_id": on_round[1],
+                "round": n,
+                "tick": tick,
+                "body": text,
+                "_author": ME_USER,
+                "author_name": "you",
+                "created_at": now,
+                "edited_at": None,
+            }
+            REVIEW["comments"].append(made)
+            handler.reply(201, comment_out(team, made))
+        return True
+    if on_round and method == "PUT" and on_round[3] == "tags":
+        n = int(on_round[2])
+        if not can(team, "review.manage"):
+            refused(handler, 403, "forbidden")
+            return True
+        if not round_ok(on_round[1], n):
+            return True
+        wanted: list[str] = []
+        for raw in body.get("tags") or []:
+            cleaned = clean_line(raw, 1, TAG_MAX)
+            if cleaned is None:
+                refused(handler, 422, "tag_invalid")
+                return True
+            if cleaned.lower() not in (w.lower() for w in wanted):
+                wanted.append(cleaned)
+        if len(wanted) > TAGS_PER_ROUND:
+            refused(handler, 409, "tag_limit")
+        else:
+            REVIEW["tags"][(slug, on_round[1], n)] = wanted
+            handler.reply(200, {"round": n, "tags": sorted_tags(wanted)})
+        return True
+    if comment and method in ("PATCH", "DELETE"):
+        found = next(
+            (c for c in REVIEW["comments"] if c["id"] == comment[1] and c["_team"] == slug), None
+        )
+        if found is None or found["match_id"] not in seen:
+            refused(handler, 404, "comment_not_found")
+        elif method == "PATCH":
+            text = clean_body(body.get("body"))
+            if found["_author"] != ME_USER or not can(team, "review.comment"):
+                refused(handler, 403, "forbidden")
+            elif text is None:
+                refused(handler, 422, "comment_invalid")
+            else:
+                found["body"] = text
+                found["edited_at"] = now
+                handler.reply(200, comment_out(team, found))
+        elif not comment_out(team, found)["can_delete"]:
+            refused(handler, 403, "forbidden")
+        else:
+            REVIEW["comments"].remove(found)
+            handler.reply(204)
+        return True
+    if playlist is None:
+        handler.reply(404, {"detail": "not found"})
+        return True
+    if not can(team, "review.manage"):
+        refused(handler, 403, "forbidden")
+        return True
+    if playlist[1] is None and method == "POST":
+        name = clean_line(body.get("name"), 1, 80)
+        about = clean_line(body.get("description", ""), 0, 280)
+        if name is None:
+            refused(handler, 422, "name_invalid")
+        elif about is None:
+            refused(handler, 422, "description_invalid")
+        elif sum(1 for p in REVIEW["playlists"] if p["_team"] == slug) >= 50:
+            refused(handler, 409, "playlist_limit")
+        else:
+            made = {"id": str(uuid.uuid4()), "_team": slug, "name": name, "description": about,
+                    "created_at": now, "updated_at": now, "_rounds": []}  # fmt: skip
+            REVIEW["playlists"].append(made)
+            handler.reply(201, playlist_out(team, made))
+        return True
+    found_p = next(
+        (p for p in REVIEW["playlists"] if p["id"] == playlist[1] and p["_team"] == slug), None
+    )
+    if found_p is None:
+        refused(handler, 404, "playlist_not_found")
+        return True
+    part = playlist[2]
+    if part is None and method == "PATCH":
+        name, about = body.get("name"), body.get("description")
+        clean_name = None if name is None else clean_line(name, 1, 80)
+        clean_about = None if about is None else clean_line(about, 0, 280)
+        if name is not None and clean_name is None:
+            refused(handler, 422, "name_invalid")
+        elif about is not None and clean_about is None:
+            refused(handler, 422, "description_invalid")
+        else:
+            found_p["name"] = clean_name or found_p["name"]
+            if clean_about is not None:
+                found_p["description"] = clean_about
+            found_p["updated_at"] = now
+            handler.reply(200, playlist_out(team, found_p))
+    elif part is None and method == "DELETE":
+        REVIEW["playlists"].remove(found_p)
+        handler.reply(204)
+    elif part == "/rounds" and method == "POST":
+        match_id, number = str(body.get("match_id", "")), body.get("round")
+        if not isinstance(number, int):
+            handler.reply(422, {"detail": [{"loc": ["body", "round"]}]})
+        elif round_ok(match_id, number):
+            if (match_id, number) not in found_p["_rounds"]:
+                if len(found_p["_rounds"]) >= 100:
+                    refused(handler, 409, "playlist_full")
+                    return True
+                found_p["_rounds"].append((match_id, number))
+                found_p["updated_at"] = now
+            handler.reply(200, playlist_out(team, found_p))
+    elif part and part.startswith("/rounds/") and method == "DELETE":
+        key = (playlist[3], int(playlist[4]))
+        if key in found_p["_rounds"]:
+            found_p["_rounds"].remove(key)
+            found_p["updated_at"] = now
+        handler.reply(204)
+    elif part == "/order" and method == "PUT":
+        given = [(str(r.get("match_id")), r.get("round")) for r in body.get("rounds") or []]
+        visible = [r for r in found_p["_rounds"] if r[0] in seen]
+        if len(set(given)) != len(given) or set(given) != set(visible):
+            refused(handler, 422, "order_invalid")
+        else:
+            found_p["_rounds"] = given + [r for r in found_p["_rounds"] if r[0] not in seen]
+            found_p["updated_at"] = now
+            handler.reply(200, playlist_out(team, found_p))
     else:
         handler.reply(404, {"detail": "not found"})
     return True

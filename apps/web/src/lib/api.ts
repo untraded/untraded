@@ -304,6 +304,73 @@ export interface TeamMatchDetail extends TeamMatchSummary {
   players: TeamMatchPlayer[];
 }
 
+/** A comment of a team's review on a round (`docs/contrat-api-equipes-e7.md` in the HQ). Plain
+ * text, shown as such: never as HTML. */
+export interface ReviewComment {
+  id: string;
+  match_id: string;
+  round: number;
+  /** The instant of the round it is about, in the demo's ticks. */
+  tick: number | null;
+  body: string;
+  /** The name it is signed with; `null` once its author's account is erased ("former member"). */
+  author_name: string | null;
+  mine: boolean;
+  can_edit: boolean;
+  can_delete: boolean;
+  created_at: string;
+  edited_at: string | null;
+}
+
+export interface RoundTags {
+  round: number;
+  tags: string[];
+}
+
+export interface ReviewPermissions {
+  comment: boolean;
+  manage: boolean;
+}
+
+/** A team's review of one match (`GET /teams/{slug}/matches/{id}/review`). */
+export interface MatchReview {
+  comments: ReviewComment[];
+  tags: RoundTags[];
+  /** Every playlist of the team, with the rounds of this match already in it. */
+  playlists: { id: string; name: string; rounds: number[] }[];
+  permissions: ReviewPermissions;
+}
+
+export interface PlaylistSummary {
+  id: string;
+  name: string;
+  description: string;
+  /** Its rounds of matches the team sees. */
+  rounds: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PlaylistRound {
+  match_id: string;
+  round: number;
+  map: string | null;
+  played_at: string | null;
+  mode: string;
+  score_a: number | null;
+  score_b: number | null;
+  our_team: "A" | "B" | null;
+  winner_team: "A" | "B" | null;
+  tags: string[];
+  comments: number;
+}
+
+export interface Playlist extends PlaylistSummary {
+  /** In the playlist's order: the rounds of matches the team sees. */
+  items: PlaylistRound[];
+  permissions: ReviewPermissions;
+}
+
 /** A team's home (`GET /teams/{slug}/overview`). */
 export interface TeamOverview {
   /** Every match the team sees. */
@@ -710,6 +777,20 @@ export const getTeamMatch = (slug: string, id: string) =>
  * `matches.read` included). */
 export const findTeamOverview = (slug: string) =>
   apiGetOptional<TeamOverview>(`/teams/${encodeURIComponent(slug)}/overview`);
+
+/** A team's review of one of its matches, which the match page stands without: `null` on any
+ * failure. */
+export const findMatchReview = (slug: string, id: string) =>
+  apiGetOptional<MatchReview>(
+    `/teams/${encodeURIComponent(slug)}/matches/${encodeURIComponent(id)}/review`,
+  );
+export const getPlaylists = (slug: string) =>
+  apiGet<PlaylistSummary[]>(`/teams/${encodeURIComponent(slug)}/playlists`);
+/** One of a team's playlists: `null` when it does not exist (any more) or the API fails. */
+export const findPlaylist = (slug: string, id: string) =>
+  apiGetOptional<Playlist>(
+    `/teams/${encodeURIComponent(slug)}/playlists/${encodeURIComponent(id)}`,
+  );
 
 /**
  * What an invitation link leads to, read without signing in: its preview, or `null` when the

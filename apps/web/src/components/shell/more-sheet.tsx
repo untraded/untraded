@@ -16,6 +16,8 @@ export interface MoreSheetProps {
     progress: string | null;
     /** In a team's space: its own upload page (`uploadHref`), for members who may send. */
     upload: string | null;
+    /** In a team's space: its review page (`reviewHref`), for members who read its matches. */
+    review: string | null;
     formulas: string;
     admin: string | null;
     /** The team mode preview, admins only too, with its badge. */
@@ -25,6 +27,8 @@ export interface MoreSheetProps {
   };
   /** Where the upload entry goes, when not the player's own upload page (a team's). */
   uploadHref?: string;
+  /** Where the review entry goes (a team's review page). */
+  reviewHref?: string;
 }
 
 const popup = lazyModule(() => import("./more-sheet-popup").then((m) => m.MoreSheetPopup));

@@ -56,6 +56,7 @@ export async function AppShell({
     settings: t("settings"),
     progress: t("progress"),
     upload: t("upload"),
+    review: null,
     formulas: t("formulas"),
     admin: me.admin ? t("admin") : null,
     team: me.admin ? t("team") : null,
@@ -186,9 +187,9 @@ export async function AppShell({
                 </div>
               </>
             }
-            // A team's space links only the pages that exist: its home, its matches (for a role
-            // that reads them) and its members. Its stats, review and the rest join this list as
-            // they are built.
+            // A team's space links only the pages that exist: its home, its matches and its review
+            // (for a role that reads its matches) and its members. Its stats and the rest join
+            // this list as they are built.
             teams={Object.fromEntries(
               teams.map((w) => [
                 w.slug,
@@ -207,6 +208,15 @@ export async function AppShell({
                       href={teamHref(w.slug, "matches")}
                       label={t("teamMatches")}
                       short={t("short.teamMatches")}
+                      place="rail"
+                    />
+                  )}
+                  {readsMatches(w.permissions) && (
+                    <NavLink
+                      section="review"
+                      href={teamHref(w.slug, "review")}
+                      label={t("teamReview")}
+                      short={t("short.teamReview")}
                       place="rail"
                     />
                   )}
@@ -318,9 +328,11 @@ export async function AppShell({
                     ...moreLabels,
                     progress: null,
                     upload: sendsMatches(w) ? t("teamUpload") : null,
+                    review: readsMatches(w.permissions) ? t("teamReview") : null,
                     team: null,
                   }}
                   uploadHref={teamHref(w.slug, "upload")}
+                  reviewHref={teamHref(w.slug, "review")}
                 />
               </div>,
             ]),
