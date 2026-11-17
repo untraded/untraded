@@ -44,8 +44,18 @@ export function defaultInviteRole(roles: readonly Role[]): Role | undefined {
 }
 
 /** A team's address on the site, or one of its pages. */
-export function teamHref(slug: string, page?: "members" | "upload"): string {
+export function teamHref(slug: string, page?: "members" | "matches" | "upload"): string {
   return `/teams/${encodeURIComponent(slug)}${page ? `/${page}` : ""}`;
+}
+
+/** A team's match, on the team's pages. */
+export function teamMatchHref(slug: string, id: string): string {
+  return `${teamHref(slug, "matches")}/${encodeURIComponent(id)}`;
+}
+
+/** Whether a role reads the team's matches (its matches pages and its home's). */
+export function readsMatches(permissions: readonly string[]): boolean {
+  return allows(permissions, "matches.read");
 }
 
 /** The address an invitation link opens, on this site. */

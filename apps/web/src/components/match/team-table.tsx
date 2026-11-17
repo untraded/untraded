@@ -13,12 +13,16 @@ export async function TeamTable({
   team,
   me,
   locale,
+  ours = "player",
 }: {
   match: MatchDetail;
   team: "A" | "B";
   /** The signed-in player's SteamID. */
   me: string;
   locale: Locale;
+  /** Whose side `my_team` is: the player's ("your team"), or the team's on its pages ("our
+   * team"). */
+  ours?: "player" | "team";
 }) {
   const t = await getTranslations("match");
   const m = await getTranslations("matches");
@@ -28,7 +32,7 @@ export async function TeamTable({
       (x, y) => (y.line.untraded ?? y.line.level ?? -1) - (x.line.untraded ?? x.line.level ?? -1),
     );
   const fallback = match.my_team
-    ? t(team === match.my_team ? "yourTeam" : "opponents")
+    ? t(team !== match.my_team ? "opponents" : ours === "team" ? "ourTeam" : "yourTeam")
     : t(team === "A" ? "teamA" : "teamB");
   const name = (team === "A" ? match.team_a_name : match.team_b_name) ?? fallback;
   const score = team === "A" ? match.score_a : match.score_b;

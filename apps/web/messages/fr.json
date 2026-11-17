@@ -29,9 +29,11 @@
       "settings": "Réglages",
       "admin": "Admin",
       "teamHome": "Accueil",
+      "teamMatches": "Matchs",
       "teamMembers": "Membres"
     },
     "teamHome": "Accueil",
+    "teamMatches": "Matchs",
     "teamUpload": "Envoyer un match",
     "teamMembers": "Membres"
   },
@@ -582,6 +584,7 @@
     "teamA": "Équipe A",
     "teamB": "Équipe B",
     "yourTeam": "Ton équipe",
+    "ourTeam": "Notre équipe",
     "opponents": "Adversaires",
     "startedCt": "CT en première mi-temps",
     "startedT": "T en première mi-temps",
@@ -596,6 +599,7 @@
     "duration": "Durée : {minutes} min",
     "rounds": "Rounds",
     "roundsLegend": "plein = gagné, trait du bas = ton côté, encadré = à revoir",
+    "roundsLegendTeam": "plein = gagné, trait du bas = notre côté",
     "roundsHint": "Chaque round s'ouvre en 2D.",
     "roundLink": "Round {round}, {side}, {result}, {reason} : revoir en 2D",
     "roundLinkFlagged": "Round {round}, {side}, {result}, à revoir : revoir en 2D",
@@ -732,6 +736,7 @@
         "report": "Pour nous signaler une erreur, donne-nous le détail technique ci-dessous."
       },
       "notCounted": "Il ne compte ni dans tes sessions, ni dans ta Progression.",
+      "notCountedTeam": "Les pages de l'équipe n'en montrent ni rounds ni chiffres.",
       "detail": "Détail technique, en anglais"
     }
   },
@@ -1527,6 +1532,7 @@
   "teams": {
     "context": "L'équipe, ses pages et ton rôle",
     "overview": "Accueil",
+    "matches": "Matchs",
     "members": "Membres",
     "yourRole": "Ton rôle : {role}",
     "roles": {
@@ -1542,8 +1548,6 @@
     "rosterEmpty": "Personne n'est encore au roster.",
     "rosterLead": "Un match compte pour l'équipe quand trois joueurs du roster l'ont joué du même côté.",
     "membersCount": "{count, plural, one {# membre} other {# membres}}",
-    "soon": "La suite",
-    "soonText": "Les matchs de l'équipe, ses stats tactiques et la review arrivent ici dans les prochaines étapes de la bêta équipe.",
     "you": "toi",
     "joined": "Arrivée le {date}",
     "role": "Rôle",
@@ -1642,6 +1646,23 @@
       "switch": "Changer d'espace : {name}",
       "teamLine": "Équipe · {role}"
     },
-    "handOverPick": "Choisis un membre"
+    "handOverPick": "Choisis un membre",
+    "recent": "Derniers matchs",
+    "allMatches": "Tous les matchs ({count})",
+    "recordDays": "{days} derniers jours",
+    "recordNone": "Aucun match avec un côté connu ces {days} derniers jours.",
+    "noMatches": "Aucun match de l'équipe pour l'instant. Un match apparaît ici dès que trois joueurs du roster l'ont joué du même côté, ou quand un membre partage ses matchs solo."
+  },
+  "teamMatches": {
+    "shared": "Partagé",
+    "sharedTitle": "Match solo partagé par un membre : l'équipe n'y a pas de côté",
+    "players": "Joueurs de l'équipe",
+    "playersLabel": "Joueurs de l'équipe :",
+    "mode": "Mode",
+    "back": "Matchs de l'équipe",
+    "pageLead": "Tous les matchs que l'équipe voit, du plus récent au plus ancien. Le score se lit de notre côté.",
+    "noSide": "L'équipe n'a pas de côté unique dans ce match : aucun côté ne compte, à lui seul, trois joueurs de son roster.",
+    "pages": "Pages de matchs",
+    "noMore": "Plus aucun match."
   }
 }

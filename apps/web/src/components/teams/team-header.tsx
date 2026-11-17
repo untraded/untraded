@@ -4,7 +4,7 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { ContextBar } from "@/components/ui/context-bar";
 import type { Team } from "@/lib/api";
-import { teamHref } from "@/lib/teams";
+import { readsMatches, teamHref } from "@/lib/teams";
 import { roleLabel } from "./role-label";
 
 /**
@@ -18,13 +18,16 @@ export async function TeamHeader({
 }: {
   team: Team;
   /** The page shown: a tab is marked only for the pages the bar lists. */
-  current: "home" | "members" | "upload";
+  current: "home" | "matches" | "members" | "upload";
 }) {
   const t = await getTranslations("teams");
   const tabs = [
     { key: "home", href: teamHref(team.slug), label: t("overview") },
+    ...(readsMatches(team.my_role.permissions)
+      ? [{ key: "matches", href: teamHref(team.slug, "matches"), label: t("matches") }]
+      : []),
     { key: "members", href: teamHref(team.slug, "members"), label: t("members") },
-  ] as const;
+  ];
   return (
     <ContextBar label={t("context")}>
       <h1 className="min-w-0 text-lg leading-tight font-semibold break-words xl:shrink-0">
