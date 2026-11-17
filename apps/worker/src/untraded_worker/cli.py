@@ -8,6 +8,7 @@ UNTRADED_UPLOADS_DIR, UNTRADED_UPLOAD_MAX_DEMO_GB, UNTRADED_DEMO_RETENTION_DAYS)
 `untraded-worker backfill-spread`: fill the spread of the references of the sessions written
 before it existed, without recomputing any session (none changes its id).
 `untraded-worker retry-failed`: put the failed matches back in the queue, after a fix.
+`untraded-worker refresh-access`: recompute which workspaces see every match (teams).
 `untraded-worker import-demo <dir>`: load the demo account (`untraded demo build`)."""
 
 from __future__ import annotations
@@ -33,6 +34,7 @@ from untraded_worker import (
     spread,
     store_dir,
     swings,
+    team_access,
     uploads_dir,
 )
 from untraded_worker.jobs import dead_handlers, handlers
@@ -64,6 +66,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="fill reference_p10 and reference_p90 of existing sessions (nothing else changes)",
     )
     actions.add_parser("retry-failed", help="put the failed matches back in the queue")
+    actions.add_parser(
+        "refresh-access", help="recompute which workspaces see every match (rosters, sharing)"
+    )
     demo_parser = actions.add_parser("import-demo", help="load the demo account's matches")
     demo_parser.add_argument("directory", type=Path, help="written by `untraded demo build`")
     demo_parser.add_argument("--name", default="Demo")
@@ -91,6 +96,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         with psycopg.connect(conninfo(), autocommit=True) as conn:
             retried = retry.retry_failed(conn)
         logging.info("%s failed match(es) put back in the queue", retried.queued)
+        return 0
+    if args.action == "refresh-access":
+        with psycopg.connect(conninfo(), autocommit=True) as conn:
+            done = team_access.refresh_all(conn)
+        logging.info("access to %s match(es) recomputed", done)
         return 0
     if args.action == "import-demo":
         with psycopg.connect(conninfo(), autocommit=True) as conn:

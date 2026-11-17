@@ -1,6 +1,6 @@
 # Phase 2 database: entity-relationship diagram
 
-The decisions behind the schema are in [ADR 0011](../adr/0011-phase-2-database-schema.md). The migrations in [`db/`](../../db/src/untraded_db/migrations/versions/) are the source of truth (ADR 0006); this page shows the schema **after the last one, 0015**. [schema.sql](schema.sql) is the reference schema of ADR 0011, kept identical to migration 0001, which a test checks (`db/tests/test_migrations.py`): it does not hold the later migrations.
+The decisions behind the schema are in [ADR 0011](../adr/0011-phase-2-database-schema.md). The migrations in [`db/`](../../db/src/untraded_db/migrations/versions/) are the source of truth (ADR 0006); this page shows the schema **after the last one, 0016**. [schema.sql](schema.sql) is the reference schema of ADR 0011, kept identical to migration 0001, which a test checks (`db/tests/test_migrations.py`): it does not hold the later migrations.
 
 Every table and column is shown. Solid lines are foreign keys; dotted lines are links by Steam id that have no foreign key constraint (event and metric rows keep the Steam ids of every player of a match). Types: `char1` is `char(1)`, `char64` is `char(64)`, `text_array` is `text[]`, `double` is `double precision`.
 
@@ -21,6 +21,7 @@ Every table and column is shown. Solid lines are foreign keys; dotted lines are 
 | 0013 blinded bots | `blind.victim` nullable |
 | 0014 other findings | `advice.priority` from 1, no upper bound |
 | 0015 reference spread | `play_session_metric.reference_p10`, `reference_p90`; `level_reference.p10`, `p90` |
+| 0016 teams | `team_invitation`; `workspace.created_by` optional for a team; team slug and one roster per team; sessions, advice and aggregates private to their player; `has_permission` and the team functions (ADR 0012) |
 
 ## Tenancy and players
 
@@ -40,6 +41,8 @@ erDiagram
     app_user |o--o{ invitation : invited
     app_user ||--o{ consent : gives
     app_user ||--o{ auth_session : "signs in with"
+    workspace ||--o{ team_invitation : invites
+    workspace_role ||--o{ team_invitation : "joins as"
 
     app_user {
         uuid id PK
@@ -61,7 +64,7 @@ erDiagram
         text name
         citext slug UK
         text plan "default free"
-        uuid created_by FK
+        uuid created_by FK "personal only; set null"
         timestamptz created_at
     }
     workspace_role {
@@ -123,10 +126,24 @@ erDiagram
         timestamptz last_seen_at
         timestamptz expires_at
     }
+    team_invitation {
+        uuid id PK
+        uuid workspace_id FK
+        bytea token_hash UK "sha256 of the link's token"
+        uuid role_id FK "never with *"
+        smallint max_uses "1 to 20"
+        smallint uses "joined"
+        smallint signups "accounts opened"
+        uuid created_by FK "set null"
+        timestamptz created_at
+        timestamptz expires_at "7 days"
+        timestamptz revoked_at
+    }
 ```
 
 - `consent` is never updated: a player's consent is their latest row, which the view `consent_current` (`user_id`, `text_version`, `analysis`, `research_corpus`, `recorded_at`) returns.
-- An invited Steam account becomes a user, with a personal workspace (slug `u-{steam_id}`) and an `owner` role (`*`), at its first sign-in (`open_auth_session`).
+- An invited Steam account becomes a user, with a personal workspace (slug `u-{steam_id}`) and an `owner` role (`*`), at its first sign-in (`open_auth_session`); so does a new account that signs in with a valid team invitation link (each counts against the link's uses).
+- A team (ADR 0012) has no `created_by`, a slug `[a-z0-9-]{3,32}` never of the form `u-<digits>`, one roster, and default roles `owner` (`*`), `coach`, `player`, `viewer`. A member's role belongs to their workspace (`(role_id, workspace_id)` foreign key). Its members are followed players (`workspace_player`, which holds their own `share_solo`); a player is on its roster once at a time (closed rows are the history).
 
 ## Ingestion and matches
 
@@ -530,9 +547,9 @@ The API runs each transaction as `untraded_api` (no `BYPASSRLS`) with `app.user_
 |---|---|
 | a match one of the user's workspaces sees (`visible_match`) | `match`, `match_player`, `round`, `kill`, `damage`, `blind`, `grenade`, `economy`, `round_player`, `metric_value`, `metric_table_value`, `workspace_match` |
 | through such a match, or a player followed by one of the user's workspaces (`visible_player`) | `player` |
-| the user's workspaces (`is_member`) | `workspace`, `membership`, `workspace_role`, `workspace_player`, `roster`, `roster_member`, `advice` |
-| followed players (`followed_player`) | `metric_aggregate` |
-| the user's own player, or a followed one | `play_session`, `play_session_match`, `play_session_metric` |
+| the user's workspaces (`is_member`) | `workspace`, `membership`, `workspace_role`, `workspace_player`, `roster`, `roster_member` |
+| the user's own player only (`own_player`), whichever workspace follows them | `play_session`, `play_session_match`, `play_session_metric`, `metric_aggregate`, `advice` (and one of the user's workspaces) |
+| the teams where the user may manage members (`has_permission`) | `team_invitation` (never `token_hash`) |
 | the user's own rows | `ingest_source`, `advice_feedback`, `consent`; `app_user` (and the users they share a workspace with) |
 | none (functions only) | `auth_session` |
 | no row-level security | `metric_definition`, `metric_current`, `level_reference`, `invitation`, `invitation_request`, `job` |
@@ -541,4 +558,5 @@ The API runs each transaction as `untraded_api` (no `BYPASSRLS`) with `app.user_
   - sign-in: `open_auth_session`, `auth_session_user`, `close_auth_session`;
   - the player's Steam codes: `my_source`, `set_my_source`, `pause_my_sources` (the API never reads a secret);
   - erasure: `request_my_erasure` (`request_erasure`, for any Steam id, is not granted to it); both mark the account deleted, pause its sources, close its sessions, drop a pending invitation and queue an `erase_player` job;
-  - uploads: `my_upload_refusal`, `add_my_upload` (a pending `match`, its `match_source` and an `ingest_upload` job), `my_uploads`.
+  - uploads: `my_upload_refusal`, `add_my_upload` (a pending `match`, its `match_source` and an `ingest_upload` job), `my_uploads`;
+  - teams (0016, ADR 0012), each checking the caller's permission and raising a stable code with SQLSTATE `UT001`: `has_permission`, `my_permissions`, `rename_team`, `delete_team`, `set_member_role`, `remove_member`, `transfer_team_ownership`, `create_team_invitation`, `revoke_team_invitation`, `team_invitation_preview`, `accept_team_invitation`, `set_roster_member`, `remove_roster_member`, `set_my_share_solo`, `queue_my_team_access`. `create_team` is for the admin routes only (the services' role). `request_erasure` refuses a team's owner (`owner_must_hand_over`) before closing anything.

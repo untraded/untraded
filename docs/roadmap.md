@@ -26,4 +26,6 @@ Delivered:
 
 Still to come in phase 2: the open rating on its 1.00 scale, Renown, the FACEIT extension (the [S0.3](../spikes/S0.3-faceit-extension/) prototype is not part of the product yet), the Discord bot, the PWA and exports.
 
+Phase 3 has started with the team workspaces' access rules ([ADR 0012](adr/0012-team-access-and-permissions.md)): teams created by an admin, invitation links, roles without escalation, the roster and each player's sharing choice.
+
 Metric definitions for phase 1: [metrics-v1.md](metrics-v1.md). Architecture decisions: [adr/](adr/).

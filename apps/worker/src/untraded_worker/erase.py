@@ -6,6 +6,9 @@ Afterwards the player is what any non-registered player of a match is:
 - their account goes with everything tied to it: sources and their encrypted codes, consents,
   sign-in sessions, votes, invitation (or request for one) and personal workspace;
 - their play sessions, advice and aggregates go too;
+- they leave every team: memberships, roster rows (history included) and followed-player rows go,
+  and the teams' access to the matches that stay is recomputed. An owner must hand their teams
+  over first: `request_erasure` refuses them before closing the account, and this job too;
 - the matches that count for no other user (`credit`) are deleted whole: rows, Parquet and raw
   demo, and so are the matches their sources brought that were never parsed (waiting, or failed).
   A demo they sent goes even if it names other users: it was never on those users' accounts;
@@ -35,6 +38,7 @@ from typing import Any
 
 import psycopg
 
+from untraded_worker import team_access
 from untraded_worker.credit import credited
 from untraded_worker.queue import Job
 from untraded_worker.store import LocalStore
@@ -94,16 +98,27 @@ def erase_player(conn: psycopg.Connection[Any], store: LocalStore, steam_id: int
             "SELECT id FROM app_user WHERE steam_id = %s FOR UPDATE", (steam_id,)
         ).fetchone()
         if user is not None:
-            others = conn.execute(
-                "SELECT count(*) FROM workspace WHERE created_by = %s AND kind <> 'personal'",
+            # `request_erasure` refuses an owner before closing the account; this guards an
+            # erasure queued before that check existed, or a hand-over that raced it.
+            owner = conn.execute(
+                """
+                SELECT 1 FROM membership m
+                JOIN workspace w ON w.id = m.workspace_id AND w.kind = 'team'
+                JOIN workspace_role r ON r.id = m.role_id
+                WHERE m.user_id = %s AND '*' = ANY (r.permissions)
+                """,
                 (user[0],),
             ).fetchone()
-            if others and others[0]:
-                raise EraseError("the player created a team workspace: hand it over first")
+            if owner is not None:
+                raise EraseError("the player owns a team: hand it over first")
         own = conn.execute(OWN_MATCHES, {"steam": steam_id}).fetchall()
         conn.execute("DELETE FROM play_session WHERE steam_id = %s", (steam_id,))
         conn.execute("DELETE FROM advice WHERE steam_id = %s", (steam_id,))
         conn.execute("DELETE FROM metric_aggregate WHERE steam_id = %s", (steam_id,))
+        # Off every roster, history included, and no longer followed by any team: an erased
+        # Steam ID must not keep opening matches to a team. Their memberships go with the account.
+        conn.execute("DELETE FROM roster_member WHERE steam_id = %s", (steam_id,))
+        conn.execute("DELETE FROM workspace_player WHERE steam_id = %s", (steam_id,))
         if own:
             conn.execute("DELETE FROM match WHERE id = ANY(%s)", ([row[0] for row in own],))
         if user is not None:
@@ -130,9 +145,11 @@ def erase_player(conn: psycopg.Connection[Any], store: LocalStore, steam_id: int
                 "WHERE steam_id = %s",
                 (steam_id,),
             )
+        # The matches that stay: their teams' access without this player (and their own space).
+        team_access.refresh_player(conn, steam_id)
         # A running job is not ours to delete; this job's own row goes with `ErasePlayerJob`.
         conn.execute(
-            "DELETE FROM job WHERE kind IN ('session', 'erase_player') "
+            "DELETE FROM job WHERE kind IN ('session', 'erase_player', 'refresh_team_access') "
             "AND payload->>'steam_id' = %s AND status <> 'running'",
             (str(steam_id),),
         )
