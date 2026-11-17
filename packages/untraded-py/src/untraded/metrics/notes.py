@@ -17,6 +17,16 @@ ALL_LIMITS = (
 """Limits shared by every metric."""
 
 FAMILY_LIMITS: dict[str, tuple[str, ...]] = {
+    "team": (
+        "One side of a match (`A` started on CT, `B` on T), not a team: which side is a team's "
+        "is decided when the numbers are read (3 players of its roster on the match's date, on "
+        "the same side), so a team's numbers only cover the matches where that rule finds it.",
+        "Counts, not rates: a rate over several matches adds their counts up (hits ÷ cases over "
+        "all their rounds), never averages the matches' rates.",
+        "Only rounds whose winner is known count (a last round cut by the end of the demo is "
+        "left out); overtime rounds count like the others.",
+        "Team samples are small: read every rate with its number of cases.",
+    ),
     "duel": (
         "Distances are straight lines between positions, through walls: neither line of sight "
         "nor the navmesh path is taken into account (both come later).",
@@ -57,6 +67,27 @@ FAMILY_LIMITS: dict[str, tuple[str, ...]] = {
 }
 
 LIMITS: dict[str, tuple[str, ...]] = {
+    "team.site_t": (
+        "The site is where the planter stood (`BombsiteA` or `BombsiteB` place): a round where "
+        "the team went to a site without planting counts as `none`.",
+    ),
+    "team.post_plant": (
+        "Players alive at the plant: those present in the round, minus those dead at the plant's "
+        "tick or before. A player who left mid-round still counts as alive.",
+    ),
+    "team.retake": (
+        "Players alive at the plant, as for `team.post_plant`; a retake is any CT round with an "
+        "enemy plant, saves included.",
+    ),
+    "team.buy": (
+        "Buy types come from the round model (`BuyThresholds`, parameters on "
+        "[parameters.md](parameters.md)); overtime rounds are never pistol rounds.",
+    ),
+    "team.trades": (
+        "A player can trade their own death: their grenade or fire kills the killer within the "
+        "window. That link is kept.",
+        "A bot of the team that trades a death adds to the total but links no player.",
+    ),
     "base.assists": (
         "An assist on the death of an uncontrolled bot is not counted, unlike CS Demo Manager.",
     ),
@@ -195,6 +226,7 @@ FIRST_PR: dict[str, int] = {
     "util": 35,
     "eco": 36,
     "rating": 37,
+    "team": 210,
 }
 """Pull request that added each family at 1.0.0."""
 

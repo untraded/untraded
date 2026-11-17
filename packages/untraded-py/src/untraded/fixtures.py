@@ -27,7 +27,7 @@ from typing import Any
 import polars as pl
 
 from untraded.derive import derive
-from untraded.metrics import REGISTRY, Dataset, compute, compute_table
+from untraded.metrics import REGISTRY, Dataset, compute, compute_table, compute_team
 from untraded.parsing.schema import SCHEMA_VERSION, TABLES
 from untraded.parsing.validate import validate
 
@@ -221,7 +221,23 @@ def expected_metrics(tables: Mapping[str, pl.DataFrame]) -> dict[str, Any]:
         "versions": {m.id: m.version for m in sorted(REGISTRY.values(), key=lambda m: m.id)},
         "players": dict(sorted(values.items())),
         "tables": table_metrics,
+        "teams": team_rows(ds, names),
     }
+
+
+def team_rows(ds: Dataset, names: Mapping[int, str]) -> dict[str, list[dict[str, Any]]]:
+    """The team metrics by id, SteamIDs in `key` and `sub_key` replaced by player names."""
+    by_name = {str(steamid): name for steamid, name in names.items()}
+    frame = compute_team(ds).with_columns(
+        pl.col("key").replace(by_name), pl.col("sub_key").replace(by_name)
+    )
+    out: dict[str, list[dict[str, Any]]] = {}
+    for metric_id in sorted(m.id for m in REGISTRY.values() if m.kind == "team"):
+        rows = frame.filter(pl.col("metric") == metric_id).select(
+            "team", "key", "sub_key", "cases", "hits"
+        )
+        out[metric_id] = sorted(rows.to_dicts(), key=lambda r: json.dumps(r, sort_keys=True))
+    return out
 
 
 def _round(value: Any) -> Any:

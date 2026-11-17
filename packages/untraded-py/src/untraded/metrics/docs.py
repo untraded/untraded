@@ -22,7 +22,7 @@ import polars as pl
 import untraded
 from untraded import fixtures
 from untraded.derive import derive
-from untraded.metrics import REGISTRY, Dataset, compute, compute_table
+from untraded.metrics import REGISTRY, Dataset, compute, compute_table, compute_team
 from untraded.metrics.notes import ALL_LIMITS, FAMILY_LIMITS, LIMITS, history
 from untraded.metrics.params import PARAMETERS
 from untraded.metrics.registry import ROUNDS, Metric
@@ -37,6 +37,7 @@ SECTIONS = {
     "util": "Utility",
     "eco": "Economy",
     "rating": "Ratings",
+    "team": "Team",
 }
 DOCS = Path("docs") / "metrics"
 EXAMPLE = Path("packages/untraded-py/tests/fixtures/premier-half")
@@ -72,6 +73,8 @@ def render(example: Path = EXAMPLE) -> dict[str, str]:
         if m.kind == "value":
             rows = values.filter(pl.col("metric") == m.id).sort("steamid")
             example_md = _value_example(rows, names, m)
+        elif m.kind == "team":
+            example_md = _team_example(compute_team(ds, [m.id]), names)
         else:
             example_md = _table_example(compute_table(ds, m.id), names)
         pages[f"{m.id}.md"] = _page(m, example_md, where)
@@ -209,6 +212,15 @@ def _table_example(frame: pl.DataFrame, names: Mapping[int, str]) -> str:
     if frame.height > TABLE_ROWS:
         lines += ["", f"*First {TABLE_ROWS} of {frame.height} rows.*"]
     return "\n".join(lines)
+
+
+def _team_example(frame: pl.DataFrame, names: Mapping[int, str]) -> str:
+    """Team rows, SteamIDs in `key` and `sub_key` replaced by player names."""
+    by_name = {str(steamid): name for steamid, name in names.items()}
+    return _table_example(
+        frame.with_columns(pl.col("key").replace(by_name), pl.col("sub_key").replace(by_name)),
+        names,
+    )
 
 
 def _fmt(value: object) -> str:

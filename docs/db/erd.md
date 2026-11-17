@@ -1,6 +1,6 @@
 # Phase 2 database: entity-relationship diagram
 
-The decisions behind the schema are in [ADR 0011](../adr/0011-phase-2-database-schema.md). The migrations in [`db/`](../../db/src/untraded_db/migrations/versions/) are the source of truth (ADR 0006); this page shows the schema **after the last one, 0019**. [schema.sql](schema.sql) is the reference schema of ADR 0011, kept identical to migration 0001, which a test checks (`db/tests/test_migrations.py`): it does not hold the later migrations.
+The decisions behind the schema are in [ADR 0011](../adr/0011-phase-2-database-schema.md). The migrations in [`db/`](../../db/src/untraded_db/migrations/versions/) are the source of truth (ADR 0006); this page shows the schema **after the last one, 0020**. [schema.sql](schema.sql) is the reference schema of ADR 0011, kept identical to migration 0001, which a test checks (`db/tests/test_migrations.py`): it does not hold the later migrations.
 
 Every table and column is shown. Solid lines are foreign keys; dotted lines are links by Steam id that have no foreign key constraint (event and metric rows keep the Steam ids of every player of a match). Types: `char1` is `char(1)`, `char64` is `char(64)`, `text_array` is `text[]`, `double` is `double precision`.
 
@@ -25,6 +25,7 @@ Every table and column is shown. Solid lines are foreign keys; dotted lines are 
 | 0017 team access reason | `access_reason` gains `team` |
 | 0018 team uploads | `ingest_source.workspace_id` (a team's own upload source; `user_id` optional), `upload_sender`; row-level security on `match_source`; the team upload functions; a deleted team's matches queued for deletion (ADR 0012) |
 | 0019 team review | `review_comment`, `review_tag`, `review_playlist`, `review_playlist_round`; `review_readable` and the review functions (ADR 0012) |
+| 0020 team metrics | `team_metric_value` (counts per side of a match, `untraded.metrics.team`); `metric_definition.kind` gains `team` |
 
 ## Tenancy and players
 
@@ -378,8 +379,10 @@ erDiagram
 erDiagram
     match ||--o{ metric_value : has
     match ||--o{ metric_table_value : has
+    match ||--o{ team_metric_value : has
     metric_definition ||--o{ metric_value : versions
     metric_definition ||--o{ metric_table_value : versions
+    metric_definition ||--o{ team_metric_value : versions
     metric_definition ||--o{ metric_aggregate : versions
     metric_definition ||--o| metric_current : "current version"
     metric_definition ||--o{ level_reference : versions
@@ -430,6 +433,18 @@ erDiagram
         text version PK, FK
         text params_hash PK
         jsonb rows
+        timestamptz computed_at
+    }
+    team_metric_value {
+        uuid match_id PK, FK
+        char team PK
+        text metric_id PK, FK
+        text version PK, FK
+        text params_hash PK
+        text key PK
+        text sub_key PK
+        int cases
+        int hits
         timestamptz computed_at
     }
     metric_aggregate {
@@ -607,7 +622,7 @@ The API runs each transaction as `untraded_api` (no `BYPASSRLS`) with `app.user_
 
 | Rows visible to `untraded_api` | Tables |
 |---|---|
-| a match one of the user's workspaces sees (`visible_match`) | `match`, `match_player`, `round`, `kill`, `damage`, `blind`, `grenade`, `economy`, `round_player`, `metric_value`, `metric_table_value`, `workspace_match`, `match_source` |
+| a match one of the user's workspaces sees (`visible_match`) | `match`, `match_player`, `round`, `kill`, `damage`, `blind`, `grenade`, `economy`, `round_player`, `metric_value`, `metric_table_value`, `team_metric_value`, `workspace_match`, `match_source` |
 | through such a match, or a player followed by one of the user's workspaces (`visible_player`) | `player` |
 | the user's workspaces (`is_member`) | `workspace`, `membership`, `workspace_role`, `workspace_player`, `roster`, `roster_member` |
 | the user's own player only (`own_player`), whichever workspace follows them | `play_session`, `play_session_match`, `play_session_metric`, `metric_aggregate`, `advice` (and one of the user's workspaces) |

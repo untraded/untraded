@@ -146,7 +146,8 @@ def test_every_metric_says_which_way_is_better() -> None:
 
 def test_every_rate_says_what_it_is_computed_over() -> None:
     for m in REGISTRY.values():
-        if m.kind == "table" or is_total(m.id):
+        # Table and team metrics carry their cases in their rows.
+        if m.kind in ("table", "team") or is_total(m.id):
             assert m.cases == (), m.id
             continue
         assert m.cases, f"{m.id}: a rate or an average needs its cases"

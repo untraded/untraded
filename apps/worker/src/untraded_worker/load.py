@@ -31,7 +31,7 @@ REGISTER_LOCK = 0x756E74726164  # "untrad"
 
 MATCH_TABLES = (
     "kill", "damage", "blind", "grenade", "economy", "round_player", "round",
-    "metric_value", "metric_table_value", "match_player",
+    "metric_value", "metric_table_value", "team_metric_value", "match_player",
 )  # fmt: skip
 """Tables holding one match's rows, deleted before a (re)load."""
 
@@ -277,6 +277,7 @@ def load_match(conn: psycopg.Connection[Any], match_id: uuid.UUID, analysis: Ana
         ["match_id", "steam_id", "metric_id", "version", "params_hash", "rows"],
         _table_rows(match_id, analysis),
     )
+    copy_team_values(conn, match_id, analysis.team_values)
 
     info = analysis.match
     conn.execute(
@@ -316,6 +317,25 @@ def load_match(conn: psycopg.Connection[Any], match_id: uuid.UUID, analysis: Ana
             "id": match_id,
         },
     )
+
+
+def copy_team_values(
+    conn: psycopg.Connection[Any], match_id: uuid.UUID, values: pl.DataFrame
+) -> None:
+    """Writes the match's team metrics (`analysis.team_values`); its rows must be gone already.
+    The registry must be recorded first (`register_metrics`)."""
+    rows = values.select(
+        "team", "metric", "version", pl.lit(DEFAULT_PARAMS), "key", "sub_key", "cases", "hits"
+    )
+    _copy(
+        conn,
+        "team_metric_value",
+        [
+            "match_id", "team", "metric_id", "version", "params_hash", "key", "sub_key",
+            "cases", "hits",
+        ],
+        ((match_id, *row) for row in rows.iter_rows()),
+    )  # fmt: skip
 
 
 def _table_rows(match_id: uuid.UUID, analysis: Analysis) -> Iterable[tuple[Any, ...]]:

@@ -11,7 +11,7 @@ from dataclasses import dataclass
 import polars as pl
 
 from untraded.derive import derive
-from untraded.metrics import REGISTRY, Dataset, compute, compute_table
+from untraded.metrics import REGISTRY, Dataset, compute, compute_table, compute_team
 
 SCOPES: dict[str, str | None] = {"match": None, "ct": "CT", "t": "T"}
 """SQL `metric_scope` -> the side the rounds are split on (metrics-v1 § 5)."""
@@ -25,6 +25,8 @@ class Analysis:
     """`value` metrics: `scope`, `steamid`, `metric`, `version`, `value`."""
     table_values: dict[str, pl.DataFrame]
     """`table` metrics by id: `steamid` and the metric's own columns."""
+    team_values: pl.DataFrame
+    """`team` metrics: `team`, `metric`, `version`, `key`, `sub_key`, `cases`, `hits`."""
 
     @property
     def match(self) -> dict[str, object]:
@@ -49,4 +51,16 @@ def analyze(canonical: Mapping[str, pl.DataFrame]) -> Analysis:
         for m in REGISTRY.values()
         if m.kind == "table"
     }
-    return Analysis(tables=tables, values=values, table_values=table_values)
+    return Analysis(
+        tables=tables,
+        values=values,
+        table_values=table_values,
+        team_values=team_values(dataset),
+    )
+
+
+def team_values(dataset: Dataset) -> pl.DataFrame:
+    """The team metrics of one match, per side (`untraded.metrics.team`)."""
+    return compute_team(dataset).select(
+        "team", "metric", "version", "key", "sub_key", "cases", "hits"
+    )

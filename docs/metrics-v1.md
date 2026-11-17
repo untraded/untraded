@@ -161,6 +161,20 @@ These metrics are distributions per map and side, not one number per player: the
 
 The **Untraded Rating** (beta) gives two numbers on one scale where 1.00 is the average player of a match: `rating.untraded`, what the player's actions were worth in the match (the ledger), and `rating.untraded_level`, what the player is worth (a box score calibrated on the ledger). Its models and its scale are measured on demos from consenting high-level players only ([ADR 0010](adr/0010-reference-data-and-corpus.md), [winprob](winprob.md)). On 54 matches, the level predicts the other half of a match better than HLTV 1.0 does, on HLTV 1.0 itself. Version 1.0 of `rating.untraded` was built on `rating.swing`, which stays for the 2D viewer.
 
+## 6b. Team metrics
+
+A team metric describes one **side of a match** (`team` A or B), not a player (`kind = "team"`, `compute_team`). It returns **counts**, never rates: rows of `key`, `sub_key`, `cases` and `hits`, the rate being hits ÷ cases. Counts add up, so a team's rate over many matches is recomputed over all their rounds, never averaged per match (§ 0). Which side is a team's is decided when the numbers are read: the side where at least 3 players of its roster on the match's date played, so the computation never depends on a roster. Only rounds whose winner is known count (a last round cut by the end of the demo is left out); overtime rounds count like the others. Team metrics read whole matches: `Dataset.split` does not apply to them.
+
+| ID | `key` | `sub_key` | `cases` | `hits` |
+|---|---|---|---|---|
+| `team.site_t` | The site of the plant: `A`, `B`, `none` (no plant), `unknown` (the planter's place names no site) | — | Rounds the side played on T | Rounds won |
+| `team.post_plant` | The site of the plant (`A`, `B`, `unknown`) | Players alive at the plant, `{us}v{them}` (e.g. `3v2`) | Rounds on T with the bomb planted | Rounds won |
+| `team.retake` | The site of the enemy's plant | Players alive at the plant, `{us}v{them}` | Rounds on CT with an enemy plant | Rounds won |
+| `team.buy` | The side's buy type (§ 5) | The enemy's buy type | Rounds | Rounds won |
+| `team.trades` | A player of the side (SteamID) | Empty for the total, else the teammate (SteamID) who traded the death | The player's deaths, all of them as in `trade.traded_death_pct` (in the rounds with a known winner) | Deaths traded within the trade window, § 2 (in total, or by that teammate) |
+
+A bomb **planted** after the round was decided (the last defender killed, then the bomb planted) is no plant: the round counts as `none`, and in neither post-plants nor retakes, as in the ledger (§ 6). Players **alive at the plant** are those present in the round (`round_player`) minus those of them dead at the plant's tick or before; a bot's death counts for nobody. A death is **traded** as in § 2: a teammate kills the killer within the window, both ends included (the `death` table, built from `kill`). A player can trade their own death (their grenade or fire kills the killer); a bot of the side that trades a death adds to the total but links no player.
+
 ## 7. Splits available in v1
 
 Every metric can be computed on any subset of rounds. `Dataset.split` keeps the rounds a player played:

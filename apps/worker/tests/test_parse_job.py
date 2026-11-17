@@ -16,7 +16,7 @@ import psycopg
 import pytest
 
 from untraded.parsing import CanonicalMatch, UnsupportedModeError
-from untraded_worker import queue, reanalyze, replays, swings
+from untraded_worker import queue, reanalyze, replays, swings, team_stats
 from untraded_worker.analysis import Analysis
 from untraded_worker.jobs import ON_DEAD, JobError, ParseJob
 from untraded_worker.load import load_match, refresh_access, sql_frames
@@ -59,6 +59,9 @@ def test_load_is_complete_and_idempotent(db: psycopg.Connection[Any], analysis: 
     assert _count(db, "metric_value", match_id) == analysis.values.height
     tables = sum(1 for f in analysis.table_values.values() for _ in f.group_by("steamid"))
     assert _count(db, "metric_table_value", match_id) == tables
+    assert _count(db, "team_metric_value", match_id) == analysis.team_values.height > 0
+    kinds = dict(db.execute("SELECT metric_id, kind FROM metric_definition").fetchall())
+    assert kinds["team.trades"] == "team"
     wide = db.execute(
         "SELECT count(*) FROM metric_wide_current WHERE match_id = %s AND scope = 'match' "
         "AND kills IS NOT NULL",
@@ -226,6 +229,34 @@ def test_parse_job_end_to_end(
     assert rating[0] > 0
     assert reanalyze.backfill(db, store) == 0  # nothing stale left
     assert reanalyze.backfill(db, store, force=True) == 1
+
+    # Matches parsed before the team metrics get them from `untraded-worker
+    # backfill-team-stats`, which recomputes nothing else (no session is queued).
+    team_rows = _count(db, "team_metric_value", match_id)
+    assert team_rows > 0
+    db.execute("DELETE FROM team_metric_value WHERE match_id = %s", (match_id,))
+    db.execute("DELETE FROM job WHERE kind = 'session'")
+    assert team_stats.backfill(db, store) == 1
+    assert _count(db, "team_metric_value", match_id) == team_rows
+    assert db.execute("SELECT count(*) FROM job WHERE kind = 'session'").fetchone() == (0,)
+    assert team_stats.backfill(db, store) == 0  # nothing left to do
+    # A row of a version that is no longer the current one (a new formula) is filled again.
+    db.execute(
+        "INSERT INTO metric_definition (metric_id, version, name, unit, kind, params, doc) "
+        "VALUES ('team.trades', '0.9.0', 'old', 'table', 'team', '{}', '')"
+    )
+    db.execute(
+        "UPDATE team_metric_value SET version = '0.9.0' "
+        "WHERE match_id = %s AND metric_id = 'team.trades'",
+        (match_id,),
+    )
+    assert team_stats.backfill(db, store) == 1
+    old = db.execute(
+        "SELECT count(*) FROM team_metric_value WHERE match_id = %s AND version = '0.9.0'",
+        (match_id,),
+    ).fetchone()
+    assert old == (0,)
+    assert _count(db, "team_metric_value", match_id) == team_rows
 
 
 def test_a_known_demo_is_merged_into_its_match(

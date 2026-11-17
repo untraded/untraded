@@ -2,7 +2,7 @@
 
 *Generated from the metric registry by `python -m untraded.metrics.docs`: do not edit by hand. The specification is [metrics-v1.md](../metrics-v1.md).*
 
-95 metrics, each with its own page. Parameters, their defaults and the calibrated thresholds are on [parameters.md](parameters.md).
+100 metrics, each with its own page. Parameters, their defaults and the calibrated thresholds are on [parameters.md](parameters.md).
 
 ## Shared conventions
 
@@ -143,3 +143,13 @@
 | [`rating.untraded_level`](rating.untraded_level.md) | Untraded Rating level | 1.0.0 | ratio | higher | — |
 | [`rating.untraded_margin`](rating.untraded_margin.md) | Untraded Rating margin | 2.0.0 | table | neutral | — |
 | [`rating.untraded_parts`](rating.untraded_parts.md) | Untraded Rating by action | 2.0.0 | table | neutral | — |
+
+## Team
+
+| Metric | Name | Version | Unit | Better | vs. CS Demo Manager |
+|---|---|---|---|---|---|
+| [`team.buy`](team.buy.md) | Rounds by buy type | 1.0.0 | table | higher | — |
+| [`team.post_plant`](team.post_plant.md) | Post-plants | 1.0.0 | table | higher | — |
+| [`team.retake`](team.retake.md) | Retakes | 1.0.0 | table | higher | — |
+| [`team.site_t`](team.site_t.md) | T rounds by site | 1.0.0 | table | higher | — |
+| [`team.trades`](team.trades.md) | Trade network | 1.0.0 | table | higher | — |

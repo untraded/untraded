@@ -7,6 +7,8 @@ UNTRADED_UPLOADS_DIR, UNTRADED_UPLOAD_MAX_DEMO_GB, UNTRADED_DEMO_RETENTION_DAYS)
 `untraded-worker reanalyze`: analyse the matches parsed before again (new metrics or versions).
 `untraded-worker backfill-spread`: fill the spread of the references of the sessions written
 before it existed, without recomputing any session (none changes its id).
+`untraded-worker backfill-team-stats`: write the team metrics of the matches parsed before them,
+without recomputing anything else.
 `untraded-worker retry-failed`: put the failed matches back in the queue, after a fix.
 `untraded-worker refresh-access`: recompute which workspaces see every match (teams).
 `untraded-worker import-demo <dir>`: load the demo account (`untraded demo build`)."""
@@ -35,6 +37,7 @@ from untraded_worker import (
     store_dir,
     swings,
     team_access,
+    team_stats,
     uploads_dir,
 )
 from untraded_worker.jobs import dead_handlers, handlers
@@ -65,6 +68,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         "backfill-spread",
         help="fill reference_p10 and reference_p90 of existing sessions (nothing else changes)",
     )
+    actions.add_parser(
+        "backfill-team-stats",
+        help="write the team metrics of matches parsed before them (nothing else changes)",
+    )
     actions.add_parser("retry-failed", help="put the failed matches back in the queue")
     actions.add_parser(
         "refresh-access", help="recompute which workspaces see every match (rosters, sharing)"
@@ -91,6 +98,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         with psycopg.connect(conninfo(), autocommit=True) as conn:
             done = spread.backfill(conn, store)
         logging.info("spread filled for %s session(s)", done)
+        return 0
+    if args.action == "backfill-team-stats":
+        with psycopg.connect(conninfo(), autocommit=True) as conn:
+            done = team_stats.backfill(conn, store)
+        logging.info("team metrics written for %s match(es)", done)
         return 0
     if args.action == "retry-failed":
         with psycopg.connect(conninfo(), autocommit=True) as conn:
