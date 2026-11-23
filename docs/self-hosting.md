@@ -288,7 +288,9 @@ It creates the demo user (`76561190000100001`, "Demo"), loads the matches and qu
 sessions; running it again skips what is loaded (to rebuild the demo with other matches, erase
 the demo user first). Set `UNTRADED_DEMO_STEAM_ID=76561190000100001` for the API: the demo then
 opens at `/api/auth/demo`, read-only, for 2 hours (the worker purges expired sessions). Rate-limit
-that path at your reverse proxy.
+that path at your reverse proxy. The worker keeps the demo's age: every day it moves all its dates
+forward together, so that its last match is always yesterday (ids, sessions and reports stay the
+same).
 
 The names, ids, server, game build and dates are changed, but the maps, scores and rounds are
 real: someone who knows whose matches they are could find them in public match histories. Use
