@@ -62,19 +62,30 @@ WHERE dt_w.kind = 'team'
       WHERE dt_m.workspace_id = dt_w.id AND NOT {fake("dt_u.steam_id")})"""
 """The teams whose every member is a demo account."""
 
-DEMO_SOURCE = f"""(
-    (ms.kind = 'upload' AND starts_with(ms.external_id, 'demo:'))
-    OR s.workspace_id IN ({DEMO_TEAMS})
-    OR s.user_id IN (SELECT ds_u.id FROM app_user ds_u WHERE {fake("ds_u.steam_id")}))"""
-"""A SQL condition on a source `ms` (`match_source`) and its `s` (`ingest_source`, left-joined):
-it is the demo's."""
 
-DEMO_MATCHES = f"""
+def demo_source(teams: str) -> str:
+    """A SQL condition on a source `ms` (`match_source`) and its `s` (`ingest_source`,
+    left-joined): it is the demo's, with `teams` the demo teams (a query of their `id`). Never
+    null (EXISTS, not IN: a source has a user or a workspace, never both), so its negation holds
+    for every source that is not the demo's."""
+    return f"""(
+    (ms.kind = 'upload' AND starts_with(ms.external_id, 'demo:'))
+    OR EXISTS (SELECT 1 FROM ({teams}) ds_t WHERE ds_t.id = s.workspace_id)
+    OR EXISTS (SELECT 1 FROM app_user ds_u
+               WHERE ds_u.id = s.user_id AND {fake("ds_u.steam_id")}))"""
+
+
+def demo_matches(teams: str) -> str:
+    """The demo's matches (a `match_id` column)."""
+    return f"""
 SELECT DISTINCT ms.match_id FROM match_source ms
 LEFT JOIN ingest_source s ON s.id = ms.source_id
-WHERE {DEMO_SOURCE}"""
-"""The demo's matches (a `match_id` column)."""
+WHERE {demo_source(teams)}"""
+
+
+TEAMS = "SELECT id FROM demo_shift_team"
 SHIFTED = "(SELECT match_id FROM demo_shift)"
+SESSIONS = "(SELECT id FROM demo_shift_session)"
 
 
 @contextmanager
@@ -93,7 +104,7 @@ def current_offset(conn: psycopg.Connection[Any], store: LocalStore) -> dt.timed
     row = conn.execute(
         f"""
         SELECT m.played_at, m.parquet_prefix FROM match m
-        WHERE m.id IN ({DEMO_MATCHES}) AND m.status = 'ready'
+        WHERE m.id IN ({demo_matches(DEMO_TEAMS)}) AND m.status = 'ready'
           AND m.parquet_prefix IS NOT NULL AND m.played_at IS NOT NULL
         ORDER BY m.played_at DESC LIMIT 1
         """
@@ -113,7 +124,12 @@ def _refusal(conn: psycopg.Connection[Any]) -> str | None:
         (
             "a source of a demo match is not the demo's",
             f"""SELECT 1 FROM match_source ms LEFT JOIN ingest_source s ON s.id = ms.source_id
-                WHERE ms.match_id IN {SHIFTED} AND NOT {DEMO_SOURCE}""",
+                WHERE ms.match_id IN {SHIFTED} AND NOT {demo_source(TEAMS)}""",
+        ),
+        (
+            "a demo team has a member who is not a demo account",
+            f"""SELECT 1 FROM membership m JOIN app_user u ON u.id = m.user_id
+                WHERE m.workspace_id IN ({TEAMS}) AND NOT {fake("u.steam_id")}""",
         ),
         (
             "a demo match names a player who is not a demo account",
@@ -159,7 +175,14 @@ def shift(conn: psycopg.Connection[Any], today: dt.date | None = None) -> int:
         if got != (True,):
             return 0  # a demo import is running: the next run will do it
         conn.execute("SET LOCAL TimeZone = 'UTC'")
-        conn.execute(f"CREATE TEMP TABLE demo_shift ON COMMIT DROP AS {DEMO_MATCHES}")
+        # The demo teams, locked (as the team functions lock a team before changing its
+        # members; in id order, as they lock several), then frozen: every statement below sees
+        # the same ones, and a refusal below checks their members again.
+        conn.execute(
+            f"SELECT 1 FROM workspace WHERE id IN ({DEMO_TEAMS}) ORDER BY id FOR NO KEY UPDATE"
+        )
+        conn.execute(f"CREATE TEMP TABLE demo_shift_team ON COMMIT DROP AS {DEMO_TEAMS}")
+        conn.execute(f"CREATE TEMP TABLE demo_shift ON COMMIT DROP AS {demo_matches(TEAMS)}")
         conn.execute(f"SELECT 1 FROM match WHERE id IN {SHIFTED} FOR UPDATE")
         last = conn.execute(
             f"SELECT max(played_at)::date FROM match WHERE id IN {SHIFTED}"
@@ -177,6 +200,13 @@ def shift(conn: psycopg.Connection[Any], today: dt.date | None = None) -> int:
         if waiting is not None:
             log.info("demo dates not moved yet: %s", waiting)
             return 0
+        # The demo accounts' sessions, made of the demo's matches only.
+        conn.execute(
+            f"""CREATE TEMP TABLE demo_shift_session ON COMMIT DROP AS
+            SELECT ps.id FROM play_session ps WHERE {fake("ps.steam_id")}
+              AND NOT EXISTS (SELECT 1 FROM play_session_match psm
+                              WHERE psm.session_id = ps.id AND psm.match_id NOT IN {SHIFTED})"""
+        )
         _move(conn, days)
     log.info("demo dates moved %s day(s) forward", days)
     return days
@@ -201,20 +231,20 @@ def _move(conn: psycopg.Connection[Any], days: int) -> None:
     for step in (f"+ {by} + interval '1000 years'", "- interval '1000 years'"):
         conn.execute(
             f"UPDATE play_session SET started_at = started_at {step}, "
-            f"ended_at = ended_at {step} WHERE {fake('steam_id')}",
+            f"ended_at = ended_at {step} WHERE id IN {SESSIONS}",
             p,
         )
     conn.execute(
         "UPDATE play_session SET reference_from = reference_from + %(days)s, "
-        f"reference_to = reference_to + %(days)s WHERE {fake('steam_id')}",
+        f"reference_to = reference_to + %(days)s WHERE id IN {SESSIONS}",
         p,
     )
     conn.execute(
         f"UPDATE advice SET session_from = session_from + {by}, session_to = session_to + {by} "
-        f"WHERE {fake('steam_id')}",
+        f"WHERE session_id IN {SESSIONS}",
         p,
     )
-    teams = f"workspace_id IN ({DEMO_TEAMS})"
+    teams = f"workspace_id IN ({TEAMS})"
     conn.execute(
         f"UPDATE review_comment SET created_at = {capped.format(c='created_at')}, "
         f"edited_at = {capped.format(c='edited_at')} WHERE {teams}",

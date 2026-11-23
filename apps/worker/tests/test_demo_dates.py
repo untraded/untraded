@@ -197,9 +197,29 @@ def test_a_real_players_data_stops_the_shift(
     assert demo_dates.shift(db, TODAY) == 0
     assert _demo_dates(db) == before
     db.execute("DELETE FROM match_source WHERE external_id = 'real'")
-    # A real player joins the demo's team: its matches are no longer the demo's alone.
+    # A real player's upload of a demo match (as if the same file merged): theirs, it stays.
     db.execute("INSERT INTO invitation (steam_id, display_name) VALUES (%s, 'x')", (REAL + 50,))
     db.execute("SELECT open_auth_session(%s, %s, interval '1 minute')", (REAL + 50, b"t" * 32))
+    db.execute(
+        "INSERT INTO ingest_source (user_id, kind) SELECT id, 'upload' FROM app_user "
+        "WHERE steam_id = %s",
+        (REAL + 50,),
+    )
+    db.execute(
+        "INSERT INTO match_source (match_id, kind, external_id, source_id) "
+        "SELECT m.id, 'upload', gen_random_uuid()::text, s.id FROM match m, ingest_source s "
+        "JOIN app_user u ON u.id = s.user_id WHERE m.sha256 IS NOT NULL AND u.steam_id = %s "
+        "ORDER BY m.played_at LIMIT 1",
+        (REAL + 50,),
+    )
+    assert demo_dates.shift(db, TODAY) == 0
+    assert _demo_dates(db) == before
+    db.execute(
+        "DELETE FROM match_source WHERE source_id IN (SELECT s.id FROM ingest_source s "
+        "JOIN app_user u ON u.id = s.user_id WHERE u.steam_id = %s)",
+        (REAL + 50,),
+    )
+    # A real player joins the demo's team: its matches are no longer the demo's alone.
     db.execute(
         "INSERT INTO membership (workspace_id, user_id, role_id) "
         "SELECT w.id, u.id, r.id FROM workspace w JOIN workspace_role r ON r.workspace_id = w.id "
