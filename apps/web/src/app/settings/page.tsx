@@ -22,6 +22,7 @@ import { CodesForm } from "@/components/codes-form";
 import { codesLabels } from "@/components/codes-labels";
 import { ConfirmSubmit } from "@/components/confirm-submit";
 import { ConsentText } from "@/components/consent-text";
+import { InstallSetting } from "@/components/pwa/install-setting";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Panel } from "@/components/ui/panel";
 import {
@@ -63,7 +64,7 @@ export default async function Settings({
     searchParams,
   ]);
   if (!me) redirect("/");
-  const demo = await getTranslations("demo");
+  const [demo, install] = await Promise.all([getTranslations("demo"), getTranslations("install")]);
   return (
     <section className="flex max-w-3xl flex-col gap-3.5">
       <h1 className="mb-2 text-2xl font-semibold md:text-[1.75rem]">{t("title")}</h1>
@@ -96,6 +97,13 @@ export default async function Settings({
             options={THEMES.map((theme) => ({ value: theme, label: t(`themes.${theme}`) }))}
           />
         </Row>
+        <InstallSetting
+          labels={{
+            title: install("settingTitle"),
+            hint: install("settingHint"),
+            install: install("install"),
+          }}
+        />
       </Panel>
       {me.demo ? (
         <p className="rounded-md border border-dashed border-border bg-card px-3.5 py-2.5 text-sm text-muted-foreground">

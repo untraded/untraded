@@ -25,6 +25,8 @@ export interface MoreSheetProps {
     /** The team mode preview, admins only too, with its badge. */
     team: string | null;
     preview: string;
+    /** "Install the app": shown only where the browser can (`components/pwa`). */
+    install: string;
     signOut: string;
   };
   /** Where the upload entry goes, when not the player's own upload page (a team's). */
