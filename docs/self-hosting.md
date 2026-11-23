@@ -157,6 +157,31 @@ Keep `max_size` in line with `UNTRADED_UPLOAD_MAX_MB`.
 of a route's response, so the relay cannot gzip it itself), and a round replay of the 2D viewer
 is about ten times smaller compressed.
 
+### Installing it as an app
+
+Players can install the site on a phone's home screen or a computer: Chrome and Edge (Android,
+desktop) offer it, and on an iPhone or iPad Safari's Share menu does ("Add to Home Screen"). It
+needs nothing of its own: the manifest (`/manifest.webmanifest`) and the service worker (`/sw.js`)
+come with the web, and every address in them is relative, so an instance installs the same
+under any address. Browsers install only from a site served over **HTTPS** (or from
+`http://localhost`). The service worker keeps one page, the offline page, the same for everyone;
+it never stores a page nor an API answer. The web sends `/sw.js` with `Cache-Control: no-cache`:
+do not let a proxy or a CDN cache it longer, or players would keep an old worker after an update.
+A fork that drops the service worker must not just delete `/sw.js`: browsers keep the installed
+worker while its script answers 404. Serve a worker that unregisters itself instead
+(`self.registration.unregister()` in its `activate` handler), for a few weeks.
+
+The app's icon is the Untraded logo, a trademark (`TRADEMARKS.md`): an **unmodified** instance
+keeps it. A **fork** replaces the name and every icon:
+
+- `apps/web/public/icons/`: `icon-192.png`, `icon-512.png` and `icon-maskable-512.png` (keep the
+  sign inside the central 80 % circle: launchers crop the rest);
+- `apps/web/src/app/`: `icon.svg`, `apple-icon.png` (iPhone home screen), `favicon.ico`,
+  `opengraph-image.png`;
+- `apps/web/src/components/brand/logo.tsx`: the logo in the pages, also drawn on the offline page
+  and in the install offer;
+- the name, in `apps/web/src/app/manifest.ts` and `apps/web/src/app/layout.tsx`.
+
 ## Checking it works
 
 ```bash
