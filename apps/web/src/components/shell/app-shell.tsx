@@ -5,6 +5,8 @@ import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { LogoHorizontal, LogoSymbol16 } from "@/components/brand/logo";
 import { DemoBanner } from "@/components/demo-banner";
+import { InstallHelp } from "@/components/pwa/install-help";
+import { InstallStrip } from "@/components/pwa/install-strip";
 import { roleLabel } from "@/components/teams/role-label";
 import type { Me, WorkspaceRef } from "@/lib/api";
 import { cn } from "@/lib/cn";
@@ -42,7 +44,11 @@ export async function AppShell({
   collapsed: boolean;
   children: ReactNode;
 }) {
-  const [t, teamsT] = await Promise.all([getTranslations("nav"), getTranslations("teams")]);
+  const [t, teamsT, installT] = await Promise.all([
+    getTranslations("nav"),
+    getTranslations("teams"),
+    getTranslations("install"),
+  ]);
   const teams = teamsOf(me);
   const slugs = teams.map((w) => w.slug);
   const spaces = teams.length > 0 ? spacesOf(me, teams, teamsT) : [];
@@ -57,6 +63,7 @@ export async function AppShell({
     admin: me.admin ? t("admin") : null,
     team: me.admin ? t("team") : null,
     preview: t("preview"),
+    install: installT("menu"),
     signOut: t("signOut"),
   };
   return (
@@ -254,6 +261,7 @@ export async function AppShell({
             labels={{
               account: t("account", { name: me.display_name }),
               settings: t("settings"),
+              install: installT("menu"),
               signOut: t("signOut"),
             }}
           />
@@ -278,74 +286,106 @@ export async function AppShell({
         <main
           id="content"
           tabIndex={-1}
-          className="mx-auto max-w-6xl px-4 pt-6 pb-24 md:px-8 md:pt-8 md:pb-12"
+          className="mx-auto max-w-6xl px-4 pt-6 pb-24 max-md:group-has-[[data-install-strip]]/shell:pb-40 md:px-8 md:pt-8 md:pb-12"
         >
           {me.demo && <DemoBanner />}
           {children}
         </main>
       </div>
 
-      <nav
+      {/* The phone's foot: the offer to install the app, if any, then the tabs. */}
+      <div
         data-chrome
-        aria-label={t("main")}
-        className="fixed inset-x-0 bottom-0 z-10 border-t border-chrome-line pb-[env(safe-area-inset-bottom)] md:hidden"
+        className="fixed inset-x-0 bottom-0 z-10 pb-[env(safe-area-inset-bottom)] md:hidden"
       >
-        <SpaceSwitch
-          slugs={slugs}
-          personal={
-            <div className="grid grid-cols-4">
-              <NavLink section="home" label={t("home")} place="tab" />
-              <NavLink section="sessions" label={t("sessions")} place="tab" />
-              <NavLink section="matches" label={t("matches")} place="tab" />
-              <MoreSheet labels={moreLabels} />
-            </div>
-          }
-          teams={Object.fromEntries(
-            teams.map((w) => [
-              w.slug,
-              <div
-                key={w.slug}
-                className={cn("grid", readsMatches(w.permissions) ? "grid-cols-4" : "grid-cols-3")}
-              >
-                <NavLink
-                  section="home"
-                  href={teamHref(w.slug)}
-                  exact
-                  label={t("teamHome")}
-                  place="tab"
-                />
-                {readsMatches(w.permissions) && (
+        <InstallStrip
+          labels={{
+            label: installT("stripLabel"),
+            title: installT("stripTitle"),
+            lead: installT("stripLead"),
+            install: installT("install"),
+            dismiss: installT("dismiss"),
+          }}
+        />
+        <nav aria-label={t("main")} className="border-t border-chrome-line">
+          <SpaceSwitch
+            slugs={slugs}
+            personal={
+              <div className="grid grid-cols-4">
+                <NavLink section="home" label={t("home")} place="tab" />
+                <NavLink section="sessions" label={t("sessions")} place="tab" />
+                <NavLink section="matches" label={t("matches")} place="tab" />
+                <MoreSheet labels={moreLabels} />
+              </div>
+            }
+            teams={Object.fromEntries(
+              teams.map((w) => [
+                w.slug,
+                <div
+                  key={w.slug}
+                  className={cn(
+                    "grid",
+                    readsMatches(w.permissions) ? "grid-cols-4" : "grid-cols-3",
+                  )}
+                >
                   <NavLink
-                    section="matches"
-                    href={teamHref(w.slug, "matches")}
-                    label={t("teamMatches")}
+                    section="home"
+                    href={teamHref(w.slug)}
+                    exact
+                    label={t("teamHome")}
                     place="tab"
                   />
-                )}
-                <NavLink
-                  section="teams"
-                  href={teamHref(w.slug, "members")}
-                  label={t("teamMembers")}
-                  place="tab"
-                />
-                <MoreSheet
-                  labels={{
-                    ...moreLabels,
-                    progress: null,
-                    stats: readsMatches(w.permissions) ? t("teamStats") : null,
-                    upload: sendsMatches(w) ? t("teamUpload") : null,
-                    review: readsMatches(w.permissions) ? t("teamReview") : null,
-                    team: null,
-                  }}
-                  uploadHref={teamHref(w.slug, "upload")}
-                  statsHref={teamHref(w.slug, "stats")}
-                  reviewHref={teamHref(w.slug, "review")}
-                />
-              </div>,
-            ]),
-          )}
-        />
-      </nav>
+                  {readsMatches(w.permissions) && (
+                    <NavLink
+                      section="matches"
+                      href={teamHref(w.slug, "matches")}
+                      label={t("teamMatches")}
+                      place="tab"
+                    />
+                  )}
+                  <NavLink
+                    section="teams"
+                    href={teamHref(w.slug, "members")}
+                    label={t("teamMembers")}
+                    place="tab"
+                  />
+                  <MoreSheet
+                    labels={{
+                      ...moreLabels,
+                      progress: null,
+                      stats: readsMatches(w.permissions) ? t("teamStats") : null,
+                      upload: sendsMatches(w) ? t("teamUpload") : null,
+                      review: readsMatches(w.permissions) ? t("teamReview") : null,
+                      team: null,
+                    }}
+                    uploadHref={teamHref(w.slug, "upload")}
+                    statsHref={teamHref(w.slug, "stats")}
+                    reviewHref={teamHref(w.slug, "review")}
+                  />
+                </div>,
+              ]),
+            )}
+          />
+        </nav>
+      </div>
+      <InstallHelp
+        labels={{
+          title: installT("iosTitle"),
+          lead: installT("iosLead"),
+          share: installT.rich("iosShare", {
+            b: (chunks) => <strong>{chunks}</strong>,
+            more: (chunks) => (
+              <>
+                <span aria-hidden="true">{chunks}</span>
+                <span className="sr-only">{installT("iosMore")}</span>
+              </>
+            ),
+          }),
+          add: installT.rich("iosAdd", { b: (chunks) => <strong>{chunks}</strong> }),
+          done: installT("iosDone"),
+          close: installT("close"),
+        }}
+      />
     </div>
   );
 }

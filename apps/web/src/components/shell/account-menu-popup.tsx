@@ -2,16 +2,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 "use client";
 
-import { LogOut } from "lucide-react";
+import { Download, LogOut } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useTransition } from "react";
 import { signOut } from "@/app/actions";
+import { useCanInstall } from "@/components/pwa/use-install";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { install } from "@/lib/install";
 import type { AccountMenuProps } from "./account-menu";
 import { ACCOUNT_TRIGGER_CLASS, AccountTriggerFace } from "./account-trigger";
 import type { LazyStart } from "./lazy-popup";
@@ -25,6 +27,7 @@ export function AccountMenuPopup({
   focusTrigger,
 }: AccountMenuProps & LazyStart) {
   const [, startTransition] = useTransition();
+  const canInstall = useCanInstall();
   const trigger = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (focusTrigger) trigger.current?.focus();
@@ -44,6 +47,12 @@ export function AccountMenuPopup({
           <Settings aria-hidden="true" />
           {labels.settings}
         </DropdownMenuItem>
+        {canInstall && (
+          <DropdownMenuItem onClick={() => void install({ afterClose: true })}>
+            <Download aria-hidden="true" />
+            {labels.install}
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem onClick={() => startTransition(() => signOut())}>
           <LogOut aria-hidden="true" />
           {labels.signOut}

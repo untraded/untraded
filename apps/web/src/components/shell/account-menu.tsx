@@ -10,7 +10,7 @@ import { useLazyPopup } from "./lazy-popup";
 export interface AccountMenuProps {
   name: string;
   /** `account` is the trigger's accessible name, e.g. "Account: name". */
-  labels: { account: string; settings: string; signOut: string };
+  labels: { account: string; settings: string; install: string; signOut: string };
 }
 
 const popup = lazyModule(() => import("./account-menu-popup").then((m) => m.AccountMenuPopup));

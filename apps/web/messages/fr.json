@@ -1803,5 +1803,29 @@
     "tradedDeaths": "Morts tradées",
     "cell": "{trader} trade la mort de {victim} : {count}",
     "noTrades": "Aucune mort dans cette sélection."
+  },
+  "install": {
+    "menu": "Installer l'app",
+    "manifestDescription": "Analyse et coaching CS2 ouverts : tes priorités après chaque session, prouvées par tes rounds.",
+    "stripLabel": "Installer l'app",
+    "stripTitle": "Untraded en app",
+    "stripLead": "Tes rapports en un geste.",
+    "install": "Installer",
+    "dismiss": "Ne plus proposer",
+    "settingTitle": "Application",
+    "settingHint": "Ouvre Untraded depuis ton écran d'accueil ou ta barre des tâches, sans barre d'adresse.",
+    "iosTitle": "Installer Untraded",
+    "iosLead": "Sur iPhone et iPad, pas de bouton : deux gestes suffisent. Depuis une autre app (Discord…), ouvre d'abord la page dans Safari.",
+    "iosShare": "Touche <b>Partager</b> (sous <more>•••</more> si tu ne le vois pas).",
+    "iosAdd": "Puis choisis <b>Sur l'écran d'accueil</b>.",
+    "iosDone": "J'ai compris",
+    "close": "Fermer",
+    "iosMore": "le bouton Plus"
+  },
+  "offline": {
+    "title": "Hors ligne",
+    "heading": "Pas de réseau",
+    "body": "Untraded a besoin d'une connexion pour afficher tes matchs : rien n'est gardé sur cet appareil. Vérifie ta connexion, puis réessaie.",
+    "retry": "Réessayer"
   }
 }

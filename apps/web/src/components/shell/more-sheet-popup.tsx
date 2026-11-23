@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 "use client";
 
-import { LogOut } from "lucide-react";
+import { Download, LogOut } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { signOut } from "@/app/actions";
+import { useCanInstall } from "@/components/pwa/use-install";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { install } from "@/lib/install";
 import type { LazyStart } from "./lazy-popup";
 import type { MoreSheetProps } from "./more-sheet";
 import { MORE_TRIGGER_CLASS, MoreTriggerFace } from "./more-trigger";
@@ -24,6 +26,7 @@ export function MoreSheetPopup({
 }: MoreSheetProps & LazyStart) {
   const [open, setOpen] = useState(defaultOpen);
   const [, startTransition] = useTransition();
+  const canInstall = useCanInstall();
   const trigger = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (focusTrigger) trigger.current?.focus();
@@ -99,6 +102,19 @@ export function MoreSheetPopup({
             <Admin aria-hidden="true" />
             {labels.admin}
           </Link>
+        )}
+        {canInstall && (
+          <button
+            type="button"
+            className={row}
+            onClick={() => {
+              setOpen(false);
+              void install({ afterClose: true });
+            }}
+          >
+            <Download aria-hidden="true" />
+            {labels.install}
+          </button>
         )}
         <button type="button" className={row} onClick={() => startTransition(() => signOut())}>
           <LogOut aria-hidden="true" />
