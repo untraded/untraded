@@ -23,7 +23,7 @@ from typing import Any
 import psycopg
 
 from untraded.parsing import CanonicalMatch
-from untraded_worker import load, replays, sessions
+from untraded_worker import demo_dates, load, replays, sessions
 from untraded_worker.analysis import analyze
 from untraded_worker.store import LocalStore
 
@@ -152,14 +152,20 @@ def import_demo(
     with conn.transaction():
         ensure_user(conn, steam_id, name, consent_version)
     done = 0
-    for entry in entries:
-        match_id = str(entry["match_id"])
-        if not match_id.isalnum():
-            raise ValueError(f"unexpected match id in demo.json: {match_id!r}")
-        loaded = import_match(conn, store, root / "matches" / match_id, entry)
-        if loaded is not None:
-            log.info("demo match %s loaded as %s", match_id, loaded)
-            done += 1
+    with demo_dates.demo_lock(conn):
+        # The demo's dates may have moved since it was built: new matches join them.
+        offset = demo_dates.current_offset(conn, store)
+        for entry in entries:
+            match_id = str(entry["match_id"])
+            if not match_id.isalnum():
+                raise ValueError(f"unexpected match id in demo.json: {match_id!r}")
+            moved = dt.datetime.fromisoformat(str(entry["played_at"])) + offset
+            loaded = import_match(
+                conn, store, root / "matches" / match_id, {**entry, "played_at": moved}
+            )
+            if loaded is not None:
+                log.info("demo match %s loaded as %s", match_id, loaded)
+                done += 1
     # The demo replays real matches: it stays out of the references by level.
     conn.execute("UPDATE player SET benchmark_opt_out = true WHERE steam_id = %s", (steam_id,))
     return done

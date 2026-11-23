@@ -36,6 +36,7 @@ import psycopg
 from untraded.demo import FAKE_STEAM_BASE, REAL_LOWEST
 from untraded.fixtures import PLAYER_COLUMNS
 from untraded.parsing import CanonicalMatch
+from untraded_worker import demo_dates
 from untraded_worker.demo import Source, ensure_user, import_match
 from untraded_worker.store import LocalStore
 
@@ -187,33 +188,37 @@ def import_demo_team(
         team_source = _upload_source(conn, "workspace_id", team)
 
     done = 0
-    for entry, start in zip(entries, starts, strict=True):
-        match_id = str(entry["match_id"])
-        sender = users[_fake(entry["sent_by"])]
-        received = start + RECEIVED_AFTER
-        external = str(_match_uuid(match_id))
-        if entry["via"] == "team":
-            source = Source(team_source, external, received, sender)
-        elif entry["via"] == "roster":
-            with conn.transaction():
-                personal = _upload_source(conn, "user_id", sender)
-            source = Source(personal, external, received)
-        else:
-            raise ValueError(f"unexpected way in for a match in team.json: {entry['via']!r}")
-        loaded = import_match(conn, store, root / "matches" / match_id, entry, source)
-        if loaded is not None:
-            log.info("demo team match %s loaded as %s", match_id, loaded)
-            done += 1
+    with demo_dates.demo_lock(conn):
+        # The demo's dates may have moved since it was built: the team's matches join them.
+        offset = demo_dates.current_offset(conn, store)
+        for entry, start in zip(entries, starts, strict=True):
+            match_id = str(entry["match_id"])
+            sender = users[_fake(entry["sent_by"])]
+            received = start + offset + RECEIVED_AFTER
+            external = str(_match_uuid(match_id))
+            if entry["via"] == "team":
+                source = Source(team_source, external, received, sender)
+            elif entry["via"] == "roster":
+                with conn.transaction():
+                    personal = _upload_source(conn, "user_id", sender)
+                source = Source(personal, external, received)
+            else:
+                raise ValueError(f"unexpected way in for a match in team.json: {entry['via']!r}")
+            moved = {**entry, "played_at": start + offset}
+            loaded = import_match(conn, store, root / "matches" / match_id, moved, source)
+            if loaded is not None:
+                log.info("demo team match %s loaded as %s", match_id, loaded)
+                done += 1
 
-    # Everyone in these matches replays a real player, and the team's people are invented: none
-    # of them goes into the references.
-    conn.execute(
-        "UPDATE player SET benchmark_opt_out = true WHERE steam_id IN ("
-        "SELECT mp.steam_id FROM match_player mp JOIN match m ON m.id = mp.match_id "
-        "WHERE m.sha256 = ANY (%s)) OR steam_id = ANY (%s)",
-        ([str(e["match_id"]) for e in entries], sorted(known)),
-    )
-    _review(conn, team, manifest, users)
+        # Everyone in these matches replays a real player, and the team's people are invented: none
+        # of them goes into the references.
+        conn.execute(
+            "UPDATE player SET benchmark_opt_out = true WHERE steam_id IN ("
+            "SELECT mp.steam_id FROM match_player mp JOIN match m ON m.id = mp.match_id "
+            "WHERE m.sha256 = ANY (%s)) OR steam_id = ANY (%s)",
+            ([str(e["match_id"]) for e in entries], sorted(known)),
+        )
+        _review(conn, team, manifest, users, offset)
     return done
 
 
@@ -236,6 +241,7 @@ def _review(
     team: uuid.UUID,
     manifest: dict[str, Any],
     users: dict[int, uuid.UUID],
+    offset: dt.timedelta,
 ) -> None:
     """The team's comments, tags and playlists, written as their authors (the tags and the
     playlists as the coach, who holds `review.manage`)."""
@@ -246,6 +252,7 @@ def _review(
             "SELECT sha256, id FROM match WHERE sha256 = ANY (%s)", (ids,)
         ).fetchall()
     }
+    now = dt.datetime.now(dt.UTC)
     coach = next(users[int(p["steam_id"])] for p in manifest["people"] if p["role"] == "coach")
     for c in manifest["comments"]:
         match = matches[str(c["match_id"])]
@@ -265,7 +272,7 @@ def _review(
             assert row is not None
             conn.execute(
                 "UPDATE review_comment SET created_at = %s WHERE id = %s",
-                (dt.datetime.fromisoformat(str(c["at"])), row[0]),
+                (min(dt.datetime.fromisoformat(str(c["at"])) + offset, now), row[0]),
             )
     with conn.transaction():
         _as(conn, coach)

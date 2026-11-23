@@ -30,6 +30,7 @@ from untraded.demo_team import TEAM_SLUG
 from untraded_worker import (
     conninfo,
     demo,
+    demo_dates,
     demo_team,
     isolated,
     levels,
@@ -165,6 +166,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     periodic = [
         Periodic(levels.EVERY, levels.compute_levels),
         Periodic(RETENTION_EVERY, retention.purge_sessions),
+        Periodic(demo_dates.EVERY, demo_dates.shift),
     ]
     if keep is not None:
         periodic.append(Periodic(RETENTION_EVERY, retention.Sweep(store, keep)))
