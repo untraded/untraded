@@ -67,7 +67,7 @@ def _real_rows(db: psycopg.Connection[Any]) -> tuple[Any, ...]:
         "INSERT INTO match_source (match_id, kind, external_id) VALUES (%s, 'valve_bot', 'x')",
         (match[0],),
     )
-    db.execute("INSERT INTO player (steam_id) VALUES (%s)", (REAL + 99,))
+    db.execute("INSERT INTO player (steam_id, last_name) VALUES (%s, 'real')", (REAL + 99,))
     db.execute(
         "INSERT INTO play_session (steam_id, started_at, ended_at, matches, rounds, "
         "reference_from, reference_to, reference_matches, reference_rounds, enough, params) "
